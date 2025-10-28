@@ -14,15 +14,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Top-Right Logo */}
-      <div className="fixed top-6 right-6 z-10">
-        <div className="rounded-full bg-white/80 backdrop-blur-sm border border-primary/10 px-4 py-2 shadow-sm">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
-            onlinedoctornote
-          </span>
-        </div>
-      </div>
-
       {/* Hero Section */}
       <section className="pt-24 pb-16 px-6">
         <div className="mx-auto max-w-4xl text-center">

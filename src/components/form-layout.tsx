@@ -29,15 +29,6 @@ export function FormLayout({
 
   return (
     <div className="min-h-screen bg-white text-foreground">
-      {/* Top-Right Logo Badge */}
-      <div className="fixed top-2 right-2 sm:top-6 sm:right-6 z-10">
-        <div className="rounded-full bg-white/80 backdrop-blur-sm border border-primary/10 px-3 py-1.5 sm:px-4 sm:py-2 shadow-sm">
-          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
-            onlinedoctornote
-          </span>
-        </div>
-      </div>
-
       <main className="mx-auto w-full max-w-4xl px-6 py-8">
         {/* Top Bar: Progress + Trust Badges */}
         {!hideProgressAndBadges && (

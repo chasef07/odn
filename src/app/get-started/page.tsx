@@ -35,15 +35,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-foreground">
-      {/* Top-Right Logo Badge */}
-      <div className="fixed top-6 right-6 z-10">
-        <div className="rounded-full bg-white/80 backdrop-blur-sm border border-primary/10 px-4 py-2 shadow-sm">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
-            onlinedoctornote
-          </span>
-        </div>
-      </div>
-
       <main className="mx-auto w-full max-w-4xl px-6 py-8">
         {/* Top Bar: Progress + Trust Badges */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -63,7 +54,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-primary" />
-              <span className="font-medium text-primary">Money back guarantee</span>
+              <span>Money back guarantee</span>
             </div>
           </div>
         </div>

@@ -8,15 +8,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Simple top-right logo */}
-      <div className="fixed top-6 right-6 z-10">
-        <div className="rounded-full bg-white/80 backdrop-blur-sm border border-primary/10 px-4 py-2 shadow-sm">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
-            onlinedoctornote
-          </span>
-        </div>
-      </div>
-
       {/* Main Content - Centered */}
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
 

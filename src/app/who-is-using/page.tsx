@@ -33,15 +33,6 @@ export default function WhoIsUsingPage() {
 
   return (
     <div className="min-h-screen bg-white text-foreground">
-      {/* Top-Right Logo Badge */}
-      <div className="fixed top-2 right-2 sm:top-6 sm:right-6 z-10">
-        <div className="rounded-full bg-white/80 backdrop-blur-sm border border-primary/10 px-3 py-1.5 sm:px-4 sm:py-2 shadow-sm">
-          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
-            onlinedoctornote
-          </span>
-        </div>
-      </div>
-
       <main className="mx-auto w-full max-w-4xl px-6 py-8">
         {/* Top Bar: Progress + Trust Badges */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -96,21 +87,6 @@ export default function WhoIsUsingPage() {
             backRoute="/get-started"
             isSubmitting={isSubmitting}
           />
-
-          {/* Social Proof - Bottom of Form */}
-          <div className="pt-10 text-center space-y-3">
-            <div className="flex items-center justify-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className="h-4 w-4 fill-yellow-400 text-yellow-400"
-                />
-              ))}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Join 12,000+ people who got their note in minutes
-            </p>
-          </div>
         </form>
       </main>
     </div>
