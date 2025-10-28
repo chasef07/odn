@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, ArrowLeft } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+import { FormNavigation } from '@/components/form/FormNavigation';
 
 export default function ApprovedPage() {
   const router = useRouter();
@@ -59,25 +60,12 @@ export default function ApprovedPage() {
           Final step - just $24.95 for your official doctor&apos;s note.
         </p>
 
-        {/* Navigation Buttons */}
-        <div className="flex justify-between items-center">
-          <button
-            type="button"
-            onClick={() => router.push('/review')}
-            className="inline-flex items-center justify-center rounded-lg p-2 text-foreground transition-all hover:bg-accent"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => router.push('/payment')}
-            className="inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold transition-all shadow-sm bg-primary text-white hover:bg-primary/90"
-          >
-            Continue
-          </button>
-        </div>
+        <form onSubmit={(e) => { e.preventDefault(); router.push('/payment'); }}>
+          <FormNavigation
+            backRoute="/review"
+            submitText="Continue"
+          />
+        </form>
       </main>
     </div>
   );
