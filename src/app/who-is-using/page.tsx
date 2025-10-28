@@ -8,7 +8,7 @@ import { FormRadioGroup } from '@/components/form/FormRadioGroup';
 import { FormNavigation } from '@/components/form/FormNavigation';
 import { saveFormData, getFormData } from '@/lib/form-storage';
 import { page1Schema } from '@/lib/validation-schemas';
-import { ShieldCheck, Clock, Star } from 'lucide-react';
+import { ShieldCheck, Clock } from 'lucide-react';
 
 const CURRENT_STEP = 2;
 
