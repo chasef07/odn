@@ -8,28 +8,19 @@ export default function ApprovedPage() {
 
   return (
     <div className="min-h-screen bg-white text-foreground">
-      {/* Top-Right Logo */}
-      <div className="fixed top-6 right-6 z-10">
-        <div className="rounded-full bg-white/80 backdrop-blur-sm border border-primary/10 px-4 py-2 shadow-sm">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
-            onlinedoctornote
-          </span>
-        </div>
-      </div>
-
       {/* Main Content - Centered */}
-      <main className="mx-auto max-w-2xl px-6 py-16 text-center">
+      <main className="mx-auto max-w-4xl px-6 py-12 text-center">
 
         {/* Congratulations Heading */}
-        <h1 className="text-5xl sm:text-6xl font-display font-bold text-foreground mb-12">
+        <h1 className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-10">
           Congratulations!
         </h1>
 
         {/* Approval Checklist */}
-        <div className="space-y-5 mb-12 text-left max-w-xl mx-auto">
+        <div className="space-y-5 mb-10 text-left max-w-xl mx-auto">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="h-6 w-6 text-green-500 shrink-0 mt-0.5" />
-            <p className="text-lg text-foreground font-medium">
+            <p className="text-lg text-foreground">
               You&apos;ve been approved
             </p>
           </div>
@@ -57,19 +48,19 @@ export default function ApprovedPage() {
 
           <div className="flex items-start gap-3">
             <CheckCircle2 className="h-6 w-6 text-green-500 shrink-0 mt-0.5" />
-            <p className="text-lg text-foreground font-medium">
+            <p className="text-lg text-foreground">
               100% money-back guarantee
             </p>
           </div>
         </div>
 
         {/* Pricing Callout */}
-        <p className="text-xl text-muted-foreground mb-12">
+        <p className="text-xl text-muted-foreground mb-8">
           Final step - just $24.95 for your official doctor&apos;s note.
         </p>
 
         {/* Navigation Buttons */}
-        <div className="pt-2 flex justify-between items-center max-w-4xl mx-auto">
+        <div className="flex justify-between items-center">
           <button
             type="button"
             onClick={() => router.push('/review')}
