@@ -30,9 +30,9 @@ export function FormLayout({
   return (
     <div className="min-h-screen bg-white text-foreground">
       {/* Top-Right Logo Badge */}
-      <div className="fixed top-6 right-6 z-10">
-        <div className="rounded-full bg-white/80 backdrop-blur-sm border border-primary/10 px-4 py-2 shadow-sm">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
+      <div className="fixed top-2 right-2 sm:top-6 sm:right-6 z-10">
+        <div className="rounded-full bg-white/80 backdrop-blur-sm border border-primary/10 px-3 py-1.5 sm:px-4 sm:py-2 shadow-sm">
+          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
             onlinedoctornote
           </span>
         </div>
@@ -41,7 +41,7 @@ export function FormLayout({
       <main className="mx-auto w-full max-w-4xl px-6 py-8">
         {/* Top Bar: Progress + Trust Badges */}
         {!hideProgressAndBadges && (
-          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <FormProgress currentStep={currentStep} />
             </div>
@@ -50,18 +50,18 @@ export function FormLayout({
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground sm:gap-6">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-primary" />
-                <span>Encrypted</span>
+                <span>HIPAA Compliant</span>
               </div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-primary" />
-                <span className="font-medium text-primary">Money-back</span>
+                <span>Money back guarantee</span>
               </div>
             </div>
           </div>
         )}
 
         {/* Title - Centered on White Background */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-4">
           <h1 className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-4">
             {personalizedTitle}
           </h1>

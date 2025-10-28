@@ -34,7 +34,7 @@ export function FormNavigation({
   };
 
   return (
-    <div className="pt-2 flex justify-between items-center">
+    <div className="flex justify-between items-center">
       <button
         type="button"
         onClick={handleBackClick}

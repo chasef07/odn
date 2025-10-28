@@ -3,24 +3,31 @@
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { format, subDays, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { FormLayout } from '@/components/form-layout';
 import { FormCard } from '@/components/form/FormCard';
 import { FormField } from '@/components/form/FormField';
 import { FormNavigation } from '@/components/form/FormNavigation';
 import { saveFormData, getFormData } from '@/lib/form-storage';
 import { page6Schema } from '@/lib/validation-schemas';
+import { validateAbsenceDates } from '@/lib/date-validators';
 
-const CURRENT_STEP = 6;
+// Step number will be dynamic based on recipient
 
 type FormData = {
   firstDayOff: string;
   lastDayOff: string;
+  returnDate?: string;
 };
 
 export default function AbsenceDatesPage() {
   const router = useRouter();
   const today = format(new Date(), 'yyyy-MM-dd');
+  const savedData = getFormData();
+  const recipient = savedData.recipient || 'myself';
+  const currentStep = recipient === 'someone_else' ? 7 : 6;
+  const notePurpose = savedData.notePurpose || '';
+  const shouldShowReturnDate = notePurpose === 'work' || notePurpose === 'school' || notePurpose === 'both';
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<FormData>({
     resolver: zodResolver(page6Schema),
@@ -28,34 +35,35 @@ export default function AbsenceDatesPage() {
       ...getFormData(),
       firstDayOff: getFormData().firstDayOff || today,
       lastDayOff: getFormData().lastDayOff || today,
+      returnDate: getFormData().returnDate || '',
     }
   });
 
   const onSubmit = (data: FormData) => {
-    // Additional validation
-    const now = new Date();
-    const minStartDate = subDays(now, 7);
-    const startDate = new Date(data.firstDayOff);
-    const endDate = new Date(data.lastDayOff);
+    // Use centralized validation
+    const validationData = {
+      firstDayOff: data.firstDayOff,
+      lastDayOff: data.lastDayOff,
+      needReturnDate: shouldShowReturnDate,
+      returnDate: data.returnDate
+    };
 
-    if (startDate < minStartDate) {
-      setError('firstDayOff', {
-        message: 'Start date cannot be more than 7 days in the past'
+    const validationErrors = validateAbsenceDates(validationData);
+
+    if (validationErrors.length > 0) {
+      // Set errors on form
+      validationErrors.forEach(error => {
+        setError(error.field as keyof FormData, {
+          message: error.message
+        });
       });
       return;
     }
 
-    if (endDate < startDate) {
-      setError('lastDayOff', {
-        message: 'End date must be after start date'
-      });
-      return;
-    }
-
-    const daysDiff = differenceInDays(endDate, startDate);
-    if (daysDiff > 7) {
-      setError('lastDayOff', {
-        message: 'Date range cannot exceed 7 days'
+    // Validate return date if it should be shown
+    if (shouldShowReturnDate && !data.returnDate) {
+      setError('returnDate', {
+        message: 'Please select return date'
       });
       return;
     }
@@ -66,13 +74,13 @@ export default function AbsenceDatesPage() {
 
   return (
     <FormLayout
-      currentStep={CURRENT_STEP}
+      currentStep={currentStep}
       title="When do you need to be excused?"
       description="Select the dates you need covered by your doctor's note. We can cover up to 7 consecutive days."
       usePersonalization={true}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <FormCard>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <FormCard spacing="space-y-4">
           <FormField
             id="firstDayOff"
             label="First Day Off"
@@ -88,6 +96,16 @@ export default function AbsenceDatesPage() {
             register={register('lastDayOff')}
             error={errors.lastDayOff}
           />
+
+          {shouldShowReturnDate && (
+            <FormField
+              id="returnDate"
+              label="Return to Work/School Date"
+              type="date"
+              register={register('returnDate')}
+              error={errors.returnDate}
+            />
+          )}
         </FormCard>
 
         <FormNavigation

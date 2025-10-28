@@ -67,8 +67,6 @@ export function FormRadioGroup({
                   value={option.value}
                   {...register}
                   className="sr-only"
-                  aria-required="true"
-                  aria-invalid={!!error}
                   aria-describedby={error ? `${fieldName}-error` : undefined}
                 />
                 <span className="text-lg font-semibold">{option.label}</span>
@@ -81,7 +79,7 @@ export function FormRadioGroup({
             return (
               <label
                 key={option.value}
-                className={`flex h-full flex-col items-center justify-center gap-2 rounded-xl border px-6 py-5 text-center cursor-pointer transition-all shadow-sm ${
+                className={`inline-flex items-center justify-center rounded-xl border px-6 py-3 text-center cursor-pointer transition-all shadow-sm ${
                   isSelected
                     ? 'border-primary bg-primary/5 text-primary ring-2 ring-primary/20'
                     : 'border-border/40 bg-white text-foreground hover:border-primary/40 hover:shadow-md'
@@ -92,8 +90,6 @@ export function FormRadioGroup({
                   value={option.value}
                   {...register}
                   className="sr-only"
-                  aria-required="true"
-                  aria-invalid={!!error}
                   aria-describedby={error ? `${fieldName}-error` : undefined}
                 />
                 <span className="text-base font-semibold">{option.label}</span>
@@ -121,8 +117,6 @@ export function FormRadioGroup({
                 value={option.value}
                 {...register}
                 className="sr-only"
-                aria-required="true"
-                aria-invalid={!!error}
                 aria-describedby={error ? `${fieldName}-error` : undefined}
               />
               <span className="text-sm font-medium">{option.label}</span>

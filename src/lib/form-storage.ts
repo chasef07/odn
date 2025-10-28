@@ -4,35 +4,51 @@
  */
 
 export interface FormData {
-  // Page 1
-  recipient?: 'myself' | 'someone_else';
+  // Get Started - State Selection
+  state?: string;
+
+  // Page 1 - Who is this for?
+  recipient?: 'myself' | 'someone_else' | null;
   relationship?: string;
 
-  // Page 2
-  firstName?: string;
-  lastName?: string;
-  dateOfBirth?: string; // ISO format
+  // Page 2 - Patient Information
+  patientFirstName?: string;
+  patientLastName?: string;
+  patientDateOfBirth?: string; // ISO format
 
-  // Page 3
+  // Page 3 (Guardian Info - conditional)
+  guardianFirstName?: string;
+  guardianLastName?: string;
+  guardianDateOfBirth?: string; // ISO format
+
+  // Page 4 - Contact Information
   email?: string;
   phone?: string;
 
-  // Page 4
-  state?: string;
+  // Page 5 - Note Purpose
+  notePurpose?: 'work' | 'school' | 'both' | 'other' | null;
+  otherNotePurpose?: string;
 
-  // Page 5
-  notePurpose?: 'work' | 'school' | 'both' | 'other';
-
-  // Page 6
+  // Page 6 - Absence Dates
   firstDayOff?: string; // ISO format
   lastDayOff?: string; // ISO format
+  returnDate?: string; // ISO format
+  needReturnDate?: boolean;
 
-  // Page 7
-  absenceReason?: string;
+  // Page 7 - Absence Reason
+  absenceReason?: string | null;
+  otherAbsenceReason?: string;
 
-  // Page 8
+  // Page 8 - Symptoms (conditional)
   symptoms?: string[];
   otherSymptomText?: string;
+
+  // Page 9 - Additional Information
+  additionalInformation?: string;
+
+  // Page 10 - Review & Terms
+  certifyAccurate?: boolean;
+  agreeTerms?: boolean;
 }
 
 const FORM_STORAGE_KEY = 'doctor-note-form-draft';
@@ -55,7 +71,10 @@ export function getFormData(): FormData {
   try {
     return JSON.parse(stored);
   } catch (error) {
-    console.warn('Failed to parse form data from storage, resetting:', error);
+    // Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Failed to parse form data from storage, resetting:', error);
+    }
     // Clear the corrupted data
     localStorage.removeItem(FORM_STORAGE_KEY);
     return {};
@@ -70,5 +89,5 @@ export function clearFormData(): void {
 
 export function getFirstName(): string | null {
   const data = getFormData();
-  return data.firstName || null;
+  return data.patientFirstName || data.guardianFirstName || null;
 }

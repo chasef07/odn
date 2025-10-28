@@ -3,41 +3,41 @@
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { differenceInYears } from 'date-fns';
 import { FormLayout } from '@/components/form-layout';
 import { FormCard } from '@/components/form/FormCard';
 import { FormField } from '@/components/form/FormField';
 import { FormNavigation } from '@/components/form/FormNavigation';
 import { saveFormData, getFormData } from '@/lib/form-storage';
 import { page2Schema } from '@/lib/validation-schemas';
+import { isAgeValid } from '@/lib/age-validators';
 
-const CURRENT_STEP = 2;
+const CURRENT_STEP = 3;
 
 type FormData = {
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
+  patientFirstName: string;
+  patientLastName: string;
+  patientDateOfBirth: string;
 };
 
 export default function BasicInfoPage() {
   const router = useRouter();
+  const savedData = getFormData();
+  const recipient = savedData.recipient || 'myself';
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<FormData>({
     resolver: zodResolver(page2Schema),
-    defaultValues: getFormData()
+    defaultValues: {
+      patientFirstName: savedData.patientFirstName || '',
+      patientLastName: savedData.patientLastName || '',
+      patientDateOfBirth: savedData.patientDateOfBirth || '',
+    }
   });
 
   const onSubmit = (data: FormData) => {
-    // Check age validation based on recipient
-    const savedData = getFormData();
-    const recipient = savedData.recipient || 'myself';
-
-    if (recipient === 'myself' && data.dateOfBirth) {
-      const birthDate = new Date(data.dateOfBirth);
-      const age = differenceInYears(new Date(), birthDate);
-
-      if (age < 18) {
-        setError('dateOfBirth', {
+    // Check age validation - only for "myself" option
+    if (recipient === 'myself' && data.patientDateOfBirth) {
+      if (!isAgeValid(data.patientDateOfBirth, 18)) {
+        setError('patientDateOfBirth', {
           message: 'You must be 18 or older to request a note for yourself'
         });
         return;
@@ -45,46 +45,57 @@ export default function BasicInfoPage() {
     }
 
     saveFormData(data);
-    router.push('/contact-info');
+
+    // Navigate based on recipient
+    if (recipient === 'someone_else') {
+      router.push('/guardian-info');
+    } else {
+      router.push('/contact-info');
+    }
   };
+
+  // Dynamic title based on recipient
+  const pageTitle = recipient === 'myself'
+    ? 'What is your information?'
+    : 'Please provide information about the person who needs this note';
 
   return (
     <FormLayout
       currentStep={CURRENT_STEP}
-      title="Tell us about yourself"
+      title={pageTitle}
       description=""
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
-              id="firstName"
+              id="patientFirstName"
               label="First Name"
-              register={register('firstName')}
-              error={errors.firstName}
-              placeholder="Enter your first name"
+              register={register('patientFirstName')}
+              error={errors.patientFirstName}
+              placeholder="Enter first name"
             />
 
             <FormField
-              id="lastName"
+              id="patientLastName"
               label="Last Name"
-              register={register('lastName')}
-              error={errors.lastName}
-              placeholder="Enter your last name"
+              register={register('patientLastName')}
+              error={errors.patientLastName}
+              placeholder="Enter last name"
             />
           </div>
 
           <FormField
-            id="dateOfBirth"
+            id="patientDateOfBirth"
             label="Date of Birth"
             type="date"
-            register={register('dateOfBirth')}
-            error={errors.dateOfBirth}
+            register={register('patientDateOfBirth')}
+            error={errors.patientDateOfBirth}
           />
         </FormCard>
 
         <FormNavigation
-          backRoute="/"
+          backRoute="/who-is-using"
           isSubmitting={isSubmitting}
         />
       </form>

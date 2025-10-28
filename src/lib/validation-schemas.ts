@@ -8,7 +8,6 @@ import { z } from 'zod';
 export const page1Schema = z
   .object({
     recipient: z.enum(['myself', 'someone_else']).nullable(),
-    relationship: z.string().optional(),
   })
   .refine(
     (data) => data.recipient !== null,
@@ -16,40 +15,87 @@ export const page1Schema = z
       message: 'Please choose who this note is for',
       path: ['recipient'],
     }
-  )
-  .refine(
-    (data) => {
-      if (data.recipient === 'someone_else') {
-        return !!data.relationship;
-      }
-      return true;
-    },
-    {
-      message: 'Please select your relationship',
-      path: ['relationship'],
-    }
   );
 
 export const page2Schema = z.object({
-  firstName: z
+  patientFirstName: z
     .string()
+    .trim()
     .min(1, 'First name is required')
-    .max(50, 'First name must be less than 50 characters'),
-  lastName: z
+    .max(50, 'First name must be less than 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
+    .refine(val => val.trim().length > 0, 'First name cannot be only spaces'),
+  patientLastName: z
     .string()
+    .trim()
     .min(1, 'Last name is required')
-    .max(50, 'Last name must be less than 50 characters'),
-  dateOfBirth: z.string().min(1, 'Date of birth is required'),
+    .max(50, 'Last name must be less than 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
+    .refine(val => val.trim().length > 0, 'Last name cannot be only spaces'),
+  patientDateOfBirth: z
+    .string()
+    .min(1, 'Date of birth is required')
+    .refine(
+      (val) => new Date(val) <= new Date(),
+      { message: 'Date of birth cannot be in the future' }
+    )
+    .refine(
+      (val) => new Date(val) >= new Date('1900-01-01'),
+      { message: 'Please enter a valid date of birth' }
+    ),
+});
+
+export const guardianSchema = z.object({
+  guardianFirstName: z
+    .string()
+    .trim()
+    .min(1, 'First name is required')
+    .max(50, 'First name must be less than 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
+    .refine(val => val.trim().length > 0, 'First name cannot be only spaces'),
+  guardianLastName: z
+    .string()
+    .trim()
+    .min(1, 'Last name is required')
+    .max(50, 'Last name must be less than 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
+    .refine(val => val.trim().length > 0, 'Last name cannot be only spaces'),
+  guardianDateOfBirth: z
+    .string()
+    .min(1, 'Date of birth is required')
+    .refine(
+      (val) => new Date(val) <= new Date(),
+      { message: 'Date of birth cannot be in the future' }
+    )
+    .refine(
+      (val) => new Date(val) >= new Date('1900-01-01'),
+      { message: 'Please enter a valid date of birth' }
+    ),
 });
 
 export const page3Schema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address')
+    .toLowerCase(),
   phone: z
     .string()
-    .min(10, 'Phone number must be at least 10 digits')
+    .trim()
+    .min(1, 'Phone number is required')
     .regex(
       /^[\d\s\-\(\)]+$/,
       'Please enter a valid phone number'
+    )
+    .refine(
+      (val) => {
+        const digitsOnly = val.replace(/\D/g, '');
+        return digitsOnly.length === 10;
+      },
+      {
+        message: 'Phone number must be exactly 10 digits',
+      }
     ),
 });
 
@@ -60,6 +106,7 @@ export const page4Schema = z.object({
 export const page5Schema = z
   .object({
     notePurpose: z.enum(['work', 'school', 'both', 'other']).nullable(),
+    otherNotePurpose: z.string().max(500, 'Purpose description must be less than 500 characters').optional(),
   })
   .refine(
     (data) => data.notePurpose !== null,
@@ -67,16 +114,46 @@ export const page5Schema = z
       message: 'Please select the purpose of this note',
       path: ['notePurpose'],
     }
+  )
+  .refine(
+    (data) => {
+      if (data.notePurpose === 'other') {
+        return !!data.otherNotePurpose?.trim() && data.otherNotePurpose.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: 'Please specify the purpose',
+      path: ['otherNotePurpose'],
+    }
   );
 
-export const page6Schema = z.object({
-  firstDayOff: z.string().min(1, 'Please select start date'),
-  lastDayOff: z.string().min(1, 'Please select end date'),
-});
+export const page6Schema = z
+  .object({
+    firstDayOff: z.string().min(1, 'Please select start date'),
+    lastDayOff: z.string().min(1, 'Please select end date'),
+    returnDate: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      // If returnDate is provided, it must be >= lastDayOff
+      if (data.returnDate && data.lastDayOff) {
+        const lastDay = new Date(data.lastDayOff);
+        const returnDay = new Date(data.returnDate);
+        return returnDay >= lastDay;
+      }
+      return true;
+    },
+    {
+      message: 'Return date must be on or after the last day off',
+      path: ['returnDate'],
+    }
+  );
 
 export const page7Schema = z
   .object({
     absenceReason: z.string().nullable(),
+    otherAbsenceReason: z.string().max(200, 'Reason must be less than 200 characters').optional(),
   })
   .refine(
     (data) => data.absenceReason !== null && data.absenceReason.trim().length > 0,
@@ -84,12 +161,24 @@ export const page7Schema = z
       message: 'Please select a reason for your absence',
       path: ['absenceReason'],
     }
+  )
+  .refine(
+    (data) => {
+      if (data.absenceReason === 'Other') {
+        return !!data.otherAbsenceReason?.trim() && data.otherAbsenceReason.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: 'Please specify the reason',
+      path: ['otherAbsenceReason'],
+    }
   );
 
 export const page8Schema = z
   .object({
-    symptoms: z.array(z.string()).optional().default([]),
-    otherSymptomText: z.string().optional(),
+    symptoms: z.array(z.string()).optional(),
+    otherSymptomText: z.string().max(500, 'Symptom description must be less than 500 characters').optional(),
   })
   .refine(
     (data) => {
@@ -107,7 +196,7 @@ export const page8Schema = z
     (data) => {
       // If "other" is selected in symptoms, require otherSymptomText
       if (data.symptoms && data.symptoms.includes('other')) {
-        return !!data.otherSymptomText?.trim();
+        return !!data.otherSymptomText?.trim() && data.otherSymptomText.trim().length > 0;
       }
       return true;
     },
@@ -118,6 +207,14 @@ export const page8Schema = z
   );
 
 export const page9Schema = z.object({
+  additionalInformation: z
+    .string()
+    .max(1000, 'Additional information must be less than 1000 characters')
+    .optional()
+    .transform(val => val?.trim()),
+});
+
+export const page10Schema = z.object({
   certifyAccurate: z.boolean().refine((val) => val === true, {
     message: 'You must certify that the information is accurate'
   }),

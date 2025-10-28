@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const paymentAmount = parseInt(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || '2999');
 

@@ -6,21 +6,25 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { FormLayout } from "@/components/form-layout";
 import { FormRadioGroup } from '@/components/form/FormRadioGroup';
 import { FormNavigation } from '@/components/form/FormNavigation';
+import { Input } from '@/components/ui/input';
 import { saveFormData, getFormData } from "@/lib/form-storage";
 import { page7Schema } from '@/lib/validation-schemas';
 import { ABSENCE_REASONS } from "@/lib/form-constants";
 
-const CURRENT_STEP = 7;
+// Step number will be dynamic based on recipient
 
 type FormData = {
-  absenceReason: string;
+  absenceReason: string | null;
+  otherAbsenceReason?: string;
 };
 
 export default function AbsenceReasonPage() {
   const router = useRouter();
   const savedData = getFormData();
-  const firstName = savedData.firstName || '';
-  const recipient = savedData.recipient || '';
+  const recipient = savedData.recipient || 'myself';
+  // Use guardian's first name if available (someone_else), otherwise use patient's first name
+  const firstName = savedData.guardianFirstName || savedData.patientFirstName || '';
+  const currentStep = recipient === 'someone_else' ? 8 : 7;
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(page7Schema),
@@ -29,13 +33,8 @@ export default function AbsenceReasonPage() {
 
   const selectedReason = watch('absenceReason');
 
-  // Build absence reason options with conditional "Taking care of family"
-  const absenceReasonOptions = [
-    ...ABSENCE_REASONS.filter(r => r !== 'Medical appointment' && r !== 'Other'),
-    ...(recipient === 'someone_else' ? ['Taking care of family'] : []),
-    'Medical appointment',
-    'Other',
-  ];
+  // Build absence reason options from constants
+  const absenceReasonOptions = [...ABSENCE_REASONS];
 
   const onSubmit = (data: FormData) => {
     // Clear symptoms when absence reason changes
@@ -45,7 +44,13 @@ export default function AbsenceReasonPage() {
     } else {
       saveFormData(data);
     }
-    router.push('/symptoms');
+
+    // Skip symptoms page for Doctor's appointment and Other
+    if (data.absenceReason === "Doctor's appointment" || data.absenceReason === "Other") {
+      router.push('/additional-info');
+    } else {
+      router.push('/symptoms');
+    }
   };
 
   const title = firstName
@@ -54,7 +59,7 @@ export default function AbsenceReasonPage() {
 
   return (
     <FormLayout
-      currentStep={CURRENT_STEP}
+      currentStep={currentStep}
       title={title}
       description=""
       usePersonalization={true}
@@ -66,9 +71,30 @@ export default function AbsenceReasonPage() {
           options={absenceReasonOptions.map(r => ({ value: r, label: r }))}
           register={register('absenceReason')}
           error={errors.absenceReason}
-          selectedValue={selectedReason}
+          selectedValue={selectedReason ?? undefined}
           gridClassName="grid gap-3 sm:grid-cols-2"
         />
+
+        {/* Show text input when "Other" is selected */}
+        {selectedReason === 'Other' && (
+          <div className="space-y-2">
+            <Input
+              id="otherAbsenceReason"
+              type="text"
+              {...register('otherAbsenceReason')}
+              className="h-12 rounded-xl border-border/60 text-base focus-visible:ring-2 focus-visible:ring-primary/40"
+              placeholder="Please specify the reason..."
+              aria-required="true"
+              aria-invalid={!!errors.otherAbsenceReason}
+              aria-describedby={errors.otherAbsenceReason ? "otherAbsenceReason-error" : undefined}
+            />
+            {errors.otherAbsenceReason && (
+              <p id="otherAbsenceReason-error" className="text-sm text-red-500">
+                {errors.otherAbsenceReason.message}
+              </p>
+            )}
+          </div>
+        )}
 
         <FormNavigation
           backRoute="/absence-dates"

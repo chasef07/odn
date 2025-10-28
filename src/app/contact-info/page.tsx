@@ -11,33 +11,21 @@ import { FormField } from '@/components/form/FormField';
 import { FormNavigation } from '@/components/form/FormNavigation';
 import { saveFormData, getFormData } from '@/lib/form-storage';
 import { page3Schema } from '@/lib/validation-schemas';
+import { formatPhoneNumber } from '@/lib/phone-utils';
+import { PHONE_VALIDATION } from '@/lib/validation-constants';
 import { useState } from 'react';
 
-const CURRENT_STEP = 3;
+// Step number will be dynamic based on recipient
 
 type FormData = {
   email: string;
   phone: string;
 };
 
-// Format phone number as (555) 123-4567
-const formatPhoneNumber = (value: string) => {
-  // Remove all non-digits
-  const phoneNumber = value.replace(/\D/g, '');
-
-  // Apply formatting
-  if (phoneNumber.length <= 3) {
-    return phoneNumber;
-  } else if (phoneNumber.length <= 6) {
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
-  } else {
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
-  }
-};
-
 export default function ContactInfoPage() {
   const router = useRouter();
   const savedData = getFormData();
+  const recipient = savedData.recipient || 'myself';
   const [phoneDisplay, setPhoneDisplay] = useState(savedData.phone || '');
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -56,14 +44,18 @@ export default function ContactInfoPage() {
 
   const onSubmit = (data: FormData) => {
     saveFormData(data);
-    router.push('/state');
+    router.push('/note-purpose');
   };
+
+  // Dynamic back route and step based on recipient
+  const backRoute = recipient === 'someone_else' ? '/guardian-info' : '/basic-info';
+  const currentStep = recipient === 'someone_else' ? 5 : 4;
 
   return (
     <FormLayout
-      currentStep={CURRENT_STEP}
+      currentStep={currentStep}
       title="How can we reach you?"
-      description=""
+      description="Your information is private and will never be used for marketing purposes."
       usePersonalization={true}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -89,7 +81,7 @@ export default function ContactInfoPage() {
               onChange={handlePhoneChange}
               className="h-12 rounded-xl border border-border/60 bg-white text-base focus-visible:ring-2 focus-visible:ring-primary/40"
               placeholder="(555) 123-4567"
-              maxLength={14}
+              maxLength={PHONE_VALIDATION.FORMATTED_LENGTH}
               aria-required="true"
               aria-invalid={!!errors.phone}
               aria-describedby={errors.phone ? "phone-error" : undefined}
@@ -101,7 +93,7 @@ export default function ContactInfoPage() {
         </FormCard>
 
         <FormNavigation
-          backRoute="/basic-info"
+          backRoute={backRoute}
           isSubmitting={isSubmitting}
         />
       </form>

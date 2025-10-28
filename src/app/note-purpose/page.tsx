@@ -6,11 +6,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { FormLayout } from "@/components/form-layout";
 import { FormRadioGroup } from '@/components/form/FormRadioGroup';
 import { FormNavigation } from '@/components/form/FormNavigation';
+import { Textarea } from '@/components/ui/textarea';
 import { saveFormData, getFormData } from "@/lib/form-storage";
 import { page5Schema } from '@/lib/validation-schemas';
 import { NOTE_PURPOSES } from "@/lib/form-constants";
 
-const CURRENT_STEP = 5;
+// Step number will be dynamic based on recipient
 
 const NOTE_PURPOSE_OPTIONS = [
   {
@@ -32,17 +33,24 @@ const NOTE_PURPOSE_OPTIONS = [
 ];
 
 type FormData = {
-  notePurpose: 'work' | 'school' | 'both' | 'other';
+  notePurpose: 'work' | 'school' | 'both' | 'other' | null;
+  otherNotePurpose?: string;
 };
 
 export default function NotePurposePage() {
   const router = useRouter();
   const savedData = getFormData();
-  const firstName = savedData.firstName || '';
+  const recipient = savedData.recipient || 'myself';
+  // Use guardian's first name if available (someone_else), otherwise use patient's first name
+  const firstName = savedData.guardianFirstName || savedData.patientFirstName || '';
+  const currentStep = recipient === 'someone_else' ? 6 : 5;
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(page5Schema),
-    defaultValues: getFormData()
+    defaultValues: {
+      notePurpose: savedData.notePurpose || null,
+      otherNotePurpose: savedData.otherNotePurpose || '',
+    }
   });
 
   const selectedPurpose = watch('notePurpose');
@@ -53,12 +61,12 @@ export default function NotePurposePage() {
   };
 
   const title = firstName
-    ? `Got it, ${firstName}! What do you need this note for?`
+    ? `Please tell us what you need a doctors note for, ${firstName}`
     : 'What do you need this note for?';
 
   return (
     <FormLayout
-      currentStep={CURRENT_STEP}
+      currentStep={currentStep}
       title={title}
       description=""
       usePersonalization={true}
@@ -70,12 +78,32 @@ export default function NotePurposePage() {
           options={NOTE_PURPOSE_OPTIONS}
           register={register('notePurpose')}
           error={errors.notePurpose}
-          selectedValue={selectedPurpose}
+          selectedValue={selectedPurpose ?? undefined}
           variant="large-buttons"
         />
 
+        {/* Show text input when "Other" is selected */}
+        {selectedPurpose === 'other' && (
+          <div className="space-y-2">
+            <Textarea
+              id="otherNotePurpose"
+              {...register('otherNotePurpose')}
+              className="min-h-[80px] resize-none rounded-xl border-border/60 text-base focus-visible:ring-2 focus-visible:ring-primary/40"
+              placeholder="Please describe the purpose..."
+              aria-required="true"
+              aria-invalid={!!errors.otherNotePurpose}
+              aria-describedby={errors.otherNotePurpose ? "otherNotePurpose-error" : undefined}
+            />
+            {errors.otherNotePurpose && (
+              <p id="otherNotePurpose-error" className="text-sm text-red-500">
+                {errors.otherNotePurpose.message}
+              </p>
+            )}
+          </div>
+        )}
+
         <FormNavigation
-          backRoute="/state"
+          backRoute="/contact-info"
           isSubmitting={isSubmitting}
         />
       </form>

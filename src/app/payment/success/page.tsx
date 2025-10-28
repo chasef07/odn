@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { FormLayout } from '@/components/form-layout';
 import { CheckCircle2 } from 'lucide-react';
 
 const CURRENT_STEP = 10;
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const paymentIntent = searchParams.get('payment_intent');
@@ -98,7 +99,7 @@ export default function PaymentSuccessPage() {
             Thank you for your payment!
           </h2>
           <p className="text-muted-foreground">
-            Your doctor's note is being processed and will be sent to your email shortly.
+            Your doctor&apos;s note is being processed and will be sent to your email shortly.
           </p>
         </div>
 
@@ -111,13 +112,13 @@ export default function PaymentSuccessPage() {
               <span className="inline-block w-6 h-6 rounded-full bg-primary/10 text-primary text-center mr-3 flex-shrink-0">
                 1
               </span>
-              <span>You'll receive a confirmation email within the next few minutes</span>
+              <span>You&apos;ll receive a confirmation email within the next few minutes</span>
             </li>
             <li className="flex items-start">
               <span className="inline-block w-6 h-6 rounded-full bg-primary/10 text-primary text-center mr-3 flex-shrink-0">
                 2
               </span>
-              <span>Your doctor's note will be reviewed and processed</span>
+              <span>Your doctor&apos;s note will be reviewed and processed</span>
             </li>
             <li className="flex items-start">
               <span className="inline-block w-6 h-6 rounded-full bg-primary/10 text-primary text-center mr-3 flex-shrink-0">
@@ -129,14 +130,33 @@ export default function PaymentSuccessPage() {
         </div>
 
         <div className="text-center pt-4">
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center rounded-lg px-6 py-3 text-base font-semibold transition-all shadow-sm bg-primary text-white hover:bg-primary/90"
           >
             Return to Home
-          </a>
+          </Link>
         </div>
       </div>
     </FormLayout>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <FormLayout
+        currentStep={CURRENT_STEP}
+        title="Processing..."
+        description="Please wait while we verify your payment."
+        usePersonalization={true}
+      >
+        <div className="text-center p-8">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </FormLayout>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { format, subDays, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { FormLayout } from '@/components/form-layout';
@@ -12,24 +12,12 @@ import { FormEditableSection } from '@/components/form/FormEditableSection';
 import { FormField } from '@/components/form/FormField';
 import { FormNavigation } from '@/components/form/FormNavigation';
 import { getFormData, saveFormData } from '@/lib/form-storage';
-import { page2Schema, page3Schema, page6Schema, page9Schema } from '@/lib/validation-schemas';
+import { page2Schema, page3Schema, page6Schema, page10Schema } from '@/lib/validation-schemas';
+import { formatPhoneNumber } from '@/lib/phone-utils';
+import { validateAbsenceDates } from '@/lib/date-validators';
+import { UI_TIMING } from '@/lib/validation-constants';
 
-const CURRENT_STEP = 9;
-
-// Format phone number as (555) 123-4567
-const formatPhoneNumber = (value: string) => {
-  // Remove all non-digits
-  const phoneNumber = value.replace(/\D/g, '');
-
-  // Apply formatting
-  if (phoneNumber.length <= 3) {
-    return phoneNumber;
-  } else if (phoneNumber.length <= 6) {
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
-  } else {
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
-  }
-};
+// Step number will be dynamic based on recipient
 
 type EditSection = 'personal' | 'contact' | 'dates' | null;
 
@@ -39,9 +27,9 @@ type TermsFormData = {
 };
 
 type PersonalFormData = {
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
+  patientFirstName: string;
+  patientLastName: string;
+  patientDateOfBirth: string;
 };
 
 type ContactFormData = {
@@ -52,17 +40,21 @@ type ContactFormData = {
 type DatesFormData = {
   firstDayOff: string;
   lastDayOff: string;
+  returnDate?: string;
 };
 
 export default function ReviewPage() {
   const router = useRouter();
   const [formData, setFormData] = useState(getFormData());
+  const recipient = formData.recipient || 'myself';
+  const currentStep = recipient === 'someone_else' ? 11 : 10;
   const [editingSection, setEditingSection] = useState<EditSection>(null);
   const [phoneDisplay, setPhoneDisplay] = useState(formData.phone || '');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Main form for terms checkboxes
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<TermsFormData>({
-    resolver: zodResolver(page9Schema),
+    resolver: zodResolver(page10Schema),
     defaultValues: {
       certifyAccurate: false,
       agreeTerms: false
@@ -73,9 +65,9 @@ export default function ReviewPage() {
   const personalForm = useForm<PersonalFormData>({
     resolver: zodResolver(page2Schema),
     defaultValues: {
-      firstName: formData.firstName || '',
-      lastName: formData.lastName || '',
-      dateOfBirth: formData.dateOfBirth || ''
+      patientFirstName: formData.patientFirstName || '',
+      patientLastName: formData.patientLastName || '',
+      patientDateOfBirth: formData.patientDateOfBirth || ''
     }
   });
 
@@ -93,21 +85,25 @@ export default function ReviewPage() {
     resolver: zodResolver(page6Schema),
     defaultValues: {
       firstDayOff: formData.firstDayOff || '',
-      lastDayOff: formData.lastDayOff || ''
+      lastDayOff: formData.lastDayOff || '',
+      returnDate: formData.returnDate || ''
     }
   });
 
+  const notePurpose = formData.notePurpose || '';
+  const shouldShowReturnDate = notePurpose === 'work' || notePurpose === 'school' || notePurpose === 'both';
+
   // Handler to start editing a section
-  const handleEdit = (section: EditSection) => {
+  const handleEdit = (section: string) => {
     // Reset phone display to current saved value when entering edit mode
     if (section === 'contact') {
       setPhoneDisplay(formData.phone || '');
     }
-    setEditingSection(section);
+    setEditingSection(section as EditSection);
   };
 
   // Handler to cancel editing
-  const handleCancel = (section: EditSection) => {
+  const handleCancel = (section: string) => {
     if (section === 'personal') {
       personalForm.reset();
     } else if (section === 'contact') {
@@ -144,30 +140,30 @@ export default function ReviewPage() {
 
   // Handler to save absence dates
   const handleSaveDates = datesForm.handleSubmit((data) => {
-    // Additional validation
-    const now = new Date();
-    const minStartDate = subDays(now, 7);
-    const startDate = new Date(data.firstDayOff);
-    const endDate = new Date(data.lastDayOff);
+    // Use centralized validation
+    const validationData = {
+      firstDayOff: data.firstDayOff,
+      lastDayOff: data.lastDayOff,
+      needReturnDate: shouldShowReturnDate,
+      returnDate: data.returnDate
+    };
 
-    if (startDate < minStartDate) {
-      datesForm.setError('firstDayOff', {
-        message: 'Start date cannot be more than 7 days in the past'
+    const validationErrors = validateAbsenceDates(validationData);
+
+    if (validationErrors.length > 0) {
+      // Set errors on form
+      validationErrors.forEach(error => {
+        datesForm.setError(error.field as keyof DatesFormData, {
+          message: error.message
+        });
       });
       return;
     }
 
-    if (endDate < startDate) {
-      datesForm.setError('lastDayOff', {
-        message: 'End date must be after start date'
-      });
-      return;
-    }
-
-    const daysDiff = differenceInDays(endDate, startDate);
-    if (daysDiff > 7) {
-      datesForm.setError('lastDayOff', {
-        message: 'Date range cannot exceed 7 days'
+    // Validate return date if it should be shown
+    if (shouldShowReturnDate && !data.returnDate) {
+      datesForm.setError('returnDate', {
+        message: 'Please select return date'
       });
       return;
     }
@@ -179,7 +175,12 @@ export default function ReviewPage() {
 
   // Main form submission
   const onSubmit = () => {
-    router.push('/payment');
+    setIsProcessing(true);
+
+    // Simulate processing delay to show loading state
+    setTimeout(() => {
+      router.push('/approved');
+    }, UI_TIMING.PROCESSING_DELAY_MS);
   };
 
   // Helper function to format date
@@ -194,7 +195,7 @@ export default function ReviewPage() {
 
   return (
     <FormLayout
-      currentStep={CURRENT_STEP}
+      currentStep={currentStep}
       title="Review your information"
       description="Please review all details carefully before continuing to payment."
       usePersonalization={true}
@@ -211,33 +212,33 @@ export default function ReviewPage() {
           viewContent={
             <>
               <p className="text-base text-foreground">
-                {formData.firstName} {formData.lastName}
+                {formData.patientFirstName} {formData.patientLastName}
               </p>
               <p className="text-sm text-muted-foreground">
-                Date of Birth: {formatDate(formData.dateOfBirth)}
+                Date of Birth: {formatDate(formData.patientDateOfBirth)}
               </p>
             </>
           }
           editContent={
             <>
               <FormField
-                id="firstName"
+                id="patientFirstName"
                 label="First Name"
-                register={personalForm.register('firstName')}
-                error={personalForm.formState.errors.firstName}
+                register={personalForm.register('patientFirstName')}
+                error={personalForm.formState.errors.patientFirstName}
               />
               <FormField
-                id="lastName"
+                id="patientLastName"
                 label="Last Name"
-                register={personalForm.register('lastName')}
-                error={personalForm.formState.errors.lastName}
+                register={personalForm.register('patientLastName')}
+                error={personalForm.formState.errors.patientLastName}
               />
               <FormField
-                id="dateOfBirth"
+                id="patientDateOfBirth"
                 label="Date of Birth"
                 type="date"
-                register={personalForm.register('dateOfBirth')}
-                error={personalForm.formState.errors.dateOfBirth}
+                register={personalForm.register('patientDateOfBirth')}
+                error={personalForm.formState.errors.patientDateOfBirth}
               />
             </>
           }
@@ -304,10 +305,17 @@ export default function ReviewPage() {
           onCancel={handleCancel}
           onSave={handleSaveDates}
           viewContent={
-            <p className="text-base text-foreground">
-              {formatDate(formData.firstDayOff)} -{' '}
-              {formatDate(formData.lastDayOff)}
-            </p>
+            <>
+              <p className="text-base text-foreground">
+                {formatDate(formData.firstDayOff)} -{' '}
+                {formatDate(formData.lastDayOff)}
+              </p>
+              {shouldShowReturnDate && formData.returnDate && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Return Date: {formatDate(formData.returnDate)}
+                </p>
+              )}
+            </>
           }
           editContent={
             <>
@@ -325,6 +333,15 @@ export default function ReviewPage() {
                 register={datesForm.register('lastDayOff')}
                 error={datesForm.formState.errors.lastDayOff}
               />
+              {shouldShowReturnDate && (
+                <FormField
+                  id="returnDate"
+                  label="Return to Work/School Date"
+                  type="date"
+                  register={datesForm.register('returnDate')}
+                  error={datesForm.formState.errors.returnDate}
+                />
+              )}
             </>
           }
         />
@@ -336,14 +353,13 @@ export default function ReviewPage() {
               type="checkbox"
               id="certifyAccurate"
               {...register('certifyAccurate')}
-              className="mt-1 h-5 w-5 rounded border-2 border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+              className="mt-1 h-5 w-5 flex-shrink-0 rounded border-2 border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
             />
             <Label
               htmlFor="certifyAccurate"
-              className="text-sm font-normal text-foreground cursor-pointer leading-relaxed"
+              className="text-sm font-normal text-foreground cursor-pointer leading-relaxed flex-1"
             >
-              I certify that all information provided is accurate and truthful to
-              the best of my knowledge.
+              I certify that all information provided is accurate and truthful to the best of my knowledge.
             </Label>
           </div>
           {errors.certifyAccurate && (
@@ -355,21 +371,13 @@ export default function ReviewPage() {
               type="checkbox"
               id="agreeTerms"
               {...register('agreeTerms')}
-              className="mt-1 h-5 w-5 rounded border-2 border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+              className="mt-1 h-5 w-5 flex-shrink-0 rounded border-2 border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
             />
             <Label
               htmlFor="agreeTerms"
-              className="text-sm font-normal text-foreground cursor-pointer leading-relaxed"
+              className="text-sm font-normal text-foreground cursor-pointer leading-relaxed flex-1"
             >
-              I agree to the{' '}
-              <a href="/terms" className="text-primary hover:underline">
-                Terms of Service
-              </a>{' '}
-              and{' '}
-              <a href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
-              </a>
-              .
+              I agree to the Terms of Service and Privacy Policy.
             </Label>
           </div>
           {errors.agreeTerms && (
@@ -378,11 +386,26 @@ export default function ReviewPage() {
         </div>
 
         <FormNavigation
-          backRoute="/symptoms"
+          backRoute="/additional-info"
           submitText="Continue to Payment"
           isSubmitting={isSubmitting}
         />
       </form>
+
+      {/* Loading Overlay */}
+      {isProcessing && (
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center">
+            {/* Spinner */}
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary"></div>
+
+            {/* Loading text */}
+            <p className="text-lg font-medium text-foreground">
+              Processing your request...
+            </p>
+          </div>
+        </div>
+      )}
     </FormLayout>
   );
 }

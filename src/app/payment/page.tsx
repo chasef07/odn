@@ -64,7 +64,7 @@ function CheckoutForm() {
         </h3>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-base text-foreground">Doctor's Note - Online Medical Documentation</span>
+            <span className="text-base text-foreground">Doctor&apos;s Note - Online Medical Documentation</span>
             <span className="text-base font-semibold text-foreground">
               ${((parseInt(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || '2999')) / 100).toFixed(2)}
             </span>
@@ -116,7 +116,6 @@ function CheckoutForm() {
 
 export default function PaymentPage() {
   const [clientSecret, setClientSecret] = useState<string>('');
-  const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,7 +129,6 @@ export default function PaymentPage() {
       .then((data) => {
         if (data.clientSecret) {
           setClientSecret(data.clientSecret);
-          setAmount(data.amount);
         } else {
           setError('Failed to initialize payment');
         }
