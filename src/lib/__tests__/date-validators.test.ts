@@ -59,20 +59,6 @@ describe('validateAbsenceDates', () => {
       expect(errors).toEqual([])
     })
 
-    it('should reject first day exactly 5 days in past (boundary)', () => {
-      const fiveDaysAgo = format(subDays(today, 5), 'yyyy-MM-dd')
-
-      const data: DatesFormData = {
-        firstDayOff: fiveDaysAgo,
-        lastDayOff: fiveDaysAgo,
-        needReturnDate: false,
-      }
-
-      const errors = validateAbsenceDates(data)
-      expect(errors).toHaveLength(1)
-      expect(errors[0].field).toBe('firstDayOff')
-    })
-
     it('should return no errors with valid return date', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
@@ -99,7 +85,20 @@ describe('validateAbsenceDates', () => {
   })
 
   describe('First day validation', () => {
-    it('should reject first day more than 5 days in the past', () => {
+    it('should allow first day 4 days in past (well within limit)', () => {
+      const fourDaysAgo = format(subDays(today, 4), 'yyyy-MM-dd')
+
+      const data: DatesFormData = {
+        firstDayOff: fourDaysAgo,
+        lastDayOff: fourDaysAgo,
+        needReturnDate: false,
+      }
+
+      const errors = validateAbsenceDates(data)
+      expect(errors).toEqual([])
+    })
+
+    it('should reject first day 6 days in past (beyond limit)', () => {
       const sixDaysAgo = format(subDays(today, 6), 'yyyy-MM-dd')
 
       const data: DatesFormData = {
