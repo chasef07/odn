@@ -9,7 +9,9 @@ const { mockRetrieve } = vi.hoisted(() => ({
 vi.mock('stripe', () => {
   return {
     default: class MockStripe {
-      paymentIntents: any
+      paymentIntents: {
+        retrieve: typeof mockRetrieve
+      }
       constructor() {
         this.paymentIntents = {
           retrieve: mockRetrieve,

@@ -9,7 +9,9 @@ const { mockCreate } = vi.hoisted(() => ({
 vi.mock('stripe', () => {
   return {
     default: class MockStripe {
-      paymentIntents: any
+      paymentIntents: {
+        create: typeof mockCreate
+      }
       constructor() {
         this.paymentIntents = {
           create: mockCreate,
