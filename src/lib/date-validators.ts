@@ -21,7 +21,7 @@ export interface DateValidationError {
  * Validates absence date ranges according to business rules
  * - First day cannot be more than 5 days in the past
  * - Last day must be >= first day
- * - Last day cannot be more than 14 days from first day
+ * - Last day cannot be more than 7 days from first day
  * - Return date must be after last day off
  *
  * @param data - Form data containing date fields
@@ -56,12 +56,12 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
     });
   }
 
-  // Check if absence period is more than 14 days
+  // Check if absence period is more than 7 days
   const daysDifference = differenceInDays(lastDay, firstDay);
-  if (daysDifference > 14) {
+  if (daysDifference > 7) {
     errors.push({
       field: 'lastDayOff',
-      message: 'Absence period cannot exceed 14 days'
+      message: 'Absence period cannot exceed 7 days'
     });
   }
 
@@ -70,10 +70,10 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
     const returnDay = new Date(data.returnDate);
     returnDay.setHours(0, 0, 0, 0);
 
-    if (returnDay <= lastDay) {
+    if (returnDay < lastDay) {
       errors.push({
         field: 'returnDate',
-        message: 'Return date must be after the last day off'
+        message: 'Return date must be on or after the last day off'
       });
     }
   }
