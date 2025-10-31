@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       await prisma.temporarySubmission.create({
         data: {
           paymentIntentId: paymentIntent.id,
-          formData: formData as any, // Prisma Json type
+          formData: formData as unknown as Record<string, unknown>, // Prisma Json type
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
         },
       });

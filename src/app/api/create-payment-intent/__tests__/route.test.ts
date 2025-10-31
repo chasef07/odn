@@ -3,9 +3,8 @@ import { NextRequest } from 'next/server'
 import type { FormData } from '@/lib/form-storage'
 
 // Mock Prisma using vi.hoisted
-const { mockPrismaCreate, mockPrismaCancel } = vi.hoisted(() => ({
+const { mockPrismaCreate } = vi.hoisted(() => ({
   mockPrismaCreate: vi.fn(),
-  mockPrismaCancel: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({

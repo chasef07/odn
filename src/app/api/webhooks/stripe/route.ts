@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
             otherNotePurpose: formData.otherNotePurpose || null,
             absenceReason: formData.absenceReason!,
             otherAbsenceReason: formData.otherAbsenceReason || null,
-            symptoms: formData.symptoms || null,
+            symptoms: formData.symptoms ? (formData.symptoms as unknown as Record<string, unknown>) : undefined,
             otherSymptomText: formData.otherSymptomText || null,
             additionalInformation: formData.additionalInformation || null,
 
