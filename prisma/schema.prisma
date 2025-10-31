@@ -1,0 +1,96 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Temporary storage during payment processing
+model TemporarySubmission {
+  id              String   @id @default(uuid())
+  paymentIntentId String   @unique @map("payment_intent_id")
+  formData        Json     @map("form_data")
+  createdAt       DateTime @default(now()) @map("created_at")
+  expiresAt       DateTime @map("expires_at")
+
+  @@map("temporary_submissions")
+  @@index([expiresAt])
+}
+
+// Permanent submission storage
+model Submission {
+  // Primary Keys & IDs
+  id                    String   @id @default(uuid())
+  stripePaymentIntentId String   @unique @map("stripe_payment_intent_id")
+
+
+  // Status Tracking
+  status                String   @default("pending_review") // 'pending_review', 'approved', 'denied'
+
+  // State Selection
+  state                 String
+
+  // Patient Information
+  recipient             String   // 'myself' or 'someone_else'
+  patientFirstName      String   @map("patient_first_name")
+  patientLastName       String   @map("patient_last_name")
+  patientDateOfBirth    DateTime @map("patient_date_of_birth") @db.Date
+
+  // Guardian Information (conditional - only if recipient = 'someone_else')
+  guardianFirstName     String?  @map("guardian_first_name")
+  guardianLastName      String?  @map("guardian_last_name")
+  guardianDateOfBirth   DateTime? @map("guardian_date_of_birth") @db.Date
+
+  // Contact Information
+  email                 String
+  phone                 String
+
+  // Note Details
+  notePurpose           String   @map("note_purpose") // 'work', 'school', 'both', 'other'
+  otherNotePurpose      String?  @map("other_note_purpose")
+
+  // Absence Dates
+  firstDayOff           DateTime @map("first_day_off") @db.Date
+  lastDayOff            DateTime @map("last_day_off") @db.Date
+  returnDate            DateTime? @map("return_date") @db.Date
+
+  // Absence Reason
+  absenceReason         String   @map("absence_reason")
+  otherAbsenceReason    String?  @map("other_absence_reason")
+
+  // Symptoms (conditional - array of strings)
+  symptoms              Json?    // ["Fever", "Cough", "Fatigue"]
+  otherSymptomText      String?  @map("other_symptom_text")
+
+  // Additional Information
+  additionalInformation String?  @map("additional_information") @db.Text
+
+
+  // Admin Review Fields (filled when doctor reviews)
+  reviewedAt            DateTime? @map("reviewed_at")
+  reviewedByAdminId     String?   @map("reviewed_by_admin_id")
+
+
+  // Refund Tracking
+  stripeRefundId  String?   @map("stripe_refund_id")  // "re_1ABC123..."
+  refundedAt      DateTime? @map("refunded_at")       // When refund was initiated
+
+  // Email Delivery Tracking
+  approvalEmailSentAt   DateTime? @map("approval_email_sent_at")
+  denialEmailSentAt     DateTime? @map("denial_email_sent_at")
+
+  // Timestamps
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("submissions")
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+  @@index([status, createdAt])
+}

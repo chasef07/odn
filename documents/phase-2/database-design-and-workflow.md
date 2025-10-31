@@ -34,93 +34,176 @@ This phase adds the backend infrastructure to store, process, and manage patient
 
 ### Architecture Decision
 
-**Single Table Design** - All submission data in one table for simplicity:
+**Two-Table Design with Prisma ORM:**
+- **TemporarySubmission** - Staging area during payment processing (deleted after webhook)
+- **Submission** - Permanent storage for approved/denied submissions
+- Simple, reliable, and HIPAA-compliant
 - No complex JOINs needed
 - Fast queries for admin dashboard
 - Easy to maintain and debug
-- Sufficient for current business requirements
-- Can normalize later if needed
+
+**Technology Stack:**
+- **Prisma ORM** - Type-safe database client
+- **PostgreSQL** - Production database
+- **Price:** $24.95 per submission
 
 ---
 
 ## Database Schema
 
-### Single Table: `submissions`
+### Prisma Schema
 
-```sql
-CREATE TABLE submissions (
-  -- Primary Keys & IDs
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  stripe_payment_intent_id VARCHAR(255) UNIQUE NOT NULL,
-  stripe_charge_id VARCHAR(255),
+```prisma
+// prisma/schema.prisma
 
-  -- Payment Information
-  payment_amount INTEGER NOT NULL,  -- In cents (2999 = $29.99)
+generator client {
+  provider = "prisma-client-js"
+}
 
-  -- Status Tracking
-  status VARCHAR(50) DEFAULT 'pending_review',
-  -- Possible values: 'pending_review', 'approved', 'denied'
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-  -- Patient Information (from intake form)
-  recipient VARCHAR(20) NOT NULL,  -- 'myself' or 'someone_else'
-  relationship VARCHAR(100),  -- Only filled if recipient = 'someone_else'
-  first_name VARCHAR(100) NOT NULL,
-  last_name VARCHAR(100) NOT NULL,
-  date_of_birth DATE NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  phone VARCHAR(20) NOT NULL,
-  state VARCHAR(50) NOT NULL,
+// Temporary storage during payment processing
+model TemporarySubmission {
+  id              String   @id @default(uuid())
+  paymentIntentId String   @unique @map("payment_intent_id")
+  formData        Json     @map("form_data")
+  createdAt       DateTime @default(now()) @map("created_at")
+  expiresAt       DateTime @map("expires_at")
 
-  -- Note Details
-  note_purpose VARCHAR(50) NOT NULL,  -- 'work', 'school', 'both', 'other'
-  first_day_off DATE NOT NULL,
-  last_day_off DATE NOT NULL,
-  absence_reason VARCHAR(100) NOT NULL,
-  symptoms JSONB,  -- Array of symptoms: ["fever", "cough", "fatigue"]
+  @@map("temporary_submissions")
+  @@index([expiresAt])
+}
 
-  -- Admin Review Fields (filled when doctor reviews)
-  reviewed_at TIMESTAMP WITH TIME ZONE,
-  reviewed_by_admin_id UUID,  -- References admin_users table (Phase 2B)
-  denial_reason TEXT,  -- Only filled if denied
+// Permanent submission storage
+model Submission {
+  // Primary Keys & IDs
+  id                    String   @id @default(uuid())
+  stripePaymentIntentId String   @unique @map("stripe_payment_intent_id")
 
-  -- Document Fields (only if approved)
-  pdf_url TEXT,  -- S3 or Supabase Storage URL
-  pdf_generated_at TIMESTAMP WITH TIME ZONE,
 
-  -- Refund Tracking (only if denied)
-  refunded_at TIMESTAMP WITH TIME ZONE,
+  // Status Tracking
+  status                String   @default("pending_review") // 'pending_review', 'approved', 'denied'
 
-  -- Timestamps
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  // State Selection
+  state                 String
 
-  -- Data Integrity Constraints
-  CONSTRAINT check_dates CHECK (last_day_off >= first_day_off),
-  CONSTRAINT check_status CHECK (status IN ('pending_review', 'approved', 'denied'))
-);
+  // Patient Information
+  recipient             String   // 'myself' or 'someone_else'
+  patientFirstName      String   @map("patient_first_name")
+  patientLastName       String   @map("patient_last_name")
+  patientDateOfBirth    DateTime @map("patient_date_of_birth") @db.Date
 
--- Indexes for Performance
-CREATE INDEX idx_submissions_status ON submissions(status);
-CREATE INDEX idx_submissions_email ON submissions(email);
-CREATE INDEX idx_submissions_created_at ON submissions(created_at);
-CREATE INDEX idx_submissions_stripe_payment_intent ON submissions(stripe_payment_intent_id);
+  // Guardian Information (conditional - only if recipient = 'someone_else')
+  guardianFirstName     String?  @map("guardian_first_name")
+  guardianLastName      String?  @map("guardian_last_name")
+  guardianDateOfBirth   DateTime? @map("guardian_date_of_birth") @db.Date
+
+  // Contact Information
+  email                 String
+  phone                 String
+
+  // Note Details
+  notePurpose           String   @map("note_purpose") // 'work', 'school', 'both', 'other'
+  otherNotePurpose      String?  @map("other_note_purpose")
+
+  // Absence Dates
+  firstDayOff           DateTime @map("first_day_off") @db.Date
+  lastDayOff            DateTime @map("last_day_off") @db.Date
+  returnDate            DateTime? @map("return_date") @db.Date
+
+  // Absence Reason
+  absenceReason         String   @map("absence_reason")
+  otherAbsenceReason    String?  @map("other_absence_reason")
+
+  // Symptoms (conditional - array of strings)
+  symptoms              Json?    // ["Fever", "Cough", "Fatigue"]
+  otherSymptomText      String?  @map("other_symptom_text")
+
+  // Additional Information
+  additionalInformation String?  @map("additional_information") @db.Text
+
+
+  // Admin Review Fields (filled when doctor reviews)
+  reviewedAt            DateTime? @map("reviewed_at")
+  reviewedByAdminId     String?   @map("reviewed_by_admin_id")
+
+
+  // Refund Tracking
+  stripeRefundId  String?   @map("stripe_refund_id")  // "re_1ABC123..."
+  refundedAt      DateTime? @map("refunded_at")       // When refund was initiated
+
+  // Email Delivery Tracking
+  approvalEmailSentAt   DateTime? @map("approval_email_sent_at")
+  denialEmailSentAt     DateTime? @map("denial_email_sent_at")
+
+  // Timestamps
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("submissions")
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
 ```
 
 ### Field Explanations
 
+#### TemporarySubmission Fields
+
 | Field | Type | Purpose | Example |
 |-------|------|---------|---------|
-| `id` | UUID | Unique submission identifier | `550e8400-e29b-41d4-a716-446655440000` |
-| `stripe_payment_intent_id` | VARCHAR | Stripe payment ID for refunds | `pi_3QKxyz123ABC` |
-| `stripe_charge_id` | VARCHAR | Stripe charge ID (backup) | `ch_3QKxyz123ABC` |
-| `payment_amount` | INTEGER | Amount in cents | `2999` ($29.99) |
-| `status` | VARCHAR | Current submission state | `pending_review`, `approved`, `denied` |
-| `recipient` | VARCHAR | Who is the note for | `myself`, `someone_else` |
-| `relationship` | VARCHAR | If someone_else | `spouse`, `child`, `parent` |
-| `symptoms` | JSONB | Array of symptoms | `["fever", "cough"]` |
-| `pdf_url` | TEXT | Generated PDF location | `https://s3.../notes/550e8400.pdf` |
-| `denial_reason` | TEXT | Why request was denied | `Insufficient information provided` |
-| `refunded_at` | TIMESTAMP | When refund was issued | `2025-10-26 14:30:00 UTC` |
+| `id` | String (UUID) | Unique temp record identifier | `550e8400-e29b-41d4-a716-446655440000` |
+| `paymentIntentId` | String | Stripe payment intent ID | `pi_3QKxyz123ABC` |
+| `formData` | Json | Complete form data from client | `{ state: "CA", recipient: "myself", ... }` |
+| `createdAt` | DateTime | When record was created | `2025-10-30T10:00:00Z` |
+| `expiresAt` | DateTime | Auto-cleanup timestamp | `2025-10-31T10:00:00Z` (24 hours) |
+
+#### Submission Fields
+
+| Field | Type | Purpose | Example |
+|-------|------|---------|---------|
+| `id` | String (UUID) | Unique submission identifier | `550e8400-e29b-41d4-a716-446655440000` |
+| `stripePaymentIntentId` | String | Stripe payment ID for refunds | `pi_3QKxyz123ABC` |
+| `stripeChargeId` | String? | Stripe charge ID (backup) | `ch_3QKxyz123ABC` |
+| `paymentAmount` | Int | Amount in cents | `2495` ($24.95) |
+| `status` | String | Current submission state | `pending_review`, `approved`, `denied` |
+| `state` | String | User's state | `California` |
+| `recipient` | String | Who is the note for | `myself`, `someone_else` |
+| `patientFirstName` | String | Patient's first name | `John` |
+| `patientLastName` | String | Patient's last name | `Doe` |
+| `patientDateOfBirth` | DateTime | Patient's DOB | `1990-05-15` |
+| `guardianFirstName` | String? | Guardian's first name (if applicable) | `Jane` |
+| `guardianLastName` | String? | Guardian's last name (if applicable) | `Doe` |
+| `guardianDateOfBirth` | DateTime? | Guardian's DOB (if applicable) | `1985-03-20` |
+| `email` | String | Contact email | `john@example.com` |
+| `phone` | String | Contact phone | `(555) 555-1234` |
+| `notePurpose` | String | Purpose of note | `work`, `school`, `both`, `other` |
+| `otherNotePurpose` | String? | Custom purpose if "other" | `Court appearance` |
+| `firstDayOff` | DateTime | First absence date | `2025-10-28` |
+| `lastDayOff` | DateTime | Last absence date | `2025-10-30` |
+| `returnDate` | DateTime? | Return to work/school date | `2025-10-31` |
+| `absenceReason` | String | Reason for absence | `Flu symptoms` |
+| `otherAbsenceReason` | String? | Custom reason if "Other" | `Food poisoning` |
+| `symptoms` | Json? | Array of symptoms or relationships | `["Fever", "Cough", "Fatigue"]` |
+| `otherSymptomText` | String? | Custom symptom description | `Severe migraine` |
+| `additionalInformation` | String? | Extra patient notes | `Need note for 3 consecutive days` |
+| `certifyAccurate` | Boolean | User certified accuracy | `true` |
+| `agreeTerms` | Boolean | User agreed to terms | `true` |
+| `reviewedAt` | DateTime? | When doctor reviewed | `2025-10-26 14:30:00 UTC` |
+| `reviewedByAdminId` | String? | Admin/doctor who reviewed | `admin-uuid-123` |
+| `denialReason` | String? | Why request was denied | `Insufficient information provided` |
+| `pdfUrl` | String? | Generated PDF location | `https://storage.../550e8400.pdf` |
+| `pdfGeneratedAt` | DateTime? | When PDF was created | `2025-10-26 14:35:00 UTC` |
+| `refundedAt` | DateTime? | When refund was issued | `2025-10-26 14:30:00 UTC` |
+| `approvalEmailSentAt` | DateTime? | When approval email sent | `2025-10-26 14:36:00 UTC` |
+| `denialEmailSentAt` | DateTime? | When denial email sent | `2025-10-26 14:31:00 UTC` |
+| `createdAt` | DateTime | Record creation time | `2025-10-26 10:00:00 UTC` |
+| `updatedAt` | DateTime | Last update time | `2025-10-26 14:30:00 UTC` |
 
 ### Status State Machine
 
@@ -144,46 +227,132 @@ CREATE INDEX idx_submissions_stripe_payment_intent ON submissions(stripe_payment
 
 ## Complete Submission Flow
 
-### Step 1: Patient Fills Out Form & Pays
+### Step 1: Patient Fills Out Form
 
-**Frontend Process:**
-1. Patient completes 8-step intake form
-2. Data stored in localStorage (Phase 1 implementation)
-3. Redirected to Stripe payment page
-4. Enters payment information
-5. Stripe processes payment
-6. Stripe redirects to success page: `/payment/success?payment_intent=pi_ABC123`
+**Frontend Process (Client-Side):**
+1. Patient completes multi-step intake form
+   - State selection → Who is using → Patient info → (Guardian info if applicable) → Contact → Purpose → Dates → Reason → (Symptoms if applicable) → Additional info → Review
+2. Data stored in **localStorage** (Phase 1 implementation) for persistence
+3. All fields validated with Zod schemas
+4. Progress tracked through conditional steps
 
-**What happens to form data:**
-- Option A: Store in Stripe metadata during payment intent creation
-- Option B: Cache in Redis/memory with payment_intent_id as key
-- Option C: Store in temporary table, mark as completed when webhook fires
+**Current Form Fields Collected:**
+- State, Recipient
+- Patient: firstName, lastName, dateOfBirth
+- Guardian (conditional): firstName, lastName, dateOfBirth
+- Contact: email, phone
+- Note: purpose, otherPurpose, firstDayOff, lastDayOff, returnDate
+- Absence: reason, otherReason
+- Symptoms (conditional): symptoms array, otherSymptomText
+- Additional: additionalInformation
+- Terms: certifyAccurate, agreeTerms
 
-### Step 2: Stripe Webhook Fires (Critical!)
+### Step 2: Create Payment Intent & Temporary Record
+
+**Frontend Action:** User clicks "Proceed to Payment"
+
+**API Endpoint:** `POST /api/create-payment-intent`
+
+**Request:**
+```typescript
+{
+  formData: {
+    state: "California",
+    recipient: "myself",
+    patientFirstName: "John",
+    patientLastName: "Doe",
+    // ... all form fields
+  }
+}
+```
+
+**Server Process:**
+```typescript
+// src/app/api/create-payment-intent/route.ts
+
+import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
+import { PrismaClient } from '@prisma/client';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const prisma = new PrismaClient();
+
+export async function POST(req: NextRequest) {
+  const { formData } = await req.json();
+
+  // 1. Create Stripe payment intent
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: 2495, // $24.95
+    currency: 'usd',
+    automatic_payment_methods: { enabled: true },
+    metadata: {
+      product: 'doctors-note',
+      service: 'online-doctor-note'
+    }
+  });
+
+  // 2. Store form data in temporary table
+  const tempSubmission = await prisma.temporarySubmission.create({
+    data: {
+      paymentIntentId: paymentIntent.id,
+      formData: formData,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+    }
+  });
+
+  // 3. Return client secret for Stripe Elements
+  return NextResponse.json({
+    clientSecret: paymentIntent.client_secret,
+    amount: paymentIntent.amount
+  });
+}
+```
+
+**What happens:**
+- Stripe payment intent created: `pi_ABC123`
+- Temporary record created in database with ALL form data
+- Client receives payment secret to render Stripe Elements
+
+**Database State (Temporary Table):**
+```
+temporary_submissions:
+┌──────────┬─────────────┬───────────────────────────┬────────────┬─────────────┐
+│ id       │ payment_... │ form_data (JSON)          │ created_at │ expires_at  │
+├──────────┼─────────────┼───────────────────────────┼────────────┼─────────────┤
+│ temp-123 │ pi_ABC123   │ {state:"CA",recipient:... │ 10:00 AM   │ +24 hours   │
+└──────────┴─────────────┴───────────────────────────┴────────────┴─────────────┘
+```
+
+### Step 3: User Completes Payment
+
+**Frontend:**
+1. Stripe Elements renders payment form
+2. User enters card details
+3. Stripe processes payment
+4. Redirect to `/payment/success?payment_intent=pi_ABC123`
+
+### Step 4: Stripe Webhook Fires (Critical!)
 
 **Webhook Endpoint:** `POST /api/webhooks/stripe`
 
 **Event Type:** `payment_intent.succeeded`
 
-**Process:**
+**Server Process:**
 ```typescript
 // src/app/api/webhooks/stripe/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+import { PrismaClient } from '@prisma/client';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = req.headers.get('stripe-signature')!;
 
-  // 1. Verify webhook signature
+  // 1. Verify webhook signature (SECURITY)
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(
@@ -192,58 +361,100 @@ export async function POST(req: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (err) {
-    return new Response('Webhook signature verification failed', { status: 400 });
+    console.error('Webhook signature verification failed:', err);
+    return new Response('Webhook Error', { status: 400 });
   }
 
   // 2. Handle payment success
   if (event.type === 'payment_intent.succeeded') {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
-    // 3. Retrieve form data from metadata or cache
-    const formData = JSON.parse(paymentIntent.metadata.formData || '{}');
+    // 3. Check for duplicate webhook (idempotency)
+    const existing = await prisma.submission.findUnique({
+      where: { stripePaymentIntentId: paymentIntent.id }
+    });
 
-    // 4. Insert into database
-    const { data: submission, error } = await supabase
-      .from('submissions')
-      .insert({
-        stripe_payment_intent_id: paymentIntent.id,
-        stripe_charge_id: paymentIntent.latest_charge as string,
-        payment_amount: paymentIntent.amount,
+    if (existing) {
+      console.log('Payment already processed');
+      return new Response(JSON.stringify({ received: true }), { status: 200 });
+    }
+
+    // 4. Retrieve form data from temporary table
+    const tempSubmission = await prisma.temporarySubmission.findUnique({
+      where: { paymentIntentId: paymentIntent.id }
+    });
+
+    if (!tempSubmission) {
+      console.error('Temporary submission not found');
+      return new Response('Form data not found', { status: 404 });
+    }
+
+    const formData = tempSubmission.formData as any;
+
+    // 5. Create permanent submission record
+    const submission = await prisma.submission.create({
+      data: {
+        stripePaymentIntentId: paymentIntent.id,
+        stripeChargeId: paymentIntent.latest_charge as string,
+        paymentAmount: paymentIntent.amount,
         status: 'pending_review',
+
+        // State
+        state: formData.state,
 
         // Patient info
         recipient: formData.recipient,
-        relationship: formData.relationship,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        date_of_birth: formData.dateOfBirth,
+        patientFirstName: formData.patientFirstName,
+        patientLastName: formData.patientLastName,
+        patientDateOfBirth: new Date(formData.patientDateOfBirth),
+
+        // Guardian info (conditional)
+        guardianFirstName: formData.guardianFirstName || null,
+        guardianLastName: formData.guardianLastName || null,
+        guardianDateOfBirth: formData.guardianDateOfBirth
+          ? new Date(formData.guardianDateOfBirth)
+          : null,
+
+        // Contact
         email: formData.email,
         phone: formData.phone,
-        state: formData.state,
 
         // Note details
-        note_purpose: formData.notePurpose,
-        first_day_off: formData.firstDayOff,
-        last_day_off: formData.lastDayOff,
-        absence_reason: formData.absenceReason,
-        symptoms: formData.symptoms,
-      })
-      .select()
-      .single();
+        notePurpose: formData.notePurpose,
+        otherNotePurpose: formData.otherNotePurpose || null,
+        firstDayOff: new Date(formData.firstDayOff),
+        lastDayOff: new Date(formData.lastDayOff),
+        returnDate: formData.returnDate ? new Date(formData.returnDate) : null,
 
-    if (error) {
-      console.error('Error creating submission:', error);
-      return new Response('Database error', { status: 500 });
-    }
+        // Absence
+        absenceReason: formData.absenceReason,
+        otherAbsenceReason: formData.otherAbsenceReason || null,
 
-    // 5. Optional: Send confirmation email to patient
-    // await sendEmail({
-    //   to: formData.email,
-    //   subject: 'Payment Received - Doctor\'s Note Request',
-    //   body: 'Your request is being reviewed...'
-    // });
+        // Symptoms (conditional)
+        symptoms: formData.symptoms || null,
+        otherSymptomText: formData.otherSymptomText || null,
 
-    return new Response(JSON.stringify({ received: true }), { status: 200 });
+        // Additional
+        additionalInformation: formData.additionalInformation || null,
+
+        // Terms
+        certifyAccurate: formData.certifyAccurate || true,
+        agreeTerms: formData.agreeTerms || true,
+      }
+    });
+
+    // 6. Delete temporary record (cleanup)
+    await prisma.temporarySubmission.delete({
+      where: { id: tempSubmission.id }
+    });
+
+    // 7. Optional: Send confirmation email
+    // await sendConfirmationEmail(submission.email, submission.id);
+
+    console.log('Submission created:', submission.id);
+    return new Response(JSON.stringify({ received: true, submissionId: submission.id }), {
+      status: 200
+    });
   }
 
   return new Response(JSON.stringify({ received: true }), { status: 200 });
@@ -252,12 +463,15 @@ export async function POST(req: NextRequest) {
 
 **Database After Webhook:**
 ```
-submissions table:
-┌──────────────┬────────────────────┬────────────────┬────────┬─────────────────┐
-│ id           │ stripe_payment_... │ first_name     │ status │ created_at      │
-├──────────────┼────────────────────┼────────────────┼────────┼─────────────────┤
-│ 550e8400-... │ pi_ABC123          │ John           │ pending│ 2025-10-26 10:00│
-└──────────────┴────────────────────┴────────────────┴────────┴─────────────────┘
+submissions:
+┌──────────┬─────────────┬──────────┬────────┬────────────┬─────────────────┐
+│ id       │ stripe_p... │ patient_ │ status │ email      │ created_at      │
+├──────────┼─────────────┼──────────┼────────┼────────────┼─────────────────┤
+│ 550e8... │ pi_ABC123   │ John Doe │ pending│ john@e...  │ 2025-10-30 10:05│
+└──────────┴─────────────┴──────────┴────────┴────────────┴─────────────────┘
+
+temporary_submissions:
+(empty - record deleted after processing)
 ```
 
 ---
@@ -492,103 +706,170 @@ await sendEmail({
 
 ## Database Queries
 
-### Admin Dashboard Queries
+### Admin Dashboard Queries (Prisma)
 
 **1. Get All Pending Reviews**
-```sql
-SELECT
-  id,
-  first_name,
-  last_name,
-  email,
-  state,
-  first_day_off,
-  last_day_off,
-  absence_reason,
-  created_at
-FROM submissions
-WHERE status = 'pending_review'
-ORDER BY created_at ASC;
+```typescript
+const pendingSubmissions = await prisma.submission.findMany({
+  where: {
+    status: 'pending_review'
+  },
+  select: {
+    id: true,
+    patientFirstName: true,
+    patientLastName: true,
+    email: true,
+    state: true,
+    firstDayOff: true,
+    lastDayOff: true,
+    absenceReason: true,
+    createdAt: true
+  },
+  orderBy: {
+    createdAt: 'asc'
+  }
+});
 ```
 
 **2. Get Single Submission for Review**
-```sql
-SELECT * FROM submissions
-WHERE id = '550e8400-...'
-AND status = 'pending_review';
+```typescript
+const submission = await prisma.submission.findUnique({
+  where: {
+    id: '550e8400-...'
+  }
+});
+
+// Or with status check
+const submission = await prisma.submission.findFirst({
+  where: {
+    id: '550e8400-...',
+    status: 'pending_review'
+  }
+});
 ```
 
 **3. Get Admin Dashboard Stats**
-```sql
--- Pending count
-SELECT COUNT(*) as pending_count
-FROM submissions
-WHERE status = 'pending_review';
+```typescript
+// Pending count
+const pendingCount = await prisma.submission.count({
+  where: {
+    status: 'pending_review'
+  }
+});
 
--- Approved today
-SELECT COUNT(*) as approved_today
-FROM submissions
-WHERE status = 'approved'
-AND DATE(reviewed_at) = CURRENT_DATE;
+// Approved today
+const approvedToday = await prisma.submission.count({
+  where: {
+    status: 'approved',
+    reviewedAt: {
+      gte: new Date(new Date().setHours(0, 0, 0, 0))
+    }
+  }
+});
 
--- Denied today
-SELECT COUNT(*) as denied_today
-FROM submissions
-WHERE status = 'denied'
-AND DATE(reviewed_at) = CURRENT_DATE;
+// Denied today
+const deniedToday = await prisma.submission.count({
+  where: {
+    status: 'denied',
+    reviewedAt: {
+      gte: new Date(new Date().setHours(0, 0, 0, 0))
+    }
+  }
+});
 
--- Total revenue today
-SELECT SUM(payment_amount) as revenue_today
-FROM submissions
-WHERE DATE(created_at) = CURRENT_DATE;
+// Total revenue today
+const revenueToday = await prisma.submission.aggregate({
+  where: {
+    createdAt: {
+      gte: new Date(new Date().setHours(0, 0, 0, 0))
+    }
+  },
+  _sum: {
+    paymentAmount: true
+  }
+});
+// Result: revenueToday._sum.paymentAmount / 100 = dollars
 ```
 
 **4. Search Submissions by Email**
-```sql
-SELECT * FROM submissions
-WHERE email ILIKE '%john@example.com%'
-ORDER BY created_at DESC;
+```typescript
+const submissions = await prisma.submission.findMany({
+  where: {
+    email: {
+      contains: 'john@example.com',
+      mode: 'insensitive'
+    }
+  },
+  orderBy: {
+    createdAt: 'desc'
+  }
+});
 ```
 
 **5. Get All Refunded Submissions**
-```sql
-SELECT
-  id,
-  first_name,
-  last_name,
-  email,
-  denial_reason,
-  payment_amount,
-  refunded_at
-FROM submissions
-WHERE refunded_at IS NOT NULL
-ORDER BY refunded_at DESC;
+```typescript
+const refundedSubmissions = await prisma.submission.findMany({
+  where: {
+    refundedAt: {
+      not: null
+    }
+  },
+  select: {
+    id: true,
+    patientFirstName: true,
+    patientLastName: true,
+    email: true,
+    denialReason: true,
+    paymentAmount: true,
+    refundedAt: true
+  },
+  orderBy: {
+    refundedAt: 'desc'
+  }
+});
 ```
 
-### Data Cleanup Queries
+### Data Cleanup Queries (Prisma)
 
 **6. Delete Submissions Older Than 30 Days**
-```sql
--- Preview what will be deleted
-SELECT COUNT(*) as to_delete
-FROM submissions
-WHERE created_at < NOW() - INTERVAL '30 days';
+```typescript
+// Preview what will be deleted
+const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
--- Actually delete
-DELETE FROM submissions
-WHERE created_at < NOW() - INTERVAL '30 days';
+const toDeleteCount = await prisma.submission.count({
+  where: {
+    createdAt: {
+      lt: thirtyDaysAgo
+    }
+  }
+});
+
+console.log(`Will delete ${toDeleteCount} submissions`);
+
+// Actually delete
+const deleteResult = await prisma.submission.deleteMany({
+  where: {
+    createdAt: {
+      lt: thirtyDaysAgo
+    }
+  }
+});
+
+console.log(`Deleted ${deleteResult.count} submissions`);
 ```
 
-**7. Archive Before Deletion (Recommended)**
-```sql
--- First, export to archive table
-INSERT INTO submissions_archive
-SELECT * FROM submissions
-WHERE created_at < NOW() - INTERVAL '30 days';
+**7. Delete Expired Temporary Submissions (Cron Job)**
+```typescript
+// Clean up temporary submissions that have expired
+const deleteExpired = await prisma.temporarySubmission.deleteMany({
+  where: {
+    expiresAt: {
+      lt: new Date()
+    }
+  }
+});
 
--- Then delete from main table
-DELETE FROM submissions
-WHERE created_at < NOW() - INTERVAL '30 days';
+console.log(`Deleted ${deleteExpired.count} expired temporary submissions`);
 ```
 
 ---

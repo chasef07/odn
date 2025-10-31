@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FormLayout } from '@/components/form-layout';
 import { CheckCircle2 } from 'lucide-react';
+import { clearFormData } from '@/lib/form-storage';
 
 const CURRENT_STEP = 10;
 
@@ -37,6 +38,14 @@ function PaymentSuccessContent() {
 
         if (data.status === 'succeeded') {
           setStatus('success');
+
+          // Clear form data after successful payment verification
+          try {
+            clearFormData();
+          } catch (clearError) {
+            console.warn('Failed to clear form data:', clearError);
+            // Non-critical - don't show error to user
+          }
         } else {
           setStatus('error');
         }
