@@ -9,7 +9,6 @@ export interface FormData {
 
   // Page 1 - Who is this for?
   recipient?: 'myself' | 'someone_else' | null;
-  relationship?: string;
 
   // Page 2 - Patient Information
   patientFirstName?: string;
@@ -33,7 +32,6 @@ export interface FormData {
   firstDayOff?: string; // ISO format
   lastDayOff?: string; // ISO format
   returnDate?: string; // ISO format
-  needReturnDate?: boolean;
 
   // Page 7 - Absence Reason
   absenceReason?: string | null;

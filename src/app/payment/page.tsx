@@ -11,6 +11,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { ArrowLeft } from 'lucide-react';
 import { FormLayout } from '@/components/form-layout';
+import { getFormData } from '@/lib/form-storage';
 
 const CURRENT_STEP = 10;
 
@@ -121,24 +122,50 @@ export default function PaymentPage() {
 
   useEffect(() => {
     // Create PaymentIntent as soon as the page loads
-    fetch('/api/create-payment-intent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    })
-      .then((res) => res.json())
-      .then((data) => {
+    const createPaymentIntent = async () => {
+      try {
+        // Get form data from localStorage
+        const formData = getFormData();
+
+        // Validate form data exists
+        if (!formData.email || !formData.patientFirstName) {
+          setError('Form data is incomplete. Please go back and complete the form.');
+          setLoading(false);
+          return;
+        }
+
+        // Call API with form data
+        const response = await fetch('/api/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ formData }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || 'Failed to create payment intent');
+        }
+
+        const data = await response.json();
+
         if (data.clientSecret) {
           setClientSecret(data.clientSecret);
         } else {
           setError('Failed to initialize payment');
         }
-      })
-      .catch(() => {
-        setError('Failed to connect to payment service');
-      })
-      .finally(() => {
+      } catch (err) {
+        console.error('Payment intent creation error:', err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to connect to payment service. Please try again.'
+        );
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    createPaymentIntent();
   }, []);
 
   const appearance = {
