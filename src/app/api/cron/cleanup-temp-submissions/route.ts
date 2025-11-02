@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { NextResponse } from 'next/server'
+import prisma from '@/lib/prisma'
 
 /**
  * Cleanup Job for Expired TemporarySubmissions
@@ -25,17 +25,17 @@ export async function GET() {
           lt: new Date(), // Less than current time
         },
       },
-    });
+    })
 
-    console.log(`✅ Cleaned up ${result.count} expired TemporarySubmissions`);
+    console.log(`✅ Cleaned up ${result.count} expired TemporarySubmissions`)
 
     return NextResponse.json({
       success: true,
       deleted: result.count,
       timestamp: new Date().toISOString(),
-    });
+    })
   } catch (error) {
-    console.error('❌ Cleanup job error:', error);
+    console.error('❌ Cleanup job error:', error)
     return NextResponse.json(
       {
         success: false,
@@ -43,6 +43,6 @@ export async function GET() {
         timestamp: new Date().toISOString(),
       },
       { status: 500 }
-    );
+    )
   }
 }

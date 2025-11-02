@@ -1,29 +1,29 @@
-import { InputHTMLAttributes } from 'react';
-import { FieldError, UseFormRegisterReturn } from 'react-hook-form';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { InputHTMLAttributes } from 'react'
+import { FieldError, UseFormRegisterReturn } from 'react-hook-form'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface FormFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
   /** Unique field identifier */
-  id: string;
+  id: string
 
   /** Display label text */
-  label: string;
+  label: string
 
   /** React Hook Form register return value */
-  register: UseFormRegisterReturn;
+  register: UseFormRegisterReturn
 
   /** Error object from react-hook-form */
-  error?: FieldError;
+  error?: FieldError
 
   /** Input type (default: "text") */
-  type?: string;
+  type?: string
 
   /** Placeholder text */
-  placeholder?: string;
+  placeholder?: string
 
   /** Whether field is required (default: true) */
-  required?: boolean;
+  required?: boolean
 }
 
 export function FormField({
@@ -47,7 +47,7 @@ export function FormField({
         id={id}
         type={type}
         {...register}
-        className={`h-12 rounded-xl border border-border/60 bg-white text-base focus-visible:ring-2 focus-visible:ring-primary/40 ${className || ''}`}
+        className={`border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2 ${className || ''}`}
         placeholder={placeholder}
         aria-required={required}
         aria-invalid={!!error}
@@ -61,5 +61,5 @@ export function FormField({
         </p>
       )}
     </div>
-  );
+  )
 }

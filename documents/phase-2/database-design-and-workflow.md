@@ -35,6 +35,7 @@ This phase adds the backend infrastructure to store, process, and manage patient
 ### Architecture Decision
 
 **Two-Table Design with Prisma ORM:**
+
 - **TemporarySubmission** - Staging area during payment processing (deleted after webhook)
 - **Submission** - Permanent storage for approved/denied submissions
 - Simple, reliable, and HIPAA-compliant
@@ -43,6 +44,7 @@ This phase adds the backend infrastructure to store, process, and manage patient
 - Easy to maintain and debug
 
 **Technology Stack:**
+
 - **Prisma ORM** - Type-safe database client
 - **PostgreSQL** - Production database
 - **Price:** $24.95 per submission
@@ -155,55 +157,55 @@ model Submission {
 
 #### TemporarySubmission Fields
 
-| Field | Type | Purpose | Example |
-|-------|------|---------|---------|
-| `id` | String (UUID) | Unique temp record identifier | `550e8400-e29b-41d4-a716-446655440000` |
-| `paymentIntentId` | String | Stripe payment intent ID | `pi_3QKxyz123ABC` |
-| `formData` | Json | Complete form data from client | `{ state: "CA", recipient: "myself", ... }` |
-| `createdAt` | DateTime | When record was created | `2025-10-30T10:00:00Z` |
-| `expiresAt` | DateTime | Auto-cleanup timestamp | `2025-10-31T10:00:00Z` (24 hours) |
+| Field             | Type          | Purpose                        | Example                                     |
+| ----------------- | ------------- | ------------------------------ | ------------------------------------------- |
+| `id`              | String (UUID) | Unique temp record identifier  | `550e8400-e29b-41d4-a716-446655440000`      |
+| `paymentIntentId` | String        | Stripe payment intent ID       | `pi_3QKxyz123ABC`                           |
+| `formData`        | Json          | Complete form data from client | `{ state: "CA", recipient: "myself", ... }` |
+| `createdAt`       | DateTime      | When record was created        | `2025-10-30T10:00:00Z`                      |
+| `expiresAt`       | DateTime      | Auto-cleanup timestamp         | `2025-10-31T10:00:00Z` (24 hours)           |
 
 #### Submission Fields
 
-| Field | Type | Purpose | Example |
-|-------|------|---------|---------|
-| `id` | String (UUID) | Unique submission identifier | `550e8400-e29b-41d4-a716-446655440000` |
-| `stripePaymentIntentId` | String | Stripe payment ID for refunds | `pi_3QKxyz123ABC` |
-| `stripeChargeId` | String? | Stripe charge ID (backup) | `ch_3QKxyz123ABC` |
-| `paymentAmount` | Int | Amount in cents | `2495` ($24.95) |
-| `status` | String | Current submission state | `pending_review`, `approved`, `denied` |
-| `state` | String | User's state | `California` |
-| `recipient` | String | Who is the note for | `myself`, `someone_else` |
-| `patientFirstName` | String | Patient's first name | `John` |
-| `patientLastName` | String | Patient's last name | `Doe` |
-| `patientDateOfBirth` | DateTime | Patient's DOB | `1990-05-15` |
-| `guardianFirstName` | String? | Guardian's first name (if applicable) | `Jane` |
-| `guardianLastName` | String? | Guardian's last name (if applicable) | `Doe` |
-| `guardianDateOfBirth` | DateTime? | Guardian's DOB (if applicable) | `1985-03-20` |
-| `email` | String | Contact email | `john@example.com` |
-| `phone` | String | Contact phone | `(555) 555-1234` |
-| `notePurpose` | String | Purpose of note | `work`, `school`, `both`, `other` |
-| `otherNotePurpose` | String? | Custom purpose if "other" | `Court appearance` |
-| `firstDayOff` | DateTime | First absence date | `2025-10-28` |
-| `lastDayOff` | DateTime | Last absence date | `2025-10-30` |
-| `returnDate` | DateTime? | Return to work/school date | `2025-10-31` |
-| `absenceReason` | String | Reason for absence | `Flu symptoms` |
-| `otherAbsenceReason` | String? | Custom reason if "Other" | `Food poisoning` |
-| `symptoms` | Json? | Array of symptoms or relationships | `["Fever", "Cough", "Fatigue"]` |
-| `otherSymptomText` | String? | Custom symptom description | `Severe migraine` |
-| `additionalInformation` | String? | Extra patient notes | `Need note for 3 consecutive days` |
-| `certifyAccurate` | Boolean | User certified accuracy | `true` |
-| `agreeTerms` | Boolean | User agreed to terms | `true` |
-| `reviewedAt` | DateTime? | When doctor reviewed | `2025-10-26 14:30:00 UTC` |
-| `reviewedByAdminId` | String? | Admin/doctor who reviewed | `admin-uuid-123` |
-| `denialReason` | String? | Why request was denied | `Insufficient information provided` |
-| `pdfUrl` | String? | Generated PDF location | `https://storage.../550e8400.pdf` |
-| `pdfGeneratedAt` | DateTime? | When PDF was created | `2025-10-26 14:35:00 UTC` |
-| `refundedAt` | DateTime? | When refund was issued | `2025-10-26 14:30:00 UTC` |
-| `approvalEmailSentAt` | DateTime? | When approval email sent | `2025-10-26 14:36:00 UTC` |
-| `denialEmailSentAt` | DateTime? | When denial email sent | `2025-10-26 14:31:00 UTC` |
-| `createdAt` | DateTime | Record creation time | `2025-10-26 10:00:00 UTC` |
-| `updatedAt` | DateTime | Last update time | `2025-10-26 14:30:00 UTC` |
+| Field                   | Type          | Purpose                               | Example                                |
+| ----------------------- | ------------- | ------------------------------------- | -------------------------------------- |
+| `id`                    | String (UUID) | Unique submission identifier          | `550e8400-e29b-41d4-a716-446655440000` |
+| `stripePaymentIntentId` | String        | Stripe payment ID for refunds         | `pi_3QKxyz123ABC`                      |
+| `stripeChargeId`        | String?       | Stripe charge ID (backup)             | `ch_3QKxyz123ABC`                      |
+| `paymentAmount`         | Int           | Amount in cents                       | `2495` ($24.95)                        |
+| `status`                | String        | Current submission state              | `pending_review`, `approved`, `denied` |
+| `state`                 | String        | User's state                          | `California`                           |
+| `recipient`             | String        | Who is the note for                   | `myself`, `someone_else`               |
+| `patientFirstName`      | String        | Patient's first name                  | `John`                                 |
+| `patientLastName`       | String        | Patient's last name                   | `Doe`                                  |
+| `patientDateOfBirth`    | DateTime      | Patient's DOB                         | `1990-05-15`                           |
+| `guardianFirstName`     | String?       | Guardian's first name (if applicable) | `Jane`                                 |
+| `guardianLastName`      | String?       | Guardian's last name (if applicable)  | `Doe`                                  |
+| `guardianDateOfBirth`   | DateTime?     | Guardian's DOB (if applicable)        | `1985-03-20`                           |
+| `email`                 | String        | Contact email                         | `john@example.com`                     |
+| `phone`                 | String        | Contact phone                         | `(555) 555-1234`                       |
+| `notePurpose`           | String        | Purpose of note                       | `work`, `school`, `both`, `other`      |
+| `otherNotePurpose`      | String?       | Custom purpose if "other"             | `Court appearance`                     |
+| `firstDayOff`           | DateTime      | First absence date                    | `2025-10-28`                           |
+| `lastDayOff`            | DateTime      | Last absence date                     | `2025-10-30`                           |
+| `returnDate`            | DateTime?     | Return to work/school date            | `2025-10-31`                           |
+| `absenceReason`         | String        | Reason for absence                    | `Flu symptoms`                         |
+| `otherAbsenceReason`    | String?       | Custom reason if "Other"              | `Food poisoning`                       |
+| `symptoms`              | Json?         | Array of symptoms or relationships    | `["Fever", "Cough", "Fatigue"]`        |
+| `otherSymptomText`      | String?       | Custom symptom description            | `Severe migraine`                      |
+| `additionalInformation` | String?       | Extra patient notes                   | `Need note for 3 consecutive days`     |
+| `certifyAccurate`       | Boolean       | User certified accuracy               | `true`                                 |
+| `agreeTerms`            | Boolean       | User agreed to terms                  | `true`                                 |
+| `reviewedAt`            | DateTime?     | When doctor reviewed                  | `2025-10-26 14:30:00 UTC`              |
+| `reviewedByAdminId`     | String?       | Admin/doctor who reviewed             | `admin-uuid-123`                       |
+| `denialReason`          | String?       | Why request was denied                | `Insufficient information provided`    |
+| `pdfUrl`                | String?       | Generated PDF location                | `https://storage.../550e8400.pdf`      |
+| `pdfGeneratedAt`        | DateTime?     | When PDF was created                  | `2025-10-26 14:35:00 UTC`              |
+| `refundedAt`            | DateTime?     | When refund was issued                | `2025-10-26 14:30:00 UTC`              |
+| `approvalEmailSentAt`   | DateTime?     | When approval email sent              | `2025-10-26 14:36:00 UTC`              |
+| `denialEmailSentAt`     | DateTime?     | When denial email sent                | `2025-10-26 14:31:00 UTC`              |
+| `createdAt`             | DateTime      | Record creation time                  | `2025-10-26 10:00:00 UTC`              |
+| `updatedAt`             | DateTime      | Last update time                      | `2025-10-26 14:30:00 UTC`              |
 
 ### Status State Machine
 
@@ -230,6 +232,7 @@ model Submission {
 ### Step 1: Patient Fills Out Form
 
 **Frontend Process (Client-Side):**
+
 1. Patient completes multi-step intake form
    - State selection → Who is using → Patient info → (Guardian info if applicable) → Contact → Purpose → Dates → Reason → (Symptoms if applicable) → Additional info → Review
 2. Data stored in **localStorage** (Phase 1 implementation) for persistence
@@ -237,6 +240,7 @@ model Submission {
 4. Progress tracked through conditional steps
 
 **Current Form Fields Collected:**
+
 - State, Recipient
 - Patient: firstName, lastName, dateOfBirth
 - Guardian (conditional): firstName, lastName, dateOfBirth
@@ -254,6 +258,7 @@ model Submission {
 **API Endpoint:** `POST /api/create-payment-intent`
 
 **Request:**
+
 ```typescript
 {
   formData: {
@@ -267,18 +272,19 @@ model Submission {
 ```
 
 **Server Process:**
+
 ```typescript
 // src/app/api/create-payment-intent/route.ts
 
-import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
-import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server'
+import Stripe from 'stripe'
+import { PrismaClient } from '@prisma/client'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const prisma = new PrismaClient();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+const prisma = new PrismaClient()
 
 export async function POST(req: NextRequest) {
-  const { formData } = await req.json();
+  const { formData } = await req.json()
 
   // 1. Create Stripe payment intent
   const paymentIntent = await stripe.paymentIntents.create({
@@ -287,33 +293,35 @@ export async function POST(req: NextRequest) {
     automatic_payment_methods: { enabled: true },
     metadata: {
       product: 'doctors-note',
-      service: 'online-doctor-note'
-    }
-  });
+      service: 'online-doctor-note',
+    },
+  })
 
   // 2. Store form data in temporary table
   const tempSubmission = await prisma.temporarySubmission.create({
     data: {
       paymentIntentId: paymentIntent.id,
       formData: formData,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-    }
-  });
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    },
+  })
 
   // 3. Return client secret for Stripe Elements
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
-    amount: paymentIntent.amount
-  });
+    amount: paymentIntent.amount,
+  })
 }
 ```
 
 **What happens:**
+
 - Stripe payment intent created: `pi_ABC123`
 - Temporary record created in database with ALL form data
 - Client receives payment secret to render Stripe Elements
 
 **Database State (Temporary Table):**
+
 ```
 temporary_submissions:
 ┌──────────┬─────────────┬───────────────────────────┬────────────┬─────────────┐
@@ -326,6 +334,7 @@ temporary_submissions:
 ### Step 3: User Completes Payment
 
 **Frontend:**
+
 1. Stripe Elements renders payment form
 2. User enters card details
 3. Stripe processes payment
@@ -338,58 +347,55 @@ temporary_submissions:
 **Event Type:** `payment_intent.succeeded`
 
 **Server Process:**
+
 ```typescript
 // src/app/api/webhooks/stripe/route.ts
 
-import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
-import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server'
+import Stripe from 'stripe'
+import { PrismaClient } from '@prisma/client'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const prisma = new PrismaClient();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+const prisma = new PrismaClient()
 
 export async function POST(req: NextRequest) {
-  const body = await req.text();
-  const signature = req.headers.get('stripe-signature')!;
+  const body = await req.text()
+  const signature = req.headers.get('stripe-signature')!
 
   // 1. Verify webhook signature (SECURITY)
-  let event: Stripe.Event;
+  let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
   } catch (err) {
-    console.error('Webhook signature verification failed:', err);
-    return new Response('Webhook Error', { status: 400 });
+    console.error('Webhook signature verification failed:', err)
+    return new Response('Webhook Error', { status: 400 })
   }
 
   // 2. Handle payment success
   if (event.type === 'payment_intent.succeeded') {
-    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const paymentIntent = event.data.object as Stripe.PaymentIntent
 
     // 3. Check for duplicate webhook (idempotency)
     const existing = await prisma.submission.findUnique({
-      where: { stripePaymentIntentId: paymentIntent.id }
-    });
+      where: { stripePaymentIntentId: paymentIntent.id },
+    })
 
     if (existing) {
-      console.log('Payment already processed');
-      return new Response(JSON.stringify({ received: true }), { status: 200 });
+      console.log('Payment already processed')
+      return new Response(JSON.stringify({ received: true }), { status: 200 })
     }
 
     // 4. Retrieve form data from temporary table
     const tempSubmission = await prisma.temporarySubmission.findUnique({
-      where: { paymentIntentId: paymentIntent.id }
-    });
+      where: { paymentIntentId: paymentIntent.id },
+    })
 
     if (!tempSubmission) {
-      console.error('Temporary submission not found');
-      return new Response('Form data not found', { status: 404 });
+      console.error('Temporary submission not found')
+      return new Response('Form data not found', { status: 404 })
     }
 
-    const formData = tempSubmission.formData as any;
+    const formData = tempSubmission.formData as any
 
     // 5. Create permanent submission record
     const submission = await prisma.submission.create({
@@ -440,28 +446,29 @@ export async function POST(req: NextRequest) {
         // Terms
         certifyAccurate: formData.certifyAccurate || true,
         agreeTerms: formData.agreeTerms || true,
-      }
-    });
+      },
+    })
 
     // 6. Delete temporary record (cleanup)
     await prisma.temporarySubmission.delete({
-      where: { id: tempSubmission.id }
-    });
+      where: { id: tempSubmission.id },
+    })
 
     // 7. Optional: Send confirmation email
     // await sendConfirmationEmail(submission.email, submission.id);
 
-    console.log('Submission created:', submission.id);
+    console.log('Submission created:', submission.id)
     return new Response(JSON.stringify({ received: true, submissionId: submission.id }), {
-      status: 200
-    });
+      status: 200,
+    })
   }
 
-  return new Response(JSON.stringify({ received: true }), { status: 200 });
+  return new Response(JSON.stringify({ received: true }), { status: 200 })
 }
 ```
 
 **Database After Webhook:**
+
 ```
 submissions:
 ┌──────────┬─────────────┬──────────┬────────┬────────────┬─────────────────┐
@@ -483,18 +490,20 @@ temporary_submissions:
 **Admin Dashboard URL:** `/admin/submissions`
 
 **Query to Load Pending Reviews:**
+
 ```typescript
 // Fetch all pending submissions
 const { data: submissions } = await supabase
   .from('submissions')
   .select('*')
   .eq('status', 'pending_review')
-  .order('created_at', { ascending: true });
+  .order('created_at', { ascending: true })
 
 // Returns array of submissions in FIFO order (oldest first)
 ```
 
 **Dashboard UI:**
+
 ```
 ┌───────────────────────────────────────────────┐
 │  ADMIN DASHBOARD                              │
@@ -512,6 +521,7 @@ const { data: submissions } = await supabase
 **URL:** `/admin/review`
 
 **UI Layout (One Submission at a Time):**
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │  SUBMISSION REVIEW                  [1 of 15]       │
@@ -549,8 +559,9 @@ const { data: submissions } = await supabase
 **Backend Process:**
 
 1. **Generate PDF**
+
 ```typescript
-import { generateDoctorNote } from '@/lib/pdf-generator';
+import { generateDoctorNote } from '@/lib/pdf-generator'
 
 const pdfBuffer = await generateDoctorNote({
   patientName: `${submission.first_name} ${submission.last_name}`,
@@ -562,25 +573,23 @@ const pdfBuffer = await generateDoctorNote({
   absenceReason: submission.absence_reason,
   symptoms: submission.symptoms,
   submissionId: submission.id,
-});
+})
 ```
 
 2. **Upload PDF to S3/Supabase Storage**
-```typescript
-const fileName = `doctors-notes/${submission.id}.pdf`;
-const { data, error } = await supabase.storage
-  .from('documents')
-  .upload(fileName, pdfBuffer, {
-    contentType: 'application/pdf',
-    upsert: true,
-  });
 
-const pdfUrl = supabase.storage
-  .from('documents')
-  .getPublicUrl(fileName).data.publicUrl;
+```typescript
+const fileName = `doctors-notes/${submission.id}.pdf`
+const { data, error } = await supabase.storage.from('documents').upload(fileName, pdfBuffer, {
+  contentType: 'application/pdf',
+  upsert: true,
+})
+
+const pdfUrl = supabase.storage.from('documents').getPublicUrl(fileName).data.publicUrl
 ```
 
 3. **Update Database**
+
 ```typescript
 const { error } = await supabase
   .from('submissions')
@@ -591,30 +600,34 @@ const { error } = await supabase
     reviewed_at: new Date().toISOString(),
     reviewed_by_admin_id: adminUserId,
   })
-  .eq('id', submission.id);
+  .eq('id', submission.id)
 ```
 
 4. **Send Approval Email with PDF**
+
 ```typescript
-import { sendEmail } from '@/lib/email';
+import { sendEmail } from '@/lib/email'
 
 await sendEmail({
   to: submission.email,
-  subject: 'Your Doctor\'s Note is Ready',
+  subject: "Your Doctor's Note is Ready",
   html: `
     <h2>Hi ${submission.first_name},</h2>
     <p>Good news! Your doctor's note has been approved.</p>
     <p><strong>Dates Covered:</strong> ${submission.first_day_off} to ${submission.last_day_off}</p>
     <p>Your note is attached to this email.</p>
   `,
-  attachments: [{
-    filename: 'doctors-note.pdf',
-    content: pdfBuffer,
-  }],
-});
+  attachments: [
+    {
+      filename: 'doctors-note.pdf',
+      content: pdfBuffer,
+    },
+  ],
+})
 ```
 
 **Database After Approval:**
+
 ```
 ┌──────────┬────────┬─────────────────────────────┬─────────────────┬─────────────┐
 │ id       │ status │ pdf_url                     │ pdf_generated_at│ reviewed_at │
@@ -626,6 +639,7 @@ await sendEmail({
 ### Step 5B: Doctor Clicks DENY ❌
 
 **UI Shows Denial Reason Modal:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │  Why are you denying this request?         │
@@ -648,14 +662,16 @@ await sendEmail({
 **Backend Process:**
 
 1. **Issue Stripe Refund**
+
 ```typescript
 const refund = await stripe.refunds.create({
   payment_intent: submission.stripe_payment_intent_id,
   reason: 'requested_by_customer',
-});
+})
 ```
 
 2. **Update Database**
+
 ```typescript
 await supabase
   .from('submissions')
@@ -666,14 +682,15 @@ await supabase
     reviewed_at: new Date().toISOString(),
     reviewed_by_admin_id: adminUserId,
   })
-  .eq('id', submission.id);
+  .eq('id', submission.id)
 ```
 
 3. **Send Denial Email**
+
 ```typescript
 await sendEmail({
   to: submission.email,
-  subject: 'Update on Your Doctor\'s Note Request',
+  subject: "Update on Your Doctor's Note Request",
   html: `
     <h2>Hi ${submission.first_name},</h2>
     <p>Unfortunately, we're unable to process your doctor's note request.</p>
@@ -681,10 +698,11 @@ await sendEmail({
     <p>A full refund of $${(submission.payment_amount / 100).toFixed(2)} has been issued to your original payment method.</p>
     <p>If you have questions, please reply to this email.</p>
   `,
-});
+})
 ```
 
 **Database After Denial:**
+
 ```
 ┌──────────┬────────┬─────────────────────────────┬─────────────┬─────────────┐
 │ id       │ status │ denial_reason               │ refunded_at │ reviewed_at │
@@ -696,6 +714,7 @@ await sendEmail({
 ### Step 5C: Doctor Clicks MAYBE 🤔 (Future Feature)
 
 **Potential Implementation:**
+
 - Add `maybe` or `needs_info` status
 - Store reason: "Need more details about symptoms"
 - Send email to patient requesting clarification
@@ -709,10 +728,11 @@ await sendEmail({
 ### Admin Dashboard Queries (Prisma)
 
 **1. Get All Pending Reviews**
+
 ```typescript
 const pendingSubmissions = await prisma.submission.findMany({
   where: {
-    status: 'pending_review'
+    status: 'pending_review',
   },
   select: {
     id: true,
@@ -723,96 +743,100 @@ const pendingSubmissions = await prisma.submission.findMany({
     firstDayOff: true,
     lastDayOff: true,
     absenceReason: true,
-    createdAt: true
+    createdAt: true,
   },
   orderBy: {
-    createdAt: 'asc'
-  }
-});
+    createdAt: 'asc',
+  },
+})
 ```
 
 **2. Get Single Submission for Review**
+
 ```typescript
 const submission = await prisma.submission.findUnique({
   where: {
-    id: '550e8400-...'
-  }
-});
+    id: '550e8400-...',
+  },
+})
 
 // Or with status check
 const submission = await prisma.submission.findFirst({
   where: {
     id: '550e8400-...',
-    status: 'pending_review'
-  }
-});
+    status: 'pending_review',
+  },
+})
 ```
 
 **3. Get Admin Dashboard Stats**
+
 ```typescript
 // Pending count
 const pendingCount = await prisma.submission.count({
   where: {
-    status: 'pending_review'
-  }
-});
+    status: 'pending_review',
+  },
+})
 
 // Approved today
 const approvedToday = await prisma.submission.count({
   where: {
     status: 'approved',
     reviewedAt: {
-      gte: new Date(new Date().setHours(0, 0, 0, 0))
-    }
-  }
-});
+      gte: new Date(new Date().setHours(0, 0, 0, 0)),
+    },
+  },
+})
 
 // Denied today
 const deniedToday = await prisma.submission.count({
   where: {
     status: 'denied',
     reviewedAt: {
-      gte: new Date(new Date().setHours(0, 0, 0, 0))
-    }
-  }
-});
+      gte: new Date(new Date().setHours(0, 0, 0, 0)),
+    },
+  },
+})
 
 // Total revenue today
 const revenueToday = await prisma.submission.aggregate({
   where: {
     createdAt: {
-      gte: new Date(new Date().setHours(0, 0, 0, 0))
-    }
+      gte: new Date(new Date().setHours(0, 0, 0, 0)),
+    },
   },
   _sum: {
-    paymentAmount: true
-  }
-});
+    paymentAmount: true,
+  },
+})
 // Result: revenueToday._sum.paymentAmount / 100 = dollars
 ```
 
 **4. Search Submissions by Email**
+
 ```typescript
 const submissions = await prisma.submission.findMany({
   where: {
     email: {
       contains: 'john@example.com',
-      mode: 'insensitive'
-    }
+      mode: 'insensitive',
+    },
   },
   orderBy: {
-    createdAt: 'desc'
-  }
-});
+    createdAt: 'desc',
+  },
+})
 ```
 
 **5. Get All Refunded Submissions**
+
 ```typescript
 const refundedSubmissions = await prisma.submission.findMany({
   where: {
     refundedAt: {
-      not: null
-    }
+      not: null,
+    },
   },
   select: {
     id: true,
@@ -821,55 +845,57 @@ const refundedSubmissions = await prisma.submission.findMany({
     email: true,
     denialReason: true,
     paymentAmount: true,
-    refundedAt: true
+    refundedAt: true,
   },
   orderBy: {
-    refundedAt: 'desc'
-  }
-});
+    refundedAt: 'desc',
+  },
+})
 ```
 
 ### Data Cleanup Queries (Prisma)
 
 **6. Delete Submissions Older Than 30 Days**
+
 ```typescript
 // Preview what will be deleted
-const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
 const toDeleteCount = await prisma.submission.count({
   where: {
     createdAt: {
-      lt: thirtyDaysAgo
-    }
-  }
-});
+      lt: thirtyDaysAgo,
+    },
+  },
+})
 
-console.log(`Will delete ${toDeleteCount} submissions`);
+console.log(`Will delete ${toDeleteCount} submissions`)
 
 // Actually delete
 const deleteResult = await prisma.submission.deleteMany({
   where: {
     createdAt: {
-      lt: thirtyDaysAgo
-    }
-  }
-});
+      lt: thirtyDaysAgo,
+    },
+  },
+})
 
-console.log(`Deleted ${deleteResult.count} submissions`);
+console.log(`Deleted ${deleteResult.count} submissions`)
 ```
 
 **7. Delete Expired Temporary Submissions (Cron Job)**
+
 ```typescript
 // Clean up temporary submissions that have expired
 const deleteExpired = await prisma.temporarySubmission.deleteMany({
   where: {
     expiresAt: {
-      lt: new Date()
-    }
-  }
-});
+      lt: new Date(),
+    },
+  },
+})
 
-console.log(`Deleted ${deleteExpired.count} expired temporary submissions`);
+console.log(`Deleted ${deleteExpired.count} expired temporary submissions`)
 ```
 
 ---
@@ -989,23 +1015,27 @@ console.log(`Deleted ${deleteExpired.count} expired temporary submissions`);
 ## Future Enhancements (Phase 3+)
 
 ### Maybe/Pending Info Status
+
 - Add "Maybe" button for ambiguous cases
 - Request additional information from patient
 - Allow patient to update submission
 
 ### Admin Team Features
+
 - Multiple admin users
 - Role-based permissions
 - Audit trail of admin actions
 - Admin activity dashboard
 
 ### Advanced Reporting
+
 - Revenue analytics
 - Approval/denial rates
 - Average review time
 - Most common denial reasons
 
 ### Patient Portal
+
 - View submission status
 - Download PDF after approval
 - Resubmit if denied
@@ -1018,6 +1048,7 @@ console.log(`Deleted ${deleteExpired.count} expired temporary submissions`);
 ### 30-Day Retention
 
 **What is deleted after 30 days:**
+
 - All patient information
 - PDF files from storage
 - Database records
@@ -1025,6 +1056,7 @@ console.log(`Deleted ${deleteExpired.count} expired temporary submissions`);
 **Implementation Options:**
 
 **Option 1: Hard Delete (Recommended for MVP)**
+
 ```sql
 -- Cron job runs daily
 DELETE FROM submissions
@@ -1032,6 +1064,7 @@ WHERE created_at < NOW() - INTERVAL '30 days';
 ```
 
 **Option 2: Soft Delete (Better for Analytics)**
+
 ```sql
 -- Add deleted_at column
 ALTER TABLE submissions ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE;
@@ -1047,6 +1080,7 @@ WHERE deleted_at < NOW() - INTERVAL '30 days';
 ```
 
 **Option 3: Archive Then Delete (Best for Compliance)**
+
 ```sql
 -- Archive old submissions
 INSERT INTO submissions_archive
@@ -1108,22 +1142,27 @@ CLINIC_ADDRESS="123 Medical St, Suite 100, San Francisco, CA 94102"
 ## Technical Stack
 
 ### Database
+
 - **PostgreSQL 15+** on AWS RDS
 - Alternative: Supabase (managed PostgreSQL)
 
 ### File Storage
+
 - **AWS S3** or Supabase Storage
 - Public URL access for PDFs
 
 ### Email Service
+
 - **Resend** (recommended)
 - Alternative: SendGrid, AWS SES
 
 ### PDF Generation
+
 - **@react-pdf/renderer**
 - Generates PDFs from React components
 
 ### Admin Auth
+
 - **Supabase Auth** (if using Supabase)
 - Alternative: NextAuth.js with JWT
 

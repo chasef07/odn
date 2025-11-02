@@ -105,12 +105,14 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 ## Business Rules
 
 ### Date Validation
+
 - First day off cannot be more than 5 days in the past
 - Maximum absence period: 7 consecutive days
 - Return date must be on or after the last day off
 - All dates must be valid calendar dates
 
 ### Form Validation
+
 - Names: Letters, spaces, hyphens, apostrophes only (max 50 chars)
 - Email: Valid email format, converted to lowercase
 - Phone: Exactly 10 digits, formatted as (XXX) XXX-XXXX
@@ -170,9 +172,11 @@ src/
 ## API Routes
 
 ### POST /api/create-payment-intent
+
 Creates a Stripe PaymentIntent for the fixed amount ($29.99).
 
 **Response:**
+
 ```json
 {
   "clientSecret": "pi_...",
@@ -181,9 +185,11 @@ Creates a Stripe PaymentIntent for the fixed amount ($29.99).
 ```
 
 ### POST /api/verify-payment
+
 Verifies a payment's status with Stripe.
 
 **Request:**
+
 ```json
 {
   "paymentIntentId": "pi_..."
@@ -191,6 +197,7 @@ Verifies a payment's status with Stripe.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "succeeded",

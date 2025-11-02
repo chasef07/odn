@@ -1,40 +1,44 @@
-"use client";
+'use client'
 
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { FormProgress } from '@/components/form-progress';
-import { FormCard } from '@/components/form/FormCard';
-import { FormSelect } from '@/components/form/FormSelect';
-import { FormNavigation } from '@/components/form/FormNavigation';
-import { saveFormData, getFormData } from '@/lib/form-storage';
-import { page4Schema } from '@/lib/validation-schemas';
-import { AVAILABLE_STATES } from '@/lib/form-constants';
-import { ShieldCheck, Clock, Star } from 'lucide-react';
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { FormProgress } from '@/components/form-progress'
+import { FormCard } from '@/components/form/FormCard'
+import { FormSelect } from '@/components/form/FormSelect'
+import { FormNavigation } from '@/components/form/FormNavigation'
+import { saveFormData, getFormData } from '@/lib/form-storage'
+import { page4Schema } from '@/lib/validation-schemas'
+import { AVAILABLE_STATES } from '@/lib/form-constants'
+import { ShieldCheck, Clock, Star } from 'lucide-react'
 
-const CURRENT_STEP = 1;
+const CURRENT_STEP = 1
 
 type FormData = {
-  state: string;
-};
+  state: string
+}
 
 export default function Home() {
-  const router = useRouter();
+  const router = useRouter()
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
     resolver: zodResolver(page4Schema),
     defaultValues: {
-      state: getFormData().state || ''
-    }
-  });
+      state: getFormData().state || '',
+    },
+  })
 
   const onSubmit = (data: FormData) => {
-    saveFormData(data);
-    router.push('/who-is-using');
-  };
+    saveFormData(data)
+    router.push('/who-is-using')
+  }
 
   return (
-    <div className="min-h-screen bg-white text-foreground">
+    <div className="text-foreground min-h-screen bg-white">
       <main className="mx-auto w-full max-w-4xl px-6 py-8">
         {/* Top Bar: Progress + Trust Badges */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -43,28 +47,28 @@ export default function Home() {
           </div>
 
           {/* Horizontal Trust Badges */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground sm:gap-6">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary" />
+              <ShieldCheck className="text-primary h-4 w-4" />
               <span>HIPAA Compliant</span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
+              <Clock className="text-primary h-4 w-4" />
               <span>~2 min</span>
             </div>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary" />
+              <ShieldCheck className="text-primary h-4 w-4" />
               <span>Money back guarantee</span>
             </div>
           </div>
         </div>
 
         {/* Title */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-4">
+        <div className="mb-10 text-center">
+          <h1 className="font-display text-foreground mb-4 text-4xl font-bold sm:text-5xl">
             Where are you located?
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground mx-auto max-w-2xl text-lg">
             Select your state to ensure we can serve you.
           </p>
         </div>
@@ -82,27 +86,21 @@ export default function Home() {
             />
           </FormCard>
 
-          <FormNavigation
-            backRoute="/"
-            isSubmitting={isSubmitting}
-          />
+          <FormNavigation backRoute="/" isSubmitting={isSubmitting} />
 
           {/* Social Proof - Bottom of Form */}
-          <div className="pt-10 text-center space-y-3">
+          <div className="space-y-3 pt-10 text-center">
             <div className="flex items-center justify-center gap-1">
               {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className="h-4 w-4 fill-yellow-400 text-yellow-400"
-                />
+                <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
               ))}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Join 12,000+ people who got their note in minutes
             </p>
           </div>
         </form>
       </main>
     </div>
-  );
+  )
 }

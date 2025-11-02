@@ -10,17 +10,17 @@
  */
 export const formatPhoneNumber = (value: string): string => {
   // Remove all non-numeric characters
-  const phoneNumber = value.replace(/\D/g, '');
+  const phoneNumber = value.replace(/\D/g, '')
 
   // Format based on length
   if (phoneNumber.length <= 3) {
-    return phoneNumber;
+    return phoneNumber
   }
 
   if (phoneNumber.length <= 6) {
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`
   }
 
   // Full format with area code, prefix, and line number
-  return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
-};
+  return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
+}

@@ -365,7 +365,7 @@ describe('Validation Schemas', () => {
       const result = page5Schema.safeParse({ notePurpose: 'other' })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.some(issue => issue.message.includes('specify'))).toBe(true)
+        expect(result.error.issues.some((issue) => issue.message.includes('specify'))).toBe(true)
       }
     })
 
@@ -484,7 +484,7 @@ describe('Validation Schemas', () => {
       const result = page7Schema.safeParse({ absenceReason: 'Other' })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.some(issue => issue.message.includes('specify'))).toBe(true)
+        expect(result.error.issues.some((issue) => issue.message.includes('specify'))).toBe(true)
       }
     })
 
@@ -541,7 +541,7 @@ describe('Validation Schemas', () => {
       const result = page8Schema.safeParse({ symptoms: ['other'] })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.some(issue => issue.message.includes('describe'))).toBe(true)
+        expect(result.error.issues.some((issue) => issue.message.includes('describe'))).toBe(true)
       }
     })
 

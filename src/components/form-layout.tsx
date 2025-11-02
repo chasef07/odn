@@ -1,15 +1,15 @@
-import { ReactNode } from 'react';
-import { ShieldCheck } from 'lucide-react';
-import { FormProgress } from './form-progress';
-import { getFirstName } from '@/lib/form-storage';
+import { ReactNode } from 'react'
+import { ShieldCheck } from 'lucide-react'
+import { FormProgress } from './form-progress'
+import { getFirstName } from '@/lib/form-storage'
 
 interface FormLayoutProps {
-  currentStep: number;
-  title: string;
-  description: string;
-  children: ReactNode;
-  usePersonalization?: boolean;
-  hideProgressAndBadges?: boolean;
+  currentStep: number
+  title: string
+  description: string
+  children: ReactNode
+  usePersonalization?: boolean
+  hideProgressAndBadges?: boolean
 }
 
 export function FormLayout({
@@ -20,15 +20,15 @@ export function FormLayout({
   usePersonalization = false,
   hideProgressAndBadges = false,
 }: FormLayoutProps) {
-  const firstName = usePersonalization ? getFirstName() : null;
+  const firstName = usePersonalization ? getFirstName() : null
 
   // Replace {firstName} placeholder with actual name
   const personalizedTitle = firstName
     ? title.replace('{firstName}', firstName)
-    : title.replace('{firstName}', '');
+    : title.replace('{firstName}', '')
 
   return (
-    <div className="min-h-screen bg-white text-foreground">
+    <div className="text-foreground min-h-screen bg-white">
       <main className="mx-auto w-full max-w-4xl px-6 py-8">
         {/* Top Bar: Progress + Trust Badges */}
         {!hideProgressAndBadges && (
@@ -38,13 +38,13 @@ export function FormLayout({
             </div>
 
             {/* Horizontal Trust Badges */}
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground sm:gap-6">
+            <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" />
+                <ShieldCheck className="text-primary h-4 w-4" />
                 <span>HIPAA Compliant</span>
               </div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" />
+                <ShieldCheck className="text-primary h-4 w-4" />
                 <span>Money back guarantee</span>
               </div>
             </div>
@@ -52,18 +52,16 @@ export function FormLayout({
         )}
 
         {/* Title - Centered on White Background */}
-        <div className="text-center mb-4">
-          <h1 className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-4">
+        <div className="mb-4 text-center">
+          <h1 className="font-display text-foreground mb-4 text-4xl font-bold sm:text-5xl">
             {personalizedTitle}
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {description}
-          </p>
+          <p className="text-muted-foreground mx-auto max-w-2xl text-lg">{description}</p>
         </div>
 
         {/* Form Content */}
         {children}
       </main>
     </div>
-  );
+  )
 }

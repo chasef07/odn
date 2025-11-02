@@ -16,13 +16,13 @@ This project uses **Vitest** with **React Testing Library** for a comprehensive 
 
 ### Test Breakdown
 
-| Category | Tests | Files | Coverage |
-|----------|-------|-------|----------|
-| Date Validators | 25 | 1 | 100% |
-| Phone Utilities | 37 | 1 | 100% |
-| Age Validators | 39 | 1 | 100% |
-| Validation Schemas | 89 | 1 | 95%+ |
-| Payment APIs | 33 | 2 | 95%+ |
+| Category           | Tests | Files | Coverage |
+| ------------------ | ----- | ----- | -------- |
+| Date Validators    | 25    | 1     | 100%     |
+| Phone Utilities    | 37    | 1     | 100%     |
+| Age Validators     | 39    | 1     | 100%     |
+| Validation Schemas | 89    | 1     | 95%+     |
+| Payment APIs       | 33    | 2     | 95%+     |
 
 ## Running Tests
 
@@ -116,6 +116,7 @@ describe('formatPhoneNumber', () => {
 ```
 
 **Key Principles**:
+
 - Test one behavior per test case
 - Use descriptive test names
 - Cover edge cases and boundaries
@@ -160,6 +161,7 @@ describe('page3Schema - Contact Information', () => {
 ```
 
 **Key Principles**:
+
 - Test both valid and invalid inputs
 - Check error messages
 - Test transformations (lowercase, trim, etc.)
@@ -182,7 +184,7 @@ const { mockCreate } = vi.hoisted(() => ({
 vi.mock('stripe', () => ({
   default: class MockStripe {
     paymentIntents = { create: mockCreate }
-  }
+  },
 }))
 
 import { POST } from '../route'
@@ -216,6 +218,7 @@ describe('POST /api/create-payment-intent', () => {
 ```
 
 **Key Principles**:
+
 - Use `vi.hoisted()` for module-level mocks
 - Mock external dependencies (Stripe, databases, etc.)
 - Test both success and error responses
@@ -362,7 +365,7 @@ it('should require "other" text when purpose is other', () => {
 
   expect(result.success).toBe(false)
   if (!result.success) {
-    expect(result.error.issues.some(i => i.message.includes('specify'))).toBe(true)
+    expect(result.error.issues.some((i) => i.message.includes('specify'))).toBe(true)
   }
 })
 
@@ -417,6 +420,7 @@ it('should handle Stripe API errors', async () => {
 ### Testing Date Validation
 
 **Key scenarios to cover**:
+
 - Valid date ranges
 - Boundary conditions (exactly 7 days, exactly 5 days past)
 - Invalid ranges (>7 days, >5 days past)
@@ -427,6 +431,7 @@ it('should handle Stripe API errors', async () => {
 ### Testing Phone Formatting
 
 **Key scenarios to cover**:
+
 - Empty input
 - Partial input (1-9 digits)
 - Complete input (10 digits)
@@ -437,6 +442,7 @@ it('should handle Stripe API errors', async () => {
 ### Testing Stripe Integration
 
 **Key scenarios to cover**:
+
 - Successful payment intent creation
 - Failed payment intent creation
 - Missing API keys
@@ -447,6 +453,7 @@ it('should handle Stripe API errors', async () => {
 ### Testing Zod Schemas
 
 **Key scenarios to cover**:
+
 - Valid data
 - Missing required fields
 - Invalid data types
@@ -460,6 +467,7 @@ it('should handle Stripe API errors', async () => {
 ### GitHub Actions Workflow
 
 Tests run automatically on:
+
 - Every push to `main`, `develop`, or `feature/*` branches
 - Every pull request to `main` or `develop`
 
@@ -490,6 +498,7 @@ jobs:
 ### Pull Request Requirements
 
 Before merging a PR:
+
 - ✅ All tests must pass
 - ✅ No TypeScript errors
 - ✅ No ESLint errors
@@ -500,6 +509,7 @@ Before merging a PR:
 ### Common Issues
 
 **1. Mock not working**
+
 ```typescript
 // ❌ Wrong - mock defined after import
 import { POST } from '../route'
@@ -512,6 +522,7 @@ import { POST } from '../route'
 ```
 
 **2. localStorage not mocked**
+
 ```typescript
 // Already mocked in vitest.setup.ts
 // Just clear between tests
@@ -521,6 +532,7 @@ beforeEach(() => {
 ```
 
 **3. Async test timeout**
+
 ```typescript
 // Increase timeout for slow tests
 it('should handle slow operation', async () => {
@@ -597,6 +609,7 @@ npm run test:coverage
 ## Getting Help
 
 If you encounter issues with tests:
+
 1. Check this documentation
 2. Review existing test files for examples
 3. Check Vitest documentation

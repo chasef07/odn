@@ -1,43 +1,49 @@
-"use client";
+'use client'
 
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { format } from 'date-fns';
-import { FormLayout } from '@/components/form-layout';
-import { FormCard } from '@/components/form/FormCard';
-import { FormField } from '@/components/form/FormField';
-import { FormNavigation } from '@/components/form/FormNavigation';
-import { saveFormData, getFormData } from '@/lib/form-storage';
-import { page6Schema } from '@/lib/validation-schemas';
-import { validateAbsenceDates } from '@/lib/date-validators';
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { format } from 'date-fns'
+import { FormLayout } from '@/components/form-layout'
+import { FormCard } from '@/components/form/FormCard'
+import { FormField } from '@/components/form/FormField'
+import { FormNavigation } from '@/components/form/FormNavigation'
+import { saveFormData, getFormData } from '@/lib/form-storage'
+import { page6Schema } from '@/lib/validation-schemas'
+import { validateAbsenceDates } from '@/lib/date-validators'
 
 // Step number will be dynamic based on recipient
 
 type FormData = {
-  firstDayOff: string;
-  lastDayOff: string;
-  returnDate?: string;
-};
+  firstDayOff: string
+  lastDayOff: string
+  returnDate?: string
+}
 
 export default function AbsenceDatesPage() {
-  const router = useRouter();
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const savedData = getFormData();
-  const recipient = savedData.recipient || 'myself';
-  const currentStep = recipient === 'someone_else' ? 7 : 6;
-  const notePurpose = savedData.notePurpose || '';
-  const shouldShowReturnDate = notePurpose === 'work' || notePurpose === 'school' || notePurpose === 'both';
+  const router = useRouter()
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const savedData = getFormData()
+  const recipient = savedData.recipient || 'myself'
+  const currentStep = recipient === 'someone_else' ? 7 : 6
+  const notePurpose = savedData.notePurpose || ''
+  const shouldShowReturnDate =
+    notePurpose === 'work' || notePurpose === 'school' || notePurpose === 'both'
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<FormData>({
     resolver: zodResolver(page6Schema),
     defaultValues: {
       ...getFormData(),
       firstDayOff: getFormData().firstDayOff || today,
       lastDayOff: getFormData().lastDayOff || today,
       returnDate: getFormData().returnDate || '',
-    }
-  });
+    },
+  })
 
   const onSubmit = (data: FormData) => {
     // Use centralized validation
@@ -45,32 +51,32 @@ export default function AbsenceDatesPage() {
       firstDayOff: data.firstDayOff,
       lastDayOff: data.lastDayOff,
       needReturnDate: shouldShowReturnDate,
-      returnDate: data.returnDate
-    };
+      returnDate: data.returnDate,
+    }
 
-    const validationErrors = validateAbsenceDates(validationData);
+    const validationErrors = validateAbsenceDates(validationData)
 
     if (validationErrors.length > 0) {
       // Set errors on form
-      validationErrors.forEach(error => {
+      validationErrors.forEach((error) => {
         setError(error.field as keyof FormData, {
-          message: error.message
-        });
-      });
-      return;
+          message: error.message,
+        })
+      })
+      return
     }
 
     // Validate return date if it should be shown
     if (shouldShowReturnDate && !data.returnDate) {
       setError('returnDate', {
-        message: 'Please select return date'
-      });
-      return;
+        message: 'Please select return date',
+      })
+      return
     }
 
-    saveFormData(data);
-    router.push('/absence-reason');
-  };
+    saveFormData(data)
+    router.push('/absence-reason')
+  }
 
   return (
     <FormLayout
@@ -108,11 +114,8 @@ export default function AbsenceDatesPage() {
           )}
         </FormCard>
 
-        <FormNavigation
-          backRoute="/note-purpose"
-          isSubmitting={isSubmitting}
-        />
+        <FormNavigation backRoute="/note-purpose" isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
-  );
+  )
 }

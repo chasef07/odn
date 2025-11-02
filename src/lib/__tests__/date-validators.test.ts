@@ -244,10 +244,10 @@ describe('validateAbsenceDates', () => {
       expect(errors.length).toBeGreaterThan(1)
 
       // Should include first day error
-      expect(errors.some(e => e.field === 'firstDayOff')).toBe(true)
+      expect(errors.some((e) => e.field === 'firstDayOff')).toBe(true)
 
       // Should include last day error (exceeds 7 days)
-      expect(errors.some(e => e.field === 'lastDayOff')).toBe(true)
+      expect(errors.some((e) => e.field === 'lastDayOff')).toBe(true)
     })
 
     it('should return both last day errors when last < first AND exceeds 7 days', () => {

@@ -1,31 +1,31 @@
-import { FieldError, UseFormRegisterReturn } from 'react-hook-form';
+import { FieldError, UseFormRegisterReturn } from 'react-hook-form'
 
 interface CheckboxOption {
-  value: string;
-  label: string;
+  value: string
+  label: string
 }
 
 interface FormCheckboxGroupProps {
   /** Unique field identifier */
-  fieldName: string;
+  fieldName: string
 
   /** Screen reader legend text */
-  legend: string;
+  legend: string
 
   /** Array of checkbox options */
-  options: CheckboxOption[];
+  options: CheckboxOption[]
 
   /** React Hook Form register return value */
-  register: UseFormRegisterReturn;
+  register: UseFormRegisterReturn
 
   /** Error object from react-hook-form */
-  error?: FieldError;
+  error?: FieldError
 
   /** Currently selected values */
-  selectedValues?: string[];
+  selectedValues?: string[]
 
   /** Grid layout classes (default: "grid gap-3 sm:grid-cols-2") */
-  gridClassName?: string;
+  gridClassName?: string
 }
 
 export function FormCheckboxGroup({
@@ -43,37 +43,37 @@ export function FormCheckboxGroup({
 
       <div className={gridClassName}>
         {options.map((option) => {
-          const isSelected = selectedValues.includes(option.value);
+          const isSelected = selectedValues.includes(option.value)
 
           return (
             <label
               key={option.value}
-              className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-all ${
+              className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-all ${
                 isSelected
                   ? 'border-primary bg-primary/5'
-                  : 'border-border/40 bg-white hover:border-primary/40'
+                  : 'border-border/40 hover:border-primary/40 bg-white'
               }`}
             >
               <input
                 type="checkbox"
                 value={option.value}
                 {...register}
-                className="h-4 w-4 rounded border-2 border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-primary/40 h-4 w-4 rounded border-2 focus-visible:ring-2"
                 aria-required="true"
                 aria-invalid={!!error}
                 aria-describedby={error ? `${fieldName}-error` : undefined}
               />
               <span className="text-sm font-medium">{option.label}</span>
             </label>
-          );
+          )
         })}
       </div>
 
       {error && (
-        <p id={`${fieldName}-error`} className="text-sm text-red-500 mt-2">
+        <p id={`${fieldName}-error`} className="mt-2 text-sm text-red-500">
           {error.message}
         </p>
       )}
     </fieldset>
-  );
+  )
 }

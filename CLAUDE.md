@@ -9,6 +9,7 @@ This document provides context and guidelines for Claude Code when working with 
 ## Architecture
 
 ### Tech Stack
+
 - **Framework**: Next.js 15.5.5 with App Router
 - **Language**: TypeScript 5 (strict mode)
 - **UI**: React 19, Tailwind CSS 4, Radix UI, shadcn/ui
@@ -39,6 +40,7 @@ src/
 ## Critical Business Rules
 
 ### Date Validation (STRICT - DO NOT MODIFY WITHOUT APPROVAL)
+
 1. **Maximum absence**: 7 consecutive days (first day off to last day off)
 2. **Lookback limit**: First day off cannot be >5 days in the past
 3. **Return date**: Must be on or after the last day off (can be same day)
@@ -47,6 +49,7 @@ src/
 **Implementation**: `src/lib/date-validators.ts`
 
 ### Form Validation Rules
+
 - **Names**: Letters, spaces, hyphens, apostrophes only (max 50 chars)
 - **Phone**: Exactly 10 digits (formatted as `(XXX) XXX-XXXX`)
 - **Email**: Valid format, automatically lowercased
@@ -56,6 +59,7 @@ src/
 **Implementation**: `src/lib/validation-schemas.ts` (10 schemas: page1-page10)
 
 ### Payment Processing
+
 - **Amount**: Fixed at $29.99 (2999 cents)
 - **Currency**: USD only
 - **Provider**: Stripe with automatic payment methods
@@ -86,24 +90,28 @@ The application uses a multi-step form with conditional steps:
 ## Code Style & Conventions
 
 ### TypeScript
+
 - **Strict mode**: Enabled
 - **Type safety**: No `any` types (use `unknown` if needed)
 - **Interfaces**: Prefer `type` for simple types, `interface` for extendable objects
 - **Imports**: Use `@/` path alias for `src/`
 
 ### React Components
+
 - **Server Components**: Default (use `"use client"` only when needed)
 - **Naming**: PascalCase for components, camelCase for functions
 - **Props**: Define inline types or extract to `type` declarations
 - **Hooks**: Follow React hooks rules (no conditional hooks)
 
 ### Forms
+
 - **Library**: react-hook-form with zodResolver
 - **Validation**: Zod schemas in `src/lib/validation-schemas.ts`
 - **Error handling**: Display errors via `errors` object from react-hook-form
 - **Navigation**: Use `FormNavigation` component for consistency
 
 ### Testing
+
 - **Location**: Co-located in `__tests__/` directories
 - **Naming**: `*.test.ts` or `*.test.tsx`
 - **Framework**: Vitest with Testing Library
@@ -111,6 +119,7 @@ The application uses a multi-step form with conditional steps:
 - **Coverage**: Aim for 80%+ on new code
 
 ### Styling
+
 - **Primary**: Tailwind CSS utility classes
 - **Components**: shadcn/ui variants (no direct Tailwind in shadcn components)
 - **Responsive**: Mobile-first approach
@@ -119,6 +128,7 @@ The application uses a multi-step form with conditional steps:
 ## Testing Strategy
 
 ### Current Coverage (223 tests)
+
 - ✅ Unit tests: All validators and utilities (101 tests)
 - ✅ Schema tests: All 10 Zod schemas (89 tests)
 - ✅ API tests: Both Stripe endpoints (33 tests)
@@ -128,6 +138,7 @@ The application uses a multi-step form with conditional steps:
 ### How to Write Tests
 
 **Pure Functions** (utilities, validators):
+
 ```typescript
 // src/lib/__tests__/utility-name.test.ts
 import { describe, it, expect } from 'vitest'
@@ -141,6 +152,7 @@ describe('functionToTest', () => {
 ```
 
 **API Routes** (with mocked Stripe):
+
 ```typescript
 // src/app/api/route-name/__tests__/route.test.ts
 import { describe, it, expect, vi } from 'vitest'
@@ -153,13 +165,14 @@ const { mockStripeMethod } = vi.hoisted(() => ({
 vi.mock('stripe', () => ({
   default: class MockStripe {
     // mock implementation
-  }
+  },
 }))
 
 import { POST } from '../route'
 ```
 
 **React Components**:
+
 ```typescript
 // src/components/__tests__/component-name.test.tsx
 import { describe, it, expect } from 'vitest'
@@ -177,6 +190,7 @@ describe('Component', () => {
 ## Common Tasks
 
 ### Adding a New Form Field
+
 1. Update the appropriate Zod schema in `validation-schemas.ts`
 2. Add the field to the form page component
 3. Update `form-storage.ts` type if needed
@@ -184,13 +198,16 @@ describe('Component', () => {
 5. Update `review/page.tsx` if field should be editable
 
 ### Modifying Date Rules
+
 ⚠️ **Requires careful consideration** - these are business-critical
+
 1. Update `date-validators.ts` validation logic
 2. Update all related tests in `date-validators.test.ts`
 3. Update validation constants if needed
 4. Update documentation (README.md, CLAUDE.md)
 
 ### Adding a New Form Step
+
 1. Create new page in `src/app/[step-name]/page.tsx`
 2. Create corresponding Zod schema
 3. Update progress tracking logic
@@ -199,6 +216,7 @@ describe('Component', () => {
 6. Write tests for new schema
 
 ### Debugging Stripe Issues
+
 - Check `.env.local` for correct API keys
 - Verify Stripe API version: `2025-09-30.clover`
 - Test with Stripe test cards: `4242 4242 4242 4242`
@@ -208,6 +226,7 @@ describe('Component', () => {
 ## Environment Variables
 
 Required variables:
+
 ```env
 STRIPE_SECRET_KEY=sk_test_...           # Stripe secret key
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=...  # Stripe publishable key
@@ -229,11 +248,13 @@ NODE_ENV=development                     # Environment
 ## CI/CD
 
 ### GitHub Actions Workflows
+
 1. **test.yml**: Runs all 223 tests on push/PR
 2. **claude-code-review.yml**: Automated code reviews on PRs
 3. **claude.yml**: Claude PR assistant (trigger with `@claude`)
 
 ### Pre-commit Checklist
+
 - [ ] All tests pass (`npm test`)
 - [ ] No TypeScript errors (`npm run build`)
 - [ ] No ESLint errors (`npm run lint`)

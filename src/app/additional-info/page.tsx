@@ -1,43 +1,48 @@
-"use client";
+'use client'
 
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Textarea } from '@/components/ui/textarea';
-import { FormLayout } from '@/components/form-layout';
-import { FormNavigation } from '@/components/form/FormNavigation';
-import { saveFormData, getFormData } from '@/lib/form-storage';
-import { page9Schema } from '@/lib/validation-schemas';
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Textarea } from '@/components/ui/textarea'
+import { FormLayout } from '@/components/form-layout'
+import { FormNavigation } from '@/components/form/FormNavigation'
+import { saveFormData, getFormData } from '@/lib/form-storage'
+import { page9Schema } from '@/lib/validation-schemas'
 
 // Step number will be dynamic based on recipient
 
 type FormData = {
-  additionalInformation?: string;
-};
+  additionalInformation?: string
+}
 
 export default function AdditionalInfoPage() {
-  const router = useRouter();
-  const savedData = getFormData();
-  const recipient = savedData.recipient || 'myself';
-  const currentStep = recipient === 'someone_else' ? 10 : 9;
-  const absenceReason = savedData.absenceReason || '';
+  const router = useRouter()
+  const savedData = getFormData()
+  const recipient = savedData.recipient || 'myself'
+  const currentStep = recipient === 'someone_else' ? 10 : 9
+  const absenceReason = savedData.absenceReason || ''
 
   // Dynamic back route: skip symptoms page for Doctor's appointment and Other
-  const backRoute = (absenceReason === "Doctor's appointment" || absenceReason === "Other")
-    ? '/absence-reason'
-    : '/symptoms';
+  const backRoute =
+    absenceReason === "Doctor's appointment" || absenceReason === 'Other'
+      ? '/absence-reason'
+      : '/symptoms'
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
     resolver: zodResolver(page9Schema),
     defaultValues: {
-      additionalInformation: savedData.additionalInformation || ''
-    }
-  });
+      additionalInformation: savedData.additionalInformation || '',
+    },
+  })
 
   const onSubmit = (data: FormData) => {
-    saveFormData(data);
-    router.push('/review');
-  };
+    saveFormData(data)
+    router.push('/review')
+  }
 
   return (
     <FormLayout
@@ -51,9 +56,11 @@ export default function AdditionalInfoPage() {
           <Textarea
             id="additionalInformation"
             {...register('additionalInformation')}
-            className="min-h-[150px] resize-none rounded-xl border-border/60 text-base focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="border-border/60 focus-visible:ring-primary/40 min-h-[150px] resize-none rounded-xl text-base focus-visible:ring-2"
             placeholder="Enter any additional information here..."
-            aria-describedby={errors.additionalInformation ? "additionalInformation-error" : undefined}
+            aria-describedby={
+              errors.additionalInformation ? 'additionalInformation-error' : undefined
+            }
           />
           {errors.additionalInformation && (
             <p id="additionalInformation-error" className="text-sm text-red-500">
@@ -62,11 +69,8 @@ export default function AdditionalInfoPage() {
           )}
         </div>
 
-        <FormNavigation
-          backRoute={backRoute}
-          isSubmitting={isSubmitting}
-        />
+        <FormNavigation backRoute={backRoute} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
-  );
+  )
 }
