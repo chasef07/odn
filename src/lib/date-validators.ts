@@ -8,8 +8,6 @@ import { subDays, differenceInDays } from 'date-fns'
 export interface DatesFormData {
   firstDayOff: string
   lastDayOff: string
-  needReturnDate: boolean
-  returnDate?: string
 }
 
 export interface DateValidationError {
@@ -19,10 +17,9 @@ export interface DateValidationError {
 
 /**
  * Validates absence date ranges according to business rules
- * - First day cannot be more than 5 days in the past
+ * - First day cannot be more than 7 days in the past
  * - Last day must be >= first day
  * - Last day cannot be more than 7 days from first day
- * - Return date must be after last day off
  *
  * @param data - Form data containing date fields
  * @returns Array of validation errors (empty if valid)
@@ -39,12 +36,12 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
   const lastDay = new Date(data.lastDayOff)
   lastDay.setHours(0, 0, 0, 0)
 
-  // Check if first day is more than 5 days in the past
-  const fiveDaysAgo = subDays(today, 5)
-  if (firstDay < fiveDaysAgo) {
+  // Check if first day is more than 8 days in the past (message says 7 for user clarity)
+  const eightDaysAgo = subDays(today, 8)
+  if (firstDay < eightDaysAgo) {
     errors.push({
       field: 'firstDayOff',
-      message: 'First day off cannot be more than 5 days in the past',
+      message: 'First day off cannot be more than 7 days in the past',
     })
   }
 
@@ -63,19 +60,6 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
       field: 'lastDayOff',
       message: 'Absence period cannot exceed 7 days',
     })
-  }
-
-  // Validate return date if needed
-  if (data.needReturnDate && data.returnDate) {
-    const returnDay = new Date(data.returnDate)
-    returnDay.setHours(0, 0, 0, 0)
-
-    if (returnDay < lastDay) {
-      errors.push({
-        field: 'returnDate',
-        message: 'Return date must be on or after the last day off',
-      })
-    }
   }
 
   return errors

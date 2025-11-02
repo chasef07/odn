@@ -42,9 +42,8 @@ src/
 ### Date Validation (STRICT - DO NOT MODIFY WITHOUT APPROVAL)
 
 1. **Maximum absence**: 7 consecutive days (first day off to last day off)
-2. **Lookback limit**: First day off cannot be >5 days in the past
-3. **Return date**: Must be on or after the last day off (can be same day)
-4. **Date range**: All dates between 1900-01-01 and today
+2. **Lookback limit**: First day off cannot be >7 days in the past
+3. **Date range**: All dates between 1900-01-01 and today
 
 **Implementation**: `src/lib/date-validators.ts`
 

@@ -396,30 +396,8 @@ describe('Validation Schemas', () => {
       const result = page6Schema.safeParse({
         firstDayOff: '2025-01-15',
         lastDayOff: '2025-01-20',
-        returnDate: '2025-01-21',
       })
       expect(result.success).toBe(true)
-    })
-
-    it('should accept return date same as last day', () => {
-      const result = page6Schema.safeParse({
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        returnDate: '2025-01-20',
-      })
-      expect(result.success).toBe(true)
-    })
-
-    it('should reject return date before last day', () => {
-      const result = page6Schema.safeParse({
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        returnDate: '2025-01-19',
-      })
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(result.error.issues[0].message).toContain('on or after')
-      }
     })
 
     it('should reject empty first day off', () => {
@@ -442,14 +420,6 @@ describe('Validation Schemas', () => {
       if (!result.success) {
         expect(result.error.issues[0].message).toContain('end date')
       }
-    })
-
-    it('should accept optional return date', () => {
-      const result = page6Schema.safeParse({
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-      })
-      expect(result.success).toBe(true)
     })
   })
 

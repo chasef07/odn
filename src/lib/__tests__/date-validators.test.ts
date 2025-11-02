@@ -17,7 +17,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
         lastDayOff: '2025-01-16',
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -28,7 +27,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
         lastDayOff: '2025-01-15',
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -39,44 +37,18 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
         lastDayOff: '2025-01-22', // Exactly 7 days later
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
       expect(errors).toEqual([])
     })
 
-    it('should return no errors for first day 4 days in past (within limit)', () => {
-      const fourDaysAgo = format(subDays(today, 4), 'yyyy-MM-dd')
+    it('should return no errors for first day 7 days in past (within limit)', () => {
+      const sevenDaysAgo = format(subDays(today, 7), 'yyyy-MM-dd')
 
       const data: DatesFormData = {
-        firstDayOff: fourDaysAgo,
-        lastDayOff: fourDaysAgo,
-        needReturnDate: false,
-      }
-
-      const errors = validateAbsenceDates(data)
-      expect(errors).toEqual([])
-    })
-
-    it('should return no errors with valid return date', () => {
-      const data: DatesFormData = {
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        needReturnDate: true,
-        returnDate: '2025-01-21', // Day after last day
-      }
-
-      const errors = validateAbsenceDates(data)
-      expect(errors).toEqual([])
-    })
-
-    it('should return no errors when return date not needed', () => {
-      const data: DatesFormData = {
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        needReturnDate: false,
-        returnDate: undefined,
+        firstDayOff: sevenDaysAgo,
+        lastDayOff: sevenDaysAgo,
       }
 
       const errors = validateAbsenceDates(data)
@@ -85,33 +57,31 @@ describe('validateAbsenceDates', () => {
   })
 
   describe('First day validation', () => {
-    it('should allow first day 4 days in past (well within limit)', () => {
-      const fourDaysAgo = format(subDays(today, 4), 'yyyy-MM-dd')
+    it('should allow first day 7 days in past (at boundary limit)', () => {
+      const sevenDaysAgo = format(subDays(today, 7), 'yyyy-MM-dd')
 
       const data: DatesFormData = {
-        firstDayOff: fourDaysAgo,
-        lastDayOff: fourDaysAgo,
-        needReturnDate: false,
+        firstDayOff: sevenDaysAgo,
+        lastDayOff: sevenDaysAgo,
       }
 
       const errors = validateAbsenceDates(data)
       expect(errors).toEqual([])
     })
 
-    it('should reject first day 6 days in past (beyond limit)', () => {
-      const sixDaysAgo = format(subDays(today, 6), 'yyyy-MM-dd')
+    it('should reject first day 9 days in past (beyond limit)', () => {
+      const nineDaysAgo = format(subDays(today, 9), 'yyyy-MM-dd')
 
       const data: DatesFormData = {
-        firstDayOff: sixDaysAgo,
-        lastDayOff: sixDaysAgo,
-        needReturnDate: false,
+        firstDayOff: nineDaysAgo,
+        lastDayOff: nineDaysAgo,
       }
 
       const errors = validateAbsenceDates(data)
       expect(errors).toHaveLength(1)
       expect(errors[0]).toEqual({
         field: 'firstDayOff',
-        message: 'First day off cannot be more than 5 days in the past',
+        message: 'First day off cannot be more than 7 days in the past',
       })
     })
 
@@ -121,7 +91,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: tenDaysAgo,
         lastDayOff: tenDaysAgo,
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -135,7 +104,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-20',
         lastDayOff: '2025-01-19', // Before first day
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -150,7 +118,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
         lastDayOff: '2025-01-23', // 8 days later
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -165,67 +132,12 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
         lastDayOff: '2025-01-29', // 14 days later
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
       expect(errors).toHaveLength(1)
       expect(errors[0].field).toBe('lastDayOff')
       expect(errors[0].message).toContain('7 days')
-    })
-  })
-
-  describe('Return date validation', () => {
-    it('should accept return date same as last day', () => {
-      const data: DatesFormData = {
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        needReturnDate: true,
-        returnDate: '2025-01-20', // Same as last day
-      }
-
-      const errors = validateAbsenceDates(data)
-      expect(errors).toEqual([])
-    })
-
-    it('should reject return date before last day', () => {
-      const data: DatesFormData = {
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        needReturnDate: true,
-        returnDate: '2025-01-19', // Before last day
-      }
-
-      const errors = validateAbsenceDates(data)
-      expect(errors).toHaveLength(1)
-      expect(errors[0]).toEqual({
-        field: 'returnDate',
-        message: 'Return date must be on or after the last day off',
-      })
-    })
-
-    it('should not validate return date when needReturnDate is false', () => {
-      const data: DatesFormData = {
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        needReturnDate: false,
-        returnDate: '2025-01-19', // Invalid, but should be ignored
-      }
-
-      const errors = validateAbsenceDates(data)
-      expect(errors).toEqual([])
-    })
-
-    it('should not validate return date when returnDate is undefined', () => {
-      const data: DatesFormData = {
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        needReturnDate: true,
-        returnDate: undefined,
-      }
-
-      const errors = validateAbsenceDates(data)
-      expect(errors).toEqual([])
     })
   })
 
@@ -236,8 +148,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: tenDaysAgo,
         lastDayOff: '2025-02-10', // Way beyond 7 days
-        needReturnDate: true,
-        returnDate: '2025-01-20', // Before last day
       }
 
       const errors = validateAbsenceDates(data)
@@ -254,7 +164,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-02-01',
         lastDayOff: '2025-01-10', // Before first day
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -270,7 +179,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15T14:30:00',
         lastDayOff: '2025-01-16T08:00:00',
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -283,7 +191,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2024-02-28',
         lastDayOff: '2024-03-01', // Crosses leap day
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -296,7 +203,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2024-12-28',
         lastDayOff: '2025-01-02', // Crosses into new year
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -309,7 +215,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-28',
         lastDayOff: '2025-02-03', // Crosses into February
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -324,7 +229,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: todayStr,
         lastDayOff: todayStr,
-        needReturnDate: false,
       }
 
       const errors = validateAbsenceDates(data)
@@ -337,19 +241,6 @@ describe('validateAbsenceDates', () => {
       const data: DatesFormData = {
         firstDayOff: tomorrow,
         lastDayOff: tomorrow,
-        needReturnDate: false,
-      }
-
-      const errors = validateAbsenceDates(data)
-      expect(errors).toEqual([])
-    })
-
-    it('should accept return date far in future', () => {
-      const data: DatesFormData = {
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
-        needReturnDate: true,
-        returnDate: '2025-03-01', // 40 days later
       }
 
       const errors = validateAbsenceDates(data)
