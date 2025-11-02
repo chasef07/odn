@@ -106,9 +106,8 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ### Date Validation
 
-- First day off cannot be more than 5 days in the past
+- First day off cannot be more than 7 days in the past
 - Maximum absence period: 7 consecutive days
-- Return date must be on or after the last day off
 - All dates must be valid calendar dates
 
 ### Form Validation

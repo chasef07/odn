@@ -40,7 +40,6 @@ type ContactFormData = {
 type DatesFormData = {
   firstDayOff: string
   lastDayOff: string
-  returnDate?: string
 }
 
 export default function ReviewPage() {
@@ -90,13 +89,8 @@ export default function ReviewPage() {
     defaultValues: {
       firstDayOff: formData.firstDayOff || '',
       lastDayOff: formData.lastDayOff || '',
-      returnDate: formData.returnDate || '',
     },
   })
-
-  const notePurpose = formData.notePurpose || ''
-  const shouldShowReturnDate =
-    notePurpose === 'work' || notePurpose === 'school' || notePurpose === 'both'
 
   // Handler to start editing a section
   const handleEdit = (section: string) => {
@@ -149,8 +143,6 @@ export default function ReviewPage() {
     const validationData = {
       firstDayOff: data.firstDayOff,
       lastDayOff: data.lastDayOff,
-      needReturnDate: shouldShowReturnDate,
-      returnDate: data.returnDate,
     }
 
     const validationErrors = validateAbsenceDates(validationData)
@@ -161,14 +153,6 @@ export default function ReviewPage() {
         datesForm.setError(error.field as keyof DatesFormData, {
           message: error.message,
         })
-      })
-      return
-    }
-
-    // Validate return date if it should be shown
-    if (shouldShowReturnDate && !data.returnDate) {
-      datesForm.setError('returnDate', {
-        message: 'Please select return date',
       })
       return
     }
@@ -314,11 +298,6 @@ export default function ReviewPage() {
               <p className="text-foreground text-base">
                 {formatDate(formData.firstDayOff)} - {formatDate(formData.lastDayOff)}
               </p>
-              {shouldShowReturnDate && formData.returnDate && (
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Return Date: {formatDate(formData.returnDate)}
-                </p>
-              )}
             </>
           }
           editContent={
@@ -337,15 +316,6 @@ export default function ReviewPage() {
                 register={datesForm.register('lastDayOff')}
                 error={datesForm.formState.errors.lastDayOff}
               />
-              {shouldShowReturnDate && (
-                <FormField
-                  id="returnDate"
-                  label="Return to Work/School Date"
-                  type="date"
-                  register={datesForm.register('returnDate')}
-                  error={datesForm.formState.errors.returnDate}
-                />
-              )}
             </>
           }
         />

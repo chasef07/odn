@@ -17,7 +17,6 @@ import { validateAbsenceDates } from '@/lib/date-validators'
 type FormData = {
   firstDayOff: string
   lastDayOff: string
-  returnDate?: string
 }
 
 export default function AbsenceDatesPage() {
@@ -26,9 +25,6 @@ export default function AbsenceDatesPage() {
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
   const currentStep = recipient === 'someone_else' ? 7 : 6
-  const notePurpose = savedData.notePurpose || ''
-  const shouldShowReturnDate =
-    notePurpose === 'work' || notePurpose === 'school' || notePurpose === 'both'
 
   const {
     register,
@@ -41,7 +37,6 @@ export default function AbsenceDatesPage() {
       ...getFormData(),
       firstDayOff: getFormData().firstDayOff || today,
       lastDayOff: getFormData().lastDayOff || today,
-      returnDate: getFormData().returnDate || '',
     },
   })
 
@@ -50,8 +45,6 @@ export default function AbsenceDatesPage() {
     const validationData = {
       firstDayOff: data.firstDayOff,
       lastDayOff: data.lastDayOff,
-      needReturnDate: shouldShowReturnDate,
-      returnDate: data.returnDate,
     }
 
     const validationErrors = validateAbsenceDates(validationData)
@@ -62,14 +55,6 @@ export default function AbsenceDatesPage() {
         setError(error.field as keyof FormData, {
           message: error.message,
         })
-      })
-      return
-    }
-
-    // Validate return date if it should be shown
-    if (shouldShowReturnDate && !data.returnDate) {
-      setError('returnDate', {
-        message: 'Please select return date',
       })
       return
     }
@@ -102,16 +87,6 @@ export default function AbsenceDatesPage() {
             register={register('lastDayOff')}
             error={errors.lastDayOff}
           />
-
-          {shouldShowReturnDate && (
-            <FormField
-              id="returnDate"
-              label="Return to Work/School Date"
-              type="date"
-              register={register('returnDate')}
-              error={errors.returnDate}
-            />
-          )}
         </FormCard>
 
         <FormNavigation backRoute="/note-purpose" isSubmitting={isSubmitting} />

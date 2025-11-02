@@ -118,27 +118,10 @@ export const page5Schema = z
     }
   )
 
-export const page6Schema = z
-  .object({
-    firstDayOff: z.string().min(1, 'Please select start date'),
-    lastDayOff: z.string().min(1, 'Please select end date'),
-    returnDate: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      // If returnDate is provided, it must be >= lastDayOff
-      if (data.returnDate && data.lastDayOff) {
-        const lastDay = new Date(data.lastDayOff)
-        const returnDay = new Date(data.returnDate)
-        return returnDay >= lastDay
-      }
-      return true
-    },
-    {
-      message: 'Return date must be on or after the last day off',
-      path: ['returnDate'],
-    }
-  )
+export const page6Schema = z.object({
+  firstDayOff: z.string().min(1, 'Please select start date'),
+  lastDayOff: z.string().min(1, 'Please select end date'),
+})
 
 export const page7Schema = z
   .object({

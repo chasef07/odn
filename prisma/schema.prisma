@@ -57,7 +57,6 @@ model Submission {
   // Absence Dates
   firstDayOff           DateTime @map("first_day_off") @db.Date
   lastDayOff            DateTime @map("last_day_off") @db.Date
-  returnDate            DateTime? @map("return_date") @db.Date
 
   // Absence Reason
   absenceReason         String   @map("absence_reason")

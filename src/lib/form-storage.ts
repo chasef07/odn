@@ -31,7 +31,6 @@ export interface FormData {
   // Page 6 - Absence Dates
   firstDayOff?: string // ISO format
   lastDayOff?: string // ISO format
-  returnDate?: string // ISO format
 
   // Page 7 - Absence Reason
   absenceReason?: string | null

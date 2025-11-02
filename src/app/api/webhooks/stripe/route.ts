@@ -105,7 +105,6 @@ export async function POST(request: NextRequest) {
               : null,
             firstDayOff: new Date(formData.firstDayOff!),
             lastDayOff: new Date(formData.lastDayOff!),
-            returnDate: formData.returnDate ? new Date(formData.returnDate) : null,
           },
         })
 
