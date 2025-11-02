@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -9,36 +9,36 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'X-DNS-Prefetch-Control',
-            value: 'on'
+            value: 'on',
           },
           {
             key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload'
+            value: 'max-age=63072000; includeSubDomains; preload',
           },
           {
             key: 'X-Frame-Options',
-            value: 'DENY'
+            value: 'DENY',
           },
           {
             key: 'X-Content-Type-Options',
-            value: 'nosniff'
+            value: 'nosniff',
           },
           {
             key: 'X-XSS-Protection',
-            value: '1; mode=block'
+            value: '1; mode=block',
           },
           {
             key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin'
+            value: 'strict-origin-when-cross-origin',
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
-          }
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+          },
         ],
       },
-    ];
+    ]
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

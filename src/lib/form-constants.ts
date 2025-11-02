@@ -47,30 +47,26 @@ export const AVAILABLE_STATES = [
   'West Virginia',
   'Wisconsin',
   'Wyoming',
-];
+]
 
 export const NOTE_PURPOSES = {
   work: {
     label: 'Work',
-    description:
-      'Share with your employer to excuse an absence or request accommodations.',
+    description: 'Share with your employer to excuse an absence or request accommodations.',
   },
   school: {
     label: 'School',
-    description:
-      'Provide to your school administrator, counselor, or professor as needed.',
+    description: 'Provide to your school administrator, counselor, or professor as needed.',
   },
   both: {
     label: 'Both Work & School',
-    description:
-      "Need coverage for both? We'll prepare a note suitable for either audience.",
+    description: "Need coverage for both? We'll prepare a note suitable for either audience.",
   },
   other: {
     label: 'Other',
-    description:
-      'Select this if the note is for travel, court, volunteer work, or another reason.',
+    description: 'Select this if the note is for travel, court, volunteer work, or another reason.',
   },
-} as const;
+} as const
 
 export const ABSENCE_REASONS = [
   'Feeling sick',
@@ -79,7 +75,7 @@ export const ABSENCE_REASONS = [
   'Taking care of someone',
   "Doctor's appointment",
   'Other',
-] as const;
+] as const
 
 // Symptoms organized by absence reason - each reason shows ~8 relevant symptoms
 export const SYMPTOMS_BY_REASON: Record<string, string[]> = {
@@ -113,14 +109,7 @@ export const SYMPTOMS_BY_REASON: Record<string, string[]> = {
     'Swelling or bruising',
     'Other',
   ],
-  'Mental health': [
-    'Anxiety',
-    'Sadness',
-    'Stress',
-    'Trouble sleeping',
-    'Irritability',
-    'Other',
-  ],
+  'Mental health': ['Anxiety', 'Sadness', 'Stress', 'Trouble sleeping', 'Irritability', 'Other'],
   'Taking care of someone': [
     'Parent',
     'Child',
@@ -137,8 +126,8 @@ export const SYMPTOMS_BY_REASON: Record<string, string[]> = {
     'Lab work required',
     'Specialist consultation',
   ],
-  'Other': [],
-};
+  Other: [],
+}
 
 export const PROGRESS_VALUES: Record<number, number> = {
   1: 15,
@@ -152,4 +141,4 @@ export const PROGRESS_VALUES: Record<number, number> = {
   9: 90,
   10: 94,
   11: 98,
-};
+}

@@ -68,24 +68,24 @@ The system will handle every stage of the operation:
 
 ## Project Timeline (Estimated 4 Weeks)
 
-| Phase | Description | Duration |
-|-------|-------------|----------|
-| Week 1 | Phase 1: Frontend Form Intake Redesign | 5 days |
-| Week 2 | Phase 2: PostgreSQL Database Setup | 5 days |
-| Week 3 | Phase 3: Doctor's Admin Portal | 5 days |
-| Week 4 | Phase 4: Approval/Denial Automation, QA, and Deployment | 5 days |
+| Phase  | Description                                             | Duration |
+| ------ | ------------------------------------------------------- | -------- |
+| Week 1 | Phase 1: Frontend Form Intake Redesign                  | 5 days   |
+| Week 2 | Phase 2: PostgreSQL Database Setup                      | 5 days   |
+| Week 3 | Phase 3: Doctor's Admin Portal                          | 5 days   |
+| Week 4 | Phase 4: Approval/Denial Automation, QA, and Deployment | 5 days   |
 
 ## 3. Cost Breakdown
 
-| Category | Description | Cost |
-|----------|-------------|------|
-| Frontend Form Development | HIPAA-compliant form with unique ID, secure API integration, email verification, and Stripe Payment ID capture | $1,800 |
-| Backend API & Database Setup | AWS RDS setup, schema design, data encryption, and secure API connectivity | $2,000 |
-| Doctor Dashboard UI | Secure portal for approvals and denials, real-time updates, and minimal PHI display | $1,400 |
-| Automation & PDF System | Automated PDF generation, email delivery, Stripe refund automation, and verification ID logging | $1,800 |
-| Testing & Deployment | End-to-end testing, HIPAA compliance review, and infrastructure optimization | $600 |
-| Training & Documentation | Admin walkthrough, system guide, and 30-day support post-launch | $400 |
-| Monthly Hosting & Maintenance | AWS HIPAA-compliant database cloud hosting, email automation, and PDF storage. On-demand technical support | $299/month |
+| Category                      | Description                                                                                                    | Cost       |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------- |
+| Frontend Form Development     | HIPAA-compliant form with unique ID, secure API integration, email verification, and Stripe Payment ID capture | $1,800     |
+| Backend API & Database Setup  | AWS RDS setup, schema design, data encryption, and secure API connectivity                                     | $2,000     |
+| Doctor Dashboard UI           | Secure portal for approvals and denials, real-time updates, and minimal PHI display                            | $1,400     |
+| Automation & PDF System       | Automated PDF generation, email delivery, Stripe refund automation, and verification ID logging                | $1,800     |
+| Testing & Deployment          | End-to-end testing, HIPAA compliance review, and infrastructure optimization                                   | $600       |
+| Training & Documentation      | Admin walkthrough, system guide, and 30-day support post-launch                                                | $400       |
+| Monthly Hosting & Maintenance | AWS HIPAA-compliant database cloud hosting, email automation, and PDF storage. On-demand technical support     | $299/month |
 
 **Total: $8,000 one-time + $299/month**
 
@@ -95,11 +95,11 @@ This automation system is not just a workflow upgrade—it's an infrastructure i
 
 ### Business Impact Overview
 
-| Metric | Current | With Automation |
-|--------|---------|-----------------|
-| Notes per day | 150–200 | 400–600 |
-| Revenue/day | $3,750–$5,000 | $10,000–$15,000 |
-| Monthly Revenue | $112,500–$150,000 | $300,000–$450,000 |
+| Metric            | Current             | With Automation         |
+| ----------------- | ------------------- | ----------------------- |
+| Notes per day     | 150–200             | 400–600                 |
+| Revenue/day       | $3,750–$5,000       | $10,000–$15,000         |
+| Monthly Revenue   | $112,500–$150,000   | $300,000–$450,000       |
 | Scaling Potential | Limited by manpower | Global, 24/7, unlimited |
 
 This system effectively unlocks **$150,000–$300,000** in additional monthly capacity and removes the ceiling on operational growth.
@@ -126,9 +126,9 @@ Even at conservative growth assumptions (increasing to just 300 notes/day), the 
 
 ## 6. Acceptance
 
-**Signature:** ___________________________
-**Name:** ______________________________
-**Date:** _______________________________
+**Signature:** ************\_\_\_************
+**Name:** **************\_\_**************
+**Date:** **************\_\_\_**************
 
 ---
 

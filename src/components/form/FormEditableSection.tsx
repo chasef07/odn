@@ -1,33 +1,33 @@
-import { ReactNode } from 'react';
-import { Pencil } from 'lucide-react';
+import { ReactNode } from 'react'
+import { Pencil } from 'lucide-react'
 
 interface FormEditableSectionProps {
   /** Unique section identifier */
-  sectionId: string;
+  sectionId: string
 
   /** Section title */
-  title: string;
+  title: string
 
   /** Currently editing section */
-  editingSection: string | null;
+  editingSection: string | null
 
   /** Callback when edit button clicked */
-  onEdit: (sectionId: string) => void;
+  onEdit: (sectionId: string) => void
 
   /** Callback when cancel button clicked */
-  onCancel: (sectionId: string) => void;
+  onCancel: (sectionId: string) => void
 
   /** Callback when save button clicked */
-  onSave: () => void;
+  onSave: () => void
 
   /** Content to display in view mode */
-  viewContent: ReactNode;
+  viewContent: ReactNode
 
   /** Content to display in edit mode (form fields) */
-  editContent: ReactNode;
+  editContent: ReactNode
 
   /** Custom aria label for edit button */
-  editAriaLabel?: string;
+  editAriaLabel?: string
 }
 
 export function FormEditableSection({
@@ -41,14 +41,14 @@ export function FormEditableSection({
   editContent,
   editAriaLabel,
 }: FormEditableSectionProps) {
-  const isEditing = editingSection === sectionId;
+  const isEditing = editingSection === sectionId
 
   return (
-    <div className="rounded-xl border border-border/40 bg-white p-6 shadow-sm">
+    <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
       {isEditing ? (
         // Edit Mode
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <h3 className="text-foreground text-sm font-semibold">{title}</h3>
 
           {editContent}
 
@@ -56,14 +56,14 @@ export function FormEditableSection({
             <button
               type="button"
               onClick={() => onCancel(sectionId)}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+              className="text-foreground hover:bg-accent rounded-lg px-4 py-2 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={onSave}
-              className="rounded-lg px-4 py-2 text-sm font-semibold bg-primary text-white hover:bg-primary/90"
+              className="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-semibold text-white"
             >
               Save
             </button>
@@ -73,14 +73,14 @@ export function FormEditableSection({
         // View Mode
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+            <h3 className="text-foreground text-sm font-semibold">{title}</h3>
             {viewContent}
           </div>
 
           <button
             type="button"
             onClick={() => onEdit(sectionId)}
-            className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            className="text-primary flex items-center gap-1 text-sm font-medium hover:underline"
             aria-label={editAriaLabel || `Edit ${title.toLowerCase()}`}
           >
             <Pencil className="h-4 w-4" />
@@ -89,5 +89,5 @@ export function FormEditableSection({
         </div>
       )}
     </div>
-  );
+  )
 }

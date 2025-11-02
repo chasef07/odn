@@ -15,6 +15,7 @@ This document details the implementation of the first batch of customer feedback
 ### 1. Color Scheme Update - Brighter Blue
 
 **Customer Request:**
+
 > "Change color scheme to a brighter blue, something happy and more similar to what we are currently using"
 
 **Implementation:**
@@ -22,16 +23,18 @@ This document details the implementation of the first batch of customer feedback
 Updated the primary brand color from a subdued blue to a brighter, more vibrant light blue throughout the application.
 
 **Files Modified:**
+
 - `src/app/globals.css`
 
 **Changes Made:**
+
 ```css
 /* BEFORE */
---primary: oklch(0.62 0.10 240);
---ring: oklch(0.62 0.10 240);
---chart-1: oklch(0.62 0.10 240);
---sidebar-primary: oklch(0.62 0.10 240);
---sidebar-ring: oklch(0.62 0.10 240);
+--primary: oklch(0.62 0.1 240);
+--ring: oklch(0.62 0.1 240);
+--chart-1: oklch(0.62 0.1 240);
+--sidebar-primary: oklch(0.62 0.1 240);
+--sidebar-ring: oklch(0.62 0.1 240);
 
 /* AFTER */
 --primary: oklch(0.65 0.18 230);
@@ -42,6 +45,7 @@ Updated the primary brand color from a subdued blue to a brighter, more vibrant 
 ```
 
 **Impact:**
+
 - Increased lightness from 0.62 to 0.65
 - Increased chroma (saturation) from 0.10 to 0.18 for more vibrancy
 - Shifted hue from 240 to 230 for a lighter, sky-blue tone
@@ -55,6 +59,7 @@ The new color is similar to Tailwind's `sky-500` - a bright, friendly blue that 
 ### 2. HIPAA Compliance Badge
 
 **Customer Request:**
+
 > "Instead of encrypted say HIPAA compliant"
 
 **Implementation:**
@@ -62,10 +67,12 @@ The new color is similar to Tailwind's `sky-500` - a bright, friendly blue that 
 Replaced "Encrypted" trust badge text with "HIPAA Compliant" to better communicate healthcare data security compliance.
 
 **Files Modified:**
+
 - `src/app/page.tsx` (line 60)
 - `src/components/form-layout.tsx` (line 53)
 
 **Changes Made:**
+
 ```tsx
 /* BEFORE */
 <div className="flex items-center gap-2">
@@ -81,6 +88,7 @@ Replaced "Encrypted" trust badge text with "HIPAA Compliant" to better communica
 ```
 
 **Note:**
+
 - Using the correct spelling "HIPAA" (Health Insurance Portability and Accountability Act)
 - Maintained the ShieldCheck icon for visual consistency
 - Badge appears in the top-right trust indicators section on all form pages
@@ -90,6 +98,7 @@ Replaced "Encrypted" trust badge text with "HIPAA Compliant" to better communica
 ### 3. Money Back Guarantee Update
 
 **Customer Request:**
+
 > "Say 'Money back guarantee' instead of money back, and add a logo next to this that we will share"
 
 **Implementation:**
@@ -97,10 +106,12 @@ Replaced "Encrypted" trust badge text with "HIPAA Compliant" to better communica
 Updated the money-back badge text to the full phrase "Money back guarantee" and retained the ShieldCheck icon as a placeholder for the custom logo.
 
 **Files Modified:**
+
 - `src/app/page.tsx` (line 68)
 - `src/components/form-layout.tsx` (line 57)
 
 **Changes Made:**
+
 ```tsx
 /* BEFORE */
 <div className="flex items-center gap-2">
@@ -116,20 +127,18 @@ Updated the money-back badge text to the full phrase "Money back guarantee" and 
 ```
 
 **Future Work:**
+
 - The ShieldCheck icon serves as a placeholder
 - Once the custom logo is provided, replace `<ShieldCheck />` with an image component
 - Logo should be positioned before the text as currently implemented
 
 **Recommended Logo Implementation:**
+
 ```tsx
 // Future implementation when logo is provided
 <div className="flex items-center gap-2">
-  <img
-    src="/path/to/guarantee-badge.svg"
-    alt="Money back guarantee"
-    className="h-4 w-4"
-  />
-  <span className="font-medium text-primary">Money back guarantee</span>
+  <img src="/path/to/guarantee-badge.svg" alt="Money back guarantee" className="h-4 w-4" />
+  <span className="text-primary font-medium">Money back guarantee</span>
 </div>
 ```
 
@@ -138,6 +147,7 @@ Updated the money-back badge text to the full phrase "Money back guarantee" and 
 ### 4. Page Heading Update - "Who is using this note?"
 
 **Customer Request:**
+
 > "Who is this note for page please rephrase to 'who is using this note'"
 
 **Implementation:**
@@ -145,9 +155,11 @@ Updated the money-back badge text to the full phrase "Money back guarantee" and 
 Updated the main heading and accessibility legend on the first page of the form from "Who is this note for?" to "Who is using this note?"
 
 **Files Modified:**
+
 - `src/app/page.tsx` (lines 76, 88)
 
 **Changes Made:**
+
 ```tsx
 /* BEFORE - Heading */
 <h1 className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-4">
@@ -175,6 +187,7 @@ Updated the main heading and accessibility legend on the first page of the form 
 ```
 
 **Impact:**
+
 - More direct and user-friendly language
 - Maintains accessibility with matching legend text for screen readers
 - Subtitle text currently unchanged (to be updated in next batch with specific copy from current form)
@@ -238,6 +251,7 @@ documents/phase-1/implementation2.md (this file)
 ## Deployment Notes
 
 These changes are purely cosmetic and copy updates. No:
+
 - Database changes required
 - API changes required
 - Environment variable changes required
@@ -250,6 +264,7 @@ Safe to deploy directly to production after visual QA approval.
 ## Approval & Sign-off
 
 **Customer Review Required:**
+
 - [ ] Blue color brightness and tone approved
 - [ ] HIPAA Compliant wording approved
 - [ ] Money back guarantee wording approved

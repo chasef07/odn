@@ -11,6 +11,7 @@
 **Goal:** Reduce 25% drop-off rate through psychology-optimized UX improvements
 
 **Key Changes:**
+
 1. **Split Page 2** from 7 fields → 3 separate pages (reduces cognitive overload)
 2. **Remove email confirmation** field (use smart validation instead)
 3. **Add early hooks:** Visual timer, social proof, value anchor on Page 1
@@ -27,6 +28,7 @@
 Build a secure, HIPAA-compliant multi-step form that collects patient information, generates unique IDs, integrates Stripe payment ($25), and sends data to backend API.
 
 **Tech Stack:**
+
 - Next.js 15 (App Router) + TypeScript
 - Tailwind CSS v4 + shadcn/ui components
 - React Hook Form + Zod validation
@@ -42,26 +44,31 @@ Build a secure, HIPAA-compliant multi-step form that collects patient informatio
 ### Implemented to Reduce 25% Drop-off Rate
 
 **Problem 1: Cognitive Overload (Page 2 had 7 fields)**
+
 - ✅ **Split into 3 pages:** Page 2 (3 fields), Page 3 (2 fields), Page 4 (1 field)
 - ✅ Each page = quick win, builds momentum and commitment
 
 **Problem 2: Email Confirmation Kills Flow**
+
 - ✅ **Removed confirmation field** completely
 - ✅ **Smart inline validation:** Show "✓ Valid email" immediately
 - ✅ **Typo detection:** Suggest corrections (@gmial → @gmail)
 - ✅ **Post-payment verification:** Send email confirmation after payment instead
 
 **Problem 3: No Early Investment**
+
 - ✅ **Visual timer** on Page 1: "~2 minutes to complete" (creates urgency)
 - ✅ **Social proof:** "★★★★★ Join 50,000+ people who got their note in minutes"
 - ✅ **Value anchor:** "Save $200+ vs traditional doctor visit"
 
 **Problem 4: Progress Bar Strategy (To Explore)**
+
 - ⏳ **Testing multiple variants:** Accelerating, time-based, phase-based, hybrid
 - ⏳ **A/B testing planned:** Track completion rates and drop-off by variant
 - ⏳ See "Progress Bar Strategy" section below for details
 
 **Problem 6: Personalization & Engagement**
+
 - ✅ **Use first name** after Page 2 in all headers/copy
 - ✅ **Dynamic messaging:** "Got it, [Name]! What do you need this note for?"
 - ✅ **Smart defaults:** Pre-fill dates to "today", auto-detect state from IP
@@ -69,29 +76,32 @@ Build a secure, HIPAA-compliant multi-step form that collects patient informatio
 
 ### Quick Reference
 
-| Page | Title | Key Fields | Validation | Psychology Hook |
-|------|-------|------------|------------|-----------------|
-| 1 | Note Recipient | Myself/Someone else, Relationship (conditional) | Required | Timer + Social proof + Value prop |
-| 2 | Basic Info | First Name, Last Name, DOB | 18+ age | Quick win (only 3 fields) |
-| 3 | Contact Info | Email, Phone | Email validation, phone format | Smart validation, no confirmation |
-| 4 | State | Dropdown (44 states) | Required | Auto-detect from IP |
-| 5 | Note Purpose | Work/School/Both/Other | Required | Personalized: "Got it, [Name]!" |
-| 6 | Absence Dates | First day off, Last day off | 7-day restrictions | Smart defaults (today) |
-| 7 | Absence Reason | Radio selection | Conditional option | Personalized copy |
-| 8 | Symptoms | Multi-select checkboxes | Min 1 required | Engaging multi-select |
-| 9 | Review & Confirm | Summary + Terms checkboxes | Terms acceptance required | Edit links with data preserved |
-| 10 | Payment | Stripe Checkout | $25.00 | Final push |
+| Page | Title            | Key Fields                                      | Validation                     | Psychology Hook                   |
+| ---- | ---------------- | ----------------------------------------------- | ------------------------------ | --------------------------------- |
+| 1    | Note Recipient   | Myself/Someone else, Relationship (conditional) | Required                       | Timer + Social proof + Value prop |
+| 2    | Basic Info       | First Name, Last Name, DOB                      | 18+ age                        | Quick win (only 3 fields)         |
+| 3    | Contact Info     | Email, Phone                                    | Email validation, phone format | Smart validation, no confirmation |
+| 4    | State            | Dropdown (44 states)                            | Required                       | Auto-detect from IP               |
+| 5    | Note Purpose     | Work/School/Both/Other                          | Required                       | Personalized: "Got it, [Name]!"   |
+| 6    | Absence Dates    | First day off, Last day off                     | 7-day restrictions             | Smart defaults (today)            |
+| 7    | Absence Reason   | Radio selection                                 | Conditional option             | Personalized copy                 |
+| 8    | Symptoms         | Multi-select checkboxes                         | Min 1 required                 | Engaging multi-select             |
+| 9    | Review & Confirm | Summary + Terms checkboxes                      | Terms acceptance required      | Edit links with data preserved    |
+| 10   | Payment          | Stripe Checkout                                 | $25.00                         | Final push                        |
 
 ---
 
 ## Page Details
 
 ### Page 1: Note Recipient
+
 **Fields:**
+
 - Radio: "Myself" or "Someone else"
 - Dropdown (conditional): Relationship - "Parent", "Child", "Sibling", "Other family member", "Spouse/Significant Other", "Friend"
 
 **Conversion Optimizations:**
+
 - **Visual Timer:** Display "~2 minutes to complete" with animated icon
 - **Social Proof:** "★★★★★ Join 50,000+ people who got their note in minutes"
 - **Value Prop:** "Save $200+ vs traditional doctor visit"
@@ -102,17 +112,21 @@ Build a secure, HIPAA-compliant multi-step form that collects patient informatio
 ---
 
 ### Page 2: Basic Information (Split from old Page 2)
+
 **Fields:**
+
 - First Name (text, required)
 - Last Name (text, required)
 - Date of Birth (date, required)
 
 **Validation:**
+
 - Age:
   - If Page 1 = "Myself": Must be 18+
   - If Page 1 = "Someone else": Any age (caregiver assumed 18+)
 
 **Psychology:**
+
 - Only 3 fields = quick win, builds momentum
 - Simple completion creates commitment
 - Page completes fast, user feels progress
@@ -120,11 +134,14 @@ Build a secure, HIPAA-compliant multi-step form that collects patient informatio
 ---
 
 ### Page 3: Contact Information (Split from old Page 2)
+
 **Fields:**
+
 - Email Address (email, required)
 - Phone Number (tel, required, US format: `(XXX) XXX-XXXX`)
 
 **Validation:**
+
 - **Email:** Smart inline validation
   - Show "✓ Valid email" immediately
   - Check for common typos: @gmial.com → "Did you mean @gmail.com?"
@@ -132,16 +149,20 @@ Build a secure, HIPAA-compliant multi-step form that collects patient informatio
 - **Phone:** Auto-format to `(555) 123-4567` as user types
 
 **Removed:**
+
 - ❌ Email confirmation field (cognitive overload, kills momentum)
 - ✅ Will send email verification after payment instead
 
 ---
 
 ### Page 4: State Selection
+
 **Fields:**
+
 - State (searchable dropdown, required)
 
 **Smart Features:**
+
 - Auto-detect state from IP geolocation
 - Pre-select detected state, user confirms or changes
 - Show confirmation: "✓ We're available in [State]!"
@@ -154,43 +175,54 @@ Alabama, Arizona, California, Colorado, Connecticut, Delaware, Florida, Georgia,
 ---
 
 ### Page 5: Note Purpose
+
 **Fields:**
+
 - Radio cards: Work, School, Both, Other (with descriptions)
 
 **Personalization (after Page 2):**
+
 - Header: "Got it, **[FirstName]**! What do you need this note for?"
 - Sidebar copy uses first name: "[FirstName], your note is minutes away"
 
 ---
 
 ### Page 6: Absence Dates
+
 **Fields:**
+
 - First Day Off (date picker)
 - Last Day Off (date picker)
 
 **Validation:**
+
 - Start date: Max 7 days in past (`[Today - 7]` to `[Today]`)
 - End date: Max 7 days from start date (`[Start]` to `[Start + 7]`)
 - Show calculated duration: "Total days: X"
 
 **Smart Defaults:**
+
 - Pre-fill both dates to "Today" (most common use case)
 - User can adjust if needed
 
 ---
 
 ### Page 7: Absence Reason
-**Fields:**
-- Radio cards: Common cold/flu, Stomach bug, Sore throat, COVID-19, Headache/migraine, Mental health, Injury, Taking care of family*, Medical appointment, Other
 
+**Fields:**
+
+- Radio cards: Common cold/flu, Stomach bug, Sore throat, COVID-19, Headache/migraine, Mental health, Injury, Taking care of family\*, Medical appointment, Other
 
 **Personalization:**
+
 - Header: "What's the reason for your absence, **[FirstName]**?"
 
 ---
 
 ### Page 8: Current Symptoms
+
 **Fields:**
+
 - Multi-select checkboxes (grouped):
   - **General:** Fever/chills, Fatigue, Body aches, Headache
   - **Respiratory:** Cough, Sore throat, Congestion, Shortness of breath, Loss of smell/taste
@@ -204,7 +236,9 @@ Alabama, Arizona, California, Colorado, Connecticut, Delaware, Florida, Georgia,
 ---
 
 ### Page 9: Review & Confirm
+
 **Display:**
+
 - Summary of all entered data
 - Edit button next to each section (returns to that page with data preserved)
 - Price: $24.95
@@ -212,17 +246,21 @@ Alabama, Arizona, California, Colorado, Connecticut, Delaware, Florida, Georgia,
 - Delivery: Email
 
 **Required Checkboxes:**
+
 - ☑ "I certify that the information provided is accurate and truthful"
 - ☑ "I agree to the Terms of Service and Privacy Policy"
 
 **Personalization:**
+
 - Header: "Almost there, **[FirstName]**! Review your information"
 - Button: "Continue to Payment" (disabled until both checked)
 
 ---
 
 ### Page 10: Stripe Checkout
+
 **Implementation:**
+
 - Redirect to Stripe hosted checkout
 - Pre-fill email from form
 - Amount: $24.95
@@ -255,13 +293,16 @@ Page 8: Symptoms
 ## Progress Bar Strategy (To Explore)
 
 ### Current Approach
+
 - Traditional: "Step X of 10"
 - Linear progress: Each step = 10% (1/10, 2/10, etc.)
 
 ### Alternative Approaches to Test
 
 #### Option 1: Accelerating Progress Bar
+
 **Psychology:** Front-load progress to create momentum
+
 ```
 Page 1 = 15% (feels like quick start)
 Page 2 = 30% (doubled progress, dopamine hit)
@@ -279,7 +320,9 @@ Page 10 = Payment (no bar, different UI)
 **Cons:** May feel dishonest if too aggressive
 
 #### Option 2: Time-Based Progress
+
 **Psychology:** More accurate, feels helpful
+
 ```
 Display: "~1 minute left" or "~30 seconds remaining"
 Track actual time spent vs average completion time
@@ -290,7 +333,9 @@ Dynamically update based on user speed
 **Cons:** Slower users may feel pressure/anxiety
 
 #### Option 3: Phase-Based (Segmented)
+
 **Psychology:** Breaking into chunks reduces overwhelm
+
 ```
 Phase 1: About You (Pages 1-3) - 33%
 Phase 2: Your Situation (Pages 4-6) - 66%
@@ -304,6 +349,7 @@ Visual: 4 segments that fill up, not continuous bar
 **Cons:** Loses granular feedback
 
 #### Option 4: Hybrid Approach (Recommended for Testing)
+
 ```
 Pages 1-3: Show time "~90 seconds left" + phase indicator
 Pages 4-9: Show traditional step count "Step 4 of 9"
@@ -314,12 +360,14 @@ Why: Early pages = time creates urgency
 ```
 
 ### A/B Test Plan
+
 1. **Control:** Linear progress (Step X of 10)
 2. **Variant A:** Accelerating progress bar
 3. **Variant B:** Time-based ("~1 min left")
 4. **Variant C:** Phase-based segments
 
 **Metrics to Track:**
+
 - Completion rate by variant
 - Time to complete
 - Drop-off page (where do users abandon?)
@@ -330,7 +378,9 @@ Why: Early pages = time creates urgency
 ## Technical Implementation
 
 ### Unique ID Generation
+
 **Format:** `DN-YYYYMMDD-XXXX`
+
 - Prefix: DN (Doctor Note)
 - Date: YYYYMMDD
 - Random: 4-char alphanumeric (1.6M combinations/day)
@@ -338,7 +388,9 @@ Why: Early pages = time creates urgency
 - Example: `DN-20251019-A7K2`
 
 ### Form State Management
+
 **Strategy:** Local Storage + Server submission
+
 - Auto-save form state on each step: `localStorage.setItem('form-draft', JSON.stringify(formData))`
 - Restore on mount: `const savedData = localStorage.getItem('form-draft')`
 - Clear on successful payment
@@ -346,29 +398,35 @@ Why: Early pages = time creates urgency
 - No server-side session until final submission
 
 ### Validation Libraries
+
 ```bash
 npm install react-hook-form @hookform/resolvers zod
 ```
 
 **Zod Schema Example:**
+
 ```typescript
-const personalInfoSchema = z.object({
-  email: z.string().email(),
-  emailConfirm: z.string().email(),
-  firstName: z.string().min(1).max(50),
-  phone: z.string().regex(/^\(\d{3}\) \d{3}-\d{4}$/),
-  dateOfBirth: z.date(),
-  pronouns: z.enum(['he/him', 'she/her', 'they/them']),
-}).refine((data) => data.email.toLowerCase() === data.emailConfirm.toLowerCase(), {
-  message: "Email addresses must match",
-  path: ["emailConfirm"],
-});
+const personalInfoSchema = z
+  .object({
+    email: z.string().email(),
+    emailConfirm: z.string().email(),
+    firstName: z.string().min(1).max(50),
+    phone: z.string().regex(/^\(\d{3}\) \d{3}-\d{4}$/),
+    dateOfBirth: z.date(),
+    pronouns: z.enum(['he/him', 'she/her', 'they/them']),
+  })
+  .refine((data) => data.email.toLowerCase() === data.emailConfirm.toLowerCase(), {
+    message: 'Email addresses must match',
+    path: ['emailConfirm'],
+  })
 ```
 
 ### API Endpoint
+
 **Route:** `/app/api/submit/route.ts` (App Router style)
 
 **Request:**
+
 ```typescript
 {
   // Page 1
@@ -407,6 +465,7 @@ const personalInfoSchema = z.object({
 ```
 
 **Response:**
+
 ```typescript
 {
   success: boolean,
@@ -416,11 +475,13 @@ const personalInfoSchema = z.object({
 ```
 
 ### Stripe Integration
+
 ```bash
 npm install stripe @stripe/stripe-js
 ```
 
 **Flow:**
+
 1. User completes Page 8 → clicks "Continue to Payment"
 2. Server creates Stripe Checkout session (`/app/api/create-checkout-session/route.ts`)
 3. Redirect to Stripe
@@ -428,6 +489,7 @@ npm install stripe @stripe/stripe-js
 5. Verify payment → Save to database → Show confirmation
 
 **Metadata stored with payment:**
+
 - `submission_id`
 - `note_recipient`
 - `patient_email`
@@ -467,6 +529,7 @@ npm install date-fns  # Date handling
 ### Week 1 (5 Days)
 
 **Days 1-2: Form Pages & Psychology Hooks** ✅ COMPLETED
+
 - [x] **Page 1:** Note recipient + conditional relationship
   - [] Add visual timer component (~2 minutes)
   - [x] Add social proof ("50,000+ users")
@@ -496,12 +559,14 @@ npm install date-fns  # Date handling
   - [x] Personalized header
 
 **Days 3-4: Payment Integration** ⏳ PENDING
+
 - [ ] Set up Stripe account (test mode)
 - [ ] Create checkout session API route
 - [ ] Implement payment flow
 - [ ] Create confirmation page (Page 10)
 
 **Day 5: API & Final Integration** ⏳ PENDING
+
 - [ ] Create `/app/api/submit/route.ts`
 - [ ] Implement unique ID generation (`DN-YYYYMMDD-XXXX`)
 - [ ] Add server-side validation
@@ -510,6 +575,7 @@ npm install date-fns  # Date handling
 - [ ] End-to-end testing with payment flow
 
 **Post-Launch: A/B Testing** 📋 PLANNED
+
 - [ ] Set up analytics tracking
 - [ ] Test progress bar variants (accelerating, time-based, phase-based)
 - [ ] Track drop-off rates by page

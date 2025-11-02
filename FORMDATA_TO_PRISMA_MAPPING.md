@@ -9,6 +9,7 @@ This document shows the complete mapping between the `FormData` interface (local
 ## Clean FormData Interface (18 fields)
 
 After removing legacy fields:
+
 - ❌ Removed `relationship` - Legacy, unused
 - ❌ Removed `needReturnDate` - Computed from `notePurpose`, never stored
 
@@ -16,37 +17,39 @@ After removing legacy fields:
 
 ## Complete Field Mapping
 
-| # | FormData Field | Type | Prisma Field | Type | Conversion Needed |
-|---|----------------|------|--------------|------|-------------------|
-| 1 | `state` | string? | `state` | String | ✅ Direct copy |
-| 2 | `recipient` | 'myself' \| 'someone_else' \| null | `recipient` | String | ✅ Direct copy |
-| 3 | `patientFirstName` | string? | `patientFirstName` | String | ✅ Direct copy |
-| 4 | `patientLastName` | string? | `patientLastName` | String | ✅ Direct copy |
-| 5 | `patientDateOfBirth` | string? (ISO) | `patientDateOfBirth` | DateTime @db.Date | ⚠️ `new Date(value)` |
-| 6 | `guardianFirstName` | string? | `guardianFirstName` | String? | ✅ Direct copy |
-| 7 | `guardianLastName` | string? | `guardianLastName` | String? | ✅ Direct copy |
-| 8 | `guardianDateOfBirth` | string? (ISO) | `guardianDateOfBirth` | DateTime? @db.Date | ⚠️ `new Date(value)` or null |
-| 9 | `email` | string? | `email` | String | ✅ Direct copy |
-| 10 | `phone` | string? | `phone` | String | ✅ Direct copy |
-| 11 | `notePurpose` | 'work' \| 'school' \| 'both' \| 'other' \| null | `notePurpose` | String | ✅ Direct copy |
-| 12 | `otherNotePurpose` | string? | `otherNotePurpose` | String? | ✅ Direct copy |
-| 13 | `firstDayOff` | string? (ISO) | `firstDayOff` | DateTime @db.Date | ⚠️ `new Date(value)` |
-| 14 | `lastDayOff` | string? (ISO) | `lastDayOff` | DateTime @db.Date | ⚠️ `new Date(value)` |
-| 15 | `returnDate` | string? (ISO) | `returnDate` | DateTime? @db.Date | ⚠️ `new Date(value)` or null |
-| 16 | `absenceReason` | string? \| null | `absenceReason` | String | ✅ Direct copy |
-| 17 | `otherAbsenceReason` | string? | `otherAbsenceReason` | String? | ✅ Direct copy |
-| 18 | `symptoms` | string[]? | `symptoms` | Json? | ✅ Direct copy (Prisma handles JSON) |
-| 19 | `otherSymptomText` | string? | `otherSymptomText` | String? | ✅ Direct copy |
-| 20 | `additionalInformation` | string? | `additionalInformation` | String? @db.Text | ✅ Direct copy |
-| 21 | `certifyAccurate` | boolean? | - | - | ❌ Not stored (implied by payment) |
-| 22 | `agreeTerms` | boolean? | - | - | ❌ Not stored (implied by payment) |
+| #   | FormData Field          | Type                                            | Prisma Field            | Type               | Conversion Needed                    |
+| --- | ----------------------- | ----------------------------------------------- | ----------------------- | ------------------ | ------------------------------------ |
+| 1   | `state`                 | string?                                         | `state`                 | String             | ✅ Direct copy                       |
+| 2   | `recipient`             | 'myself' \| 'someone_else' \| null              | `recipient`             | String             | ✅ Direct copy                       |
+| 3   | `patientFirstName`      | string?                                         | `patientFirstName`      | String             | ✅ Direct copy                       |
+| 4   | `patientLastName`       | string?                                         | `patientLastName`       | String             | ✅ Direct copy                       |
+| 5   | `patientDateOfBirth`    | string? (ISO)                                   | `patientDateOfBirth`    | DateTime @db.Date  | ⚠️ `new Date(value)`                 |
+| 6   | `guardianFirstName`     | string?                                         | `guardianFirstName`     | String?            | ✅ Direct copy                       |
+| 7   | `guardianLastName`      | string?                                         | `guardianLastName`      | String?            | ✅ Direct copy                       |
+| 8   | `guardianDateOfBirth`   | string? (ISO)                                   | `guardianDateOfBirth`   | DateTime? @db.Date | ⚠️ `new Date(value)` or null         |
+| 9   | `email`                 | string?                                         | `email`                 | String             | ✅ Direct copy                       |
+| 10  | `phone`                 | string?                                         | `phone`                 | String             | ✅ Direct copy                       |
+| 11  | `notePurpose`           | 'work' \| 'school' \| 'both' \| 'other' \| null | `notePurpose`           | String             | ✅ Direct copy                       |
+| 12  | `otherNotePurpose`      | string?                                         | `otherNotePurpose`      | String?            | ✅ Direct copy                       |
+| 13  | `firstDayOff`           | string? (ISO)                                   | `firstDayOff`           | DateTime @db.Date  | ⚠️ `new Date(value)`                 |
+| 14  | `lastDayOff`            | string? (ISO)                                   | `lastDayOff`            | DateTime @db.Date  | ⚠️ `new Date(value)`                 |
+| 15  | `returnDate`            | string? (ISO)                                   | `returnDate`            | DateTime? @db.Date | ⚠️ `new Date(value)` or null         |
+| 16  | `absenceReason`         | string? \| null                                 | `absenceReason`         | String             | ✅ Direct copy                       |
+| 17  | `otherAbsenceReason`    | string?                                         | `otherAbsenceReason`    | String?            | ✅ Direct copy                       |
+| 18  | `symptoms`              | string[]?                                       | `symptoms`              | Json?              | ✅ Direct copy (Prisma handles JSON) |
+| 19  | `otherSymptomText`      | string?                                         | `otherSymptomText`      | String?            | ✅ Direct copy                       |
+| 20  | `additionalInformation` | string?                                         | `additionalInformation` | String? @db.Text   | ✅ Direct copy                       |
+| 21  | `certifyAccurate`       | boolean?                                        | -                       | -                  | ❌ Not stored (implied by payment)   |
+| 22  | `agreeTerms`            | boolean?                                        | -                       | -                  | ❌ Not stored (implied by payment)   |
 
 ---
 
 ## Mapping Summary
 
 ### ✅ Direct Copy Fields (15 fields)
+
 These fields require no conversion:
+
 - `state`, `recipient`
 - `patientFirstName`, `patientLastName`
 - `guardianFirstName`, `guardianLastName` (nullable)
@@ -57,7 +60,9 @@ These fields require no conversion:
 - `otherSymptomText`, `additionalInformation`
 
 ### ⚠️ Type Conversion Required (5 fields)
+
 These fields need string → Date conversion:
+
 - `patientDateOfBirth` (required)
 - `guardianDateOfBirth` (optional)
 - `firstDayOff` (required)
@@ -65,12 +70,16 @@ These fields need string → Date conversion:
 - `returnDate` (optional)
 
 ### ❌ Not Stored in Database (2 fields)
+
 These fields are form-only and not persisted:
+
 - `certifyAccurate` - Legal checkbox (implied by payment success)
 - `agreeTerms` - Legal checkbox (implied by payment success)
 
 ### ➕ Database-Only Fields (11 fields)
+
 These fields exist in Prisma but not in FormData (system-generated):
+
 - `id` - UUID primary key (auto-generated by Prisma)
 - `stripePaymentIntentId` - Stripe payment intent ID
 - `status` - 'pending_review' | 'approved' | 'denied' (default: 'pending_review')
@@ -86,8 +95,8 @@ These fields exist in Prisma but not in FormData (system-generated):
 ### Simple Mapping Function
 
 ```typescript
-import { FormData } from '@/lib/form-storage';
-import type { Prisma } from '../../app/generated-prisma-client';
+import { FormData } from '@/lib/form-storage'
+import type { Prisma } from '../../app/generated-prisma-client'
 
 export function mapFormDataToSubmission(
   formData: FormData,
@@ -122,10 +131,8 @@ export function mapFormDataToSubmission(
       : null,
     firstDayOff: new Date(formData.firstDayOff!),
     lastDayOff: new Date(formData.lastDayOff!),
-    returnDate: formData.returnDate
-      ? new Date(formData.returnDate)
-      : null,
-  };
+    returnDate: formData.returnDate ? new Date(formData.returnDate) : null,
+  }
 }
 ```
 
@@ -155,8 +162,8 @@ const submission = await prisma.submission.create({
     // Remove form-only fields
     certifyAccurate: undefined,
     agreeTerms: undefined,
-  }
-});
+  },
+})
 ```
 
 ---
@@ -179,27 +186,27 @@ const requiredFields = [
   'firstDayOff',
   'lastDayOff',
   'absenceReason',
-];
+]
 
 for (const field of requiredFields) {
   if (!formData[field]) {
-    throw new Error(`Missing required field: ${field}`);
+    throw new Error(`Missing required field: ${field}`)
   }
 }
 
 // Conditional validation
 if (formData.recipient === 'someone_else') {
   if (!formData.guardianFirstName || !formData.guardianLastName || !formData.guardianDateOfBirth) {
-    throw new Error('Guardian information is required when recipient is "someone_else"');
+    throw new Error('Guardian information is required when recipient is "someone_else"')
   }
 }
 
 if (formData.notePurpose === 'other' && !formData.otherNotePurpose) {
-  throw new Error('otherNotePurpose is required when notePurpose is "other"');
+  throw new Error('otherNotePurpose is required when notePurpose is "other"')
 }
 
 if (formData.absenceReason === 'Other' && !formData.otherAbsenceReason) {
-  throw new Error('otherAbsenceReason is required when absenceReason is "Other"');
+  throw new Error('otherAbsenceReason is required when absenceReason is "Other"')
 }
 ```
 
@@ -215,8 +222,8 @@ const tempSubmission = await prisma.temporarySubmission.create({
     paymentIntentId: paymentIntent.id,
     formData: formData as Prisma.JsonObject, // Store entire form data as JSON
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-  }
-});
+  },
+})
 ```
 
 No conversion needed - just store the entire FormData object as JSON!
@@ -240,6 +247,7 @@ No conversion needed - just store the entire FormData object as JSON!
 ✅ **Perfect Alignment Achieved!**
 
 After cleanup:
+
 - **18 active FormData fields** map cleanly to Prisma
 - **15 fields** require no conversion (direct copy)
 - **5 fields** need simple date conversion

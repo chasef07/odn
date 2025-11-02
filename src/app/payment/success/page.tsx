@@ -1,23 +1,24 @@
-"use client";
+'use client'
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { FormLayout } from '@/components/form-layout';
-import { CheckCircle2 } from 'lucide-react';
-import { clearFormData } from '@/lib/form-storage';
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { FormLayout } from '@/components/form-layout'
+import { CheckCircle2 } from 'lucide-react'
+import { clearFormData } from '@/lib/form-storage'
 
-const CURRENT_STEP = 10;
+const CURRENT_STEP = 10
 
 function PaymentSuccessContent() {
-  const searchParams = useSearchParams();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const paymentIntent = searchParams.get('payment_intent');
+  const searchParams = useSearchParams()
+  const paymentIntent = searchParams.get('payment_intent')
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
+    !paymentIntent ? 'error' : 'loading'
+  )
 
   useEffect(() => {
     if (!paymentIntent) {
-      setStatus('error');
-      return;
+      return
     }
 
     // Verify the payment status with Stripe
@@ -27,35 +28,35 @@ function PaymentSuccessContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paymentIntentId: paymentIntent }),
-        });
+        })
 
         if (!response.ok) {
-          setStatus('error');
-          return;
+          setStatus('error')
+          return
         }
 
-        const data = await response.json();
+        const data = await response.json()
 
         if (data.status === 'succeeded') {
-          setStatus('success');
+          setStatus('success')
 
           // Clear form data after successful payment verification
           try {
-            clearFormData();
+            clearFormData()
           } catch (clearError) {
-            console.warn('Failed to clear form data:', clearError);
+            console.warn('Failed to clear form data:', clearError)
             // Non-critical - don't show error to user
           }
         } else {
-          setStatus('error');
+          setStatus('error')
         }
       } catch {
-        setStatus('error');
+        setStatus('error')
       }
-    };
+    }
 
-    verifyPayment();
-  }, [paymentIntent]);
+    verifyPayment()
+  }, [paymentIntent])
 
   if (status === 'loading') {
     return (
@@ -67,12 +68,12 @@ function PaymentSuccessContent() {
       >
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2"></div>
             <p className="text-muted-foreground">Verifying your payment...</p>
           </div>
         </div>
       </FormLayout>
-    );
+    )
   }
 
   if (status === 'error') {
@@ -84,13 +85,13 @@ function PaymentSuccessContent() {
         usePersonalization={false}
       >
         <div className="rounded-xl border border-red-200 bg-red-50 p-6">
-          <p className="text-red-600 font-medium mb-2">Payment verification failed</p>
+          <p className="mb-2 font-medium text-red-600">Payment verification failed</p>
           <p className="text-sm text-red-600">
             Please contact support if you believe this is an error.
           </p>
         </div>
       </FormLayout>
-    );
+    )
   }
 
   return (
@@ -103,34 +104,30 @@ function PaymentSuccessContent() {
     >
       <div className="space-y-6">
         <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center">
-          <CheckCircle2 className="h-16 w-16 text-green-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            Thank you for your payment!
-          </h2>
+          <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-green-600" />
+          <h2 className="text-foreground mb-2 text-2xl font-bold">Thank you for your payment!</h2>
           <p className="text-muted-foreground">
             Your doctor&apos;s note is being processed and will be sent to your email shortly.
           </p>
         </div>
 
-        <div className="rounded-xl border border-border/40 bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-foreground mb-3">
-            What happens next?
-          </h3>
-          <ul className="space-y-2 text-sm text-muted-foreground">
+        <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
+          <h3 className="text-foreground mb-3 text-sm font-semibold">What happens next?</h3>
+          <ul className="text-muted-foreground space-y-2 text-sm">
             <li className="flex items-start">
-              <span className="inline-block w-6 h-6 rounded-full bg-primary/10 text-primary text-center mr-3 flex-shrink-0">
+              <span className="bg-primary/10 text-primary mr-3 inline-block h-6 w-6 flex-shrink-0 rounded-full text-center">
                 1
               </span>
               <span>You&apos;ll receive a confirmation email within the next few minutes</span>
             </li>
             <li className="flex items-start">
-              <span className="inline-block w-6 h-6 rounded-full bg-primary/10 text-primary text-center mr-3 flex-shrink-0">
+              <span className="bg-primary/10 text-primary mr-3 inline-block h-6 w-6 flex-shrink-0 rounded-full text-center">
                 2
               </span>
               <span>Your doctor&apos;s note will be reviewed and processed</span>
             </li>
             <li className="flex items-start">
-              <span className="inline-block w-6 h-6 rounded-full bg-primary/10 text-primary text-center mr-3 flex-shrink-0">
+              <span className="bg-primary/10 text-primary mr-3 inline-block h-6 w-6 flex-shrink-0 rounded-full text-center">
                 3
               </span>
               <span>The completed note will be sent to your registered email address</span>
@@ -138,34 +135,36 @@ function PaymentSuccessContent() {
           </ul>
         </div>
 
-        <div className="text-center pt-4">
+        <div className="pt-4 text-center">
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-lg px-6 py-3 text-base font-semibold transition-all shadow-sm bg-primary text-white hover:bg-primary/90"
+            className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-6 py-3 text-base font-semibold text-white shadow-sm transition-all"
           >
             Return to Home
           </Link>
         </div>
       </div>
     </FormLayout>
-  );
+  )
 }
 
 export default function PaymentSuccessPage() {
   return (
-    <Suspense fallback={
-      <FormLayout
-        currentStep={CURRENT_STEP}
-        title="Processing..."
-        description="Please wait while we verify your payment."
-        usePersonalization={true}
-      >
-        <div className="text-center p-8">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </FormLayout>
-    }>
+    <Suspense
+      fallback={
+        <FormLayout
+          currentStep={CURRENT_STEP}
+          title="Processing..."
+          description="Please wait while we verify your payment."
+          usePersonalization={true}
+        >
+          <div className="p-8 text-center">
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </FormLayout>
+      }
+    >
       <PaymentSuccessContent />
     </Suspense>
-  );
+  )
 }

@@ -1,20 +1,20 @@
-"use client";
+'use client'
 
-import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 
 interface FormNavigationProps {
   /** Route to navigate to when clicking back button */
-  backRoute: string;
+  backRoute: string
 
   /** Text for the submit/continue button (default: "Continue") */
-  submitText?: string;
+  submitText?: string
 
   /** Whether the form is currently submitting */
-  isSubmitting?: boolean;
+  isSubmitting?: boolean
 
   /** Override back button click handler (optional) */
-  onBackClick?: () => void;
+  onBackClick?: () => void
 }
 
 export function FormNavigation({
@@ -23,22 +23,22 @@ export function FormNavigation({
   isSubmitting = false,
   onBackClick,
 }: FormNavigationProps) {
-  const router = useRouter();
+  const router = useRouter()
 
   const handleBackClick = () => {
     if (onBackClick) {
-      onBackClick();
+      onBackClick()
     } else {
-      router.push(backRoute);
+      router.push(backRoute)
     }
-  };
+  }
 
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex items-center justify-between">
       <button
         type="button"
         onClick={handleBackClick}
-        className="inline-flex items-center justify-center rounded-lg p-2 text-foreground transition-all hover:bg-accent"
+        className="text-foreground hover:bg-accent inline-flex items-center justify-center rounded-lg p-2 transition-all"
         aria-label="Back"
       >
         <ArrowLeft className="h-5 w-5" />
@@ -47,10 +47,10 @@ export function FormNavigation({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold transition-all shadow-sm bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isSubmitting ? 'Loading...' : submitText}
       </button>
     </div>
-  );
+  )
 }

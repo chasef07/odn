@@ -1,34 +1,34 @@
-import { SelectHTMLAttributes } from 'react';
-import { FieldError, UseFormRegisterReturn } from 'react-hook-form';
-import { Label } from '@/components/ui/label';
+import { SelectHTMLAttributes } from 'react'
+import { FieldError, UseFormRegisterReturn } from 'react-hook-form'
+import { Label } from '@/components/ui/label'
 
 interface FormSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'> {
   /** Unique field identifier */
-  id: string;
+  id: string
 
   /** Display label text */
-  label: string;
+  label: string
 
   /** React Hook Form register return value */
-  register: UseFormRegisterReturn;
+  register: UseFormRegisterReturn
 
   /** Error object from react-hook-form */
-  error?: FieldError;
+  error?: FieldError
 
   /** Array of option values */
-  options: string[];
+  options: string[]
 
   /** Placeholder text for empty option */
-  placeholder?: string;
+  placeholder?: string
 
   /** Whether field is required (default: true) */
-  required?: boolean;
+  required?: boolean
 
   /** Height class ("h-12" | "h-14", default: "h-12") */
-  height?: 'h-12' | 'h-14';
+  height?: 'h-12' | 'h-14'
 
   /** Transform option value before displaying (default: lowercase) */
-  valueTransform?: (value: string) => string;
+  valueTransform?: (value: string) => string
 }
 
 export function FormSelect({
@@ -52,7 +52,7 @@ export function FormSelect({
       <select
         id={id}
         {...register}
-        className={`${height} w-full rounded-xl border border-border/60 bg-white px-3 text-base focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50`}
+        className={`${height} border-border/60 focus-visible:ring-primary/40 w-full rounded-xl border bg-white px-3 text-base focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50`}
         aria-required={required}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
@@ -72,5 +72,5 @@ export function FormSelect({
         </p>
       )}
     </div>
-  );
+  )
 }

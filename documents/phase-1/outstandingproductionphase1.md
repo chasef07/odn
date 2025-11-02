@@ -29,27 +29,30 @@ The following issues have been successfully resolved:
 
 **Issue:**
 Currently assumes payment succeeded based solely on URL parameter existence:
+
 ```typescript
 // Line 22-23: For now, we'll assume success if payment_intent exists
-setStatus('success');
+setStatus('success')
 ```
 
 **Risk:**
+
 - User could manually navigate to `/payment/success?payment_intent=fake123`
 - Would see success page without actually paying
 - Could lead to fraudulent doctor's notes being issued
 
 **Fix Required:**
+
 ```typescript
 // Verify payment with Stripe API before showing success
 const verifyPayment = async (paymentIntentId: string) => {
   const response = await fetch('/api/verify-payment', {
     method: 'POST',
-    body: JSON.stringify({ paymentIntentId })
-  });
-  const { status } = await response.json();
-  return status === 'succeeded';
-};
+    body: JSON.stringify({ paymentIntentId }),
+  })
+  const { status } = await response.json()
+  return status === 'succeeded'
+}
 ```
 
 **Estimated Effort:** 2-3 hours
@@ -64,6 +67,7 @@ const verifyPayment = async (paymentIntentId: string) => {
 **Impact:** Exposes sensitive error details, performance overhead
 
 **Issue:**
+
 ```typescript
 } catch (error) {
   console.error('Error creating payment intent:', error);  // ⚠️ This line
@@ -75,12 +79,14 @@ const verifyPayment = async (paymentIntentId: string) => {
 ```
 
 **Problems:**
+
 - May log Stripe API keys or sensitive error details
 - Adds unnecessary overhead in production
 - Unprofessional for production code
 
 **Fix Required:**
 Option 1 (Quick):
+
 ```typescript
 } catch (error) {
   if (process.env.NODE_ENV === 'development') {
@@ -94,6 +100,7 @@ Option 1 (Quick):
 ```
 
 Option 2 (Better):
+
 ```typescript
 } catch (error) {
   // Send to logging service (Sentry, LogRocket, etc.)
@@ -118,6 +125,7 @@ Option 2 (Better):
 
 **Issue:**
 All form submission buttons lack loading states:
+
 - `/src/app/page.tsx` - Recipient selection
 - `/src/app/basic-info/page.tsx` - Basic info
 - `/src/app/contact-info/page.tsx` - Contact info
@@ -128,6 +136,7 @@ All form submission buttons lack loading states:
 - `/src/app/symptoms/page.tsx` - Symptoms
 
 **Current Behavior:**
+
 ```typescript
 <button type="submit" className="...">
   Continue
@@ -137,6 +146,7 @@ All form submission buttons lack loading states:
 User clicks → No visual feedback → User clicks 5 more times → Confusion
 
 **Fix Required:**
+
 ```typescript
 const { handleSubmit, formState: { isSubmitting } } = useForm<FormData>(...);
 
@@ -161,6 +171,7 @@ const { handleSubmit, formState: { isSubmitting } } = useForm<FormData>(...);
 **Impact:** Confuses users on progress
 
 **Issue:**
+
 ```typescript
 <p className="text-sm font-semibold tracking-wide text-primary">
   Step {currentStep} of 9
@@ -168,6 +179,7 @@ const { handleSubmit, formState: { isSubmitting } } = useForm<FormData>(...);
 ```
 
 Shows "of 9" but there are actually **10 total steps**:
+
 1. Recipient
 2. Basic Info
 3. Contact Info
@@ -180,6 +192,7 @@ Shows "of 9" but there are actually **10 total steps**:
 10. Payment (success page)
 
 **Fix Required:**
+
 ```typescript
 <p className="text-sm font-semibold tracking-wide text-primary">
   Step {currentStep} of 10
@@ -204,24 +217,22 @@ No rate limiting on payment API endpoint. Malicious user could spam requests.
 
 **Fix Required:**
 Implement rate limiting middleware or use service like Upstash Redis:
+
 ```typescript
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
 
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(10, "10 s"), // 10 requests per 10 seconds
-});
+  limiter: Ratelimit.slidingWindow(10, '10 s'), // 10 requests per 10 seconds
+})
 
 export async function POST(request: NextRequest) {
-  const ip = request.ip ?? "127.0.0.1";
-  const { success } = await ratelimit.limit(ip);
+  const ip = request.ip ?? '127.0.0.1'
+  const { success } = await ratelimit.limit(ip)
 
   if (!success) {
-    return NextResponse.json(
-      { error: 'Too many requests' },
-      { status: 429 }
-    );
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 
   // ... rest of payment logic
@@ -240,15 +251,17 @@ export async function POST(request: NextRequest) {
 **Impact:** Potential API compatibility issues
 
 **Issue:**
+
 ```typescript
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-09-30.clover',  // ← Unusual suffix
-});
+  apiVersion: '2025-09-30.clover', // ← Unusual suffix
+})
 ```
 
 The `.clover` suffix is non-standard for Stripe API versions. Standard format is `YYYY-MM-DD`.
 
 **Action Required:**
+
 - Verify this is the correct API version for your Stripe account
 - Check Stripe dashboard for recommended version
 - Consider making this configurable via environment variable:
@@ -269,6 +282,7 @@ The `.clover` suffix is non-standard for Stripe API versions. Standard format is
 
 **Issue:**
 Footer contains links to Terms of Service and Privacy Policy pages that don't exist:
+
 ```typescript
 <a href="/terms">Terms of Service</a>
 <a href="/privacy">Privacy Policy</a>
@@ -277,6 +291,7 @@ Footer contains links to Terms of Service and Privacy Policy pages that don't ex
 These links return 404 errors.
 
 **Fix Required:**
+
 1. Create `/src/app/terms/page.tsx`
 2. Create `/src/app/privacy/page.tsx`
 3. Consult with legal counsel for proper content
@@ -316,8 +331,9 @@ Consider adding CSRF token validation to API routes.
 Currently no validation that incoming request data matches expected schema.
 
 **Recommended Fix:**
+
 ```typescript
-import { z } from 'zod';
+import { z } from 'zod'
 
 const paymentRequestSchema = z.object({
   formData: z.object({
@@ -325,12 +341,12 @@ const paymentRequestSchema = z.object({
     lastName: z.string().min(1),
     email: z.string().email(),
     // ... etc
-  })
-});
+  }),
+})
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const validated = paymentRequestSchema.parse(body);
+  const body = await request.json()
+  const validated = paymentRequestSchema.parse(body)
   // ... proceed with validated data
 }
 ```
@@ -346,6 +362,7 @@ export async function POST(request: NextRequest) {
 **Impact:** Better production monitoring
 
 Implement proper error logging with services like:
+
 - Sentry
 - LogRocket
 - Datadog
@@ -362,6 +379,7 @@ Implement proper error logging with services like:
 **Impact:** Prevent regressions
 
 Add test coverage for:
+
 - Date validation edge cases
 - Form submission flow
 - Error handling scenarios
@@ -471,16 +489,19 @@ When deploying to production:
 ## Contact & Resources
 
 **Stripe Documentation:**
+
 - Payment Intents: https://stripe.com/docs/payments/payment-intents
 - API Versioning: https://stripe.com/docs/api/versioning
 - Testing: https://stripe.com/docs/testing
 
 **Accessibility Resources:**
+
 - WCAG 2.1 Guidelines: https://www.w3.org/WAI/WCAG21/quickref/
 - WAVE Tool: https://wave.webaim.org/
 - axe DevTools: https://www.deque.com/axe/devtools/
 
 **Next.js Security:**
+
 - Environment Variables: https://nextjs.org/docs/app/building-your-application/configuring/environment-variables
 - API Routes: https://nextjs.org/docs/app/building-your-application/routing/route-handlers
 
