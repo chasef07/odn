@@ -1,13 +1,22 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { loadEnv } from 'vite'
 
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./vitest.setup.ts'],
+export default defineConfig(({ mode }) => {
+  // Load env file based on mode (test will load .env.test)
+  const env = loadEnv(mode, process.cwd(), '')
+
+  return {
+    plugins: [react()],
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./vitest.setup.ts'],
+      env: {
+        // Load test environment variables from .env.test
+        ...env,
+      },
     include: ['**/*.{test,spec}.{ts,tsx}'],
     exclude: ['node_modules', '.next', 'out'],
     coverage: {
@@ -21,8 +30,10 @@ export default defineConfig({
         '**/*.d.ts',
         '**/types.ts',
         'vitest.setup.ts',
+        'tests/setup/**', // Test utilities
+        'scripts/**', // Utility scripts
         'src/app/layout.tsx', // Next.js specific files
-        'src/app/not-found.tsx',
+        'src/app/not-found.tsx'
       ],
       thresholds: {
         lines: 80,
@@ -32,9 +43,10 @@ export default defineConfig({
       },
     },
   },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
     },
-  },
+  }
 })
