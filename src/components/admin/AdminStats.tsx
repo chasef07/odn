@@ -1,0 +1,47 @@
+/**
+ * AdminStats Component
+ * Displays dashboard statistics in card format
+ */
+
+import { Card, CardContent } from '@/components/ui/card'
+
+interface AdminStatsProps {
+  pendingCount: number
+  approvedToday: number
+  deniedToday: number
+}
+
+export function AdminStats({ pendingCount, approvedToday, deniedToday }: AdminStatsProps) {
+  const stats = [
+    {
+      label: 'Pending Reviews',
+      value: pendingCount,
+      color: 'text-blue-600',
+    },
+    {
+      label: 'Approved Today',
+      value: approvedToday,
+      color: 'text-green-600',
+    },
+    {
+      label: 'Denied Today',
+      value: deniedToday,
+      color: 'text-red-600',
+    },
+  ]
+
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {stats.map((stat) => (
+        <Card key={stat.label} className="p-0">
+          <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
+            <div className={`text-2xl font-bold ${stat.color} mb-1 sm:text-4xl sm:mb-2`}>
+              {stat.value}
+            </div>
+            <div className="text-xs text-muted-foreground sm:text-sm">{stat.label}</div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
