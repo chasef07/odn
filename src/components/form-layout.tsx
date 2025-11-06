@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, DollarSign } from 'lucide-react'
 import { FormProgress } from './form-progress'
 import { getFirstName } from '@/lib/form-storage'
 
@@ -44,7 +44,7 @@ export function FormLayout({
                 <span>HIPAA Compliant</span>
               </div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className="text-primary h-4 w-4" />
+                <DollarSign className="text-primary h-4 w-4" />
                 <span>Money back guarantee</span>
               </div>
             </div>

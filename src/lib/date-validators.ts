@@ -4,6 +4,7 @@
  */
 
 import { subDays, differenceInDays } from 'date-fns'
+import { DATE_LIMITS } from './validation-constants'
 
 export interface DatesFormData {
   firstDayOff: string
@@ -17,9 +18,9 @@ export interface DateValidationError {
 
 /**
  * Validates absence date ranges according to business rules
- * - First day cannot be more than 7 days in the past
+ * - First day cannot be more than MAX_DAYS_IN_PAST days in the past
  * - Last day must be >= first day
- * - Last day cannot be more than 7 days from first day
+ * - Last day cannot be more than MAX_ABSENCE_DAYS days from first day
  *
  * @param data - Form data containing date fields
  * @returns Array of validation errors (empty if valid)
@@ -36,12 +37,12 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
   const lastDay = new Date(data.lastDayOff)
   lastDay.setHours(0, 0, 0, 0)
 
-  // Check if first day is more than 8 days in the past (message says 7 for user clarity)
-  const eightDaysAgo = subDays(today, 8)
-  if (firstDay < eightDaysAgo) {
+  // Check if first day is too far in the past
+  const cutoffDate = subDays(today, DATE_LIMITS.MAX_DAYS_IN_PAST + 1)
+  if (firstDay < cutoffDate) {
     errors.push({
       field: 'firstDayOff',
-      message: 'First day off cannot be more than 7 days in the past',
+      message: `First day off cannot be more than ${DATE_LIMITS.MAX_DAYS_IN_PAST} days in the past`,
     })
   }
 
@@ -53,12 +54,12 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
     })
   }
 
-  // Check if absence period is more than 7 days
+  // Check if absence period exceeds maximum allowed days
   const daysDifference = differenceInDays(lastDay, firstDay)
-  if (daysDifference > 7) {
+  if (daysDifference > DATE_LIMITS.MAX_ABSENCE_DAYS) {
     errors.push({
       field: 'lastDayOff',
-      message: 'Absence period cannot exceed 7 days',
+      message: `Absence period cannot exceed ${DATE_LIMITS.MAX_ABSENCE_DAYS} days`,
     })
   }
 

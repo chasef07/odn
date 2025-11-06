@@ -103,7 +103,9 @@ export async function POST(request: NextRequest) {
       // Cancel the payment intent to prevent charging user
       try {
         await stripe.paymentIntents.cancel(paymentIntent.id)
-        console.log('Payment intent canceled successfully:', paymentIntent.id)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Payment intent canceled successfully:', paymentIntent.id)
+        }
       } catch (cancelError) {
         console.error('Failed to cancel payment intent:', cancelError)
       }

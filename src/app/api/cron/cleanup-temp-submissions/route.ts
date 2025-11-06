@@ -1,11 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
 /**
  * Cleanup Job for Expired TemporarySubmissions
  *
- * This endpoint should be called by a cron job (e.g., Vercel Cron)
- * to delete expired TemporarySubmissions (older than 24 hours).
+ * This endpoint is called by Vercel Cron every hour to delete expired
+ * TemporarySubmissions (older than 24 hours).
+ *
+ * Security: Protected by CRON_SECRET environment variable.
+ * Vercel automatically sends this as: Authorization: Bearer ${CRON_SECRET}
  *
  * Configure in vercel.json:
  * {
@@ -16,8 +19,26 @@ import prisma from '@/lib/prisma'
  * }
  */
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // 🔒 SECURITY: Verify the request is from Vercel Cron
+    const authHeader = request.headers.get('authorization')
+    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`
+
+    if (authHeader !== expectedAuth) {
+      console.error('❌ Unauthorized cron job attempt', {
+        timestamp: new Date().toISOString(),
+        hasAuthHeader: !!authHeader,
+        ip: request.headers.get('x-forwarded-for'),
+      })
+
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // ✅ Authorized - proceed with cleanup
     // Delete expired TemporarySubmissions
     const result = await prisma.temporarySubmission.deleteMany({
       where: {
@@ -27,7 +48,10 @@ export async function GET() {
       },
     })
 
-    console.log(`✅ Cleaned up ${result.count} expired TemporarySubmissions`)
+    console.log(`✅ Cron job completed: Cleaned up ${result.count} expired TemporarySubmissions`, {
+      deleted: result.count,
+      timestamp: new Date().toISOString(),
+    })
 
     return NextResponse.json({
       success: true,

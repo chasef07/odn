@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
 
@@ -31,7 +32,9 @@ export async function POST(request: NextRequest) {
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object as Stripe.PaymentIntent
 
-      console.log('Processing payment_intent.succeeded:', paymentIntent.id)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Processing payment_intent.succeeded:', paymentIntent.id)
+      }
 
       // 3. Check idempotency (prevent duplicate processing)
       const existingSubmission = await prisma.submission.findUnique({
@@ -39,7 +42,9 @@ export async function POST(request: NextRequest) {
       })
 
       if (existingSubmission) {
-        console.log('Submission already processed (idempotent):', paymentIntent.id)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Submission already processed (idempotent):', paymentIntent.id)
+        }
         return NextResponse.json({ received: true })
       }
 
@@ -77,7 +82,7 @@ export async function POST(request: NextRequest) {
           data: {
             // System fields
             stripePaymentIntentId: paymentIntent.id,
-            status: 'pending_review',
+            status: SubmissionStatus.PENDING_REVIEW,
 
             // Direct copy fields
             state: formData.state!,
@@ -108,7 +113,9 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        console.log('Submission created successfully:', paymentIntent.id)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Submission created successfully:', paymentIntent.id)
+        }
       } catch (submissionError) {
         console.error('Failed to create Submission:', submissionError)
 
@@ -128,7 +135,9 @@ export async function POST(request: NextRequest) {
         await prisma.temporarySubmission.delete({
           where: { id: tempSubmission.id },
         })
-        console.log('TemporarySubmission deleted:', tempSubmission.id)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('TemporarySubmission deleted:', tempSubmission.id)
+        }
       } catch (deleteError) {
         // Non-critical - Submission was created successfully
         // TemporarySubmission will be cleaned up by scheduled job

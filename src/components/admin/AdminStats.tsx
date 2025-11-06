@@ -9,9 +9,10 @@ interface AdminStatsProps {
   pendingCount: number
   approvedToday: number
   deniedToday: number
+  maybeCount?: number
 }
 
-export function AdminStats({ pendingCount, approvedToday, deniedToday }: AdminStatsProps) {
+export function AdminStats({ pendingCount, approvedToday, deniedToday, maybeCount = 0 }: AdminStatsProps) {
   const stats = [
     {
       label: 'Pending Reviews',
@@ -28,10 +29,15 @@ export function AdminStats({ pendingCount, approvedToday, deniedToday }: AdminSt
       value: deniedToday,
       color: 'text-red-600',
     },
+    {
+      label: 'Maybe',
+      value: maybeCount,
+      color: 'text-yellow-600',
+    },
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {stats.map((stat) => (
         <Card key={stat.label} className="p-0">
           <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">

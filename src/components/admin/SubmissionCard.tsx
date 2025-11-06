@@ -4,7 +4,7 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Submission } from '@/lib/mock-submissions'
+import type { Submission } from '@prisma/client'
 import {
   calculateAge,
   formatDateRange,
@@ -25,6 +25,11 @@ export function SubmissionCard({ submission, currentIndex, totalCount }: Submiss
   const dateRange = formatDateRange(submission.firstDayOff, submission.lastDayOff)
   const dayCount = calculateDaysDifference(submission.firstDayOff, submission.lastDayOff)
   const hasGuardian = submission.recipient === 'someone_else'
+
+  // Parse symptoms from JSON
+  const symptoms = submission.symptoms
+    ? (Array.isArray(submission.symptoms) ? submission.symptoms : [])
+    : []
 
   return (
     <Card className="mx-auto w-full max-w-2xl">
@@ -116,10 +121,10 @@ export function SubmissionCard({ submission, currentIndex, totalCount }: Submiss
               <span className="text-muted-foreground">Reason: </span>
               <span>{submission.absenceReason}</span>
             </div>
-            {submission.symptoms && submission.symptoms.length > 0 && (
+            {symptoms.length > 0 && (
               <div>
                 <span className="text-muted-foreground">Symptoms: </span>
-                <span>{submission.symptoms.join(', ')}</span>
+                <span>{symptoms.join(', ')}</span>
               </div>
             )}
             {submission.additionalInformation && (
