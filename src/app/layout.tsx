@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Manrope } from 'next/font/google'
 import './globals.css'
+import '@/lib/env' // Validate environment variables on startup
 
 const sans = Manrope({
   variable: '--font-geist-sans',

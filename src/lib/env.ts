@@ -10,6 +10,8 @@ const requiredEnvVars = [
   'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'NEXT_PUBLIC_PAYMENT_AMOUNT',
+  'CRON_SECRET',
+  'AUTH_SECRET',
 ] as const
 
 export function validateEnvironment() {

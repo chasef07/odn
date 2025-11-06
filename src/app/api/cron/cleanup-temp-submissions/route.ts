@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import prisma from '@/lib/prisma'
 
 /**
@@ -23,9 +24,31 @@ export async function GET(request: NextRequest) {
   try {
     // 🔒 SECURITY: Verify the request is from Vercel Cron
     const authHeader = request.headers.get('authorization')
-    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`
+    const cronSecret = process.env.CRON_SECRET
 
-    if (authHeader !== expectedAuth) {
+    // Validate CRON_SECRET is set (should be caught by env validation, but extra safety)
+    if (!cronSecret) {
+      console.error('❌ CRON_SECRET not configured', {
+        timestamp: new Date().toISOString(),
+      })
+      return NextResponse.json(
+        { error: 'Server misconfiguration' },
+        { status: 500 }
+      )
+    }
+
+    const expectedAuth = `Bearer ${cronSecret}`
+
+    // Use timing-safe comparison to prevent timing attacks
+    const isValid =
+      authHeader &&
+      authHeader.length === expectedAuth.length &&
+      timingSafeEqual(
+        Buffer.from(authHeader),
+        Buffer.from(expectedAuth)
+      )
+
+    if (!isValid) {
       console.error('❌ Unauthorized cron job attempt', {
         timestamp: new Date().toISOString(),
         hasAuthHeader: !!authHeader,
@@ -48,10 +71,12 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    console.log(`✅ Cron job completed: Cleaned up ${result.count} expired TemporarySubmissions`, {
-      deleted: result.count,
-      timestamp: new Date().toISOString(),
-    })
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Cron job completed: Cleaned up ${result.count} expired TemporarySubmissions`, {
+        deleted: result.count,
+        timestamp: new Date().toISOString(),
+      })
+    }
 
     return NextResponse.json({
       success: true,

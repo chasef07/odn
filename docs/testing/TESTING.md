@@ -587,9 +587,11 @@ npm run test:coverage
 
 1. **Component Tests**: Add React component tests with Testing Library
 2. **E2E Tests**: Add Playwright tests for full user flows
-3. **Visual Regression**: Add visual regression testing
-4. **Performance Tests**: Add bundle size and performance benchmarks
-5. **Accessibility Tests**: Add automated a11y tests
+3. **Security Tests**: Add tests for cron auth, timing-safe comparison, env validation
+4. **Admin Action Tests**: Add tests for server actions (approve, deny, maybe)
+5. **Visual Regression**: Add visual regression testing
+6. **Performance Tests**: Add bundle size and performance benchmarks
+7. **Accessibility Tests**: Add automated a11y tests
 
 ### Coverage Goals
 

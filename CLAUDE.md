@@ -388,6 +388,10 @@ NODE_ENV=development                     # Environment (development/production)
 - **Password hashing**: bcryptjs with 10 rounds for doctor passwords
 - **Session management**: NextAuth.js stores sessions in PostgreSQL database
 - **Authentication**: Protected routes use NextAuth.js `auth()` helper
+- **Cron job protection**: CRON_SECRET with timing-safe comparison prevents unauthorized execution
+- **Environment validation**: All required env vars validated on startup (fails fast if missing)
+- **Timing attack prevention**: Bearer token comparison uses `crypto.timingSafeEqual()`
+- **Logging security**: Console logs wrapped with NODE_ENV checks (development only)
 - **XSS prevention**: React escapes by default
 - **CSRF**: Next.js handles CSRF tokens
 - **Rate limiting**: Not implemented (should be added)
