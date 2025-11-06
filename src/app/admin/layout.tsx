@@ -5,8 +5,13 @@
 
 import Link from 'next/link'
 import { ReactNode } from 'react'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../../../auth'
+import { LogoutButton } from '@/components/admin/LogoutButton'
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  const session = await getServerSession(authOptions)
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -22,7 +27,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </span>
             </Link>
 
-            {/* Optional: Add navigation or user menu here */}
+            {/* User Menu */}
+            {session?.user && (
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground">
+                  {session.user.email}
+                </span>
+                <LogoutButton />
+              </div>
+            )}
           </div>
         </div>
       </header>

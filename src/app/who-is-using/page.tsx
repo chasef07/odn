@@ -8,7 +8,7 @@ import { FormRadioGroup } from '@/components/form/FormRadioGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { page1Schema } from '@/lib/validation-schemas'
-import { ShieldCheck, Clock } from 'lucide-react'
+import { ShieldCheck, DollarSign } from 'lucide-react'
 
 const CURRENT_STEP = 2
 
@@ -52,11 +52,7 @@ export default function WhoIsUsingPage() {
               <span>HIPAA Compliant</span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="text-primary h-4 w-4" />
-              <span>~2 min</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="text-primary h-4 w-4" />
+              <DollarSign className="text-primary h-4 w-4" />
               <span>Money back guarantee</span>
             </div>
           </div>

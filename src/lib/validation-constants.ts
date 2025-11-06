@@ -15,8 +15,8 @@ export const CHAR_LIMITS = {
 // Date validation constants
 export const DATE_LIMITS = {
   MIN_YEAR: 1900,
-  MAX_DAYS_IN_PAST: 5,
-  MAX_ABSENCE_DAYS: 14,
+  MAX_DAYS_IN_PAST: 7,      // First day cannot be more than 7 days ago
+  MAX_ABSENCE_DAYS: 7,      // Maximum consecutive days off allowed
 } as const
 
 // Age validation constants

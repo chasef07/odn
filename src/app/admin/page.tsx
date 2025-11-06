@@ -1,26 +1,29 @@
-'use client'
-
 /**
  * Admin Dashboard Page
  * Shows statistics and start reviewing button
  */
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { AdminStats } from '@/components/admin/AdminStats'
 import { Button } from '@/components/ui/button'
-import { mockSubmissions } from '@/lib/mock-submissions'
+import { getDashboardStats } from './actions'
 
-export default function AdminDashboardPage() {
-  // In real app, this would come from database/API
-  const [submissions] = useState(mockSubmissions)
+export default async function AdminDashboardPage() {
+  // Fetch real stats from database
+  const statsResult = await getDashboardStats()
 
-  // Calculate stats
-  const pendingCount = submissions.filter((s) => s.status === 'pending_review').length
+  if (!statsResult.success || !statsResult.data) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-red-600 mt-1">Failed to load dashboard stats. Please try again.</p>
+        </div>
+      </div>
+    )
+  }
 
-  // For now, these are 0 (will be updated as user reviews)
-  const approvedToday = 0
-  const deniedToday = 0
+  const { pendingCount, approvedToday, deniedToday, maybeCount } = statsResult.data
 
   return (
     <div className="space-y-8">
@@ -37,6 +40,7 @@ export default function AdminDashboardPage() {
         pendingCount={pendingCount}
         approvedToday={approvedToday}
         deniedToday={deniedToday}
+        maybeCount={maybeCount}
       />
 
       {/* Start Reviewing Button */}

@@ -10,79 +10,190 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { SubmissionCard } from '@/components/admin/SubmissionCard'
 import { CompletionScreen } from '@/components/admin/CompletionScreen'
-import { mockSubmissions } from '@/lib/mock-submissions'
+import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
+import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
+import type { DenialReason } from '@/lib/admin-utils'
+import type { Submission } from '@prisma/client'
+import {
+  getSubmissionsForReview,
+  approveSubmission,
+  denySubmission,
+  maybeSubmission,
+  getMonthlyLimitData,
+} from '../actions'
 
 export default function AdminReviewPage() {
   const router = useRouter()
 
   // State management
-  const [submissions] = useState(() => {
-    // Sort by oldest first (FIFO queue)
-    return [...mockSubmissions].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    )
-  })
+  const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [reviewedSubmissions, setReviewedSubmissions] = useState<{
     approved: string[]
     denied: string[]
-  }>({ approved: [], denied: [] })
+    maybe: string[]
+  }>({ approved: [], denied: [], maybe: [] })
 
   const [showCompletion, setShowCompletion] = useState(false)
+  const [showDenialDialog, setShowDenialDialog] = useState(false)
+  const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
+  const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
 
   const currentSubmission = submissions[currentIndex]
   const isLastSubmission = currentIndex === submissions.length - 1
 
+  // Fetch submissions on mount
+  useEffect(() => {
+    async function fetchSubmissions() {
+      setIsLoading(true)
+      setError(null)
+
+      const result = await getSubmissionsForReview()
+
+      if (result.success && result.data) {
+        setSubmissions(result.data)
+      } else {
+        setError(result.error || 'Failed to load submissions')
+      }
+
+      setIsLoading(false)
+    }
+
+    fetchSubmissions()
+  }, [])
+
+  // Fetch monthly limit data when submission changes
+  useEffect(() => {
+    async function fetchMonthlyData() {
+      if (!currentSubmission) {
+        setMonthlyLimitData(null)
+        return
+      }
+
+      setIsLoadingMonthlyData(true)
+
+      const result = await getMonthlyLimitData(
+        currentSubmission.email,
+        new Date(currentSubmission.firstDayOff)
+      )
+
+      if (result.success && result.data) {
+        setMonthlyLimitData(result.data)
+      }
+
+      setIsLoadingMonthlyData(false)
+    }
+
+    fetchMonthlyData()
+  }, [currentSubmission])
+
   // Handle approval
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!currentSubmission || isTransitioning) return
 
     setIsTransitioning(true)
 
-    // Add to approved list
-    setReviewedSubmissions((prev) => ({
-      ...prev,
-      approved: [...prev.approved, currentSubmission.id],
-    }))
+    // Call server action to approve
+    const result = await approveSubmission(currentSubmission.id)
 
-    // Quick fade transition
-    setTimeout(() => {
-      if (isLastSubmission) {
-        // Show completion screen
-        setShowCompletion(true)
-      } else {
-        // Move to next submission
-        setCurrentIndex((prev) => prev + 1)
-      }
+    if (result.success) {
+      // Add to approved list
+      setReviewedSubmissions((prev) => ({
+        ...prev,
+        approved: [...prev.approved, currentSubmission.id],
+      }))
+
+      // Quick fade transition
+      setTimeout(() => {
+        if (isLastSubmission) {
+          // Show completion screen
+          setShowCompletion(true)
+        } else {
+          // Move to next submission
+          setCurrentIndex((prev) => prev + 1)
+        }
+        setIsTransitioning(false)
+      }, 150)
+    } else {
       setIsTransitioning(false)
-    }, 150)
+      setError(result.error || 'Failed to approve submission')
+    }
   }
 
-  // Handle denial
+  // Handle denial - show dialog first
   const handleDeny = () => {
+    if (!currentSubmission || isTransitioning) return
+    setShowDenialDialog(true)
+  }
+
+  // Handle denial confirmation with reason
+  const handleDenyConfirm = async (reason: DenialReason) => {
     if (!currentSubmission || isTransitioning) return
 
     setIsTransitioning(true)
 
-    // Add to denied list
-    setReviewedSubmissions((prev) => ({
-      ...prev,
-      denied: [...prev.denied, currentSubmission.id],
-    }))
+    // Call server action to deny with reason
+    const result = await denySubmission(currentSubmission.id, reason)
 
-    // Quick fade transition
-    setTimeout(() => {
-      if (isLastSubmission) {
-        // Show completion screen
-        setShowCompletion(true)
-      } else {
-        // Move to next submission
-        setCurrentIndex((prev) => prev + 1)
-      }
+    if (result.success) {
+      // Add to denied list
+      setReviewedSubmissions((prev) => ({
+        ...prev,
+        denied: [...prev.denied, currentSubmission.id],
+      }))
+
+      // Quick fade transition
+      setTimeout(() => {
+        if (isLastSubmission) {
+          // Show completion screen
+          setShowCompletion(true)
+        } else {
+          // Move to next submission
+          setCurrentIndex((prev) => prev + 1)
+        }
+        setIsTransitioning(false)
+      }, 150)
+    } else {
       setIsTransitioning(false)
-    }, 150)
+      setError(result.error || 'Failed to deny submission')
+    }
+  }
+
+  // Handle maybe
+  const handleMaybe = async () => {
+    if (!currentSubmission || isTransitioning) return
+
+    setIsTransitioning(true)
+
+    // Call server action to mark as maybe
+    const result = await maybeSubmission(currentSubmission.id)
+
+    if (result.success) {
+      // Add to maybe list
+      setReviewedSubmissions((prev) => ({
+        ...prev,
+        maybe: [...prev.maybe, currentSubmission.id],
+      }))
+
+      // Quick fade transition
+      setTimeout(() => {
+        if (isLastSubmission) {
+          // Show completion screen
+          setShowCompletion(true)
+        } else {
+          // Move to next submission
+          setCurrentIndex((prev) => prev + 1)
+        }
+        setIsTransitioning(false)
+      }, 150)
+    } else {
+      setIsTransitioning(false)
+      setError(result.error || 'Failed to mark submission as maybe')
+    }
   }
 
   // Keyboard shortcuts
@@ -97,6 +208,9 @@ export default function AdminReviewPage() {
       } else if (e.key === 'ArrowRight') {
         e.preventDefault() // Prevent scroll
         handleApprove()
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault() // Prevent scroll
+        handleMaybe()
       }
     }
 
@@ -110,10 +224,42 @@ export default function AdminReviewPage() {
     router.push('/admin')
   }
 
-  // If no submissions, redirect to dashboard
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex h-[calc(100vh-120px)] items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Loading submissions...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex h-[calc(100vh-120px)] items-center justify-center">
+        <div className="text-center space-y-4 max-w-md">
+          <p className="text-red-600 font-semibold">Error loading submissions</p>
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    )
+  }
+
+  // If no submissions, show empty state
   if (submissions.length === 0) {
-    router.push('/admin')
-    return null
+    return (
+      <div className="flex h-[calc(100vh-120px)] items-center justify-center">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold">No Pending Submissions</h2>
+          <p className="text-muted-foreground">All submissions have been reviewed!</p>
+          <Button onClick={handleReturnToDashboard}>Return to Dashboard</Button>
+        </div>
+      </div>
+    )
   }
 
   // Show completion screen
@@ -122,6 +268,7 @@ export default function AdminReviewPage() {
       <CompletionScreen
         approvedCount={reviewedSubmissions.approved.length}
         deniedCount={reviewedSubmissions.denied.length}
+        maybeCount={reviewedSubmissions.maybe.length}
         onReturnToDashboard={handleReturnToDashboard}
       />
     )
@@ -140,16 +287,27 @@ export default function AdminReviewPage() {
       <div
         className={`flex-1 overflow-auto transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
       >
-        <SubmissionCard
-          submission={currentSubmission}
-          currentIndex={currentIndex}
-          totalCount={submissions.length}
-        />
+        <div className="space-y-4">
+          {/* Monthly Limit Warning */}
+          {!isLoadingMonthlyData && monthlyLimitData && monthlyLimitData.wouldExceed && (
+            <MonthlyLimitWarning
+              monthlyUsage={monthlyLimitData.currentUsage}
+              requestedDays={monthlyLimitData.requestedDays}
+              newTotal={monthlyLimitData.newTotal}
+            />
+          )}
+
+          <SubmissionCard
+            submission={currentSubmission}
+            currentIndex={currentIndex}
+            totalCount={submissions.length}
+          />
+        </div>
       </div>
 
       {/* Action Buttons - Tinder-style - always visible */}
       <div className="mx-auto w-full max-w-2xl shrink-0 pb-2">
-        <div className="flex items-center justify-center gap-20 sm:gap-24">
+        <div className="flex items-center justify-center gap-8 sm:gap-12">
           {/* Deny Button */}
           <button
             onClick={handleDeny}
@@ -169,6 +327,15 @@ export default function AdminReviewPage() {
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
+          </button>
+
+          {/* Maybe Button */}
+          <button
+            onClick={handleMaybe}
+            disabled={isTransitioning}
+            className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-gray-200 bg-white shadow-lg transition-all hover:scale-110 hover:shadow-xl disabled:opacity-50 disabled:hover:scale-100"
+          >
+            <span className="text-4xl font-bold text-yellow-500">?</span>
           </button>
 
           {/* Approve Button */}
@@ -192,6 +359,13 @@ export default function AdminReviewPage() {
           </button>
         </div>
       </div>
+
+      {/* Denial Reason Dialog */}
+      <DenialReasonDialog
+        open={showDenialDialog}
+        onOpenChange={setShowDenialDialog}
+        onConfirm={handleDenyConfirm}
+      />
     </div>
   )
 }

@@ -6,13 +6,18 @@
 import { formatDistanceToNow, format, differenceInDays, differenceInYears } from 'date-fns'
 
 /**
+ * Denial reason types for submissions
+ */
+export type DenialReason = 'Legal' | '7+ days' | 'Other'
+
+/**
  * Calculate age from date of birth
- * @param dob - Date of birth in ISO format (YYYY-MM-DD)
+ * @param dob - Date of birth (Date object or ISO string)
  * @returns Age in years
  */
-export function calculateAge(dob: string): number {
+export function calculateAge(dob: string | Date): number {
   try {
-    const birthDate = new Date(dob)
+    const birthDate = typeof dob === 'string' ? new Date(dob) : dob
     const today = new Date()
     return differenceInYears(today, birthDate)
   } catch {
@@ -22,14 +27,14 @@ export function calculateAge(dob: string): number {
 
 /**
  * Format a date range into human-readable format
- * @param start - Start date in ISO format
- * @param end - End date in ISO format
+ * @param start - Start date (Date object or ISO string)
+ * @param end - End date (Date object or ISO string)
  * @returns Formatted date range (e.g., "Nov 1-2, 2025")
  */
-export function formatDateRange(start: string, end: string): string {
+export function formatDateRange(start: string | Date, end: string | Date): string {
   try {
-    const startDate = new Date(start)
-    const endDate = new Date(end)
+    const startDate = typeof start === 'string' ? new Date(start) : start
+    const endDate = typeof end === 'string' ? new Date(end) : end
 
     const startMonth = format(startDate, 'MMM')
     const startDay = format(startDate, 'd')
@@ -37,7 +42,7 @@ export function formatDateRange(start: string, end: string): string {
     const year = format(endDate, 'yyyy')
 
     // Same day
-    if (start === end) {
+    if (startDate.getTime() === endDate.getTime()) {
       return `${startMonth} ${startDay}, ${year}`
     }
 
@@ -60,10 +65,10 @@ export function formatDateRange(start: string, end: string): string {
  * @param end - End date in ISO format
  * @returns Number of days (inclusive)
  */
-export function calculateDaysDifference(start: string, end: string): number {
+export function calculateDaysDifference(start: string | Date, end: string | Date): number {
   try {
-    const startDate = new Date(start)
-    const endDate = new Date(end)
+    const startDate = typeof start === 'string' ? new Date(start) : start
+    const endDate = typeof end === 'string' ? new Date(end) : end
     return differenceInDays(endDate, startDate) + 1 // +1 to make it inclusive
   } catch {
     return 0
@@ -75,12 +80,12 @@ export function calculateDaysDifference(start: string, end: string): number {
  * @param date - Date in ISO format
  * @returns Relative time string
  */
-export function formatRelativeTime(date: string): string {
+export function formatRelativeTime(date: string | Date): string {
   try {
-    const dateObj = new Date(date)
+    const dateObj = typeof date === 'string' ? new Date(date) : date
     return formatDistanceToNow(dateObj, { addSuffix: true })
   } catch {
-    return date
+    return typeof date === 'string' ? date : date.toISOString()
   }
 }
 
@@ -89,12 +94,12 @@ export function formatRelativeTime(date: string): string {
  * @param date - Date in ISO format
  * @returns Formatted date string
  */
-export function formatFullDate(date: string): string {
+export function formatFullDate(date: string | Date): string {
   try {
-    const dateObj = new Date(date)
+    const dateObj = typeof date === 'string' ? new Date(date) : date
     return format(dateObj, 'MMMM d, yyyy')
   } catch {
-    return date
+    return typeof date === 'string' ? date : date.toISOString()
   }
 }
 
@@ -103,12 +108,12 @@ export function formatFullDate(date: string): string {
  * @param date - Date in ISO format
  * @returns Formatted date with time
  */
-export function formatDateWithTime(date: string): string {
+export function formatDateWithTime(date: string | Date): string {
   try {
-    const dateObj = new Date(date)
+    const dateObj = typeof date === 'string' ? new Date(date) : date
     return format(dateObj, "MMM d, yyyy 'at' h:mm a")
   } catch {
-    return date
+    return typeof date === 'string' ? date : date.toISOString()
   }
 }
 

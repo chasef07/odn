@@ -33,11 +33,12 @@ export function validateEnvironment() {
     throw new Error('NEXT_PUBLIC_PAYMENT_AMOUNT must be a positive number')
   }
 
-  console.log('✅ Environment variables validated successfully')
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Environment variables validated successfully')
+  }
 }
 
 // Validate on module load (server-side only)
-// TEMPORARILY DISABLED for local testing - uncomment after adding real STRIPE_WEBHOOK_SECRET
-// if (typeof window === 'undefined') {
-//   validateEnvironment();
-// }
+if (typeof window === 'undefined') {
+  validateEnvironment();
+}

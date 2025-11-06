@@ -62,14 +62,14 @@ function CheckoutForm() {
               Doctor&apos;s Note - Online Medical Documentation
             </span>
             <span className="text-foreground text-base font-semibold">
-              ${(parseInt(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || '2999') / 100).toFixed(2)}
+              ${(parseInt(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || '2495') / 100).toFixed(2)}
             </span>
           </div>
           <div className="border-border/40 mt-3 border-t pt-3">
             <div className="flex items-center justify-between">
               <span className="text-foreground text-lg font-semibold">Total</span>
               <span className="text-primary text-lg font-bold">
-                ${(parseInt(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || '2999') / 100).toFixed(2)}
+                ${(parseInt(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || '2495') / 100).toFixed(2)}
               </span>
             </div>
           </div>

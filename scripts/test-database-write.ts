@@ -1,4 +1,5 @@
 import prisma from '../src/lib/prisma'
+import { SubmissionStatus } from '@prisma/client'
 
 async function testDatabaseWrite() {
   try {
@@ -7,7 +8,7 @@ async function testDatabaseWrite() {
     // Test data
     const testData = {
       stripePaymentIntentId: `pi_test_${Date.now()}`,
-      status: 'pending_review',
+      status: SubmissionStatus.PENDING_REVIEW,
       state: 'CA',
       recipient: 'myself',
       patientFirstName: 'Test',

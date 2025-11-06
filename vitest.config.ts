@@ -30,7 +30,6 @@ export default defineConfig(({ mode }) => {
         '**/*.d.ts',
         '**/types.ts',
         'vitest.setup.ts',
-        'tests/setup/**', // Test utilities
         'scripts/**', // Utility scripts
         'src/app/layout.tsx', // Next.js specific files
         'src/app/not-found.tsx'

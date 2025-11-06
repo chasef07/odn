@@ -10,7 +10,7 @@ import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { page4Schema } from '@/lib/validation-schemas'
 import { AVAILABLE_STATES } from '@/lib/form-constants'
-import { ShieldCheck, Clock, Star } from 'lucide-react'
+import { ShieldCheck, DollarSign, Star } from 'lucide-react'
 
 const CURRENT_STEP = 1
 
@@ -53,11 +53,7 @@ export default function Home() {
               <span>HIPAA Compliant</span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="text-primary h-4 w-4" />
-              <span>~2 min</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="text-primary h-4 w-4" />
+              <DollarSign className="text-primary h-4 w-4" />
               <span>Money back guarantee</span>
             </div>
           </div>

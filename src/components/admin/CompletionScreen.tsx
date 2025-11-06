@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/button'
 interface CompletionScreenProps {
   approvedCount: number
   deniedCount: number
+  maybeCount?: number
   onReturnToDashboard: () => void
 }
 
 export function CompletionScreen({
   approvedCount,
   deniedCount,
+  maybeCount = 0,
   onReturnToDashboard,
 }: CompletionScreenProps) {
   return (
@@ -37,6 +39,12 @@ export function CompletionScreen({
               <span className="font-semibold">Denied:</span>
               <span className="text-2xl font-bold text-red-600">{deniedCount}</span>
             </div>
+            {maybeCount > 0 && (
+              <div className="flex items-center justify-center gap-2 text-lg">
+                <span className="font-semibold">Maybe:</span>
+                <span className="text-2xl font-bold text-yellow-600">{maybeCount}</span>
+              </div>
+            )}
           </div>
 
           {/* Return Button */}
