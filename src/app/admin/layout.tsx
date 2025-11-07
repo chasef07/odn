@@ -6,7 +6,7 @@
 import Link from 'next/link'
 import { ReactNode } from 'react'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../../../auth'
+import { authOptions } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {

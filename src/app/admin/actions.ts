@@ -7,7 +7,7 @@
 
 import { SubmissionStatus } from '@prisma/client'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../../../auth'
+import { authOptions } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
 import prisma from '@/lib/prisma'
@@ -40,7 +40,9 @@ export async function getSubmissionsForReview() {
 
     return { success: true, data: submissions }
   } catch (error) {
-    console.error('Error fetching submissions:', error)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching submissions:', error)
+    }
     return { success: false, error: 'Failed to fetch submissions' }
   }
 }
@@ -92,7 +94,9 @@ export async function getDashboardStats() {
       },
     }
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching dashboard stats:', error)
+    }
     return { success: false, error: 'Failed to fetch dashboard stats' }
   }
 }
@@ -114,7 +118,9 @@ export async function getMonthlyLimitData(email: string, referenceDate: Date) {
 
     return { success: true, data: result }
   } catch (error) {
-    console.error('Error getting monthly limit data:', error)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error getting monthly limit data:', error)
+    }
     return { success: false, error: 'Failed to calculate monthly limit' }
   }
 }
@@ -143,7 +149,9 @@ export async function approveSubmission(submissionId: string) {
 
     return { success: true }
   } catch (error) {
-    console.error('Error approving submission:', error)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error approving submission:', error)
+    }
     return { success: false, error: 'Failed to approve submission' }
   }
 }
@@ -174,7 +182,9 @@ export async function denySubmission(submissionId: string, reason: string) {
 
     return { success: true }
   } catch (error) {
-    console.error('Error denying submission:', error)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error denying submission:', error)
+    }
     return { success: false, error: 'Failed to deny submission' }
   }
 }
@@ -203,7 +213,9 @@ export async function maybeSubmission(submissionId: string) {
 
     return { success: true }
   } catch (error) {
-    console.error('Error marking submission as maybe:', error)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error marking submission as maybe:', error)
+    }
     return { success: false, error: 'Failed to mark submission as maybe' }
   }
 }

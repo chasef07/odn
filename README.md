@@ -65,14 +65,18 @@ Create a `.env.local` file with:
 # Stripe Configuration
 STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_PAYMENT_AMOUNT=2495
 
 # Database Configuration
 DATABASE_URL=postgresql://user:password@host:5432/database
 
 # NextAuth Configuration
-AUTH_SECRET=your-auth-secret-here
+AUTH_SECRET=your-auth-secret-here  # Generate with: openssl rand -base64 32
 AUTH_URL=http://localhost:3000
+
+# Cron Job Security
+CRON_SECRET=your-cron-secret-here  # Generate with: openssl rand -hex 32
 ```
 
 ### Development
