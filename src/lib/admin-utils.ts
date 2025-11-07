@@ -3,12 +3,32 @@
  * Helper functions for admin portal (date formatting, age calculation, etc.)
  */
 
-import { formatDistanceToNow, format, differenceInDays, differenceInYears } from 'date-fns'
+import { formatDistanceToNow, format, differenceInDays, differenceInYears, parse } from 'date-fns'
 
 /**
  * Denial reason types for submissions
  */
 export type DenialReason = 'Legal' | '7+ days' | 'Other'
+
+/**
+ * Parse date string in local timezone to avoid off-by-one day issues
+ * Handles both "yyyy-MM-dd" format and Date objects
+ * @param date - Date string in "yyyy-MM-dd" format or Date object
+ * @returns Date object in local timezone
+ */
+function parseLocalDate(date: string | Date): Date {
+  if (date instanceof Date) {
+    return date
+  }
+
+  // If it's an ISO string with time (from database), use regular Date constructor
+  if (date.includes('T')) {
+    return new Date(date)
+  }
+
+  // For "yyyy-MM-dd" format, parse in local timezone using date-fns
+  return parse(date, 'yyyy-MM-dd', new Date())
+}
 
 /**
  * Calculate age from date of birth
@@ -17,7 +37,7 @@ export type DenialReason = 'Legal' | '7+ days' | 'Other'
  */
 export function calculateAge(dob: string | Date): number {
   try {
-    const birthDate = typeof dob === 'string' ? new Date(dob) : dob
+    const birthDate = parseLocalDate(dob)
     const today = new Date()
     return differenceInYears(today, birthDate)
   } catch {
@@ -33,8 +53,8 @@ export function calculateAge(dob: string | Date): number {
  */
 export function formatDateRange(start: string | Date, end: string | Date): string {
   try {
-    const startDate = typeof start === 'string' ? new Date(start) : start
-    const endDate = typeof end === 'string' ? new Date(end) : end
+    const startDate = parseLocalDate(start)
+    const endDate = parseLocalDate(end)
 
     const startMonth = format(startDate, 'MMM')
     const startDay = format(startDate, 'd')
@@ -67,8 +87,8 @@ export function formatDateRange(start: string | Date, end: string | Date): strin
  */
 export function calculateDaysDifference(start: string | Date, end: string | Date): number {
   try {
-    const startDate = typeof start === 'string' ? new Date(start) : start
-    const endDate = typeof end === 'string' ? new Date(end) : end
+    const startDate = parseLocalDate(start)
+    const endDate = parseLocalDate(end)
     return differenceInDays(endDate, startDate) + 1 // +1 to make it inclusive
   } catch {
     return 0
@@ -96,7 +116,7 @@ export function formatRelativeTime(date: string | Date): string {
  */
 export function formatFullDate(date: string | Date): string {
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date
+    const dateObj = parseLocalDate(date)
     return format(dateObj, 'MMMM d, yyyy')
   } catch {
     return typeof date === 'string' ? date : date.toISOString()

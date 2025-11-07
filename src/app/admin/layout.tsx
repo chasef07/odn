@@ -19,10 +19,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <Link href="/admin" className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-                Online Doctor Note
-              </h1>
-              <span className="rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary sm:text-sm">
+              <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
                 Admin Portal
               </span>
             </Link>

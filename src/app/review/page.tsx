@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { format } from 'date-fns'
+import { format, parse } from 'date-fns'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { FormLayout } from '@/components/form-layout'
@@ -176,7 +176,10 @@ export default function ReviewPage() {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not provided'
     try {
-      return format(new Date(dateString), 'MMMM d, yyyy')
+      // Parse date in local timezone to avoid off-by-one day issues
+      // dateString format is "yyyy-MM-dd"
+      const date = parse(dateString, 'yyyy-MM-dd', new Date())
+      return format(date, 'MMMM d, yyyy')
     } catch {
       return dateString
     }

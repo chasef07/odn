@@ -27,7 +27,7 @@ interface FormSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 
   /** Height class ("h-12" | "h-14", default: "h-12") */
   height?: 'h-12' | 'h-14'
 
-  /** Transform option value before displaying (default: lowercase) */
+  /** Transform option value before displaying (default: no transformation) */
   valueTransform?: (value: string) => string
 }
 
@@ -40,7 +40,7 @@ export function FormSelect({
   placeholder = 'Select an option',
   required = true,
   height = 'h-12',
-  valueTransform = (val) => val.toLowerCase(),
+  valueTransform = (val) => val,
   ...props
 }: FormSelectProps) {
   return (

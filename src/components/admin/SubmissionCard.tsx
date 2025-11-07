@@ -52,7 +52,7 @@ export function SubmissionCard({ submission, currentIndex, totalCount }: Submiss
           <div className="space-y-1 text-xs">
             <div>
               <span className="text-muted-foreground">Name: </span>
-              <span className="font-medium">
+              <span>
                 {submission.patientFirstName} {submission.patientLastName}
               </span>
             </div>
@@ -84,7 +84,7 @@ export function SubmissionCard({ submission, currentIndex, totalCount }: Submiss
             <div className="space-y-1 text-xs">
               <div>
                 <span className="text-muted-foreground">Name: </span>
-                <span className="font-medium">
+                <span>
                   {submission.guardianFirstName} {submission.guardianLastName}
                 </span>
               </div>
@@ -109,7 +109,7 @@ export function SubmissionCard({ submission, currentIndex, totalCount }: Submiss
           <div className="space-y-1 text-xs">
             <div>
               <span className="text-muted-foreground">Purpose: </span>
-              <span className="font-medium">{formatNotePurpose(submission.notePurpose)}</span>
+              <span>{submission.notePurpose}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Dates: </span>
