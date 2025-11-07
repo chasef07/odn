@@ -11,6 +11,16 @@ import { authOptions } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
 import prisma from '@/lib/prisma'
+import Stripe from 'stripe'
+import { sendDenialEmail } from '@/lib/email'
+
+// Initialize Stripe client
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-10-29.clover',
+})
+
+// Get payment amount from environment
+const PAYMENT_AMOUNT = Number(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 2495)
 
 /**
  * Get current logged-in doctor's session
@@ -157,24 +167,121 @@ export async function approveSubmission(submissionId: string) {
 }
 
 /**
- * Deny a submission with reason
+ * Deny a submission with reason, process refund, and send email notification
  * @param submissionId - Submission ID to deny
- * @param reason - Denial reason
- * @returns Success status
+ * @param reason - Denial reason (Legal, 7+ days, Other)
+ * @returns Success status with detailed error messages
  */
 export async function denySubmission(submissionId: string, reason: string) {
   try {
     const doctorId = await getCurrentDoctor()
 
+    // Step 1: Fetch submission to get payment intent ID and patient details
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      select: {
+        id: true,
+        stripePaymentIntentId: true,
+        email: true,
+        patientFirstName: true,
+        patientLastName: true,
+        status: true,
+      },
+    })
+
+    if (!submission) {
+      return { success: false, error: 'Submission not found' }
+    }
+
+    if (submission.status !== SubmissionStatus.PENDING_REVIEW) {
+      return {
+        success: false,
+        error: `Cannot deny submission with status: ${submission.status}`
+      }
+    }
+
+    if (!submission.stripePaymentIntentId) {
+      return {
+        success: false,
+        error: 'No payment intent ID found for this submission'
+      }
+    }
+
+    // Step 2: Process Stripe refund (BLOCKING - must succeed)
+    let refund: Stripe.Refund
+    try {
+      refund = await stripe.refunds.create({
+        payment_intent: submission.stripePaymentIntentId,
+        reason: 'requested_by_customer',
+        metadata: {
+          submissionId: submission.id,
+          denialReason: reason,
+          processedBy: 'admin-denial-automation',
+        },
+      })
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Refund processed: ${refund.id} for submission ${submissionId}`)
+      }
+    } catch (stripeError) {
+      // Refund failed - DO NOT update submission status
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Stripe refund failed:', stripeError)
+      }
+      return {
+        success: false,
+        error: `Failed to process refund: ${stripeError instanceof Error ? stripeError.message : 'Unknown error'}`
+      }
+    }
+
+    // Step 3: Update database with denial status and refund details
+    const now = new Date()
     await prisma.submission.update({
       where: { id: submissionId },
       data: {
         status: SubmissionStatus.DENIED,
         denialReason: reason,
         reviewedByAdminId: doctorId,
-        reviewedAt: new Date(),
+        reviewedAt: now,
+        stripeRefundId: refund.id,
+        refundedAt: now,
       },
     })
+
+    // Step 4: Send denial email (NON-BLOCKING - log error but don't fail)
+    try {
+      const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+      const refundAmountDollars = PAYMENT_AMOUNT / 100 // Convert cents to dollars
+
+      await sendDenialEmail({
+        to: submission.email,
+        patientName,
+        denialReason: reason,
+        refundAmount: refundAmountDollars,
+      })
+
+      // Update denialEmailSentAt timestamp
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          denialEmailSentAt: new Date(),
+        },
+      })
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Denial email sent to ${submission.email} for submission ${submissionId}`)
+      }
+    } catch (emailError) {
+      // Email failed but refund succeeded - log error but don't block
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to send denial email:', emailError)
+      }
+      // Return success but include warning about email failure
+      return {
+        success: true,
+        warning: 'Submission denied and refunded, but email notification failed to send'
+      }
+    }
 
     // Revalidate admin pages
     revalidatePath('/admin')
@@ -185,7 +292,10 @@ export async function denySubmission(submissionId: string, reason: string) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Error denying submission:', error)
     }
-    return { success: false, error: 'Failed to deny submission' }
+    return {
+      success: false,
+      error: `Failed to deny submission: ${error instanceof Error ? error.message : 'Unknown error'}`
+    }
   }
 }
 
