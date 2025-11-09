@@ -7,12 +7,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { SubmissionStatus } from '@prisma/client'
 
 // Hoist mocks to the top level
-const { mockRefundsCreate, mockFindUnique, mockUpdate, mockSendDenialEmail, mockGetServerSession } = vi.hoisted(() => ({
+const { mockRefundsCreate, mockFindUnique, mockUpdate, mockSendDenialEmail, mockGetSession } = vi.hoisted(() => ({
   mockRefundsCreate: vi.fn(),
   mockFindUnique: vi.fn(),
   mockUpdate: vi.fn(),
   mockSendDenialEmail: vi.fn(),
-  mockGetServerSession: vi.fn(),
+  mockGetSession: vi.fn(),
 }))
 
 // Mock Stripe
@@ -41,9 +41,13 @@ vi.mock('@/lib/email', () => ({
   sendDenialEmail: mockSendDenialEmail,
 }))
 
-// Mock next-auth
-vi.mock('next-auth', () => ({
-  getServerSession: mockGetServerSession,
+// Mock Better Auth
+vi.mock('@/lib/auth', () => ({
+  auth: {
+    api: {
+      getSession: mockGetSession,
+    },
+  },
 }))
 
 // Mock next/cache
@@ -51,9 +55,9 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-// Mock auth config
-vi.mock('@/lib/auth', () => ({
-  authOptions: {},
+// Mock next/headers
+vi.mock('next/headers', () => ({
+  headers: vi.fn().mockResolvedValue(new Headers()),
 }))
 
 // Now import the function under test
@@ -80,7 +84,7 @@ describe('denySubmission - Denial Automation', () => {
     vi.clearAllMocks()
 
     // Default mock implementations
-    mockGetServerSession.mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       user: { id: mockDoctorId },
     })
 
@@ -379,7 +383,7 @@ describe('denySubmission - Denial Automation', () => {
 
     it('should fail if no authenticated doctor session', async () => {
       // Arrange
-      mockGetServerSession.mockResolvedValue(null)
+      mockGetSession.mockResolvedValue(null)
 
       // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')

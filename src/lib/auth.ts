@@ -1,73 +1,54 @@
 /**
- * NextAuth.js Configuration
+ * Better Auth Configuration
  * Handles authentication for admin portal
  */
 
-import type { NextAuthOptions } from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
-import bcrypt from 'bcryptjs'
-import prisma from './prisma'
+import { betterAuth } from "better-auth"
+import { prismaAdapter } from "better-auth/adapters/prisma"
+import bcrypt from "bcryptjs"
+import prisma from "./prisma"
 
-export const authOptions: NextAuthOptions = {
-  providers: [
-    CredentialsProvider({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+export const auth = betterAuth({
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+  }),
+
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false, // Disable for admin portal (internal use only)
+    minPasswordLength: 8,
+    maxPasswordLength: 128,
+    password: {
+      // Use bcrypt for password hashing (industry standard)
+      hash: async (password: string) => {
+        return bcrypt.hash(password, 10)
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
-        const doctor = await prisma.doctor.findUnique({
-          where: {
-            email: credentials.email as string,
-          },
-        })
-
-        if (!doctor) {
-          return null
-        }
-
-        const passwordMatch = await bcrypt.compare(
-          credentials.password as string,
-          doctor.password
-        )
-
-        if (!passwordMatch) {
-          return null
-        }
-
-        return {
-          id: doctor.id,
-          email: doctor.email,
-        }
+      verify: async ({ password, hash }: { password: string; hash: string }) => {
+        return bcrypt.compare(password, hash)
       },
-    }),
-  ],
+    },
+  },
+
   session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  pages: {
-    signIn: '/admin/login',
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.email = user.email
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
-        session.user.email = token.email as string
-      }
-      return session
+    expiresIn: 60 * 60 * 24 * 30, // 30 days
+    updateAge: 60 * 60 * 24, // Update session every 24 hours
+    cookieCache: {
+      enabled: true, // Enable for better performance
+      maxAge: 5 * 60, // Cache for 5 minutes
     },
   },
-}
+
+  // Security configuration
+  secret: process.env.BETTER_AUTH_SECRET!,
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  basePath: "/api/auth",
+
+  // CSRF protection - trust localhost and production domain only
+  trustedOrigins: [
+    "http://localhost:3000",
+    process.env.BETTER_AUTH_URL || "",
+  ].filter(Boolean),
+})
+
+// Export type-safe client inference
+export type Session = typeof auth.$Infer.Session

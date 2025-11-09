@@ -16,9 +16,10 @@ This document provides context and guidelines for Claude Code when working with 
 - **Forms**: react-hook-form + Zod validation
 - **Payments**: Stripe (v2025-10-29.clover API)
 - **Database**: PostgreSQL (Prisma Cloud) + Prisma ORM
-- **Authentication**: NextAuth.js v4.24.13 (credentials provider)
+- **Authentication**: Better Auth (email/password provider with bcrypt)
 - **Email**: React Email 5.0.1 + Resend 4.0.1
 - **Testing**: Vitest + Testing Library (249 passing tests)
+- **Analytics**: Vercel Analytics
 - **Build**: Turbopack
 
 ### Key Directories
@@ -26,17 +27,17 @@ This document provides context and guidelines for Claude Code when working with 
 ```
 src/
 ├── app/                    # Next.js App Router
-│   ├── admin/             # Admin portal (NextAuth protected)
+│   ├── admin/             # Admin portal (Better Auth protected)
 │   │   ├── login/        # Doctor login page
-│   │   └── dashboard/    # Submission review dashboard
+│   │   └── review/       # Submission review dashboard
 │   ├── api/               # API routes
-│   │   ├── auth/         # NextAuth.js endpoints
+│   │   ├── auth/[...all]/  # Better Auth endpoints
 │   │   ├── create-payment-intent/  # Payment + temp storage
 │   │   ├── verify-payment/         # Payment verification
 │   │   ├── webhooks/     # Stripe webhooks (payment.succeeded)
 │   │   └── cron/         # Scheduled jobs (cleanup)
 │   ├── [form-pages]/      # 13 form step pages
-│   └── layout.tsx         # Root layout with fonts
+│   └── layout.tsx         # Root layout with fonts & Analytics
 ├── components/
 │   ├── admin/             # Admin portal components
 │   ├── form/              # Reusable form components
@@ -50,13 +51,14 @@ src/
 │   ├── form-storage.ts          # localStorage helpers
 │   ├── form-constants.ts        # Static data
 │   ├── email.ts                 # Email sending utilities
-│   ├── auth.ts                  # NextAuth config
+│   ├── auth.ts                  # Better Auth config
+│   ├── auth-client.ts           # Better Auth client utilities
 │   └── prisma.ts                # Prisma client singleton
 └── prisma/
     └── schema.prisma      # Database schema
 scripts/
-├── seed-production-data.ts      # Seed test data
-└── update-doctor-password.ts    # Update doctor password
+├── create-doctor-user.ts        # Create new doctor account
+└── delete-all-users.ts          # Delete all users (dev only)
 tests/
 ├── setup/                 # Test infrastructure
 │   ├── db-helpers.ts     # Database test utilities
@@ -256,14 +258,14 @@ describe('Component', () => {
 npx prisma studio  # Opens visual database browser at http://localhost:5555
 ```
 
-**Seeding Test Data:**
+**Creating Doctor Account:**
 ```bash
-npx tsx scripts/seed-production-data.ts  # Creates 10 test submissions + doctor account
+npx tsx scripts/create-doctor-user.ts  # Creates new doctor account with email/password
 ```
 
-**Updating Doctor Password:**
+**Deleting All Users (Dev Only):**
 ```bash
-npx tsx scripts/update-doctor-password.ts  # Updates fagenchase@gmail.com password
+npx tsx scripts/delete-all-users.ts  # Deletes all users from database
 ```
 
 **Schema Changes:**
@@ -288,14 +290,16 @@ npx prisma migrate dev  # Create migration (production)
 
 **Login:**
 - URL: `http://localhost:3000/admin/login`
-- Default email: `fagenchase@gmail.com`
-- Default password: Set via seeding script
+- Default email: Set via `scripts/create-doctor-user.ts`
+- Default password: Set via creation script
 
 **Authentication:**
-- Uses NextAuth.js v5 with credentials provider
-- Session stored in database (PostgreSQL)
-- Protected routes use `auth()` helper
+- Uses Better Auth with email/password provider
+- Passwords hashed with bcrypt (10 rounds)
+- Sessions stored in database (PostgreSQL)
+- Protected routes use `auth()` helper from Better Auth
 - Configuration in `src/lib/auth.ts`
+- Client utilities in `src/lib/auth-client.ts`
 
 **Submission Status Workflow:**
 1. `PENDING_REVIEW` - Initial state after payment
@@ -303,10 +307,11 @@ npx prisma migrate dev  # Create migration (production)
 3. `DENIED` - Doctor denies submission
 
 **Database Schema:**
-- `Doctor` - Admin users with email/password
-- `Submission` - Paid, permanent submissions
+- `User` - Admin/doctor accounts (Better Auth)
+- `Account` - Authentication credentials (Better Auth - stores bcrypt passwords)
+- `Session` - Active login sessions (Better Auth)
+- `Submission` - Paid, permanent submissions (business logic)
 - `TemporarySubmission` - Unpaid submissions (auto-deleted after 24h)
-- `Session`, `Account` - NextAuth.js tables
 
 ## Environment Variables
 
@@ -322,9 +327,9 @@ STRIPE_WEBHOOK_SECRET=whsec_...         # Webhook signature verification
 # Database Configuration
 DATABASE_URL=postgresql://...            # PostgreSQL connection string (Prisma Cloud)
 
-# NextAuth Configuration
-AUTH_SECRET=...                          # NextAuth.js secret (generate with: openssl rand -base64 32)
-AUTH_URL=http://localhost:3000          # Base URL for auth
+# Better Auth Configuration
+BETTER_AUTH_SECRET=...                   # Better Auth secret (generate with: openssl rand -base64 32)
+BETTER_AUTH_URL=http://localhost:3000   # Base URL for auth
 
 # Email Configuration (Resend)
 RESEND_API_KEY=re_...                    # Resend API key
@@ -459,8 +464,12 @@ npx tsc --noEmit          # Check TypeScript errors
 
 9. **Database Safety**: NEVER modify `tests/setup/global-setup.ts` to use production DATABASE_URL. It must ALWAYS use `file:./test.db`. The production database is PostgreSQL on Prisma Cloud and must never be touched by tests.
 
-10. **Admin Portal**: Protected by NextAuth.js. All admin routes require authentication. Doctor passwords are hashed with bcrypt.
+10. **Admin Portal**: Protected by Better Auth. All admin routes require authentication. Doctor passwords are hashed with bcrypt (10 rounds).
 
 11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission → Admin Review → Approve/Deny → Denial Email (if denied)
 
 12. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Denial emails are automatically sent with refund confirmations. Preview emails with `npm run email`.
+
+13. **Analytics**: Vercel Analytics is integrated in `src/app/layout.tsx` for tracking page views and web vitals in production.
+
+14. **Stripe Webhooks (Local Dev)**: Use Stripe CLI (`stripe listen --forward-to localhost:3000/api/webhooks/stripe`) to test webhook events locally. The webhook secret from CLI output must be added to `.env.local`.

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Manrope } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import '@/lib/env' // Validate environment variables on startup
 
@@ -20,7 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${sans.variable} antialiased`}>{children}</body>
+      <body className={`${sans.variable} antialiased`}>
+        {children}
+        <Analytics />
+      </body>
     </html>
   )
 }

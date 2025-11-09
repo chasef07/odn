@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,15 +26,14 @@ export default function AdminLoginPage() {
     setIsLoading(true)
 
     try {
-      const result = await signIn('credentials', {
+      const result = await authClient.signIn.email({
         email,
         password,
-        redirect: false,
       })
 
-      if (result?.error) {
+      if (result.error) {
         setError('Invalid email or password')
-      } else if (result?.ok) {
+      } else {
         router.push('/admin')
         router.refresh()
       }

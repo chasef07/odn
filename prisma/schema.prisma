@@ -17,21 +17,63 @@ enum SubmissionStatus {
   MAYBE
 }
 
-// Admin/Doctor accounts for portal access
-model Doctor {
+// Better Auth - User table (admin/doctor accounts)
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false) @map("email_verified")
+  name          String
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  accounts             Account[]
+  sessions             Session[]
+  reviewedSubmissions  Submission[] @relation("ReviewedByUser")
+
+  @@map("users")
+}
+
+// Better Auth - Account table (stores passwords and OAuth data)
+model Account {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  accountId    String    @map("account_id")
+  providerId   String    @map("provider_id")
+  accessToken  String?   @map("access_token")
+  refreshToken String?   @map("refresh_token")
+  idToken      String?   @map("id_token")
+  expiresAt    DateTime? @map("expires_at")
+  password     String?   // bcrypt hashed password
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes for performance
+  @@index([userId])
+  @@index([userId, providerId])
+  @@map("accounts")
+}
+
+// Better Auth - Session table
+model Session {
   id        String   @id @default(uuid())
-  email     String   @unique
-  password  String   // Hashed with bcryptjs
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  reviewedSubmissions Submission[] @relation("ReviewedByDoctor")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("doctors")
+  // Indexes for performance
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
-
-// Note: Session and Account models removed - we use JWT strategy (no database sessions)
 
 // Temporary storage during payment processing
 model TemporarySubmission {
@@ -96,7 +138,7 @@ model Submission {
   // Admin Review Fields (filled when doctor reviews)
   reviewedAt            DateTime? @map("reviewed_at")
   reviewedByAdminId     String?   @map("reviewed_by_admin_id")
-  reviewedByDoctor      Doctor?   @relation("ReviewedByDoctor", fields: [reviewedByAdminId], references: [id])
+  reviewedByUser        User?     @relation("ReviewedByUser", fields: [reviewedByAdminId], references: [id])
 
   // Denial Information (only if status = DENIED)
   denialReason          String?   @map("denial_reason") // "Legal", "7+ days", or "Other"

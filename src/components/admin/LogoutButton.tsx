@@ -5,13 +5,17 @@
  * Allows doctors to sign out of the admin portal
  */
 
-import { signOut } from 'next-auth/react'
+import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 
 export function LogoutButton() {
   const handleLogout = async () => {
-    await signOut({
-      callbackUrl: '/admin/login',
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          window.location.href = '/admin/login'
+        },
+      },
     })
   }
 

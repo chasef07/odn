@@ -19,6 +19,7 @@ This application provides a user-friendly interface for individuals to obtain do
 - **Database**: PostgreSQL with Prisma ORM for production data
 - **Comprehensive Testing**: 249 automated tests passing with 80%+ coverage
 - **Modern Emails**: Beautiful React Email templates with Tailwind CSS
+- **Analytics**: Vercel Analytics for tracking page views and web vitals
 
 ## Tech Stack
 
@@ -30,9 +31,10 @@ This application provides a user-friendly interface for individuals to obtain do
 - **Forms**: react-hook-form + Zod validation
 - **Payments**: Stripe (API v2025-10-29.clover)
 - **Database**: PostgreSQL (Prisma Cloud) + Prisma ORM
-- **Authentication**: NextAuth.js v4.24.13 with credentials provider
+- **Authentication**: Better Auth with email/password provider
 - **Email**: React Email 5.0 + Resend
 - **Testing**: Vitest + Testing Library
+- **Analytics**: Vercel Analytics
 - **CI/CD**: GitHub Actions
 
 ## Getting Started
@@ -73,9 +75,9 @@ NEXT_PUBLIC_PAYMENT_AMOUNT=2495
 # Database Configuration
 DATABASE_URL=postgresql://user:password@host:5432/database
 
-# NextAuth Configuration
-AUTH_SECRET=your-auth-secret-here  # Generate with: openssl rand -base64 32
-AUTH_URL=http://localhost:3000
+# Better Auth Configuration
+BETTER_AUTH_SECRET=your-auth-secret-here  # Generate with: openssl rand -base64 32
+BETTER_AUTH_URL=http://localhost:3000
 
 # Cron Job Security
 CRON_SECRET=your-cron-secret-here  # Generate with: openssl rand -hex 32
@@ -127,19 +129,51 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 The admin portal allows doctors to review and approve/deny patient submissions.
 
 - **URL**: [http://localhost:3000/admin/login](http://localhost:3000/admin/login)
-- **Default credentials**: Set up using `scripts/seed-production-data.ts`
+- **Authentication**: Better Auth with email/password
+- **Default credentials**: Set up using `scripts/create-doctor-user.ts`
 
 To create a new doctor account:
 
 ```bash
-npx tsx scripts/seed-production-data.ts
+npx tsx scripts/create-doctor-user.ts
 ```
 
-To update a doctor's password:
+To delete all users (development only):
 
 ```bash
-npx tsx scripts/update-doctor-password.ts
+npx tsx scripts/delete-all-users.ts
 ```
+
+### Stripe Webhooks (Local Development)
+
+To test payment webhooks locally, you need to forward Stripe events to your localhost:
+
+1. **Install Stripe CLI**:
+   ```bash
+   brew install stripe/stripe-cli/stripe
+   ```
+
+2. **Login to Stripe**:
+   ```bash
+   stripe login
+   ```
+
+3. **Forward webhooks to localhost**:
+   ```bash
+   stripe listen --forward-to localhost:3000/api/webhooks/stripe
+   ```
+
+4. **Copy the webhook signing secret** (starts with `whsec_...`) and add to `.env.local`:
+   ```env
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   ```
+
+5. **Start dev server** (in another terminal):
+   ```bash
+   npm run dev
+   ```
+
+Now test payments will trigger webhook events locally!
 
 ## Form Flow
 
@@ -207,17 +241,17 @@ npm run test:coverage
 ```
 src/
 ├── app/                      # Next.js app router pages
-│   ├── admin/               # Admin portal (NextAuth protected)
+│   ├── admin/               # Admin portal (Better Auth protected)
 │   │   ├── login/          # Doctor login page
-│   │   └── dashboard/      # Submission review dashboard
+│   │   └── review/         # Submission review dashboard
 │   ├── api/                 # API routes
-│   │   ├── auth/           # NextAuth.js endpoints
+│   │   ├── auth/[...all]/  # Better Auth endpoints
 │   │   ├── create-payment-intent/
 │   │   ├── verify-payment/
 │   │   ├── cron/           # Scheduled jobs (cleanup)
 │   │   └── webhooks/       # Stripe webhooks
 │   ├── [form-pages]/        # Multi-step form pages
-│   └── layout.tsx           # Root layout
+│   └── layout.tsx           # Root layout with Analytics
 ├── components/              # React components
 │   ├── admin/              # Admin portal components
 │   ├── form/               # Form-specific components
@@ -233,14 +267,15 @@ src/
 │   ├── form-storage.ts        # localStorage helpers
 │   ├── form-constants.ts      # Static data
 │   ├── email.ts               # Email sending utilities
-│   ├── auth.ts                # NextAuth configuration
+│   ├── auth.ts                # Better Auth configuration
+│   ├── auth-client.ts         # Better Auth client utilities
 │   └── prisma.ts              # Prisma client singleton
 ├── __tests__/              # Test files
 └── prisma/
     └── schema.prisma       # Database schema
 scripts/
-├── seed-production-data.ts   # Seed test submissions
-└── update-doctor-password.ts # Update doctor password
+├── create-doctor-user.ts     # Create new doctor account
+└── delete-all-users.ts       # Delete all users (dev only)
 tests/
 ├── setup/                  # Test configuration
 │   ├── db-helpers.ts      # Database test utilities
@@ -308,7 +343,7 @@ Scheduled job to delete expired temporary submissions (>24 hours old).
 
 ### Admin Routes (Protected)
 
-All admin routes require NextAuth.js authentication.
+All admin routes require Better Auth authentication.
 
 #### GET /api/admin/submissions
 

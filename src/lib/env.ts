@@ -11,7 +11,7 @@ const requiredEnvVars = [
   'STRIPE_WEBHOOK_SECRET',
   'NEXT_PUBLIC_PAYMENT_AMOUNT',
   'CRON_SECRET',
-  'AUTH_SECRET',
+  'BETTER_AUTH_SECRET',
   'RESEND_API_KEY',
 ] as const
 
