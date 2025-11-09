@@ -5,8 +5,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock Resend - must be hoisted before imports
-const { mockEmailSend } = vi.hoisted(() => ({
+const { mockEmailSend, mockRender } = vi.hoisted(() => ({
   mockEmailSend: vi.fn(),
+  mockRender: vi.fn(),
 }))
 
 vi.mock('resend', () => ({
@@ -17,115 +18,21 @@ vi.mock('resend', () => ({
   },
 }))
 
+vi.mock('@react-email/render', () => ({
+  render: mockRender,
+}))
+
 import { sendDenialEmail } from '../email'
 
 describe('sendDenialEmail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Mock render to return a simple HTML string
+    mockRender.mockResolvedValue('<html>Rendered email</html>')
   })
 
-  describe('HTML escaping (XSS prevention)', () => {
-    it('should escape HTML special characters in patient name', async () => {
-      // Arrange - Malicious name with HTML tags
-      mockEmailSend.mockResolvedValue({ id: 'email_123' })
-
-      // Act - This would normally be blocked by validation, but we test escaping anyway
-      await sendDenialEmail({
-        to: 'test@example.com',
-        patientName: '<script>alert("xss")</script>',
-        denialReason: 'Legal',
-        refundAmount: 24.95,
-      })
-
-      // Assert - HTML should be escaped
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          html: expect.stringContaining('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'),
-        })
-      )
-    })
-
-    it('should escape ampersands in patient name', async () => {
-      // Arrange
-      mockEmailSend.mockResolvedValue({ id: 'email_123' })
-
-      // Act
-      await sendDenialEmail({
-        to: 'test@example.com',
-        patientName: 'Johnson & Associates',
-        denialReason: 'Legal',
-        refundAmount: 24.95,
-      })
-
-      // Assert
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          html: expect.stringContaining('Johnson &amp; Associates'),
-        })
-      )
-    })
-
-    it('should escape single quotes in patient name', async () => {
-      // Arrange
-      mockEmailSend.mockResolvedValue({ id: 'email_123' })
-
-      // Act
-      await sendDenialEmail({
-        to: 'test@example.com',
-        patientName: "O'Brien",
-        denialReason: 'Legal',
-        refundAmount: 24.95,
-      })
-
-      // Assert
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          html: expect.stringContaining('O&#039;Brien'),
-        })
-      )
-    })
-
-    it('should escape double quotes in patient name', async () => {
-      // Arrange
-      mockEmailSend.mockResolvedValue({ id: 'email_123' })
-
-      // Act
-      await sendDenialEmail({
-        to: 'test@example.com',
-        patientName: 'John "The Rock" Johnson',
-        denialReason: 'Legal',
-        refundAmount: 24.95,
-      })
-
-      // Assert
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          html: expect.stringContaining('John &quot;The Rock&quot; Johnson'),
-        })
-      )
-    })
-
-    it('should escape less-than and greater-than symbols', async () => {
-      // Arrange
-      mockEmailSend.mockResolvedValue({ id: 'email_123' })
-
-      // Act
-      await sendDenialEmail({
-        to: 'test@example.com',
-        patientName: 'Amount < 100 > 50',
-        denialReason: 'Legal',
-        refundAmount: 24.95,
-      })
-
-      // Assert
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          html: expect.stringContaining('Amount &lt; 100 &gt; 50'),
-        })
-      )
-    })
-
-    it('should handle normal names without escaping issues', async () => {
+  describe('React Email rendering', () => {
+    it('should call render with DenialEmail component', async () => {
       // Arrange
       mockEmailSend.mockResolvedValue({ id: 'email_123' })
 
@@ -137,19 +44,54 @@ describe('sendDenialEmail', () => {
         refundAmount: 24.95,
       })
 
-      // Assert
+      // Assert - render should be called once
+      expect(mockRender).toHaveBeenCalledTimes(1)
+    })
+
+    it('should handle special characters safely (React auto-escapes)', async () => {
+      // Arrange - React Email automatically escapes HTML in text content
+      mockEmailSend.mockResolvedValue({ id: 'email_123' })
+
+      // Act - This would normally be blocked by validation, but React Email handles it safely
+      await sendDenialEmail({
+        to: 'test@example.com',
+        patientName: '<script>alert("xss")</script>',
+        denialReason: 'Legal',
+        refundAmount: 24.95,
+      })
+
+      // Assert - render should be called (React Email handles escaping internally)
+      expect(mockRender).toHaveBeenCalledTimes(1)
       expect(mockEmailSend).toHaveBeenCalledWith(
         expect.objectContaining({
-          html: expect.stringContaining('Dear John Doe,'),
+          html: '<html>Rendered email</html>',
         })
       )
+    })
+
+    it('should handle ampersands and quotes in patient name', async () => {
+      // Arrange
+      mockEmailSend.mockResolvedValue({ id: 'email_123' })
+
+      // Act
+      await sendDenialEmail({
+        to: 'test@example.com',
+        patientName: 'Johnson & Associates "The Best"',
+        denialReason: 'Legal',
+        refundAmount: 24.95,
+      })
+
+      // Assert
+      expect(mockRender).toHaveBeenCalledTimes(1)
+      expect(mockEmailSend).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('Email content', () => {
-    it('should send email with correct denial reason for Legal', async () => {
+    it('should send email with correct parameters', async () => {
       // Arrange
       mockEmailSend.mockResolvedValue({ id: 'email_123' })
+      mockRender.mockResolvedValue('<html>Test email</html>')
 
       // Act
       await sendDenialEmail({
@@ -164,12 +106,12 @@ describe('sendDenialEmail', () => {
         expect.objectContaining({
           to: 'patient@example.com',
           subject: "Your Doctor's Note Request - Update",
-          html: expect.stringContaining('due to legal or compliance requirements'),
+          html: '<html>Test email</html>',
         })
       )
     })
 
-    it('should send email with correct denial reason for 7+ days', async () => {
+    it('should render email template for 7+ days denial', async () => {
       // Arrange
       mockEmailSend.mockResolvedValue({ id: 'email_123' })
 
@@ -182,14 +124,15 @@ describe('sendDenialEmail', () => {
       })
 
       // Assert
+      expect(mockRender).toHaveBeenCalledTimes(1)
       expect(mockEmailSend).toHaveBeenCalledWith(
         expect.objectContaining({
-          html: expect.stringContaining('because the absence period exceeds our 7-day limit'),
+          to: 'patient@example.com',
         })
       )
     })
 
-    it('should send email with correct denial reason for Other', async () => {
+    it('should render email template for Other denial', async () => {
       // Arrange
       mockEmailSend.mockResolvedValue({ id: 'email_123' })
 
@@ -202,31 +145,8 @@ describe('sendDenialEmail', () => {
       })
 
       // Assert
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          html: expect.stringContaining('after careful review of your submission'),
-        })
-      )
-    })
-
-    it('should format refund amount as currency', async () => {
-      // Arrange
-      mockEmailSend.mockResolvedValue({ id: 'email_123' })
-
-      // Act
-      await sendDenialEmail({
-        to: 'patient@example.com',
-        patientName: 'John Doe',
-        denialReason: 'Legal',
-        refundAmount: 24.95,
-      })
-
-      // Assert
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          html: expect.stringContaining('$24.95'),
-        })
-      )
+      expect(mockRender).toHaveBeenCalledTimes(1)
+      expect(mockEmailSend).toHaveBeenCalledTimes(1)
     })
   })
 

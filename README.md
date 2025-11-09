@@ -13,23 +13,25 @@ This application provides a user-friendly interface for individuals to obtain do
 - **Smart Validation**: Real-time form validation with Zod schemas
 - **Date Rules**: Enforces 7-day maximum absence period, 7-day lookback limit
 - **Guardian Support**: Conditional forms for minors requiring guardian information
-- **Stripe Integration**: Secure payment processing ($29.99)
+- **Stripe Integration**: Secure payment processing ($24.95)
 - **Mobile Responsive**: Optimized UI for all device sizes
 - **Form Persistence**: Auto-saves progress to localStorage
 - **Database**: PostgreSQL with Prisma ORM for production data
-- **Comprehensive Testing**: 217+ automated tests with 80%+ coverage
+- **Comprehensive Testing**: 249 automated tests passing with 80%+ coverage
+- **Modern Emails**: Beautiful React Email templates with Tailwind CSS
 
 ## Tech Stack
 
-- **Framework**: Next.js 15.5.5 (App Router, Turbopack)
+- **Framework**: Next.js 16.0.1 (App Router, Turbopack)
 - **Language**: TypeScript 5
-- **UI Library**: React 19.1.0
+- **UI Library**: React 19.2.0
 - **Styling**: Tailwind CSS 4
 - **Components**: Radix UI + shadcn/ui
 - **Forms**: react-hook-form + Zod validation
-- **Payments**: Stripe (API v2025-09-30.clover)
+- **Payments**: Stripe (API v2025-10-29.clover)
 - **Database**: PostgreSQL (Prisma Cloud) + Prisma ORM
-- **Authentication**: NextAuth.js v5 with credentials provider
+- **Authentication**: NextAuth.js v4.24.13 with credentials provider
+- **Email**: React Email 5.0 + Resend
 - **Testing**: Vitest + Testing Library
 - **CI/CD**: GitHub Actions
 
@@ -77,6 +79,10 @@ AUTH_URL=http://localhost:3000
 
 # Cron Job Security
 CRON_SECRET=your-cron-secret-here  # Generate with: openssl rand -hex 32
+
+# Email Configuration (Resend)
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=noreply@onlinedoctornote.com
 ```
 
 ### Development
@@ -100,6 +106,9 @@ npm run test:ui
 
 # Run tests with coverage
 npm run test:coverage
+
+# Preview email templates
+npm run email
 
 # Open Prisma Studio (database browser)
 npx prisma studio
@@ -169,15 +178,13 @@ npx tsx scripts/update-doctor-password.ts
 
 The project has comprehensive test coverage:
 
-- **217 tests passing** (48 database integration tests temporarily skipped)
+- **249 tests passing** (all passing, no skipped tests)
 - **Unit tests**: Validators, utilities, schemas (100% passing)
-- **Integration tests**: API routes with mocked Stripe
-- **Database tests**: Submission lifecycle, schema constraints (skipped due to test isolation issues)
+- **Integration tests**: API routes with mocked Stripe (100% passing)
+- **Email tests**: React Email rendering and sending (100% passing)
 - **Coverage**: 80%+ across the codebase
 
 See [TESTING.md](./TESTING.md) for detailed testing documentation.
-
-**Note**: Database integration tests are currently skipped with TODO comments. They pass individually but have test isolation issues when run together. All business logic tests (validators, schemas, utilities) are passing.
 
 ### Running Tests
 
@@ -215,6 +222,9 @@ src/
 │   ├── admin/              # Admin portal components
 │   ├── form/               # Form-specific components
 │   └── ui/                 # shadcn/ui components
+├── emails/                  # React Email templates
+│   ├── DenialEmail.tsx     # Modern denial notification email
+│   └── README.md           # Email template documentation
 ├── lib/                    # Utilities and business logic
 │   ├── validation-schemas.ts  # Zod schemas
 │   ├── date-validators.ts     # Date validation logic
@@ -222,6 +232,7 @@ src/
 │   ├── age-validators.ts      # Age validation
 │   ├── form-storage.ts        # localStorage helpers
 │   ├── form-constants.ts      # Static data
+│   ├── email.ts               # Email sending utilities
 │   ├── auth.ts                # NextAuth configuration
 │   └── prisma.ts              # Prisma client singleton
 ├── __tests__/              # Test files
@@ -277,7 +288,7 @@ Verifies a payment's status with Stripe.
 ```json
 {
   "status": "succeeded",
-  "amount": 2999
+  "amount": 2495
 }
 ```
 
