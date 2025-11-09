@@ -12,6 +12,7 @@ const requiredEnvVars = [
   'NEXT_PUBLIC_PAYMENT_AMOUNT',
   'CRON_SECRET',
   'AUTH_SECRET',
+  'RESEND_API_KEY',
 ] as const
 
 export function validateEnvironment() {
@@ -33,6 +34,11 @@ export function validateEnvironment() {
   const amount = Number(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT)
   if (isNaN(amount) || amount <= 0) {
     throw new Error('NEXT_PUBLIC_PAYMENT_AMOUNT must be a positive number')
+  }
+
+  // Warn about optional but recommended variables
+  if (!process.env.RESEND_FROM_EMAIL && process.env.NODE_ENV === 'development') {
+    console.warn('⚠️  RESEND_FROM_EMAIL not set, using default: noreply@onlinedoctornote.com')
   }
 
   if (process.env.NODE_ENV === 'development') {

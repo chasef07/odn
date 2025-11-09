@@ -263,6 +263,83 @@ describe('Validation Schemas', () => {
         const result = page3Schema.safeParse({ ...validData, email: 'test@mail.example.com' })
         expect(result.success).toBe(true)
       })
+
+      // TLD typo detection tests
+      it('should reject .con typo and suggest .com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'test@example.con' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('test@example.com')
+          expect(result.error.issues[0].message).toContain('Did you mean')
+        }
+      })
+
+      it('should reject .cmo typo and suggest .com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'user@gmail.cmo' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('user@gmail.com')
+        }
+      })
+
+      it('should reject .om typo and suggest .com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'hello@test.om' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('hello@test.com')
+        }
+      })
+
+      it('should reject .nte typo and suggest .net', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'user@example.nte' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('user@example.net')
+        }
+      })
+
+      it('should reject .rog typo and suggest .org', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'contact@nonprofit.rog' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('contact@nonprofit.org')
+        }
+      })
+
+      it('should accept valid .com email', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'test@example.com' })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept valid .net email', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'test@example.net' })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept valid .org email', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'test@example.org' })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept valid .edu email', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'student@university.edu' })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept valid .gov email', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'admin@agency.gov' })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept valid .io email', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'dev@startup.io' })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept valid .co.uk email', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'info@company.co.uk' })
+        expect(result.success).toBe(true)
+      })
     })
 
     describe('Phone validation', () => {

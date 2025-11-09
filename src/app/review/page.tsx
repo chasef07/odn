@@ -12,14 +12,14 @@ import { FormEditableSection } from '@/components/form/FormEditableSection'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { getFormData, saveFormData } from '@/lib/form-storage'
-import { page2Schema, page3Schema, page6Schema, page10Schema } from '@/lib/validation-schemas'
+import { page2Schema, guardianSchema, page3Schema, page6Schema, page10Schema } from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
 import { validateAbsenceDates } from '@/lib/date-validators'
 import { UI_TIMING } from '@/lib/validation-constants'
 
 // Step number will be dynamic based on recipient
 
-type EditSection = 'personal' | 'contact' | 'dates' | null
+type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 
 type TermsFormData = {
   certifyAccurate: boolean
@@ -30,6 +30,12 @@ type PersonalFormData = {
   patientFirstName: string
   patientLastName: string
   patientDateOfBirth: string
+}
+
+type GuardianFormData = {
+  guardianFirstName: string
+  guardianLastName: string
+  guardianDateOfBirth: string
 }
 
 type ContactFormData = {
@@ -74,6 +80,16 @@ export default function ReviewPage() {
     },
   })
 
+  // Guardian info edit form
+  const guardianForm = useForm<GuardianFormData>({
+    resolver: zodResolver(guardianSchema),
+    defaultValues: {
+      guardianFirstName: formData.guardianFirstName || '',
+      guardianLastName: formData.guardianLastName || '',
+      guardianDateOfBirth: formData.guardianDateOfBirth || '',
+    },
+  })
+
   // Contact info edit form
   const contactForm = useForm<ContactFormData>({
     resolver: zodResolver(page3Schema),
@@ -81,6 +97,7 @@ export default function ReviewPage() {
       email: formData.email || '',
       phone: formData.phone || '',
     },
+    mode: 'onChange', // Enable real-time validation for email typo detection
   })
 
   // Absence dates edit form
@@ -91,6 +108,36 @@ export default function ReviewPage() {
       lastDayOff: formData.lastDayOff || '',
     },
   })
+
+  // Auto-capitalization helper for names
+  const capitalizeName = (value: string): string => {
+    return value
+      .split(/(\s+|-|')/)
+      .map((part) => {
+        if (part.match(/^\s+$/) || part === '-' || part === "'") return part
+        if (part.length > 0) {
+          return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        }
+        return part
+      })
+      .join('')
+  }
+
+  // Handler for patient name changes with auto-capitalization
+  const handlePatientNameChange =
+    (field: 'patientFirstName' | 'patientLastName') =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const capitalized = capitalizeName(e.target.value)
+      personalForm.setValue(field, capitalized)
+    }
+
+  // Handler for guardian name changes with auto-capitalization
+  const handleGuardianNameChange =
+    (field: 'guardianFirstName' | 'guardianLastName') =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const capitalized = capitalizeName(e.target.value)
+      guardianForm.setValue(field, capitalized)
+    }
 
   // Handler to start editing a section
   const handleEdit = (section: string) => {
@@ -105,6 +152,8 @@ export default function ReviewPage() {
   const handleCancel = (section: string) => {
     if (section === 'personal') {
       personalForm.reset()
+    } else if (section === 'guardian') {
+      guardianForm.reset()
     } else if (section === 'contact') {
       contactForm.reset()
       // Reset phone display to saved value
@@ -117,6 +166,13 @@ export default function ReviewPage() {
 
   // Handler to save personal info
   const handleSavePersonal = personalForm.handleSubmit((data) => {
+    saveFormData(data)
+    setFormData(getFormData())
+    setEditingSection(null)
+  })
+
+  // Handler to save guardian info
+  const handleSaveGuardian = guardianForm.handleSubmit((data) => {
     saveFormData(data)
     setFormData(getFormData())
     setEditingSection(null)
@@ -193,10 +249,10 @@ export default function ReviewPage() {
       usePersonalization={true}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Personal Information */}
+        {/* Patient Information */}
         <FormEditableSection
           sectionId="personal"
-          title="Personal Information"
+          title="Patient Information"
           editingSection={editingSection}
           onEdit={handleEdit}
           onCancel={handleCancel}
@@ -213,18 +269,52 @@ export default function ReviewPage() {
           }
           editContent={
             <>
-              <FormField
-                id="patientFirstName"
-                label="First Name"
-                register={personalForm.register('patientFirstName')}
-                error={personalForm.formState.errors.patientFirstName}
-              />
-              <FormField
-                id="patientLastName"
-                label="Last Name"
-                register={personalForm.register('patientLastName')}
-                error={personalForm.formState.errors.patientLastName}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="patientFirstName" className="text-sm font-medium">
+                  First Name
+                </Label>
+                <Input
+                  id="patientFirstName"
+                  type="text"
+                  {...personalForm.register('patientFirstName')}
+                  onChange={handlePatientNameChange('patientFirstName')}
+                  className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
+                  aria-required="true"
+                  aria-invalid={!!personalForm.formState.errors.patientFirstName}
+                  aria-describedby={
+                    personalForm.formState.errors.patientFirstName
+                      ? 'patientFirstName-error'
+                      : undefined
+                  }
+                />
+                {personalForm.formState.errors.patientFirstName && (
+                  <p id="patientFirstName-error" className="text-sm text-red-500">
+                    {personalForm.formState.errors.patientFirstName.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="patientLastName" className="text-sm font-medium">
+                  Last Name
+                </Label>
+                <Input
+                  id="patientLastName"
+                  type="text"
+                  {...personalForm.register('patientLastName')}
+                  onChange={handlePatientNameChange('patientLastName')}
+                  className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
+                  aria-required="true"
+                  aria-invalid={!!personalForm.formState.errors.patientLastName}
+                  aria-describedby={
+                    personalForm.formState.errors.patientLastName ? 'patientLastName-error' : undefined
+                  }
+                />
+                {personalForm.formState.errors.patientLastName && (
+                  <p id="patientLastName-error" className="text-sm text-red-500">
+                    {personalForm.formState.errors.patientLastName.message}
+                  </p>
+                )}
+              </div>
               <FormField
                 id="patientDateOfBirth"
                 label="Date of Birth"
@@ -235,6 +325,87 @@ export default function ReviewPage() {
             </>
           }
         />
+
+        {/* Guardian Information - Only show if someone_else */}
+        {recipient === 'someone_else' && (
+          <FormEditableSection
+            sectionId="guardian"
+            title="Guardian Information (Person Filling Out Form)"
+            editingSection={editingSection}
+            onEdit={handleEdit}
+            onCancel={handleCancel}
+            onSave={handleSaveGuardian}
+            viewContent={
+              <>
+                <p className="text-foreground text-base">
+                  {formData.guardianFirstName} {formData.guardianLastName}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  Date of Birth: {formatDate(formData.guardianDateOfBirth)}
+                </p>
+              </>
+            }
+            editContent={
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="guardianFirstName" className="text-sm font-medium">
+                    First Name
+                  </Label>
+                  <Input
+                    id="guardianFirstName"
+                    type="text"
+                    {...guardianForm.register('guardianFirstName')}
+                    onChange={handleGuardianNameChange('guardianFirstName')}
+                    className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
+                    aria-required="true"
+                    aria-invalid={!!guardianForm.formState.errors.guardianFirstName}
+                    aria-describedby={
+                      guardianForm.formState.errors.guardianFirstName
+                        ? 'guardianFirstName-error'
+                        : undefined
+                    }
+                  />
+                  {guardianForm.formState.errors.guardianFirstName && (
+                    <p id="guardianFirstName-error" className="text-sm text-red-500">
+                      {guardianForm.formState.errors.guardianFirstName.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guardianLastName" className="text-sm font-medium">
+                    Last Name
+                  </Label>
+                  <Input
+                    id="guardianLastName"
+                    type="text"
+                    {...guardianForm.register('guardianLastName')}
+                    onChange={handleGuardianNameChange('guardianLastName')}
+                    className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
+                    aria-required="true"
+                    aria-invalid={!!guardianForm.formState.errors.guardianLastName}
+                    aria-describedby={
+                      guardianForm.formState.errors.guardianLastName
+                        ? 'guardianLastName-error'
+                        : undefined
+                    }
+                  />
+                  {guardianForm.formState.errors.guardianLastName && (
+                    <p id="guardianLastName-error" className="text-sm text-red-500">
+                      {guardianForm.formState.errors.guardianLastName.message}
+                    </p>
+                  )}
+                </div>
+                <FormField
+                  id="guardianDateOfBirth"
+                  label="Date of Birth"
+                  type="date"
+                  register={guardianForm.register('guardianDateOfBirth')}
+                  error={guardianForm.formState.errors.guardianDateOfBirth}
+                />
+              </>
+            }
+          />
+        )}
 
         {/* Contact Information */}
         <FormEditableSection
@@ -252,14 +423,27 @@ export default function ReviewPage() {
           }
           editContent={
             <>
-              <FormField
-                id="email"
-                label="Email Address"
-                type="email"
-                register={contactForm.register('email')}
-                error={contactForm.formState.errors.email}
-                placeholder="your.email@example.com"
-              />
+              {/* Email - Custom with real-time validation */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  {...contactForm.register('email')}
+                  className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
+                  placeholder="your.email@example.com"
+                  aria-required="true"
+                  aria-invalid={!!contactForm.formState.errors.email}
+                  aria-describedby={contactForm.formState.errors.email ? 'email-error' : undefined}
+                />
+                {contactForm.formState.errors.email && (
+                  <p id="email-error" className="text-sm text-red-500">
+                    {contactForm.formState.errors.email.message}
+                  </p>
+                )}
+              </div>
 
               {/* Phone - Custom formatting */}
               <div className="space-y-2">

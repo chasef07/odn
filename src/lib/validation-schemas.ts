@@ -66,13 +66,67 @@ export const guardianSchema = z.object({
     }),
 })
 
+// Common TLD typos and their corrections
+const COMMON_TLD_TYPOS: Record<string, string> = {
+  '.con': '.com',
+  '.cmo': '.com',
+  '.om': '.com',
+  '.comm': '.com',
+  '.nte': '.net',
+  '.nrt': '.net',
+  '.rog': '.org',
+  '.ogv': '.gov',
+  '.giv': '.gov',
+  '.gvo': '.gov',
+}
+
+// Common valid TLDs (not exhaustive, but covers 95%+ of users)
+const COMMON_TLDS = [
+  '.com', '.net', '.org', '.edu', '.gov', '.mil',
+  '.co', '.uk', '.us', '.ca', '.au', '.de', '.fr', '.jp', '.cn', '.in', '.br',
+  '.io', '.ai', '.dev', '.app', '.tech', '.info', '.biz', '.me', '.tv',
+  '.co.uk', '.com.au', '.co.nz', '.co.za', '.com.br',
+]
+
 export const page3Schema = z.object({
   email: z
     .string()
     .trim()
     .min(1, 'Email is required')
-    .email('Please enter a valid email address')
-    .toLowerCase(),
+    .toLowerCase()
+    .superRefine((email, ctx) => {
+      // Basic email format check
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please enter a valid email address',
+        })
+        return
+      }
+
+      // Extract TLD from email
+      const lastDotIndex = email.lastIndexOf('.')
+      if (lastDotIndex === -1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please enter a valid email address',
+        })
+        return
+      }
+
+      const tld = email.slice(lastDotIndex)
+
+      // Check for common TLD typos and provide helpful suggestions
+      const suggestion = COMMON_TLD_TYPOS[tld]
+      if (suggestion) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Did you mean "${email.replace(tld, suggestion)}"? Please check your email address.`,
+        })
+        return
+      }
+    }),
   phone: z
     .string()
     .trim()

@@ -1,16 +1,23 @@
 /**
  * Admin Layout
  * Wrapper layout for all admin pages
+ * SECURITY: Requires authentication - redirects to login if not authenticated
  */
 
 import Link from 'next/link'
 import { ReactNode } from 'react'
+import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions)
+
+  // SECURITY: Redirect to login if not authenticated
+  if (!session?.user) {
+    redirect('/admin/login')
+  }
 
   return (
     <div className="min-h-screen bg-white">

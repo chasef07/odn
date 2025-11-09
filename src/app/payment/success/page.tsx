@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { FormLayout } from '@/components/form-layout'
 import { CheckCircle2 } from 'lucide-react'
@@ -9,12 +8,21 @@ import { clearFormData } from '@/lib/form-storage'
 
 const CURRENT_STEP = 10
 
-function PaymentSuccessContent() {
-  const searchParams = useSearchParams()
-  const paymentIntent = searchParams.get('payment_intent')
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
-    !paymentIntent ? 'error' : 'loading'
-  )
+export default function PaymentSuccessPage() {
+  const [paymentIntent, setPaymentIntent] = useState<string | null>(null)
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+
+  // Get payment intent from URL on client side (avoids Suspense requirement)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const pi = params.get('payment_intent')
+
+    if (!pi) {
+      setStatus('error')
+    } else {
+      setPaymentIntent(pi)
+    }
+  }, [])
 
   useEffect(() => {
     if (!paymentIntent) {
@@ -65,6 +73,7 @@ function PaymentSuccessContent() {
         title="Processing Payment"
         description="Please wait while we confirm your payment"
         usePersonalization={false}
+        hideProgressAndBadges={true}
       >
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -83,6 +92,7 @@ function PaymentSuccessContent() {
         title="Payment Error"
         description="There was an issue with your payment"
         usePersonalization={false}
+        hideProgressAndBadges={true}
       >
         <div className="rounded-xl border border-red-200 bg-red-50 p-6">
           <p className="mb-2 font-medium text-red-600">Payment verification failed</p>
@@ -145,26 +155,5 @@ function PaymentSuccessContent() {
         </div>
       </div>
     </FormLayout>
-  )
-}
-
-export default function PaymentSuccessPage() {
-  return (
-    <Suspense
-      fallback={
-        <FormLayout
-          currentStep={CURRENT_STEP}
-          title="Processing..."
-          description="Please wait while we verify your payment."
-          usePersonalization={true}
-        >
-          <div className="p-8 text-center">
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </FormLayout>
-      }
-    >
-      <PaymentSuccessContent />
-    </Suspense>
   )
 }

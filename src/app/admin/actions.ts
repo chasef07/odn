@@ -182,6 +182,7 @@ export async function denySubmission(submissionId: string, reason: string) {
       select: {
         id: true,
         stripePaymentIntentId: true,
+        stripeRefundId: true,
         email: true,
         patientFirstName: true,
         patientLastName: true,
@@ -204,6 +205,14 @@ export async function denySubmission(submissionId: string, reason: string) {
       return {
         success: false,
         error: 'No payment intent ID found for this submission'
+      }
+    }
+
+    // Idempotency check: Prevent duplicate refunds
+    if (submission.stripeRefundId) {
+      return {
+        success: false,
+        error: 'Refund already processed for this submission'
       }
     }
 
@@ -234,7 +243,33 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     }
 
-    // Step 3: Update database with denial status and refund details
+    // Step 3: Send denial email FIRST (NON-BLOCKING - log error but don't fail)
+    const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+    const refundAmountDollars = PAYMENT_AMOUNT / 100 // Convert cents to dollars
+    let emailSentAt: Date | undefined
+    let emailWarning: string | undefined
+
+    try {
+      await sendDenialEmail({
+        to: submission.email,
+        patientName,
+        denialReason: reason,
+        refundAmount: refundAmountDollars,
+      })
+      emailSentAt = new Date()
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Denial email sent to ${submission.email} for submission ${submissionId}`)
+      }
+    } catch (emailError) {
+      // Email failed but refund succeeded - log error but continue
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to send denial email:', emailError)
+      }
+      emailWarning = 'Submission denied and refunded, but email notification failed to send'
+    }
+
+    // Step 4: Single atomic database update with all fields
     const now = new Date()
     await prisma.submission.update({
       where: { id: submissionId },
@@ -245,42 +280,13 @@ export async function denySubmission(submissionId: string, reason: string) {
         reviewedAt: now,
         stripeRefundId: refund.id,
         refundedAt: now,
+        denialEmailSentAt: emailSentAt, // Only set if email succeeded
       },
     })
 
-    // Step 4: Send denial email (NON-BLOCKING - log error but don't fail)
-    try {
-      const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
-      const refundAmountDollars = PAYMENT_AMOUNT / 100 // Convert cents to dollars
-
-      await sendDenialEmail({
-        to: submission.email,
-        patientName,
-        denialReason: reason,
-        refundAmount: refundAmountDollars,
-      })
-
-      // Update denialEmailSentAt timestamp
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: {
-          denialEmailSentAt: new Date(),
-        },
-      })
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Denial email sent to ${submission.email} for submission ${submissionId}`)
-      }
-    } catch (emailError) {
-      // Email failed but refund succeeded - log error but don't block
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to send denial email:', emailError)
-      }
-      // Return success but include warning about email failure
-      return {
-        success: true,
-        warning: 'Submission denied and refunded, but email notification failed to send'
-      }
+    // Return success with optional warning
+    if (emailWarning) {
+      return { success: true, warning: emailWarning }
     }
 
     // Revalidate admin pages

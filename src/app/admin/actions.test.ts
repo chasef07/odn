@@ -68,6 +68,7 @@ describe('denySubmission - Denial Automation', () => {
   const mockSubmission = {
     id: mockSubmissionId,
     stripePaymentIntentId: mockPaymentIntentId,
+    stripeRefundId: null,
     email: 'patient@example.com',
     patientFirstName: 'John',
     patientLastName: 'Doe',
@@ -111,6 +112,7 @@ describe('denySubmission - Denial Automation', () => {
         select: {
           id: true,
           stripePaymentIntentId: true,
+          stripeRefundId: true,
           email: true,
           patientFirstName: true,
           patientLastName: true,
@@ -129,19 +131,6 @@ describe('denySubmission - Denial Automation', () => {
         },
       })
 
-      // Verify database was updated with denial and refund details
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: mockSubmissionId },
-          data: expect.objectContaining({
-            status: SubmissionStatus.DENIED,
-            denialReason: 'Legal',
-            reviewedByAdminId: mockDoctorId,
-            stripeRefundId: mockRefundId,
-          }),
-        })
-      )
-
       // Verify email was sent
       expect(mockSendDenialEmail).toHaveBeenCalledWith({
         to: 'patient@example.com',
@@ -150,8 +139,20 @@ describe('denySubmission - Denial Automation', () => {
         refundAmount: 24.95,
       })
 
-      // Verify denialEmailSentAt was updated
-      expect(mockUpdate).toHaveBeenCalledTimes(2) // Once for denial, once for email timestamp
+      // Verify database was updated with denial, refund details, AND email timestamp (single atomic update)
+      expect(mockUpdate).toHaveBeenCalledTimes(1) // Single atomic update
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: mockSubmissionId },
+          data: expect.objectContaining({
+            status: SubmissionStatus.DENIED,
+            denialReason: 'Legal',
+            reviewedByAdminId: mockDoctorId,
+            stripeRefundId: mockRefundId,
+            denialEmailSentAt: expect.any(Date), // Should be set since email succeeded
+          }),
+        })
+      )
     })
 
     it('should handle "7+ days" denial reason correctly', async () => {
@@ -254,22 +255,21 @@ describe('denySubmission - Denial Automation', () => {
       // Verify refund was processed
       expect(mockRefundsCreate).toHaveBeenCalled()
 
-      // Verify database was updated with denial
+      // Verify email was attempted
+      expect(mockSendDenialEmail).toHaveBeenCalled()
+
+      // Verify database was updated with denial BUT denialEmailSentAt is undefined (email failed)
+      expect(mockUpdate).toHaveBeenCalledTimes(1) // Still only 1 update call
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: mockSubmissionId },
           data: expect.objectContaining({
             status: SubmissionStatus.DENIED,
             stripeRefundId: mockRefundId,
+            denialEmailSentAt: undefined, // Should be undefined since email failed
           }),
         })
       )
-
-      // Verify email was attempted
-      expect(mockSendDenialEmail).toHaveBeenCalled()
-
-      // Verify denialEmailSentAt was NOT updated (only 1 update call, not 2)
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -350,6 +350,28 @@ describe('denySubmission - Denial Automation', () => {
         error: 'No payment intent ID found for this submission',
       })
 
+      expect(mockRefundsCreate).not.toHaveBeenCalled()
+      expect(mockUpdate).not.toHaveBeenCalled()
+      expect(mockSendDenialEmail).not.toHaveBeenCalled()
+    })
+
+    it('should fail if refund already processed (idempotency check)', async () => {
+      // Arrange - Submission has existing refund ID
+      mockFindUnique.mockResolvedValue({
+        ...mockSubmission,
+        stripeRefundId: 're_existing_refund_123',
+      })
+
+      // Act
+      const result = await denySubmission(mockSubmissionId, 'Legal')
+
+      // Assert
+      expect(result).toEqual({
+        success: false,
+        error: 'Refund already processed for this submission',
+      })
+
+      // Verify NO refund attempt was made
       expect(mockRefundsCreate).not.toHaveBeenCalled()
       expect(mockUpdate).not.toHaveBeenCalled()
       expect(mockSendDenialEmail).not.toHaveBeenCalled()

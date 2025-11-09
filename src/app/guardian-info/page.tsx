@@ -28,6 +28,7 @@ export default function GuardianInfoPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(guardianSchema),
     defaultValues: {
@@ -36,6 +37,23 @@ export default function GuardianInfoPage() {
       guardianDateOfBirth: savedData.guardianDateOfBirth || '',
     },
   })
+
+  // Auto-capitalize name fields
+  const handleNameChange = (field: 'guardianFirstName' | 'guardianLastName') => (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const capitalized = e.target.value
+      .split(/(\s+|-|')/)
+      .map((part) => {
+        if (part.match(/^\s+$/) || part === '-' || part === "'") return part
+        if (part.length > 0) {
+          return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        }
+        return part
+      })
+      .join('')
+    setValue(field, capitalized)
+  }
 
   const onSubmit = (data: FormData) => {
     // Check age validation - guardian must be 18+
@@ -60,7 +78,9 @@ export default function GuardianInfoPage() {
             <FormField
               id="guardianFirstName"
               label="First Name"
-              register={register('guardianFirstName')}
+              register={register('guardianFirstName', {
+                onChange: handleNameChange('guardianFirstName'),
+              })}
               error={errors.guardianFirstName}
               placeholder="Enter your first name"
             />
@@ -68,7 +88,9 @@ export default function GuardianInfoPage() {
             <FormField
               id="guardianLastName"
               label="Last Name"
-              register={register('guardianLastName')}
+              register={register('guardianLastName', {
+                onChange: handleNameChange('guardianLastName'),
+              })}
               error={errors.guardianLastName}
               placeholder="Enter your last name"
             />

@@ -7,6 +7,20 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@onlinedoctornote.com'
 
 /**
+ * Escapes HTML special characters to prevent XSS in email templates
+ * @param unsafe - Raw string that may contain HTML special characters
+ * @returns HTML-safe string with escaped characters
+ */
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+/**
  * Sends a denial notification email to the patient
  *
  * @param to - Recipient email address
@@ -45,6 +59,11 @@ export async function sendDenialEmail({
       currency: 'USD',
     }).format(refundAmount)
 
+    // Escape user-provided data to prevent XSS
+    const safePatientName = escapeHtml(patientName)
+    const safeDenialReasonMessage = escapeHtml(denialReasonMessage)
+    const safeFormattedRefund = escapeHtml(formattedRefund)
+
     const result = await resend.emails.send({
       from: FROM_EMAIL,
       to,
@@ -61,13 +80,13 @@ export async function sendDenialEmail({
             <div style="background-color: #f8f9fa; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
               <h1 style="color: #dc3545; margin-top: 0;">Doctor's Note Request Update</h1>
 
-              <p>Dear ${patientName},</p>
+              <p>Dear ${safePatientName},</p>
 
-              <p>We regret to inform you that your doctor's note request has been <strong>denied</strong> ${denialReasonMessage}.</p>
+              <p>We regret to inform you that your doctor's note request has been <strong>denied</strong> ${safeDenialReasonMessage}.</p>
 
               <div style="background-color: #fff; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;">
                 <h3 style="margin-top: 0; color: #28a745;">Refund Processed</h3>
-                <p style="margin-bottom: 0;">A full refund of <strong>${formattedRefund}</strong> has been processed to your original payment method. Please allow 5-10 business days for the refund to appear in your account.</p>
+                <p style="margin-bottom: 0;">A full refund of <strong>${safeFormattedRefund}</strong> has been processed to your original payment method. Please allow 5-10 business days for the refund to appear in your account.</p>
               </div>
 
               <h3>What happens next?</h3>
@@ -98,17 +117,3 @@ export async function sendDenialEmail({
   }
 }
 
-/**
- * Validates that required email environment variables are set
- * @throws Error if required environment variables are missing
- */
-export function validateEmailConfig() {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY environment variable is required')
-  }
-  if (!process.env.RESEND_FROM_EMAIL) {
-    console.warn(
-      'RESEND_FROM_EMAIL not set, using default: noreply@onlinedoctornote.com'
-    )
-  }
-}

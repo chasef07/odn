@@ -14,7 +14,7 @@ This document provides context and guidelines for Claude Code when working with 
 - **Language**: TypeScript 5 (strict mode)
 - **UI**: React 19, Tailwind CSS 4, Radix UI, shadcn/ui
 - **Forms**: react-hook-form + Zod validation
-- **Payments**: Stripe (v2025-09-30.clover API)
+- **Payments**: Stripe (v2025-10-29.clover API)
 - **Database**: PostgreSQL (Prisma Cloud) + Prisma ORM
 - **Authentication**: NextAuth.js v5 (credentials provider)
 - **Testing**: Vitest + Testing Library (217 passing tests, 48 skipped)
@@ -275,7 +275,7 @@ npx prisma migrate dev  # Create migration (production)
 ### Debugging Stripe Issues
 
 - Check `.env.local` for correct API keys
-- Verify Stripe API version: `2025-09-30.clover`
+- Verify Stripe API version: `2025-10-29.clover`
 - Test with Stripe test cards: `4242 4242 4242 4242`
 - Check Stripe Dashboard for payment logs
 - Review API route logs in development mode

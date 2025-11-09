@@ -29,6 +29,7 @@ export default function BasicInfoPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(page2Schema),
     defaultValues: {
@@ -37,6 +38,23 @@ export default function BasicInfoPage() {
       patientDateOfBirth: savedData.patientDateOfBirth || '',
     },
   })
+
+  // Auto-capitalize name fields
+  const handleNameChange = (field: 'patientFirstName' | 'patientLastName') => (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const capitalized = e.target.value
+      .split(/(\s+|-|')/)
+      .map((part) => {
+        if (part.match(/^\s+$/) || part === '-' || part === "'") return part
+        if (part.length > 0) {
+          return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        }
+        return part
+      })
+      .join('')
+    setValue(field, capitalized)
+  }
 
   const onSubmit = (data: FormData) => {
     // Check age validation - only for "myself" option
@@ -73,7 +91,9 @@ export default function BasicInfoPage() {
             <FormField
               id="patientFirstName"
               label="First Name"
-              register={register('patientFirstName')}
+              register={register('patientFirstName', {
+                onChange: handleNameChange('patientFirstName'),
+              })}
               error={errors.patientFirstName}
               placeholder="Enter first name"
             />
@@ -81,7 +101,9 @@ export default function BasicInfoPage() {
             <FormField
               id="patientLastName"
               label="Last Name"
-              register={register('patientLastName')}
+              register={register('patientLastName', {
+                onChange: handleNameChange('patientLastName'),
+              })}
               error={errors.patientLastName}
               placeholder="Enter last name"
             />
