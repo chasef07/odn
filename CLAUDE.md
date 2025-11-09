@@ -4,20 +4,21 @@ This document provides context and guidelines for Claude Code when working with 
 
 ## Project Overview
 
-**Online Doctor's Note** is a Next.js 15 application that provides a multi-step form for users to obtain legitimate doctor's notes for work or school absences. The application handles patient information collection, validation, payment processing through Stripe, and includes an admin portal for doctors to review and approve/deny submissions.
+**Online Doctor's Note** is a Next.js 16 application that provides a multi-step form for users to obtain legitimate doctor's notes for work or school absences. The application handles patient information collection, validation, payment processing through Stripe, email notifications with React Email, and includes an admin portal for doctors to review and approve/deny submissions.
 
 ## Architecture
 
 ### Tech Stack
 
-- **Framework**: Next.js 15.5.5 with App Router
+- **Framework**: Next.js 16.0.1 with App Router
 - **Language**: TypeScript 5 (strict mode)
-- **UI**: React 19, Tailwind CSS 4, Radix UI, shadcn/ui
+- **UI**: React 19.2.0, Tailwind CSS 4, Radix UI, shadcn/ui
 - **Forms**: react-hook-form + Zod validation
 - **Payments**: Stripe (v2025-10-29.clover API)
 - **Database**: PostgreSQL (Prisma Cloud) + Prisma ORM
-- **Authentication**: NextAuth.js v5 (credentials provider)
-- **Testing**: Vitest + Testing Library (217 passing tests, 48 skipped)
+- **Authentication**: NextAuth.js v4.24.13 (credentials provider)
+- **Email**: React Email 5.0.1 + Resend 4.0.1
+- **Testing**: Vitest + Testing Library (249 passing tests)
 - **Build**: Turbopack
 
 ### Key Directories
@@ -40,11 +41,15 @@ src/
 │   ├── admin/             # Admin portal components
 │   ├── form/              # Reusable form components
 │   └── ui/                # shadcn/ui components
+├── emails/                # React Email templates
+│   ├── DenialEmail.tsx    # Modern denial notification email
+│   └── README.md          # Email template documentation
 ├── lib/                   # Business logic & utilities
 │   ├── validation-schemas.ts    # 10 Zod schemas
 │   ├── date-validators.ts       # Date business rules
 │   ├── form-storage.ts          # localStorage helpers
 │   ├── form-constants.ts        # Static data
+│   ├── email.ts                 # Email sending utilities
 │   ├── auth.ts                  # NextAuth config
 │   └── prisma.ts                # Prisma client singleton
 └── prisma/
@@ -83,7 +88,7 @@ tests/
 
 ### Payment Processing
 
-- **Amount**: Fixed at $29.99 (2999 cents)
+- **Amount**: Fixed at $24.95 (2495 cents)
 - **Currency**: USD only
 - **Provider**: Stripe with automatic payment methods
 - **Metadata**: Includes product and service identifiers
@@ -150,17 +155,15 @@ The application uses a multi-step form with conditional steps:
 
 ## Testing Strategy
 
-### Current Coverage (217 passing, 48 skipped)
+### Current Coverage (249 passing)
 
 - ✅ Unit tests: All validators and utilities (100% passing)
 - ✅ Schema tests: All 10 Zod schemas (100% passing)
 - ✅ API tests: Stripe payment endpoints (100% passing)
-- ⏭️ Database tests: Submission lifecycle, schema constraints (skipped - test isolation issues)
-- ⏭️ Integration tests: Webhook handlers, cron jobs (skipped - test isolation issues)
+- ✅ Email tests: React Email rendering and sending (100% passing)
+- ✅ Admin action tests: Submission approval/denial workflow (100% passing)
 - ⚠️ Component tests: Not yet implemented
-- ⚠️ Admin portal tests: Not yet implemented
-
-**Important**: Database integration tests (48 tests in 4 files) are currently skipped with `describe.skip()` and TODO comments. They pass individually but fail when run together due to test isolation issues with shared database state and Doctor foreign key cleanup. These should be refactored in the future but all business logic tests are passing.
+- ⚠️ E2E tests: Not yet implemented
 
 **Test Safety**: The `tests/setup/global-setup.ts` file is configured to ALWAYS use the local SQLite test database (`file:./test.db`) and will NEVER touch the production PostgreSQL database, regardless of environment variables.
 
@@ -323,6 +326,13 @@ DATABASE_URL=postgresql://...            # PostgreSQL connection string (Prisma 
 AUTH_SECRET=...                          # NextAuth.js secret (generate with: openssl rand -base64 32)
 AUTH_URL=http://localhost:3000          # Base URL for auth
 
+# Email Configuration (Resend)
+RESEND_API_KEY=re_...                    # Resend API key
+RESEND_FROM_EMAIL=noreply@onlinedoctornote.com  # From email address
+
+# Cron Job Security
+CRON_SECRET=...                          # Cron job secret (generate with: openssl rand -hex 32)
+
 # Environment
 NODE_ENV=development                     # Environment (development/production)
 ```
@@ -344,7 +354,7 @@ NODE_ENV=development                     # Environment (development/production)
 
 ### GitHub Actions Workflows
 
-1. **test.yml**: Runs all tests on push/PR (217 passing, 48 skipped)
+1. **test.yml**: Runs all tests on push/PR (249 passing)
 2. **claude-code-review.yml**: Automated code reviews on PRs
 3. **claude.yml**: Claude PR assistant (trigger with `@claude`)
 
@@ -352,7 +362,7 @@ NODE_ENV=development                     # Environment (development/production)
 
 ### Pre-commit Checklist
 
-- [ ] All tests pass (`npm test`) - 217 passing expected
+- [ ] All tests pass (`npm test`) - 249 passing expected
 - [ ] No TypeScript errors (`npm run build`)
 - [ ] No ESLint errors (`npm run lint`)
 - [ ] New features have tests
@@ -361,16 +371,16 @@ NODE_ENV=development                     # Environment (development/production)
 
 ## Known Issues & Technical Debt
 
-1. **Database test isolation**: 48 integration tests skipped due to test isolation issues with shared database state and Doctor foreign key cleanup. Tests pass individually. TODO: Refactor test infrastructure to fix.
-2. **No component tests**: Need to add React component tests for form pages and admin portal
-3. **No E2E tests**: Consider adding Playwright tests for complete user flows
-4. **No rate limiting**: Payment endpoints and admin API could be abused
-5. **No duplicate detection**: Users could submit multiple times with different payment intents
-6. **Hardcoded payment amount**: Should be configurable via environment variable or admin settings
-7. **No email confirmation**: Payment succeeds but no receipt or confirmation email sent to user
-8. **No admin notifications**: Doctors are not notified when new submissions arrive
-9. **No approval/denial emails**: Users are not notified when their submission is reviewed
-10. **localStorage only for form data**: Form progress not synced to server, lost on device change
+1. **No component tests**: Need to add React component tests for form pages and admin portal
+2. **No E2E tests**: Consider adding Playwright tests for complete user flows
+3. **No rate limiting**: Payment endpoints and admin API could be abused
+4. **No duplicate detection**: Users could submit multiple times with different payment intents
+5. **Hardcoded payment amount**: Should be configurable via environment variable or admin settings
+6. **No email confirmation**: Payment succeeds but no receipt or confirmation email sent to user
+7. **No admin notifications**: Doctors are not notified when new submissions arrive
+8. **No approval email**: Users are not notified when their submission is approved (denial emails work)
+9. **localStorage only for form data**: Form progress not synced to server, lost on device change
+10. **No dark mode**: UI only supports light mode currently
 
 ## Performance Considerations
 
@@ -403,9 +413,10 @@ NODE_ENV=development                     # Environment (development/production)
 ```bash
 # Development
 npm run dev                 # Start dev server
-npm test                   # Run tests (217 passing, 48 skipped)
+npm test                   # Run tests (249 passing)
 npm run test:ui            # Run tests with UI
 npm run test:coverage      # Run tests with coverage
+npm run email              # Preview email templates
 npm run build              # Build for production
 
 # Database
@@ -432,7 +443,7 @@ npx tsc --noEmit          # Check TypeScript errors
 
 1. **Business Rules**: The 7-day absence limit and 7-day lookback are non-negotiable. Always verify with the user before modifying.
 
-2. **Test Coverage**: When adding new features, always write tests. The project maintains 80%+ coverage (217 passing tests).
+2. **Test Coverage**: When adding new features, always write tests. The project maintains 80%+ coverage (249 passing tests).
 
 3. **Type Safety**: Maintain strict TypeScript. No `any` types unless absolutely necessary.
 
@@ -450,6 +461,6 @@ npx tsc --noEmit          # Check TypeScript errors
 
 10. **Admin Portal**: Protected by NextAuth.js. All admin routes require authentication. Doctor passwords are hashed with bcrypt.
 
-11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission → Admin Review → Approve/Deny
+11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission → Admin Review → Approve/Deny → Denial Email (if denied)
 
-12. **Skipped Tests**: 48 database integration tests are currently skipped due to test isolation issues. They are marked with `describe.skip()` and TODO comments. Don't be alarmed - all business logic tests pass.
+12. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Denial emails are automatically sent with refund confirmations. Preview emails with `npm run email`.
