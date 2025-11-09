@@ -6,8 +6,8 @@
 'use server'
 
 import { SubmissionStatus } from '@prisma/client'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
 import prisma from '@/lib/prisma'
@@ -26,7 +26,9 @@ const PAYMENT_AMOUNT = Number(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 2495)
  * Get current logged-in doctor's session
  */
 async function getCurrentDoctor() {
-  const session = await getServerSession(authOptions)
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
   if (!session?.user?.id) {
     throw new Error('Unauthorized: No active session')
   }

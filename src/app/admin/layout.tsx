@@ -1,51 +1,25 @@
 /**
  * Admin Layout
- * Wrapper layout for all admin pages
- * SECURITY: Requires authentication - redirects to login if not authenticated
+ * Root wrapper for all admin pages
+ *
+ * SECURITY NOTE: This layout does NOT check authentication to avoid redirect loops.
+ * Auth checks are performed in individual page layouts:
+ * - /admin/page.tsx (dashboard) - has auth check
+ * - /admin/review/layout.tsx - has auth check
+ * - /admin/login - no auth check (public)
  */
 
 import Link from 'next/link'
 import { ReactNode } from 'react'
-import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const session = await getServerSession(authOptions)
-
-  // SECURITY: Redirect to login if not authenticated
-  if (!session?.user) {
-    redirect('/admin/login')
-  }
+  // Note: Authentication check is handled in each page's Server Component
+  // This layout only provides the UI structure
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <Link href="/admin" className="flex items-center gap-2">
-              <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
-                Admin Portal
-              </span>
-            </Link>
-
-            {/* User Menu */}
-            {session?.user && (
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">
-                  {session.user.email}
-                </span>
-                <LogoutButton />
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+      {children}
     </div>
   )
 }
