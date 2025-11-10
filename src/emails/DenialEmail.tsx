@@ -29,7 +29,7 @@ export const DenialEmail = ({
 }: DenialEmailProps) => {
   // Map internal denial reasons to user-friendly messages
   const reasonMessages = {
-    Legal: 'due to legal or compliance requirements',
+    Legal: 'because our service provides medical excuse notes only. For jury duty or court appearances, your employer/school must accept the official summons or court documentation provided by the court system',
     '7+ days': 'because the absence period exceeds our 7-day limit',
     Other: 'after careful review of your submission',
   }

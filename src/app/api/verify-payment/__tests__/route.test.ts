@@ -264,7 +264,8 @@ describe('POST /api/verify-payment', () => {
     const response = await POST(request)
     const data = await response.json()
 
-    expect(consoleSpy).not.toHaveBeenCalled()
+    // Error should be logged (even in production) but not exposed to client
+    expect(consoleSpy).toHaveBeenCalledWith('Error verifying payment:', expect.any(Error))
     expect(data.error).toBe('Invalid payment intent')
     expect(data.error).not.toContain('Sensitive')
 
