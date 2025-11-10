@@ -45,13 +45,10 @@ export const ApprovalEmail = ({
       <Tailwind>
         <Body className="bg-gray-50 font-sans">
           <Container className="mx-auto my-8 max-w-2xl">
-            {/* Hero Section with Green Gradient */}
-            <Section className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-t-2xl px-8 py-10 text-center">
-              <Heading className="text-white text-3xl font-bold m-0 mb-2">
-                Your Request is Approved!
-              </Heading>
-              <Text className="text-emerald-100 text-base m-0">
-                Your doctor&apos;s note is ready
+            {/* Header with Logo */}
+            <Section className="bg-white px-8 py-4 rounded-t-2xl border-b border-gray-200">
+              <Text className="text-2xl font-bold m-0" style={{ color: 'oklch(0.65 0.18 230)' }}>
+                OnlineDoctorNote
               </Text>
             </Section>
 
@@ -68,27 +65,18 @@ export const ApprovalEmail = ({
               </Text>
 
               {/* Success Card */}
-              <Section className="bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-2xl p-6 mb-8 shadow-sm">
-                <Row>
-                  <Column className="w-16">
-                    <div className="bg-emerald-500 w-12 h-12 rounded-full flex items-center justify-center text-2xl">
-                      ✓
-                    </div>
-                  </Column>
-                  <Column>
-                    <Text className="text-emerald-900 text-sm font-semibold uppercase tracking-wide m-0 mb-2">
-                      Document Attached
-                    </Text>
-                    <Heading className="text-emerald-950 text-2xl font-bold m-0 mb-3">
-                      Doctor&apos;s Note PDF
-                    </Heading>
-                    <Text className="text-emerald-800 text-sm leading-relaxed m-0">
-                      Your official doctor&apos;s note is attached to this email.
-                      Download and save it for your records, and submit it to your
-                      employer or school as needed.
-                    </Text>
-                  </Column>
-                </Row>
+              <Section className="rounded-2xl p-6 mb-8 bg-white" style={{ border: '2px solid oklch(0.65 0.18 230)' }}>
+                <Text className="text-sm font-semibold uppercase tracking-wide m-0 mb-2 text-gray-700">
+                  Document Attached
+                </Text>
+                <Heading className="text-2xl font-bold m-0 mb-3 text-gray-900">
+                  Doctor&apos;s Note PDF
+                </Heading>
+                <Text className="text-sm leading-relaxed m-0 text-gray-700">
+                  Your official doctor&apos;s note is attached to this email.
+                  Download and save it for your records, and submit it to your
+                  employer or school as needed.
+                </Text>
               </Section>
 
               {/* What's Next Section */}
@@ -100,7 +88,7 @@ export const ApprovalEmail = ({
                 <div className="space-y-4">
                   <Row className="items-start">
                     <Column className="w-8">
-                      <Text className="text-emerald-600 text-xl font-bold m-0">
+                      <Text className="text-xl font-bold m-0" style={{ color: 'oklch(0.65 0.18 230)' }}>
                         1
                       </Text>
                     </Column>
@@ -113,7 +101,7 @@ export const ApprovalEmail = ({
 
                   <Row className="items-start">
                     <Column className="w-8">
-                      <Text className="text-emerald-600 text-xl font-bold m-0">
+                      <Text className="text-xl font-bold m-0" style={{ color: 'oklch(0.65 0.18 230)' }}>
                         2
                       </Text>
                     </Column>
@@ -127,7 +115,7 @@ export const ApprovalEmail = ({
 
                   <Row className="items-start">
                     <Column className="w-8">
-                      <Text className="text-emerald-600 text-xl font-bold m-0">
+                      <Text className="text-xl font-bold m-0" style={{ color: 'oklch(0.65 0.18 230)' }}>
                         3
                       </Text>
                     </Column>
@@ -143,68 +131,34 @@ export const ApprovalEmail = ({
 
               <Hr className="border-gray-200 my-8" />
 
-              {/* Important Information */}
-              <Section className="bg-blue-50 rounded-xl p-6 mb-8">
-                <Heading className="text-blue-900 text-base font-bold m-0 mb-2">
-                  📋 Important Information
-                </Heading>
-                <Text className="text-blue-800 text-sm leading-relaxed m-0 mb-3">
-                  Your doctor&apos;s note is a legitimate medical document provided by
-                  a licensed medical professional. It includes:
-                </Text>
-                <ul className="text-blue-800 text-sm leading-relaxed m-0 pl-5">
-                  <li>Your name and date of birth</li>
-                  <li>Dates of absence</li>
-                  <li>Medical certification</li>
-                  <li>Doctor&apos;s signature and credentials</li>
-                  <li>Unique reference number for verification</li>
-                </ul>
-              </Section>
-
-              {/* Action Buttons */}
+              {/* FAQ Button */}
               <Section className="text-center mb-6">
-                <Row>
-                  <Column className="px-2">
-                    <Button
-                      href="mailto:support@onlinedoctornote.com"
-                      className="bg-emerald-600 text-white font-semibold py-3 px-8 rounded-lg text-base no-underline inline-block"
-                    >
-                      Contact Support
-                    </Button>
-                  </Column>
-                  <Column className="px-2">
-                    <Button
-                      href="https://onlinedoctornote.com/faq"
-                      className="bg-white text-emerald-600 font-semibold py-3 px-8 rounded-lg text-base no-underline inline-block border-2 border-emerald-600"
-                    >
-                      View FAQs
-                    </Button>
-                  </Column>
-                </Row>
+                <Button
+                  href="https://onlinedoctornote.com"
+                  className="text-white font-semibold py-3 px-8 rounded-lg text-base no-underline inline-block"
+                  style={{ backgroundColor: 'oklch(0.65 0.18 230)' }}
+                >
+                  View FAQs
+                </Button>
               </Section>
 
               {/* Help Section */}
               <Section className="bg-gray-50 rounded-xl p-6 mt-8">
                 <Heading className="text-gray-900 text-base font-bold m-0 mb-2">
-                  💬 Need Help?
+                  Need Help?
                 </Heading>
                 <Text className="text-gray-700 text-sm leading-relaxed m-0">
                   If you have any questions about your doctor&apos;s note or need
                   assistance submitting it, our support team is here to help at{' '}
                   <Link
-                    href="mailto:support@onlinedoctornote.com"
-                    className="text-emerald-600 font-medium no-underline"
+                    href="mailto:hello@onlinedoctornote.com"
+                    className="font-medium no-underline"
+                    style={{ color: 'oklch(0.65 0.18 230)' }}
                   >
-                    support@onlinedoctornote.com
+                    hello@onlinedoctornote.com
                   </Link>
                 </Text>
               </Section>
-
-              {/* Thank You */}
-              <Text className="text-gray-600 text-sm text-center mt-8 mb-4">
-                Thank you for choosing Online Doctor&apos;s Note. We hope you feel
-                better soon!
-              </Text>
             </Section>
 
             {/* Footer */}

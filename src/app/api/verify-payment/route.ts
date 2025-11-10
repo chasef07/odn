@@ -22,11 +22,7 @@ export async function POST(request: NextRequest) {
       amount: paymentIntent.amount,
     })
   } catch (error) {
-    // Guard console.error with NODE_ENV check
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error verifying payment:', error)
-    }
-
+    console.error('Error verifying payment:', error)
     return NextResponse.json({ error: 'Invalid payment intent' }, { status: 400 })
   }
 }

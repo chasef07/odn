@@ -28,8 +28,8 @@ interface DenialReasonDialogProps {
 const DENIAL_REASONS: { value: DenialReason; label: string; description: string }[] = [
   {
     value: 'Legal',
-    label: 'Legal/Compliance Issue',
-    description: 'Does not meet legal or medical requirements',
+    label: 'Jury Duty/Legal Matter',
+    description: 'Request is for jury duty, court, or legal obligation (not medical)',
   },
   {
     value: '7+ days',

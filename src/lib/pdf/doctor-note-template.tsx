@@ -1,6 +1,8 @@
 /**
  * Doctor's Note PDF Template
  * Uses @react-pdf/renderer to generate professional medical excuse notes
+ *
+ * Simplified format - removes all medical details per business requirements
  */
 
 import React from 'react'
@@ -11,7 +13,6 @@ import {
   View,
   StyleSheet,
   Image,
-  Font,
 } from '@react-pdf/renderer'
 
 // Define comprehensive type for submission data
@@ -58,113 +59,83 @@ interface DoctorNoteTemplateProps {
   issueDate: Date
 }
 
-// Create styles
+// Create styles - Times New Roman 12pt, simplified layout with professional letterhead
 const styles = StyleSheet.create({
   page: {
-    padding: 50,
-    fontSize: 11,
-    fontFamily: 'Helvetica',
+    padding: 0,
+    fontSize: 12,
+    fontFamily: 'Times-Roman',
     backgroundColor: '#ffffff',
+    lineHeight: 1.5,
+    border: '1pt solid #E2E8F0', // Subtle border around entire document
   },
-  header: {
-    marginBottom: 30,
-    borderBottom: 2,
-    borderBottomColor: '#1e3a8a',
-    paddingBottom: 15,
+  headerSection: {
+    backgroundColor: '#F0F4F8', // Light blue-gray letterhead
+    padding: 20,
+    paddingLeft: 72,
+    paddingRight: 72,
+    borderBottom: '1pt solid #CBD5E1', // Subtle separator
   },
-  practiceName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1e3a8a',
-    marginBottom: 5,
+  headerLine: {
+    fontSize: 10,
+    marginBottom: 2,
+    color: '#475569', // Slightly darker gray for contrast
   },
-  practiceSubtitle: {
-    fontSize: 11,
-    color: '#64748b',
+  contentSection: {
+    paddingLeft: 72,
+    paddingRight: 72,
+    paddingTop: 20,
+    paddingBottom: 72,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontFamily: 'Times-Bold',
     textAlign: 'center',
-    marginBottom: 25,
-    marginTop: 10,
-    color: '#1e293b',
+    marginBottom: 20,
     textTransform: 'uppercase',
-    letterSpacing: 1,
   },
-  section: {
-    marginBottom: 15,
-  },
-  sectionTitle: {
+  dateIssued: {
     fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1e3a8a',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    marginBottom: 20,
   },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 6,
+  patientSection: {
+    marginBottom: 20,
   },
-  label: {
-    width: 140,
-    fontWeight: 'bold',
-    color: '#334155',
+  patientLine: {
+    fontSize: 12,
+    marginBottom: 4,
   },
-  value: {
-    flex: 1,
-    color: '#1e293b',
-  },
-  textBlock: {
-    marginTop: 5,
+  letterBody: {
+    marginBottom: 20,
     lineHeight: 1.5,
-    color: '#1e293b',
   },
-  signatureSection: {
-    marginTop: 40,
-    paddingTop: 20,
-    borderTop: 1,
-    borderTopColor: '#e2e8f0',
+  paragraph: {
+    marginBottom: 12,
+    textAlign: 'justify',
+  },
+  dateRange: {
+    marginTop: 12,
+    marginBottom: 12,
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: 'Times-Bold',
+  },
+  closing: {
+    marginBottom: 40,
   },
   signatureImage: {
-    width: 150,
-    height: 50,
+    width: 120,
+    height: 40,
     marginBottom: 5,
     objectFit: 'contain',
   },
-  signatureLine: {
-    borderBottom: 1,
-    borderBottomColor: '#94a3b8',
-    width: 200,
-    marginBottom: 5,
-  },
   doctorName: {
     fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 2,
+    fontFamily: 'Times-Bold',
   },
-  doctorCredentials: {
-    fontSize: 10,
-    color: '#64748b',
-    marginBottom: 1,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 50,
-    right: 50,
-    fontSize: 8,
-    color: '#94a3b8',
-    textAlign: 'center',
-    paddingTop: 10,
-    borderTop: 1,
-    borderTopColor: '#e2e8f0',
-  },
-  referenceNumber: {
-    fontSize: 9,
-    color: '#64748b',
-    marginBottom: 2,
+  npiNumber: {
+    fontSize: 12,
+    marginTop: 2,
   },
 })
 
@@ -180,50 +151,24 @@ function formatDate(date: Date): string {
 }
 
 /**
- * Calculate number of days between two dates (inclusive)
+ * Format note purpose for excuse text
  */
-function calculateDaysDuration(startDate: Date, endDate: Date): number {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  const diffTime = Math.abs(end.getTime() - start.getTime())
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 // +1 for inclusive
-  return diffDays
-}
-
-/**
- * Format note purpose for display
- */
-function formatNotePurpose(purpose: string, other?: string | null): string {
+function formatExcuseFrom(purpose: string, other?: string | null): string {
   if (purpose === 'other' && other) {
     return other
   }
 
   const purposeMap: Record<string, string> = {
-    work: 'Work',
-    school: 'School',
-    both: 'Work and School',
+    work: 'work',
+    school: 'school',
+    both: 'work or school',
   }
 
-  return purposeMap[purpose] || purpose
+  return purposeMap[purpose] || 'work or school'
 }
 
 /**
- * Format absence reason for display
- */
-function formatAbsenceReason(reason: string, other?: string | null): string {
-  if (reason === 'other' && other) {
-    return other
-  }
-
-  // Capitalize first letter and replace underscores with spaces
-  return reason
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ')
-}
-
-/**
- * Doctor's Note PDF Template Component
+ * Doctor's Note PDF Template Component - Simplified
  */
 export function DoctorNoteTemplate({
   submissionData,
@@ -241,13 +186,6 @@ export function DoctorNoteTemplate({
     lastDayOff,
     notePurpose,
     otherNotePurpose,
-    absenceReason,
-    otherAbsenceReason,
-    symptoms,
-    otherSymptomText,
-    additionalInformation,
-    state,
-    submissionId,
   } = submissionData
 
   const patientFullName = `${patientFirstName} ${patientLastName}`
@@ -256,161 +194,79 @@ export function DoctorNoteTemplate({
     ? `${guardianFirstName} ${guardianLastName}`
     : null
 
-  const daysDuration = calculateDaysDuration(firstDayOff, lastDayOff)
-  const formattedPurpose = formatNotePurpose(notePurpose, otherNotePurpose)
-  const formattedReason = formatAbsenceReason(absenceReason, otherAbsenceReason)
-
-  // Parse symptoms from JSON if it's a string
-  const symptomsList = symptoms
-    ? Array.isArray(symptoms)
-      ? symptoms
-      : []
-    : []
+  const excuseFrom = formatExcuseFrom(notePurpose, otherNotePurpose)
+  const dateIssuedFormatted = formatDate(issueDate)
+  const firstDayFormatted = formatDate(firstDayOff)
+  const lastDayFormatted = formatDate(lastDayOff)
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.practiceName}>Online Doctor's Note</Text>
-          <Text style={styles.practiceSubtitle}>Professional Medical Documentation Services</Text>
+      <Page size="LETTER" style={styles.page}>
+        {/* Header Section - Professional Letterhead */}
+        <View style={styles.headerSection}>
+          <Text style={styles.headerLine}>Proudly serving patients in over 40 states</Text>
+          <Text style={styles.headerLine}>Email: hello@onedoctornote.com</Text>
+          <Text style={styles.headerLine}>Phone: (917) 300-8543</Text>
         </View>
 
-        {/* Document Title */}
-        <Text style={styles.title}>Medical Excuse Note</Text>
+        {/* Content Section */}
+        <View style={styles.contentSection}>
+          {/* Title */}
+          <Text style={styles.title}>Medical Excuse Note</Text>
 
-        {/* Issue Date */}
-        <View style={styles.section}>
-          <View style={styles.row}>
-            <Text style={styles.label}>Date Issued:</Text>
-            <Text style={styles.value}>{formatDate(issueDate)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>State:</Text>
-            <Text style={styles.value}>{state}</Text>
-          </View>
-        </View>
+          {/* Date Issued */}
+          <Text style={styles.dateIssued}>Date Issued: {dateIssuedFormatted}</Text>
 
-        {/* Patient Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Patient Information</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Patient Name:</Text>
-            <Text style={styles.value}>{patientFullName}</Text>
+          {/* Patient Information */}
+          <View style={styles.patientSection}>
+            <Text style={styles.patientLine}>Patient Name: {patientFullName}</Text>
+            <Text style={styles.patientLine}>Date of Birth: {formatDate(patientDateOfBirth)}</Text>
+            {guardianFullName && (
+              <Text style={styles.patientLine}>Guardian: {guardianFullName}</Text>
+            )}
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Date of Birth:</Text>
-            <Text style={styles.value}>{formatDate(patientDateOfBirth)}</Text>
-          </View>
-          {guardianFullName && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Guardian:</Text>
-              <Text style={styles.value}>{guardianFullName}</Text>
-            </View>
-          )}
-        </View>
 
-        {/* Absence Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Absence Period</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>From:</Text>
-            <Text style={styles.value}>{formatDate(firstDayOff)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>To:</Text>
-            <Text style={styles.value}>{formatDate(lastDayOff)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Duration:</Text>
-            <Text style={styles.value}>
-              {daysDuration} {daysDuration === 1 ? 'day' : 'days'}
+          {/* Letter Body */}
+          <View style={styles.letterBody}>
+            <Text style={styles.paragraph}>To Whom It May Concern:</Text>
+
+            <Text style={styles.paragraph}>
+              This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}.
+              Based on the assessment, please excuse this individual from {excuseFrom} and related activities
+              for the following period due to a medical condition:
+            </Text>
+
+            <Text style={styles.dateRange}>
+              {firstDayFormatted} through {lastDayFormatted}
+            </Text>
+
+            <Text style={styles.paragraph}>
+              Furthermore, the above-named patient may return to work after {lastDayFormatted}, with no
+              restrictions. If you have any questions related to this matter or need further verification,
+              please do not hesitate to contact our office. Our email and phone number are noted above.
+            </Text>
+
+            <Text style={styles.paragraph}>
+              Thank you for your understanding.
             </Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Purpose:</Text>
-            <Text style={styles.value}>{formattedPurpose}</Text>
+
+          {/* Signature Section */}
+          <View style={styles.closing}>
+            {doctorInfo.signatureUrl && (
+              <Image
+                src={doctorInfo.signatureUrl}
+                style={styles.signatureImage}
+              />
+            )}
+
+            <Text style={styles.doctorName}>
+              {doctorInfo.name}, {doctorInfo.credentials}
+            </Text>
+            <Text style={styles.npiNumber}>
+              NPI: {doctorInfo.licenseNumber}
+            </Text>
           </View>
-        </View>
-
-        {/* Medical Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Medical Information</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Reason for Absence:</Text>
-            <Text style={styles.value}>{formattedReason}</Text>
-          </View>
-
-          {symptomsList.length > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Symptoms:</Text>
-              <Text style={styles.value}>{symptomsList.join(', ')}</Text>
-            </View>
-          )}
-
-          {otherSymptomText && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Other Symptoms:</Text>
-              <Text style={styles.value}>{otherSymptomText}</Text>
-            </View>
-          )}
-
-          {additionalInformation && (
-            <>
-              <Text style={[styles.label, { marginTop: 8, marginBottom: 4 }]}>
-                Additional Notes:
-              </Text>
-              <Text style={styles.textBlock}>{additionalInformation}</Text>
-            </>
-          )}
-        </View>
-
-        {/* Medical Statement */}
-        <View style={[styles.section, { marginTop: 20 }]}>
-          <Text style={styles.textBlock}>
-            This is to certify that {patientFullName} was unable to attend {formattedPurpose.toLowerCase()}
-            {' '}from {formatDate(firstDayOff)} through {formatDate(lastDayOff)} due to medical reasons.
-            {' '}This absence was medically necessary and excused.
-          </Text>
-        </View>
-
-        {/* Signature Section */}
-        <View style={styles.signatureSection}>
-          {/* Signature Image */}
-          {doctorInfo.signatureUrl && (
-            <Image
-              src={doctorInfo.signatureUrl}
-              style={styles.signatureImage}
-            />
-          )}
-
-          {/* Signature Line */}
-          <View style={styles.signatureLine} />
-
-          {/* Doctor Information */}
-          <Text style={styles.doctorName}>{doctorInfo.name}</Text>
-          <Text style={styles.doctorCredentials}>
-            {doctorInfo.credentials}
-          </Text>
-          <Text style={styles.doctorCredentials}>
-            License Number: {doctorInfo.licenseNumber}
-          </Text>
-          <Text style={[styles.doctorCredentials, { marginTop: 5 }]}>
-            Date: {formatDate(issueDate)}
-          </Text>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.referenceNumber}>
-            Reference: {submissionId.substring(0, 12).toUpperCase()}
-          </Text>
-          <Text>
-            This document is a legitimate medical excuse note provided by a licensed medical professional.
-          </Text>
-          <Text>
-            For verification purposes, please contact Online Doctor's Note at support@onlinedoctornote.com
-          </Text>
         </View>
       </Page>
     </Document>

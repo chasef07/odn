@@ -11,6 +11,28 @@ import path from 'path'
 import fs from 'fs'
 
 /**
+ * Length of submission ID to use for reference numbers and filenames.
+ * Uses first 12 characters of UUID for balance of uniqueness and brevity.
+ *
+ * UUID format: 550e8400-e29b-41d4-a716-446655440000 (36 characters)
+ * First 12 chars: 550e8400-e29 (includes time-based segment + part of clock sequence)
+ *
+ * Collision probability: ~1 in 16 trillion
+ */
+export const REFERENCE_ID_LENGTH = 12
+
+/**
+ * Format submission ID as short reference code
+ * @param submissionId - Full UUID
+ * @param uppercase - Whether to return uppercase (default: false)
+ * @returns Shortened reference ID
+ */
+export function formatReferenceId(submissionId: string, uppercase = false): string {
+  const shortId = submissionId.substring(0, REFERENCE_ID_LENGTH)
+  return uppercase ? shortId.toUpperCase() : shortId.toLowerCase()
+}
+
+/**
  * Validate that all required environment variables are present
  */
 function validateDoctorEnvVars(): DoctorInfo {
@@ -89,26 +111,46 @@ function resolveSignaturePath(signatureUrl: string): string {
     const relativePath = signatureUrl.substring(1)
     const absolutePath = path.join(process.cwd(), 'public', relativePath)
 
-    // Check if file exists
-    if (!fs.existsSync(absolutePath)) {
+    // Security: Prevent path traversal attacks
+    const normalizedPath = path.normalize(absolutePath)
+    const publicDir = path.join(process.cwd(), 'public')
+
+    if (!normalizedPath.startsWith(publicDir)) {
       throw new Error(
-        `Signature image not found at ${absolutePath}. Please ensure the signature image exists at public${signatureUrl}`
+        'Invalid signature path: Path traversal detected. Signature must be within the public directory.'
       )
     }
 
-    return absolutePath
+    // Check if file exists
+    if (!fs.existsSync(normalizedPath)) {
+      throw new Error(
+        `Signature image not found at ${normalizedPath}. Please ensure the signature image exists at public${signatureUrl}`
+      )
+    }
+
+    return normalizedPath
   }
 
   // Otherwise, treat it as a relative path from project root
   const absolutePath = path.join(process.cwd(), signatureUrl)
 
-  if (!fs.existsSync(absolutePath)) {
+  // Security: Prevent path traversal attacks
+  const normalizedPath = path.normalize(absolutePath)
+  const projectRoot = process.cwd()
+
+  if (!normalizedPath.startsWith(projectRoot)) {
     throw new Error(
-      `Signature image not found at ${absolutePath}. Please check DOCTOR_SIGNATURE_URL configuration.`
+      'Invalid signature path: Path traversal detected. Signature must be within the project directory.'
     )
   }
 
-  return absolutePath
+  if (!fs.existsSync(normalizedPath)) {
+    throw new Error(
+      `Signature image not found at ${normalizedPath}. Please check DOCTOR_SIGNATURE_URL configuration.`
+    )
+  }
+
+  return normalizedPath
 }
 
 /**
@@ -154,9 +196,7 @@ export async function generateDoctorNotePDF(
 
     return pdfBuffer
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('PDF generation failed:', error)
-    }
+    console.error('PDF generation failed:', error)
 
     // Provide helpful error messages
     if (error instanceof Error) {
@@ -174,7 +214,5 @@ export async function generateDoctorNotePDF(
  * @returns Formatted filename (e.g., "doctors-note-abc123def456.pdf")
  */
 export function generatePDFFilename(submissionId: string): string {
-  // Use first 12 characters of submission ID for brevity
-  const shortId = submissionId.substring(0, 12).toLowerCase()
-  return `doctors-note-${shortId}.pdf`
+  return `doctors-note-${formatReferenceId(submissionId)}.pdf`
 }

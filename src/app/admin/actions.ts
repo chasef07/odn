@@ -53,9 +53,7 @@ export async function getSubmissionsForReview() {
 
     return { success: true, data: submissions }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error fetching submissions:', error)
-    }
+    console.error('Error fetching submissions:', error)
     return { success: false, error: 'Failed to fetch submissions' }
   }
 }
@@ -107,9 +105,7 @@ export async function getDashboardStats() {
       },
     }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error fetching dashboard stats:', error)
-    }
+    console.error('Error fetching dashboard stats:', error)
     return { success: false, error: 'Failed to fetch dashboard stats' }
   }
 }
@@ -131,9 +127,7 @@ export async function getMonthlyLimitData(email: string, referenceDate: Date) {
 
     return { success: true, data: result }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error getting monthly limit data:', error)
-    }
+    console.error('Error getting monthly limit data:', error)
     return { success: false, error: 'Failed to calculate monthly limit' }
   }
 }
@@ -175,9 +169,7 @@ export async function approveSubmission(submissionId: string) {
       }
     } catch (pdfError) {
       // PDF generation failed - DO NOT approve submission
-      if (process.env.NODE_ENV === 'development') {
-        console.error('PDF generation failed:', pdfError)
-      }
+      console.error('PDF generation failed:', pdfError)
       return {
         success: false,
         error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`
@@ -204,9 +196,7 @@ export async function approveSubmission(submissionId: string) {
       }
     } catch (emailError) {
       // Email failed but PDF generated successfully - log error but continue
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to send approval email:', emailError)
-      }
+      console.error('Failed to send approval email:', emailError)
       emailWarning = 'Submission approved, but email notification failed to send'
     }
 
@@ -233,9 +223,7 @@ export async function approveSubmission(submissionId: string) {
 
     return { success: true }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error approving submission:', error)
-    }
+    console.error('Error approving submission:', error)
     return {
       success: false,
       error: `Failed to approve submission: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -311,9 +299,7 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     } catch (stripeError) {
       // Refund failed - DO NOT update submission status
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Stripe refund failed:', stripeError)
-      }
+      console.error('Stripe refund failed:', stripeError)
       return {
         success: false,
         error: `Failed to process refund: ${stripeError instanceof Error ? stripeError.message : 'Unknown error'}`
@@ -340,9 +326,7 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     } catch (emailError) {
       // Email failed but refund succeeded - log error but continue
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to send denial email:', emailError)
-      }
+      console.error('Failed to send denial email:', emailError)
       emailWarning = 'Submission denied and refunded, but email notification failed to send'
     }
 
@@ -372,9 +356,7 @@ export async function denySubmission(submissionId: string, reason: string) {
 
     return { success: true }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error denying submission:', error)
-    }
+    console.error('Error denying submission:', error)
     return {
       success: false,
       error: `Failed to deny submission: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -406,9 +388,7 @@ export async function maybeSubmission(submissionId: string) {
 
     return { success: true }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error marking submission as maybe:', error)
-    }
+    console.error('Error marking submission as maybe:', error)
     return { success: false, error: 'Failed to mark submission as maybe' }
   }
 }
