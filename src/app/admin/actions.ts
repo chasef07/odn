@@ -12,7 +12,8 @@ import { revalidatePath } from 'next/cache'
 import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
 import prisma from '@/lib/prisma'
 import Stripe from 'stripe'
-import { sendDenialEmail } from '@/lib/email'
+import { sendDenialEmail, sendApprovalEmail } from '@/lib/email'
+import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 
 // Initialize Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -138,20 +139,86 @@ export async function getMonthlyLimitData(email: string, referenceDate: Date) {
 }
 
 /**
- * Approve a submission
+ * Approve a submission with PDF generation and email notification
  * @param submissionId - Submission ID to approve
- * @returns Success status
+ * @returns Success status with detailed error messages
  */
 export async function approveSubmission(submissionId: string) {
   try {
     const doctorId = await getCurrentDoctor()
 
+    // Step 1: Fetch submission to get status and patient details
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+    })
+
+    if (!submission) {
+      return { success: false, error: 'Submission not found' }
+    }
+
+    if (submission.status !== SubmissionStatus.PENDING_REVIEW) {
+      return {
+        success: false,
+        error: `Cannot approve submission with status: ${submission.status}`
+      }
+    }
+
+    // Step 2: Generate PDF (BLOCKING - must succeed)
+    let pdfBuffer: Buffer
+    let pdfFilename: string
+    try {
+      pdfBuffer = await generateDoctorNotePDF(submission)
+      pdfFilename = generatePDFFilename(submission.id)
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`PDF generated: ${pdfFilename} for submission ${submissionId}`)
+      }
+    } catch (pdfError) {
+      // PDF generation failed - DO NOT approve submission
+      if (process.env.NODE_ENV === 'development') {
+        console.error('PDF generation failed:', pdfError)
+      }
+      return {
+        success: false,
+        error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`
+      }
+    }
+
+    // Step 3: Send approval email with PDF attachment (NON-BLOCKING - log warning if fails)
+    const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+    let emailSentAt: Date | undefined
+    let emailWarning: string | undefined
+
+    try {
+      await sendApprovalEmail({
+        to: submission.email,
+        patientName,
+        notePurpose: submission.notePurpose,
+        pdfBuffer,
+        pdfFilename,
+      })
+      emailSentAt = new Date()
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Approval email sent to ${submission.email} for submission ${submissionId}`)
+      }
+    } catch (emailError) {
+      // Email failed but PDF generated successfully - log error but continue
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to send approval email:', emailError)
+      }
+      emailWarning = 'Submission approved, but email notification failed to send'
+    }
+
+    // Step 4: Single atomic database update with all fields
+    const now = new Date()
     await prisma.submission.update({
       where: { id: submissionId },
       data: {
         status: SubmissionStatus.APPROVED,
         reviewedByAdminId: doctorId,
-        reviewedAt: new Date(),
+        reviewedAt: now,
+        approvalEmailSentAt: emailSentAt, // Only set if email succeeded
       },
     })
 
@@ -159,12 +226,20 @@ export async function approveSubmission(submissionId: string) {
     revalidatePath('/admin')
     revalidatePath('/admin/review')
 
+    // Return success with optional warning
+    if (emailWarning) {
+      return { success: true, warning: emailWarning }
+    }
+
     return { success: true }
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Error approving submission:', error)
     }
-    return { success: false, error: 'Failed to approve submission' }
+    return {
+      success: false,
+      error: `Failed to approve submission: ${error instanceof Error ? error.message : 'Unknown error'}`
+    }
   }
 }
 

@@ -18,6 +18,7 @@ This document provides context and guidelines for Claude Code when working with 
 - **Database**: PostgreSQL (Prisma Cloud) + Prisma ORM
 - **Authentication**: Better Auth (email/password provider with bcrypt)
 - **Email**: React Email 5.0.1 + Resend 4.0.1
+- **PDF Generation**: @react-pdf/renderer (doctor's notes)
 - **Testing**: Vitest + Testing Library (249 passing tests)
 - **Analytics**: Vercel Analytics
 - **Build**: Turbopack
@@ -43,6 +44,7 @@ src/
 │   ├── form/              # Reusable form components
 │   └── ui/                # shadcn/ui components
 ├── emails/                # React Email templates
+│   ├── ApprovalEmail.tsx  # Modern approval notification email
 │   ├── DenialEmail.tsx    # Modern denial notification email
 │   └── README.md          # Email template documentation
 ├── lib/                   # Business logic & utilities
@@ -53,12 +55,16 @@ src/
 │   ├── email.ts                 # Email sending utilities
 │   ├── auth.ts                  # Better Auth config
 │   ├── auth-client.ts           # Better Auth client utilities
-│   └── prisma.ts                # Prisma client singleton
+│   ├── prisma.ts                # Prisma client singleton
+│   └── pdf/                     # PDF generation utilities
+│       ├── doctor-note-template.tsx  # PDF template using @react-pdf/renderer
+│       └── generate-pdf.ts      # PDF generation and validation
 └── prisma/
     └── schema.prisma      # Database schema
 scripts/
 ├── create-doctor-user.ts        # Create new doctor account
-└── delete-all-users.ts          # Delete all users (dev only)
+├── delete-all-users.ts          # Delete all users (dev only)
+└── test-approval-flow.ts        # Test PDF generation locally
 tests/
 ├── setup/                 # Test infrastructure
 │   ├── db-helpers.ts     # Database test utilities
@@ -335,6 +341,12 @@ BETTER_AUTH_URL=http://localhost:3000   # Base URL for auth
 RESEND_API_KEY=re_...                    # Resend API key
 RESEND_FROM_EMAIL=noreply@onlinedoctornote.com  # From email address
 
+# Doctor Information (PDF Generation)
+DOCTOR_NAME="Dr. John Smith"             # Doctor's full name for PDF
+DOCTOR_CREDENTIALS="MD"                  # Medical credentials (MD, DO, NP, etc.)
+DOCTOR_LICENSE_NUMBER="CA12345"          # Medical license number
+DOCTOR_SIGNATURE_URL="/images/doctor-signature.png"  # Path to signature image
+
 # Cron Job Security
 CRON_SECRET=...                          # Cron job secret (generate with: openssl rand -hex 32)
 
@@ -383,9 +395,9 @@ NODE_ENV=development                     # Environment (development/production)
 5. **Hardcoded payment amount**: Should be configurable via environment variable or admin settings
 6. **No email confirmation**: Payment succeeds but no receipt or confirmation email sent to user
 7. **No admin notifications**: Doctors are not notified when new submissions arrive
-8. **No approval email**: Users are not notified when their submission is approved (denial emails work)
-9. **localStorage only for form data**: Form progress not synced to server, lost on device change
-10. **No dark mode**: UI only supports light mode currently
+8. **localStorage only for form data**: Form progress not synced to server, lost on device change
+9. **No dark mode**: UI only supports light mode currently
+10. **No PDF storage**: Doctor's notes are generated on-the-fly and not persisted for re-download
 
 ## Performance Considerations
 
@@ -466,10 +478,14 @@ npx tsc --noEmit          # Check TypeScript errors
 
 10. **Admin Portal**: Protected by Better Auth. All admin routes require authentication. Doctor passwords are hashed with bcrypt (10 rounds).
 
-11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission → Admin Review → Approve/Deny → Denial Email (if denied)
+11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission → Admin Review → Approve/Deny → Approval Email with PDF (if approved) or Denial Email with Refund (if denied)
 
-12. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Denial emails are automatically sent with refund confirmations. Preview emails with `npm run email`.
+12. **Approval Automation**: When doctors approve submissions, the system automatically generates a professional PDF doctor's note using @react-pdf/renderer and sends it via email with Resend. PDF generation is BLOCKING (must succeed for approval), while email sending is NON-BLOCKING (logs warning if fails). Doctor information (name, credentials, license number, signature) is configured via environment variables for single-doctor systems.
 
-13. **Analytics**: Vercel Analytics is integrated in `src/app/layout.tsx` for tracking page views and web vitals in production.
+13. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Approval emails include PDF attachments. Denial emails are automatically sent with refund confirmations. Preview emails with `npm run email`.
 
-14. **Stripe Webhooks (Local Dev)**: Use Stripe CLI (`stripe listen --forward-to localhost:3000/api/webhooks/stripe`) to test webhook events locally. The webhook secret from CLI output must be added to `.env.local`.
+14. **PDF Generation**: Doctor's notes are generated on-the-fly using @react-pdf/renderer with a professional medical document template. PDFs include patient information, absence dates, symptoms, and doctor's signature. Test PDF generation locally with `npx tsx scripts/test-approval-flow.ts`.
+
+15. **Analytics**: Vercel Analytics is integrated in `src/app/layout.tsx` for tracking page views and web vitals in production.
+
+16. **Stripe Webhooks (Local Dev)**: Use Stripe CLI (`stripe listen --forward-to localhost:3000/api/webhooks/stripe`) to test webhook events locally. The webhook secret from CLI output must be added to `.env.local`.
