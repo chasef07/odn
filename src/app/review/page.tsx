@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format, parse } from 'date-fns'
+import Link from 'next/link'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { FormLayout } from '@/components/form-layout'
@@ -535,12 +536,19 @@ export default function ReviewPage() {
               {...register('agreeTerms')}
               className="border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-primary/40 mt-1 h-5 w-5 flex-shrink-0 cursor-pointer rounded border-2 focus-visible:ring-2"
             />
-            <Label
+            <label
               htmlFor="agreeTerms"
               className="text-foreground flex-1 cursor-pointer text-sm leading-relaxed font-normal"
             >
-              I agree to the Terms of Service and Privacy Policy.
-            </Label>
+              I agree to the{' '}
+              <Link href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                Terms of Service
+              </Link>
+              {' '}and{' '}
+              <Link href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                Privacy Policy
+              </Link>.
+            </label>
           </div>
           {errors.agreeTerms && <p className="text-sm text-red-500">{errors.agreeTerms.message}</p>}
         </div>
