@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { render } from '@react-email/render'
 import DenialEmail from '@/emails/DenialEmail'
+import ApprovalEmail from '@/emails/ApprovalEmail'
 
 // Initialize Resend client with API key from environment
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -51,6 +52,62 @@ export async function sendDenialEmail({
     console.error('Failed to send denial email:', error)
     throw new Error(
       `Failed to send denial email: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+/**
+ * Sends an approval notification email to the patient with PDF attachment
+ *
+ * @param to - Recipient email address
+ * @param patientName - Patient's full name
+ * @param notePurpose - Purpose of the note (work, school, both, other)
+ * @param pdfBuffer - PDF file as Buffer
+ * @param pdfFilename - Filename for the PDF attachment
+ * @returns Promise that resolves to the email send result
+ * @throws Error if email sending fails
+ */
+export async function sendApprovalEmail({
+  to,
+  patientName,
+  notePurpose,
+  pdfBuffer,
+  pdfFilename,
+}: {
+  to: string
+  patientName: string
+  notePurpose: string
+  pdfBuffer: Buffer
+  pdfFilename: string
+}) {
+  try {
+    // Render the React Email component to HTML
+    const emailHtml = await render(
+      ApprovalEmail({
+        patientName,
+        notePurpose,
+      })
+    )
+
+    // Send email with PDF attachment
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: "Your Doctor's Note is Approved!",
+      html: emailHtml,
+      attachments: [
+        {
+          filename: pdfFilename,
+          content: pdfBuffer,
+        },
+      ],
+    })
+
+    return result
+  } catch (error) {
+    console.error('Failed to send approval email:', error)
+    throw new Error(
+      `Failed to send approval email: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
   }
 }
