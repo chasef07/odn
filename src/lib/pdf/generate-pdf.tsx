@@ -3,6 +3,7 @@
  * Generates doctor's note PDFs from submission data
  */
 
+import React from 'react'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { Submission } from '@prisma/client'
 import { DoctorNoteTemplate, DoctorNoteData, DoctorInfo } from './doctor-note-template'
@@ -140,11 +141,11 @@ export async function generateDoctorNotePDF(
 
     // Step 4: Generate PDF using template
     const pdfBuffer = await renderToBuffer(
-      DoctorNoteTemplate({
-        submissionData,
-        doctorInfo: doctorInfoWithResolvedPath,
-        issueDate,
-      })
+      <DoctorNoteTemplate
+        submissionData={submissionData}
+        doctorInfo={doctorInfoWithResolvedPath}
+        issueDate={issueDate}
+      />
     )
 
     if (process.env.NODE_ENV === 'development') {

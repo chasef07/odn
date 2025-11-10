@@ -225,11 +225,11 @@ function formatAbsenceReason(reason: string, other?: string | null): string {
 /**
  * Doctor's Note PDF Template Component
  */
-export const DoctorNoteTemplate: React.FC<DoctorNoteTemplateProps> = ({
+export function DoctorNoteTemplate({
   submissionData,
   doctorInfo,
   issueDate,
-}) => {
+}: DoctorNoteTemplateProps): React.ReactElement {
   const {
     patientFirstName,
     patientLastName,
