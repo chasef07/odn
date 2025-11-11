@@ -1,5 +1,14 @@
 import Header from '@/components/Header'
 import Link from 'next/link'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description: 'OnlineDoctorNote privacy policy. Learn how we protect your personal health information and comply with HIPAA regulations.',
+  alternates: {
+    canonical: '/privacy-policy',
+  },
+}
 
 export default function PrivacyPolicyPage() {
   return (

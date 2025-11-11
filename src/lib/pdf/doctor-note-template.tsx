@@ -75,11 +75,27 @@ const styles = StyleSheet.create({
     paddingLeft: 72,
     paddingRight: 72,
     borderBottom: '1pt solid #CBD5E1', // Subtle separator
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerLeft: {
+    flexDirection: 'column',
+  },
+  headerRight: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
   },
   headerLine: {
     fontSize: 10,
     marginBottom: 2,
     color: '#475569', // Slightly darker gray for contrast
+  },
+  clinicName: {
+    fontSize: 14,
+    fontFamily: 'Times-Bold',
+    marginBottom: 4,
+    color: '#1e40af', // Professional blue color
   },
   contentSection: {
     paddingLeft: 72,
@@ -204,9 +220,14 @@ export function DoctorNoteTemplate({
       <Page size="LETTER" style={styles.page}>
         {/* Header Section - Professional Letterhead */}
         <View style={styles.headerSection}>
-          <Text style={styles.headerLine}>Proudly serving patients in over 40 states</Text>
-          <Text style={styles.headerLine}>Email: hello@onedoctornote.com</Text>
-          <Text style={styles.headerLine}>Phone: (917) 300-8543</Text>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerLine}>Proudly serving patients in over 40 states</Text>
+            <Text style={styles.headerLine}>Email: hello@platinumhealthclinic.com</Text>
+            <Text style={styles.headerLine}>Phone: (917) 300-8543</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <Text style={styles.clinicName}>Platinum Health Clinic</Text>
+          </View>
         </View>
 
         {/* Content Section */}
@@ -241,7 +262,7 @@ export function DoctorNoteTemplate({
             </Text>
 
             <Text style={styles.paragraph}>
-              Furthermore, the above-named patient may return to work after {lastDayFormatted}, with no
+              Furthermore, the above-named patient may return to {excuseFrom} after {lastDayFormatted}, with no
               restrictions. If you have any questions related to this matter or need further verification,
               please do not hesitate to contact our office. Our email and phone number are noted above.
             </Text>

@@ -1,5 +1,14 @@
 import Header from '@/components/Header'
 import Link from 'next/link'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description: 'OnlineDoctorNote terms of service. Read our terms and conditions for using our online medical documentation service.',
+  alternates: {
+    canonical: '/terms-of-service',
+  },
+}
 
 export default function TermsOfServicePage() {
   return (

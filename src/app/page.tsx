@@ -358,6 +358,83 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
+
+      {/* Structured Data - FAQ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: [
+              {
+                '@type': 'Question',
+                name: 'How long does it take to get my note?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Most notes are delivered within 2-4 hours. Our board-certified physicians review requests promptly to ensure you receive your note as quickly as possible.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'Is this legal?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Yes, completely legal. Our notes are signed by licensed, board-certified physicians who review each case individually. These are legitimate medical documents.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'What can I use this note for?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Our notes can be used for work absences, school absences, and similar short-term needs. They cannot be used for FMLA, workers\' compensation, legal issues, or disability claims.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'What if my employer or school doesn\'t accept it?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'We offer a 100% money-back guarantee. If your note is not accepted, we\'ll issue a full refund. Our notes are accepted by the vast majority of employers and schools nationwide.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'What information do I need to provide?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'You\'ll need basic personal information, the reason for your absence, dates you need covered, and contact information. The entire process takes less than 2 minutes to complete.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'What states do you serve?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'We currently serve 44 US states. Our physicians are licensed in multiple states to ensure compliance with local medical regulations.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'Is my information secure?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Absolutely. We are HIPAA compliant and use industry-standard encryption to protect your personal and medical information. Your privacy is our top priority.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'Do you accept insurance?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'No, we do not accept insurance. However, at only $24.95, our service is an affordable out-of-pocket option that saves you the time and expense of a traditional doctor visit.',
+                },
+              },
+            ],
+          }),
+        }}
+      />
     </div>
   )
 }

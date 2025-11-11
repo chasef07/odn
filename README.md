@@ -8,6 +8,7 @@ This application provides a user-friendly interface for individuals to obtain do
 
 ## Features
 
+### Core Features
 - **Multi-step Form Flow**: 10-11 step guided form with progress tracking
 - **Admin Portal**: Secure doctor dashboard for reviewing and approving submissions
 - **Smart Validation**: Real-time form validation with Zod schemas
@@ -18,8 +19,31 @@ This application provides a user-friendly interface for individuals to obtain do
 - **Form Persistence**: Auto-saves progress to localStorage
 - **Database**: PostgreSQL with Prisma ORM for production data
 - **Comprehensive Testing**: 249 automated tests passing with 80%+ coverage
-- **Modern Emails**: Beautiful React Email templates with Tailwind CSS
-- **Analytics**: Vercel Analytics for tracking page views and web vitals
+
+### Email & Notifications
+- **Modern Email Templates**: Beautiful React Email 5.0 templates with Tailwind CSS
+- **Approval Emails**: Automated emails with PDF attachment on approval
+- **Denial Emails**: Automated refund notification emails
+- **Email Provider**: Resend for reliable email delivery
+- **Responsive Design**: Mobile-optimized email layouts
+
+### PDF Generation
+- **Professional PDFs**: Auto-generated doctor's notes using @react-pdf/renderer
+- **Platinum Health Clinic Branding**: Custom letterhead and contact information
+- **Digital Signatures**: Doctor signature included on all notes
+- **Instant Delivery**: PDF attached to approval emails
+
+### Admin Features
+- **Approval Automation**: One-click approval with automatic PDF generation and email
+- **Monthly Limit Tracking**: Flags patients exceeding 7 days per month (soft limit)
+- **Refund Processing**: Automatic Stripe refunds on denial
+- **Review Dashboard**: FIFO queue with submission filtering
+
+### SEO & Analytics
+- **SEO Optimized**: Comprehensive metadata, OpenGraph, structured data
+- **Search Engine Ready**: robots.txt, sitemap.xml, llms-full.txt
+- **Rich Snippets**: FAQPage schema for Google search results
+- **Vercel Analytics**: Real-time page views and web vitals tracking
 
 ## Tech Stack
 
@@ -63,21 +87,26 @@ cp .env.example .env.local
 
 ### Environment Variables
 
-Create a `.env.local` file with:
+Create a `.env.local` file with the following required variables:
 
 ```env
+# Site Configuration (SEO)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000  # Change to production domain for prod
+
 # Stripe Configuration
 STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_PAYMENT_AMOUNT=2495
+NEXT_PUBLIC_PAYMENT_AMOUNT=2495  # Amount in cents ($24.95)
+#STRIPE_PRICE_ID=price_...  # Optional: For future Stripe Price migration
 
 # Database Configuration
 DATABASE_URL=postgresql://user:password@host:5432/database
+PRISMA_DATABASE_URL=prisma+postgres://accelerate.prisma-data.net/?api_key=your_api_key
 
 # Better Auth Configuration
 BETTER_AUTH_SECRET=your-auth-secret-here  # Generate with: openssl rand -base64 32
-BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_URL=http://localhost:3000  # Change to production domain for prod
 
 # Cron Job Security
 CRON_SECRET=your-cron-secret-here  # Generate with: openssl rand -hex 32
@@ -85,7 +114,15 @@ CRON_SECRET=your-cron-secret-here  # Generate with: openssl rand -hex 32
 # Email Configuration (Resend)
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=noreply@onlinedoctornote.com
+
+# Doctor Information (for PDF generation)
+DOCTOR_NAME="Dr. Jason Buchwald"
+DOCTOR_CREDENTIALS="MD"
+DOCTOR_LICENSE_NUMBER="1558307702"
+DOCTOR_SIGNATURE_URL="/images/doctor-signature.png"
 ```
+
+See `.env.example` for complete configuration with comments.
 
 ### Development
 
@@ -383,10 +420,62 @@ The project uses GitHub Actions for continuous integration:
 7. Push to the branch (`git push origin feature/amazing-feature`)
 8. Open a Pull Request
 
+## Production Deployment
+
+Before deploying to production:
+
+1. **Set all environment variables** in your hosting platform (Vercel, AWS, etc.)
+2. **Update domain-specific variables**:
+   - `NEXT_PUBLIC_SITE_URL=https://onlinedoctornote.com`
+   - `BETTER_AUTH_URL=https://onlinedoctornote.com`
+   - `RESEND_FROM_EMAIL=noreply@onlinedoctornote.com`
+3. **Configure Stripe webhooks** to point to production URL
+4. **Run database migrations**: `npx prisma migrate deploy`
+5. **Create doctor account** for admin access
+6. **Test all critical paths**: Payment flow, approval flow, refund flow
+7. **Submit sitemap** to Google Search Console and Bing Webmaster Tools
+
+See [docs/PRODUCTION_DEPLOYMENT.md](./docs/PRODUCTION_DEPLOYMENT.md) for complete deployment checklist.
+
+## Recent Updates (v3.0.0)
+
+### PDF Redesign
+- Redesigned doctor's note template with professional letterhead
+- Added Platinum Health Clinic branding
+- Updated contact information (hello@platinumhealthclinic.com)
+- Fixed dynamic "return to work/school" text based on note purpose
+
+### Email System
+- Updated color scheme to #009ed9 (cyan blue)
+- Fixed OKLCH color compatibility issues for email clients
+- Modern responsive design with Tailwind CSS
+
+### SEO Implementation
+- Added comprehensive metadata and OpenGraph tags
+- Implemented robots.txt for crawler control
+- Created dynamic sitemap.xml for search engines
+- Added llms-full.txt for AI crawler instructions
+- Implemented FAQPage structured data for rich snippets
+- Added MedicalBusiness schema.org markup
+
 ## Documentation
 
 - [Testing Guide](./TESTING.md) - Comprehensive testing documentation
 - [Claude Code Guide](./CLAUDE.md) - Information for Claude Code AI
+- [SEO Guide](./docs/SEO_GUIDE.md) - SEO optimization checklist and best practices
+- [Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md) - Production deployment checklist
+- [Stripe Migration Guide](./docs/STRIPE_MIGRATION_GUIDE.md) - Migrating to Stripe Price IDs
+
+## Known Issues & Future Improvements
+
+### Current Limitations
+- Monthly limit tracking uses email only (can be bypassed with multiple emails)
+- No duplicate submission detection
+- Hardcoded payment amount (see Stripe Migration Guide for dynamic pricing)
+- No customer testimonials or reviews system
+- No admin notification system for new submissions
+
+See [CLAUDE.md](./CLAUDE.md) for complete technical debt list.
 
 ## License
 
@@ -394,4 +483,4 @@ This project is private and proprietary.
 
 ## Support
 
-For issues or questions, please open an issue on GitHub.
+For issues or questions, please contact hello@onlinedoctornote.com or open an issue on GitHub.

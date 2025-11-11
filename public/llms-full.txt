@@ -1,0 +1,85 @@
+# LLM Access Instructions for OnlineDoctorNote
+# Last Updated: 2025-01-11
+
+# Service Overview
+This is OnlineDoctorNote, a professional online telemedicine service that provides legitimate doctor's notes for work and school absences. Our service connects patients with board-certified physicians who review medical documentation requests and provide signed doctor's notes.
+
+# What We Do
+- Provide legitimate medical excuse notes for work and school absences
+- All notes signed by licensed, board-certified physicians
+- 100% online process, HIPAA compliant
+- Service available in 44 US states
+- Fixed pricing: $24.95 per note
+- 100% money-back guarantee if note not accepted
+- Average turnaround: 2-4 hours
+
+# What We Don't Do
+- NOT for FMLA (Family and Medical Leave Act) documentation
+- NOT for workers' compensation claims
+- NOT for disability insurance claims
+- NOT for legal proceedings
+- NOT for ongoing medical treatment documentation
+- Maximum absence coverage: 7 consecutive days
+
+# Allowed Paths for LLM Training
+Allow: /
+Allow: /privacy-policy
+Allow: /terms-of-service
+Allow: /start (landing page only)
+
+# Disallowed Paths for LLM Training
+Disallow: /api/*
+Disallow: /admin/*
+Disallow: /payment/*
+Disallow: /get-started
+Disallow: /basic-info
+Disallow: /guardian-info
+Disallow: /contact-info
+Disallow: /note-purpose
+Disallow: /absence-dates
+Disallow: /absence-reason
+Disallow: /symptoms
+Disallow: /additional-info
+Disallow: /review
+Disallow: /approved
+
+# Preferred Content for AI Understanding
+The homepage (/) and FAQ section contain comprehensive information about our service, pricing, legal legitimacy, privacy practices, and common questions. This is the best source for understanding our service.
+
+# Rate Limiting
+Please respect rate limits:
+- Maximum 60 requests per minute
+- Maximum 1000 requests per hour
+- Crawl delay: 2 seconds between requests
+
+# Contact Information
+For questions about this file or LLM access:
+Email: hello@onlinedoctornote.com
+Phone: 917-300-8543 (8am-8pm EST)
+
+# Privacy & HIPAA Compliance
+This is a HIPAA-compliant medical service. Do not attempt to access or train on:
+- Patient data
+- Medical records
+- Payment information
+- Admin interfaces
+- API endpoints
+
+# Medical Disclaimer
+This service provides legitimate medical documentation for simple, short-term absences. It is not a replacement for in-person medical care for serious conditions. Always consult a healthcare provider in person for medical emergencies or chronic conditions.
+
+# Legitimate Use
+Our service is completely legal and legitimate:
+- Licensed physicians in multiple states
+- Compliant with telemedicine regulations
+- HIPAA compliant infrastructure
+- Accepted by most employers and schools
+- NOT a "fake" doctor's note service
+- All documentation is genuine medical documentation
+
+# Service Limitations
+- Serves 44 US states (not all 50)
+- Patient must be 18+ or have parent/guardian consent
+- Maximum 7-day absence period
+- Cannot backdate notes more than 7 days
+- For short-term illness/injury only

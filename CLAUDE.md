@@ -103,6 +103,23 @@ tests/
 
 **Implementation**: `src/app/api/create-payment-intent/route.ts`, `src/app/api/verify-payment/route.ts`
 
+### Monthly Limit Tracking
+
+- **Limit**: 7 days of excused absences per calendar month (soft limit - warning only)
+- **Identifier**: Patient email address (case-insensitive)
+- **Counting**: Only APPROVED submissions count toward limit
+- **Time period**: Calendar month (not rolling 30 days)
+- **Implementation**: `src/components/admin/SubmissionsList.tsx` (lines 156-196)
+- **Warning Display**: Appears in admin portal with yellow badge when limit exceeded
+- **Edge Cases**:
+  - Can be bypassed with multiple email addresses
+  - Does not consider DOB or patient name (only email)
+  - Different names with same email are treated as same patient
+  - Same name with different emails are treated as different patients
+  - No validation if patient already exceeded limit before current submission
+
+**Note**: This is a soft limit for informational purposes only. Doctors can still approve submissions that exceed the monthly limit.
+
 ## Form Flow
 
 The application uses a multi-step form with conditional steps:
@@ -324,6 +341,9 @@ npx prisma migrate dev  # Create migration (production)
 Required variables:
 
 ```env
+# Site Configuration (SEO)
+NEXT_PUBLIC_SITE_URL=https://onlinedoctornote.com  # Change to production domain for prod (http://localhost:3000 for dev)
+
 # Stripe Configuration
 STRIPE_SECRET_KEY=sk_test_...           # Stripe secret key
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=...  # Stripe publishable key
@@ -332,19 +352,20 @@ STRIPE_WEBHOOK_SECRET=whsec_...         # Webhook signature verification
 
 # Database Configuration
 DATABASE_URL=postgresql://...            # PostgreSQL connection string (Prisma Cloud)
+PRISMA_DATABASE_URL=prisma+postgres://accelerate.prisma-data.net/?api_key=...  # Prisma Accelerate
 
 # Better Auth Configuration
 BETTER_AUTH_SECRET=...                   # Better Auth secret (generate with: openssl rand -base64 32)
-BETTER_AUTH_URL=http://localhost:3000   # Base URL for auth
+BETTER_AUTH_URL=http://localhost:3000   # Base URL for auth (change to production domain for prod)
 
 # Email Configuration (Resend)
 RESEND_API_KEY=re_...                    # Resend API key
 RESEND_FROM_EMAIL=noreply@onlinedoctornote.com  # From email address
 
 # Doctor Information (PDF Generation)
-DOCTOR_NAME="Dr. John Smith"             # Doctor's full name for PDF
+DOCTOR_NAME="Dr. Jason Buchwald"         # Doctor's full name for PDF
 DOCTOR_CREDENTIALS="MD"                  # Medical credentials (MD, DO, NP, etc.)
-DOCTOR_LICENSE_NUMBER="CA12345"          # Medical license number
+DOCTOR_LICENSE_NUMBER="1558307702"       # Medical license number
 DOCTOR_SIGNATURE_URL="/images/doctor-signature.png"  # Path to signature image
 
 # Cron Job Security
@@ -386,18 +407,83 @@ NODE_ENV=development                     # Environment (development/production)
 - [ ] Documentation updated if needed
 - [ ] Database schema changes have migrations (`npx prisma migrate dev`)
 
+## SEO Implementation
+
+### Current SEO Features (v3.0.0)
+
+1. **Comprehensive Metadata** (`src/app/layout.tsx`):
+   - Site title with template support
+   - Meta description optimized for search engines
+   - Keywords targeting medical excuse notes
+   - OpenGraph tags for social sharing
+   - Twitter Card support (when available)
+   - Canonical URLs for duplicate content prevention
+   - Robots meta tags for indexing control
+
+2. **Robots.txt** (`src/app/robots.ts`):
+   - Allows indexing of public pages (homepage, /start, privacy, terms)
+   - Blocks internal pages (admin portal, API routes, form steps)
+   - Custom rules for AI crawlers (GPTBot, Claude-Web, anthropic-ai)
+   - Sitemap reference for search engines
+
+3. **Sitemap** (`src/app/sitemap.ts`):
+   - Dynamic XML sitemap generation
+   - Priority and change frequency hints
+   - Automatic last modified timestamps
+   - Includes only public-facing pages
+
+4. **AI Crawler Instructions** (`public/llms-full.txt`):
+   - Detailed service description for AI assistants
+   - Allowed/disallowed paths for context gathering
+   - Rate limiting and HIPAA compliance notes
+   - Proper citation instructions
+
+5. **Structured Data** (`src/app/page.tsx`):
+   - FAQPage schema.org markup for rich snippets
+   - 8 common questions with answers
+   - Helps Google display FAQ rich results in search
+
+6. **Form Page Protection**:
+   - All 12 form steps have `noindex` metadata
+   - Prevents indexing of incomplete user flows
+   - Protects user privacy during form submission
+
+### SEO Best Practices Implemented
+
+- ✅ Mobile-responsive design (mobile-first Tailwind CSS)
+- ✅ Fast page loads (Next.js optimization, Turbopack)
+- ✅ Clean URL structure (`/start`, `/privacy-policy`)
+- ✅ Semantic HTML5 markup
+- ✅ Image optimization with Next.js `<Image>` component
+- ✅ HTTPS enforcement (production)
+- ✅ Sitemap submission ready
+- ✅ OpenGraph images configured
+- ✅ Schema.org structured data
+
+### Post-Launch SEO Tasks
+
+See [docs/SEO_GUIDE.md](./docs/SEO_GUIDE.md) for complete post-deployment checklist:
+- Submit sitemap to Google Search Console
+- Submit sitemap to Bing Webmaster Tools
+- Monitor indexing status
+- Track keyword rankings
+- Analyze search performance
+
 ## Known Issues & Technical Debt
 
 1. **No component tests**: Need to add React component tests for form pages and admin portal
 2. **No E2E tests**: Consider adding Playwright tests for complete user flows
 3. **No rate limiting**: Payment endpoints and admin API could be abused
 4. **No duplicate detection**: Users could submit multiple times with different payment intents
-5. **Hardcoded payment amount**: Should be configurable via environment variable or admin settings
+5. **Hardcoded payment amount**: Should be configurable via environment variable or admin settings (see [docs/STRIPE_MIGRATION_GUIDE.md](./docs/STRIPE_MIGRATION_GUIDE.md))
 6. **No email confirmation**: Payment succeeds but no receipt or confirmation email sent to user
 7. **No admin notifications**: Doctors are not notified when new submissions arrive
 8. **localStorage only for form data**: Form progress not synced to server, lost on device change
 9. **No dark mode**: UI only supports light mode currently
 10. **No PDF storage**: Doctor's notes are generated on-the-fly and not persisted for re-download
+11. **Monthly limit bypass**: Email-based tracking can be bypassed with multiple email addresses
+12. **No customer testimonials**: Would improve social proof and SEO
+13. **No blog or content marketing**: Could improve organic search rankings
 
 ## Performance Considerations
 
@@ -482,10 +568,14 @@ npx tsc --noEmit          # Check TypeScript errors
 
 12. **Approval Automation**: When doctors approve submissions, the system automatically generates a professional PDF doctor's note using @react-pdf/renderer and sends it via email with Resend. PDF generation is BLOCKING (must succeed for approval), while email sending is NON-BLOCKING (logs warning if fails). Doctor information (name, credentials, license number, signature) is configured via environment variables for single-doctor systems.
 
-13. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Approval emails include PDF attachments. Denial emails are automatically sent with refund confirmations. Preview emails with `npm run email`.
+13. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Brand color is #009ed9 (cyan blue). Approval emails include PDF attachments. Denial emails are automatically sent with refund confirmations. Preview emails with `npm run email`. IMPORTANT: Email templates use standard hex colors (not OKLCH) for maximum email client compatibility.
 
-14. **PDF Generation**: Doctor's notes are generated on-the-fly using @react-pdf/renderer with a professional medical document template. PDFs include patient information, absence dates, symptoms, and doctor's signature. Test PDF generation locally with `npx tsx scripts/test-approval-flow.ts`.
+14. **PDF Generation**: Doctor's notes are generated on-the-fly using @react-pdf/renderer with a professional medical document template branded with Platinum Health Clinic. PDFs include patient information, absence dates, symptoms, doctor's signature, and dynamic "return to work/school" text based on note purpose. Contact email is hello@platinumhealthclinic.com. Test PDF generation locally with `npx tsx scripts/test-approval-flow.ts`.
 
 15. **Analytics**: Vercel Analytics is integrated in `src/app/layout.tsx` for tracking page views and web vitals in production.
 
 16. **Stripe Webhooks (Local Dev)**: Use Stripe CLI (`stripe listen --forward-to localhost:3000/api/webhooks/stripe`) to test webhook events locally. The webhook secret from CLI output must be added to `.env.local`.
+
+17. **SEO Optimization**: Comprehensive SEO implementation including robots.txt, sitemap.xml, metadata optimization, OpenGraph tags, structured data (FAQPage schema), and AI crawler instructions (llms-full.txt). All form pages are noindexed to protect user privacy. See "SEO Implementation" section for details.
+
+18. **Monthly Limit Tracking**: The admin portal displays a warning when a patient (identified by email) has been approved for more than 7 days in a calendar month. This is a soft limit for informational purposes only - doctors can still approve submissions that exceed it. The system only counts APPROVED submissions and uses case-insensitive email matching. Note that this can be bypassed with multiple email addresses.
