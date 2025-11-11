@@ -57,7 +57,7 @@ export const DenialEmail = ({
           <Container className="mx-auto my-8 max-w-2xl">
             {/* Header with Logo */}
             <Section className="bg-white px-8 py-4 rounded-t-2xl border-b border-gray-200">
-              <Text className="text-2xl font-bold m-0" style={{ color: 'oklch(0.65 0.18 230)' }}>
+              <Text className="text-2xl font-bold m-0" style={{ color: '#009ed9' }}>
                 OnlineDoctorNote
               </Text>
             </Section>
@@ -75,7 +75,7 @@ export const DenialEmail = ({
               </Text>
 
               {/* Refund Card */}
-              <Section className="rounded-2xl p-6 mb-8 bg-white" style={{ border: '2px solid oklch(0.65 0.18 230)' }}>
+              <Section className="rounded-2xl p-6 mb-8 bg-white" style={{ border: '2px solid #009ed9' }}>
                 <Text className="text-sm font-semibold uppercase tracking-wide m-0 mb-2 text-gray-700">
                   Refund Processed
                 </Text>
@@ -98,7 +98,7 @@ export const DenialEmail = ({
                 <div className="space-y-4">
                   <Row className="items-start">
                     <Column className="w-8">
-                      <Text className="text-xl font-bold m-0" style={{ color: 'oklch(0.65 0.18 230)' }}>
+                      <Text className="text-xl font-bold m-0" style={{ color: '#009ed9' }}>
                         1
                       </Text>
                     </Column>
@@ -112,7 +112,7 @@ export const DenialEmail = ({
 
                   <Row className="items-start">
                     <Column className="w-8">
-                      <Text className="text-xl font-bold m-0" style={{ color: 'oklch(0.65 0.18 230)' }}>
+                      <Text className="text-xl font-bold m-0" style={{ color: '#009ed9' }}>
                         2
                       </Text>
                     </Column>
@@ -126,7 +126,7 @@ export const DenialEmail = ({
 
                   <Row className="items-start">
                     <Column className="w-8">
-                      <Text className="text-xl font-bold m-0" style={{ color: 'oklch(0.65 0.18 230)' }}>
+                      <Text className="text-xl font-bold m-0" style={{ color: '#009ed9' }}>
                         3
                       </Text>
                     </Column>
@@ -146,7 +146,7 @@ export const DenialEmail = ({
                 <Button
                   href="https://onlinedoctornote.com"
                   className="text-white font-semibold py-3 px-8 rounded-lg text-base no-underline inline-block"
-                  style={{ backgroundColor: 'oklch(0.65 0.18 230)' }}
+                  style={{ backgroundColor: '#009ed9' }}
                 >
                   View FAQs
                 </Button>
@@ -163,7 +163,7 @@ export const DenialEmail = ({
                   <Link
                     href="mailto:hello@onlinedoctornote.com"
                     className="font-medium no-underline"
-                    style={{ color: 'oklch(0.65 0.18 230)' }}
+                    style={{ color: '#009ed9' }}
                   >
                     hello@onlinedoctornote.com
                   </Link>
