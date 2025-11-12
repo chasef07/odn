@@ -251,11 +251,6 @@ export function DoctorNoteTemplate({
   const lastDayFormatted = formatDate(lastDayOff)
   const dobFormatted = formatDate(patientDateOfBirth)
 
-  // Calculate return date (day after last day off)
-  const returnDate = new Date(lastDayOff)
-  returnDate.setDate(returnDate.getDate() + 1)
-  const returnDateFormatted = formatDate(returnDate)
-
   return (
     <Document>
       <Page size="LETTER" style={styles.page} wrap={false}>
@@ -319,7 +314,7 @@ export function DoctorNoteTemplate({
               </View>
 
               <Text style={styles.returnText}>
-                Furthermore, the above-named patient <Text style={styles.boldText}>may return to {excuseFrom} after {returnDateFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                Furthermore, the above-named patient <Text style={styles.boldText}>may return to {excuseFrom} after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
               </Text>
 
               <Text style={styles.paragraph}>Thank you,</Text>
