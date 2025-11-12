@@ -202,58 +202,58 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {/* Testimonial 1 */}
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
+            <figure className="rounded-2xl bg-white p-8 shadow-sm">
               {/* 5 Stars */}
-              <div className="mb-6 flex gap-1">
+              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-6 w-6 fill-primary text-primary" />
+                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
                 ))}
               </div>
 
               {/* Quote */}
-              <p className="mb-6 text-lg leading-relaxed text-gray-800">
+              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
                 I got my letter within 15 minutes! What a great service.
-              </p>
+              </blockquote>
 
               {/* Author */}
-              <p className="font-semibold text-gray-600">J. S</p>
-            </div>
+              <figcaption className="font-semibold text-gray-600">J. S</figcaption>
+            </figure>
 
             {/* Testimonial 2 */}
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
+            <figure className="rounded-2xl bg-white p-8 shadow-sm">
               {/* 5 Stars */}
-              <div className="mb-6 flex gap-1">
+              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-6 w-6 fill-primary text-primary" />
+                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
                 ))}
               </div>
 
               {/* Quote */}
-              <p className="mb-6 text-lg leading-relaxed text-gray-800">
+              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
                 That was way easier than going to the doctor&apos;s office in person.
-              </p>
+              </blockquote>
 
               {/* Author */}
-              <p className="font-semibold text-gray-600">D. R.</p>
-            </div>
+              <figcaption className="font-semibold text-gray-600">D. R.</figcaption>
+            </figure>
 
             {/* Testimonial 3 */}
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
+            <figure className="rounded-2xl bg-white p-8 shadow-sm">
               {/* 5 Stars */}
-              <div className="mb-6 flex gap-1">
+              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-6 w-6 fill-primary text-primary" />
+                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
                 ))}
               </div>
 
               {/* Quote */}
-              <p className="mb-6 text-lg leading-relaxed text-gray-800">
+              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
                 My work called to verify the letter and there was no issue. That was easy!
-              </p>
+              </blockquote>
 
               {/* Author */}
-              <p className="font-semibold text-gray-600">C. H.</p>
-            </div>
+              <figcaption className="font-semibold text-gray-600">C. H.</figcaption>
+            </figure>
           </div>
         </div>
       </section>
