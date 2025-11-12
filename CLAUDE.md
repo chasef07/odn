@@ -19,7 +19,7 @@ This document provides context and guidelines for Claude Code when working with 
 - **Authentication**: Better Auth (email/password provider with bcrypt)
 - **Email**: React Email 5.0.1 + Resend 4.0.1
 - **PDF Generation**: @react-pdf/renderer (doctor's notes)
-- **Testing**: Vitest + Testing Library (249 passing tests)
+- **Testing**: Vitest + Testing Library (270 passing tests)
 - **Analytics**: Vercel Analytics
 - **Build**: Turbopack
 
@@ -46,6 +46,7 @@ src/
 ├── emails/                # React Email templates
 │   ├── ApprovalEmail.tsx  # Modern approval notification email
 │   ├── DenialEmail.tsx    # Modern denial notification email
+│   ├── PaymentConfirmationEmail.tsx  # Payment confirmation email
 │   └── README.md          # Email template documentation
 ├── lib/                   # Business logic & utilities
 │   ├── validation-schemas.ts    # 10 Zod schemas
@@ -96,12 +97,17 @@ tests/
 
 ### Payment Processing
 
-- **Amount**: Fixed at $24.95 (2495 cents)
-- **Currency**: USD only
+- **Pricing**: Dynamically fetched from Stripe Price ID (configured in environment)
+- **Single Source of Truth**: Stripe Dashboard - no code deploys needed to change price
+- **Currency**: Supports any currency configured in Stripe Price
 - **Provider**: Stripe with automatic payment methods
-- **Metadata**: Includes product and service identifiers
+- **Metadata**: Includes product, service identifiers, and price_id for audit trail
 
-**Implementation**: `src/app/api/create-payment-intent/route.ts`, `src/app/api/verify-payment/route.ts`
+**Implementation**:
+- Price fetching: `src/app/api/get-price/route.ts`
+- Payment intent creation: `src/app/api/create-payment-intent/route.ts`
+- Payment verification: `src/app/api/verify-payment/route.ts`
+- Dynamic display: `src/app/payment/page.tsx`
 
 ### Monthly Limit Tracking
 
@@ -180,7 +186,7 @@ The application uses a multi-step form with conditional steps:
 
 ## Testing Strategy
 
-### Current Coverage (249 passing)
+### Current Coverage (270 passing)
 
 - ✅ Unit tests: All validators and utilities (100% passing)
 - ✅ Schema tests: All 10 Zod schemas (100% passing)
@@ -347,7 +353,7 @@ NEXT_PUBLIC_SITE_URL=https://onlinedoctornote.com  # Change to production domain
 # Stripe Configuration
 STRIPE_SECRET_KEY=sk_test_...           # Stripe secret key
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=...  # Stripe publishable key
-NEXT_PUBLIC_PAYMENT_AMOUNT=2495         # Amount in cents ($24.95)
+STRIPE_PRICE_ID=price_...               # Stripe Price ID (single source of truth for pricing)
 STRIPE_WEBHOOK_SECRET=whsec_...         # Webhook signature verification
 
 # Database Configuration
@@ -392,7 +398,7 @@ NODE_ENV=development                     # Environment (development/production)
 
 ### GitHub Actions Workflows
 
-1. **test.yml**: Runs all tests on push/PR (249 passing)
+1. **test.yml**: Runs all tests on push/PR (270 passing)
 2. **claude-code-review.yml**: Automated code reviews on PRs
 3. **claude.yml**: Claude PR assistant (trigger with `@claude`)
 
@@ -400,7 +406,7 @@ NODE_ENV=development                     # Environment (development/production)
 
 ### Pre-commit Checklist
 
-- [ ] All tests pass (`npm test`) - 249 passing expected
+- [ ] All tests pass (`npm test`) - 270 passing expected
 - [ ] No TypeScript errors (`npm run build`)
 - [ ] No ESLint errors (`npm run lint`)
 - [ ] New features have tests
@@ -475,15 +481,14 @@ See [docs/SEO_GUIDE.md](./docs/SEO_GUIDE.md) for complete post-deployment checkl
 2. **No E2E tests**: Consider adding Playwright tests for complete user flows
 3. **No rate limiting**: Payment endpoints and admin API could be abused
 4. **No duplicate detection**: Users could submit multiple times with different payment intents
-5. **Hardcoded payment amount**: Should be configurable via environment variable or admin settings (see [docs/STRIPE_MIGRATION_GUIDE.md](./docs/STRIPE_MIGRATION_GUIDE.md))
-6. **No email confirmation**: Payment succeeds but no receipt or confirmation email sent to user
-7. **No admin notifications**: Doctors are not notified when new submissions arrive
-8. **localStorage only for form data**: Form progress not synced to server, lost on device change
-9. **No dark mode**: UI only supports light mode currently
-10. **No PDF storage**: Doctor's notes are generated on-the-fly and not persisted for re-download
-11. **Monthly limit bypass**: Email-based tracking can be bypassed with multiple email addresses
-12. **No customer testimonials**: Would improve social proof and SEO
-13. **No blog or content marketing**: Could improve organic search rankings
+5. ~~**No email confirmation**: Payment succeeds but no receipt or confirmation email sent to user~~ ✅ **RESOLVED**: Payment confirmation emails are now sent immediately after successful payment via Stripe webhook
+6. **No admin notifications**: Doctors are not notified when new submissions arrive
+7. **localStorage only for form data**: Form progress not synced to server, lost on device change
+8. **No dark mode**: UI only supports light mode currently
+9. **No PDF storage**: Doctor's notes are generated on-the-fly and not persisted for re-download
+10. **Monthly limit bypass**: Email-based tracking can be bypassed with multiple email addresses
+11. **No customer testimonials**: Would improve social proof and SEO
+12. **No blog or content marketing**: Could improve organic search rankings
 
 ## Performance Considerations
 
@@ -516,7 +521,7 @@ See [docs/SEO_GUIDE.md](./docs/SEO_GUIDE.md) for complete post-deployment checkl
 ```bash
 # Development
 npm run dev                 # Start dev server
-npm test                   # Run tests (249 passing)
+npm test                   # Run tests (270 passing)
 npm run test:ui            # Run tests with UI
 npm run test:coverage      # Run tests with coverage
 npm run email              # Preview email templates
@@ -546,13 +551,13 @@ npx tsc --noEmit          # Check TypeScript errors
 
 1. **Business Rules**: The 7-day absence limit and 7-day lookback are non-negotiable. Always verify with the user before modifying.
 
-2. **Test Coverage**: When adding new features, always write tests. The project maintains 80%+ coverage (249 passing tests).
+2. **Test Coverage**: When adding new features, always write tests. The project maintains 80%+ coverage (270 passing tests).
 
 3. **Type Safety**: Maintain strict TypeScript. No `any` types unless absolutely necessary.
 
 4. **Form Flow**: The conditional guardian step affects progress tracking. Be careful when modifying form navigation.
 
-5. **Stripe Integration**: Payment amount is fixed. Any changes require updating multiple files and environment variables.
+5. **Stripe Integration**: Payment pricing is managed via Stripe Dashboard using Price IDs. Change prices in Stripe Dashboard without code deployments.
 
 6. **Mobile First**: All UI changes should be mobile-responsive.
 
@@ -564,11 +569,11 @@ npx tsc --noEmit          # Check TypeScript errors
 
 10. **Admin Portal**: Protected by Better Auth. All admin routes require authentication. Doctor passwords are hashed with bcrypt (10 rounds).
 
-11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission → Admin Review → Approve/Deny → Approval Email with PDF (if approved) or Denial Email with Refund (if denied)
+11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission + Payment Confirmation Email → Admin Review → Approve/Deny → Approval Email with PDF (if approved) or Denial Email with Refund (if denied)
 
 12. **Approval Automation**: When doctors approve submissions, the system automatically generates a professional PDF doctor's note using @react-pdf/renderer and sends it via email with Resend. PDF generation is BLOCKING (must succeed for approval), while email sending is NON-BLOCKING (logs warning if fails). Doctor information (name, credentials, license number, signature) is configured via environment variables for single-doctor systems.
 
-13. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Brand color is #009ed9 (cyan blue). Approval emails include PDF attachments. Denial emails are automatically sent with refund confirmations. Preview emails with `npm run email`. IMPORTANT: Email templates use standard hex colors (not OKLCH) for maximum email client compatibility.
+13. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Brand color is #009ed9 (cyan blue). Three email types: Payment Confirmation (sent immediately after payment via webhook with submission ID), Approval (includes PDF attachment), and Denial (includes refund confirmation). All emails are NON-BLOCKING in webhook/admin flows to prevent failures. Preview emails with `npm run email`. IMPORTANT: Email templates use standard hex colors (not OKLCH) for maximum email client compatibility.
 
 14. **PDF Generation**: Doctor's notes are generated on-the-fly using @react-pdf/renderer with a professional medical document template branded with Platinum Health Clinic. PDFs include patient information, absence dates, symptoms, doctor's signature, and dynamic "return to work/school" text based on note purpose. Contact email is hello@platinumhealthclinic.com. Test PDF generation locally with `npx tsx scripts/test-approval-flow.ts`.
 

@@ -19,6 +19,34 @@ function CheckoutForm() {
   const router = useRouter()
   const [message, setMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [priceInfo, setPriceInfo] = useState<{ amount: number; formattedAmount: string } | null>(
+    null
+  )
+  const [priceLoading, setPriceLoading] = useState(true)
+
+  // Fetch price on component mount
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const response = await fetch('/api/get-price')
+        if (!response.ok) {
+          throw new Error('Failed to fetch price')
+        }
+        const data = await response.json()
+        setPriceInfo({
+          amount: data.amount,
+          formattedAmount: data.formattedAmount,
+        })
+      } catch (error) {
+        console.error('Failed to fetch price:', error)
+        // Fallback to error state - user can still see the form
+      } finally {
+        setPriceLoading(false)
+      }
+    }
+
+    fetchPrice()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,23 +84,19 @@ function CheckoutForm() {
       {/* Order Summary */}
       <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
         <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-foreground text-base">
-              Doctor&apos;s Note - Online Medical Documentation
-            </span>
-            <span className="text-foreground text-base font-semibold">
-              ${(parseInt(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || '2495') / 100).toFixed(2)}
-            </span>
-          </div>
-          <div className="border-border/40 mt-3 border-t pt-3">
-            <div className="flex items-center justify-between">
-              <span className="text-foreground text-lg font-semibold">Total</span>
-              <span className="text-primary text-lg font-bold">
-                ${(parseInt(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || '2495') / 100).toFixed(2)}
-              </span>
-            </div>
-          </div>
+        <div className="flex items-center justify-between">
+          <p className="text-foreground text-base font-medium">
+            Doctor&apos;s Note - Online Medical Documentation
+          </p>
+          <span className="text-primary text-xl font-bold">
+            {priceLoading ? (
+              <span className="text-muted-foreground text-base">Loading...</span>
+            ) : priceInfo ? (
+              `$${priceInfo.formattedAmount}`
+            ) : (
+              <span className="text-red-600 text-base">Price unavailable</span>
+            )}
+          </span>
         </div>
       </div>
 
