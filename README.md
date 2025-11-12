@@ -18,10 +18,11 @@ This application provides a user-friendly interface for individuals to obtain do
 - **Mobile Responsive**: Optimized UI for all device sizes
 - **Form Persistence**: Auto-saves progress to localStorage
 - **Database**: PostgreSQL with Prisma ORM for production data
-- **Comprehensive Testing**: 249 automated tests passing with 80%+ coverage
+- **Comprehensive Testing**: 270 automated tests passing with 80%+ coverage
 
 ### Email & Notifications
 - **Modern Email Templates**: Beautiful React Email 5.0 templates with Tailwind CSS
+- **Payment Confirmation**: Instant email with submission ID after successful payment
 - **Approval Emails**: Automated emails with PDF attachment on approval
 - **Denial Emails**: Automated refund notification emails
 - **Email Provider**: Resend for reliable email delivery
@@ -97,8 +98,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000  # Change to production domain for pr
 STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_PAYMENT_AMOUNT=2495  # Amount in cents ($24.95)
-#STRIPE_PRICE_ID=price_...  # Optional: For future Stripe Price migration
+STRIPE_PRICE_ID=price_...  # Create a Price in Stripe Dashboard - single source of truth for pricing
 
 # Database Configuration
 DATABASE_URL=postgresql://user:password@host:5432/database
@@ -471,7 +471,6 @@ See [docs/PRODUCTION_DEPLOYMENT.md](./docs/PRODUCTION_DEPLOYMENT.md) for complet
 ### Current Limitations
 - Monthly limit tracking uses email only (can be bypassed with multiple emails)
 - No duplicate submission detection
-- Hardcoded payment amount (see Stripe Migration Guide for dynamic pricing)
 - No customer testimonials or reviews system
 - No admin notification system for new submissions
 

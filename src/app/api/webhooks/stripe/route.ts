@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
+import { sendPaymentConfirmationEmail } from '@/lib/email'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-10-29.clover',
@@ -77,8 +78,9 @@ export async function POST(request: NextRequest) {
       }
 
       // 6. Create permanent Submission record
+      let submission
       try {
-        await prisma.submission.create({
+        submission = await prisma.submission.create({
           data: {
             // System fields
             stripePaymentIntentId: paymentIntent.id,
@@ -115,6 +117,22 @@ export async function POST(request: NextRequest) {
 
         if (process.env.NODE_ENV === 'development') {
           console.log('Submission created successfully:', paymentIntent.id)
+        }
+
+        // 6a. Send payment confirmation email (NON-BLOCKING)
+        try {
+          await sendPaymentConfirmationEmail({
+            to: submission.email,
+            patientName: submission.patientFirstName,
+            submissionId: submission.id,
+          })
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Payment confirmation email sent:', submission.email)
+          }
+        } catch (emailError) {
+          // NON-BLOCKING: Log warning but don't fail webhook
+          console.warn('Failed to send payment confirmation email (non-critical):', emailError)
         }
       } catch (submissionError) {
         console.error('Failed to create Submission:', submissionError)

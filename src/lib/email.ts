@@ -2,6 +2,7 @@ import { Resend } from 'resend'
 import { render } from '@react-email/render'
 import DenialEmail from '@/emails/DenialEmail'
 import ApprovalEmail from '@/emails/ApprovalEmail'
+import PaymentConfirmationEmail from '@/emails/PaymentConfirmationEmail'
 
 // Initialize Resend client with API key from environment
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -108,6 +109,50 @@ export async function sendApprovalEmail({
     console.error('Failed to send approval email:', error)
     throw new Error(
       `Failed to send approval email: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+/**
+ * Sends a payment confirmation email to the patient
+ *
+ * @param to - Recipient email address
+ * @param patientName - Patient's full name
+ * @param submissionId - Unique submission ID (UUID)
+ * @returns Promise that resolves to the email send result
+ * @throws Error if email sending fails
+ */
+export async function sendPaymentConfirmationEmail({
+  to,
+  patientName,
+  submissionId,
+}: {
+  to: string
+  patientName: string
+  submissionId: string
+}) {
+  try {
+    // Render the React Email component to HTML
+    const emailHtml = await render(
+      PaymentConfirmationEmail({
+        patientName,
+        submissionId,
+        email: to,
+      })
+    )
+
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: "Payment Confirmed - Your Doctor's Note Request Received",
+      html: emailHtml,
+    })
+
+    return result
+  } catch (error) {
+    console.error('Failed to send payment confirmation email:', error)
+    throw new Error(
+      `Failed to send payment confirmation email: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
   }
 }
