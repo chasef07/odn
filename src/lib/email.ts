@@ -137,7 +137,6 @@ export async function sendPaymentConfirmationEmail({
       PaymentConfirmationEmail({
         patientName,
         submissionId,
-        email: to,
       })
     )
 
