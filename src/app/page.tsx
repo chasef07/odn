@@ -1,17 +1,12 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
   ArrowRight,
   Shield,
   Star,
-  Clock,
   DollarSign,
-  FileCheck,
-  MousePointerClick,
-  Lock,
   BadgeCheck,
   CheckCircle2,
   Mail,
@@ -24,17 +19,16 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { Card } from '@/components/ui/card'
+import { CTAButton } from '@/components/ui/cta-button'
 import Header from '@/components/Header'
 
 export default function HomePage() {
-  const router = useRouter()
-
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
       {/* Hero Section */}
-      <section className="px-6 pt-16 pb-16 lg:min-h-[90vh] lg:flex lg:items-center">
+      <section className="px-6 py-20 lg:flex lg:items-center">
         <div className="mx-auto w-full max-w-7xl">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
             {/* Right Column - Hero Image (appears first on mobile) */}
@@ -45,6 +39,8 @@ export default function HomePage() {
                 width={1376}
                 height={1130}
                 priority
+                quality={90}
+                sizes="(max-width: 1024px) 100vw, 50vw"
                 className="rounded-lg shadow-xl"
               />
             </div>
@@ -52,23 +48,11 @@ export default function HomePage() {
             {/* Left Column - Text Content (appears second on mobile) */}
             <div className="order-2 text-center lg:order-1 lg:text-left">
               <h1 className="font-display text-foreground mb-6 text-5xl font-bold leading-tight sm:text-6xl">
-                The <span className="text-primary">convenient</span> way
-                <br />
-                to get a
-                <br />
-                doctor&apos;s note for
-                <br />
-                work or school!
+                The <span className="text-primary">convenient</span> way to get a doctor&apos;s note for work or school!
               </h1>
 
               {/* Primary CTA */}
-              <button
-                onClick={() => router.push('/start')}
-                className="bg-primary hover:bg-primary/90 mb-4 inline-flex items-center justify-center gap-2 rounded-xl px-12 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl"
-              >
-                Get Your Note Now
-                <ArrowRight className="h-5 w-5" />
-              </button>
+              <CTAButton className="mb-4" />
 
               <p className="mb-8 text-base">
                 <span className="text-primary text-2xl font-bold">$24.95</span>
@@ -96,7 +80,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="bg-blue-50 px-6 py-16">
+      <section className="bg-blue-50 px-6 py-20">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-12 text-center text-4xl font-bold">How it Works</h2>
 
@@ -141,13 +125,7 @@ export default function HomePage() {
 
           {/* CTA Below Boxes */}
           <div className="mt-12 text-center">
-            <button
-              onClick={() => router.push('/start')}
-              className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center gap-2 rounded-xl px-12 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl"
-            >
-              Get Your Note Now
-              <ArrowRight className="h-5 w-5" />
-            </button>
+            <CTAButton />
           </div>
         </div>
       </section>
@@ -167,7 +145,9 @@ export default function HomePage() {
                 src="/images/homepage/Doctor-Note-letter-1024px.png"
                 alt="Sample doctor's note document"
                 width={1024}
-                height={1024}
+                height={936}
+                quality={85}
+                sizes="(max-width: 1024px) 100vw, 576px"
                 className="w-full max-w-xl"
               />
             </div>
@@ -206,13 +186,7 @@ export default function HomePage() {
 
               {/* CTA Button */}
               <div className="pt-6">
-                <button
-                  onClick={() => router.push('/start')}
-                  className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center gap-2 rounded-xl px-12 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl"
-                >
-                  Get Your Note Now
-                  <ArrowRight className="h-5 w-5" />
-                </button>
+                <CTAButton />
               </div>
             </div>
           </div>
@@ -319,18 +293,12 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="px-6 py-16">
+      <section className="px-6 py-20">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="mb-4 text-4xl font-bold">Ready to Get Your Doctor&apos;s Note?</h2>
           <p className="text-muted-foreground mb-8 text-xl">Join 12,000+ satisfied customers</p>
 
-          <button
-            onClick={() => router.push('/start')}
-            className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center gap-2 rounded-xl px-12 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl"
-          >
-            Get Started - $24.95
-            <ArrowRight className="h-5 w-5" />
-          </button>
+          <CTAButton showPrice />
         </div>
       </section>
 
