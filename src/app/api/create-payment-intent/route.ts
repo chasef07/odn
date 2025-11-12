@@ -7,8 +7,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-10-29.clover',
 })
 
-const PAYMENT_AMOUNT = Number(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 2495)
-
 export async function POST(request: NextRequest) {
   try {
     // 1. Parse request body
@@ -57,12 +55,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Create Stripe payment intent FIRST
+    // 4. Fetch price from Stripe
+    let price: Stripe.Price
+    try {
+      price = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!)
+    } catch (priceError) {
+      console.error('Failed to fetch Stripe price:', priceError)
+      return NextResponse.json(
+        { error: 'Unable to fetch pricing information. Please try again.' },
+        { status: 500 }
+      )
+    }
+
+    // Validate price has required fields
+    if (!price.unit_amount || !price.currency) {
+      console.error('Invalid price object - missing unit_amount or currency:', price)
+      return NextResponse.json(
+        { error: 'Invalid pricing configuration. Please contact support.' },
+        { status: 500 }
+      )
+    }
+
+    // 5. Create Stripe payment intent with dynamic price
     let paymentIntent: Stripe.PaymentIntent
     try {
       paymentIntent = await stripe.paymentIntents.create({
-        amount: PAYMENT_AMOUNT,
-        currency: 'usd',
+        amount: price.unit_amount,
+        currency: price.currency,
         automatic_payment_methods: {
           enabled: true,
         },
@@ -71,6 +90,7 @@ export async function POST(request: NextRequest) {
           product: 'doctors-note',
           service: 'online-doctors-note',
           email: formData.email || '',
+          price_id: price.id,
         },
       })
     } catch (stripeError) {
@@ -81,7 +101,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 5. Create TemporarySubmission with form data
+    // 6. Create TemporarySubmission with form data
     try {
       await prisma.temporarySubmission.create({
         data: {
@@ -116,7 +136,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 6. Success - return client secret
+    // 7. Success - return client secret
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
     })

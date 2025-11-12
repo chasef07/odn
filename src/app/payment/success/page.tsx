@@ -9,20 +9,19 @@ import { clearFormData } from '@/lib/form-storage'
 const CURRENT_STEP = 10
 
 export default function PaymentSuccessPage() {
-  const [paymentIntent, setPaymentIntent] = useState<string | null>(null)
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-
-  // Get payment intent from URL on client side (avoids Suspense requirement)
-  useEffect(() => {
+  // Get payment intent from URL on client side (lazy initialization avoids setState in effect)
+  const [paymentIntent] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
     const params = new URLSearchParams(window.location.search)
-    const pi = params.get('payment_intent')
+    return params.get('payment_intent')
+  })
 
-    if (!pi) {
-      setStatus('error')
-    } else {
-      setPaymentIntent(pi)
-    }
-  }, [])
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() => {
+    // If no payment intent on mount, start with error state
+    if (typeof window === 'undefined') return 'loading'
+    const params = new URLSearchParams(window.location.search)
+    return params.get('payment_intent') ? 'loading' : 'error'
+  })
 
   useEffect(() => {
     if (!paymentIntent) {

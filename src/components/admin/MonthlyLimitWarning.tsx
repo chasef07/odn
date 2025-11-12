@@ -71,7 +71,7 @@ export function MonthlyLimitWarning({
 
             {wouldExceed && (
               <p className="pt-2 text-xs italic">
-                Consider marking as "Maybe" or "Deny" this request. Approving would exceed the monthly limit.
+                Consider marking as &quot;Maybe&quot; or &quot;Deny&quot; this request. Approving would exceed the monthly limit.
               </p>
             )}
           </div>

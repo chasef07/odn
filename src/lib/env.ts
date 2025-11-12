@@ -9,7 +9,7 @@ const requiredEnvVars = [
   'STRIPE_SECRET_KEY',
   'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
   'STRIPE_WEBHOOK_SECRET',
-  'NEXT_PUBLIC_PAYMENT_AMOUNT',
+  'STRIPE_PRICE_ID',
   'CRON_SECRET',
   'BETTER_AUTH_SECRET',
   'RESEND_API_KEY',
@@ -30,10 +30,10 @@ export function validateEnvironment() {
     )
   }
 
-  // Validate payment amount is a number
-  const amount = Number(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT)
-  if (isNaN(amount) || amount <= 0) {
-    throw new Error('NEXT_PUBLIC_PAYMENT_AMOUNT must be a positive number')
+  // Validate STRIPE_PRICE_ID format
+  const priceId = process.env.STRIPE_PRICE_ID
+  if (priceId && !priceId.startsWith('price_')) {
+    throw new Error('STRIPE_PRICE_ID must start with "price_"')
   }
 
   // Warn about optional but recommended variables

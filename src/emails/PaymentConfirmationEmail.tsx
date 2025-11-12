@@ -19,13 +19,11 @@ import * as React from 'react'
 interface PaymentConfirmationEmailProps {
   patientName: string
   submissionId: string
-  email: string
 }
 
 export const PaymentConfirmationEmail = ({
   patientName = 'Patient',
   submissionId = '550E8400',
-  email = 'patient@example.com',
 }: PaymentConfirmationEmailProps) => {
   const currentYear = new Date().getFullYear()
   // Format submission ID as short version (first 8 chars uppercase)

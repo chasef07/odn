@@ -20,8 +20,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-10-29.clover',
 })
 
-// Get payment amount from environment
-const PAYMENT_AMOUNT = Number(process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 2495)
 
 /**
  * Get current logged-in doctor's session
@@ -308,7 +306,7 @@ export async function denySubmission(submissionId: string, reason: string) {
 
     // Step 3: Send denial email FIRST (NON-BLOCKING - log error but don't fail)
     const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
-    const refundAmountDollars = PAYMENT_AMOUNT / 100 // Convert cents to dollars
+    const refundAmountDollars = refund.amount / 100 // Convert cents to dollars from Stripe refund
     let emailSentAt: Date | undefined
     let emailWarning: string | undefined
 
