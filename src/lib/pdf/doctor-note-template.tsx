@@ -15,6 +15,7 @@ import {
   Image,
   Link,
 } from '@react-pdf/renderer'
+import { getStateLicense } from '../state-licenses'
 
 // Define comprehensive type for submission data
 export interface DoctorNoteData {
@@ -50,7 +51,6 @@ export interface DoctorNoteData {
 export interface DoctorInfo {
   name: string
   credentials: string
-  licenseNumber: string
   signatureUrl: string
 }
 
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   emailLink: {
     fontSize: 10,
     marginBottom: 3,
-    color: '#2563EB',
+    color: '#1F2937',
     textDecoration: 'none',
   },
   clinicName: {
@@ -108,6 +108,11 @@ const styles = StyleSheet.create({
     color: '#111827',
     letterSpacing: 0.5,
     marginTop: 10,
+  },
+  servingStates: {
+    fontSize: 10,
+    color: '#1F2937',
+    marginBottom: 3,
   },
   contentSection: {
     paddingLeft: 72,
@@ -167,7 +172,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Times-Bold',
   },
   closing: {
-    marginTop: 20,
+    marginTop: 10,
     marginBottom: 20,
   },
   signatureLabel: {
@@ -237,6 +242,7 @@ export function DoctorNoteTemplate({
     lastDayOff,
     notePurpose,
     otherNotePurpose,
+    absenceReason,
   } = submissionData
 
   const patientFullName = `${patientFirstName} ${patientLastName}`
@@ -245,11 +251,17 @@ export function DoctorNoteTemplate({
     ? `${guardianFirstName} ${guardianLastName}`
     : null
 
+  // Check if this is a caregiver note
+  const isCaregiver = absenceReason === 'Taking care of someone'
+
   const excuseFrom = formatExcuseFrom(notePurpose, otherNotePurpose)
   const dateIssuedFormatted = formatDate(issueDate)
   const firstDayFormatted = formatDate(firstDayOff)
   const lastDayFormatted = formatDate(lastDayOff)
   const dobFormatted = formatDate(patientDateOfBirth)
+
+  // Get state-specific medical license
+  const stateLicense = getStateLicense(submissionData.state)
 
   return (
     <Document>
@@ -258,10 +270,11 @@ export function DoctorNoteTemplate({
         <View style={styles.headerSection}>
           {/* Contact information (LEFT) */}
           <View style={styles.headerLeft}>
+            <Text style={styles.servingStates}>Proudly Serving Patients in Over 40 States</Text>
             <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>
               <Text>Email: hello@platinumhealthclinic.com</Text>
             </Link>
-            <Text style={styles.headerLine}>Phone: 917-300-8543</Text>
+            <Text style={styles.headerLine}>Phone: 786-292-3730</Text>
             <Text style={styles.headerLine}>Fax: 786-289-9316</Text>
           </View>
 
@@ -279,10 +292,10 @@ export function DoctorNoteTemplate({
               {dateIssuedFormatted}
             </Text>
 
-            {/* Patient Information */}
+            {/* Patient/Caregiver Information */}
             <View style={styles.patientSection}>
               <Text style={styles.fieldLine}>
-                <Text style={styles.fieldLabel}>Patient Name: </Text>
+                <Text style={styles.fieldLabel}>{isCaregiver ? 'Caregiver Name: ' : 'Patient Name: '}</Text>
                 {patientFullName}
               </Text>
               <Text style={styles.fieldLine}>
@@ -303,19 +316,39 @@ export function DoctorNoteTemplate({
                 <Text style={styles.fieldLabel}>To Whom It May Concern:</Text>
               </Text>
 
-              <Text style={styles.paragraph}>
-                This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual from {excuseFrom} and related activities for the following period due to a medical condition.
-              </Text>
+              {isCaregiver ? (
+                <>
+                  <Text style={styles.paragraph}>
+                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition. Please excuse this individual from {excuseFrom} / {excuseFrom}-related activities for the following period, if possible.
+                  </Text>
 
-              {/* Start and End Dates */}
-              <View style={styles.dateRange}>
-                <Text style={styles.dateRangeLabel}>Start Date: {firstDayFormatted}</Text>
-                <Text style={styles.dateRangeLabel}>End Date: {lastDayFormatted}</Text>
-              </View>
+                  {/* Start and End Dates */}
+                  <View style={styles.dateRange}>
+                    <Text style={styles.dateRangeLabel}>Start Date: {firstDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>End Date: {lastDayFormatted}</Text>
+                  </View>
 
-              <Text style={styles.returnText}>
-                Furthermore, the above-named patient <Text style={styles.boldText}>may return to {excuseFrom} after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
-              </Text>
+                  <Text style={styles.returnText}>
+                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return to {excuseFrom} after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.paragraph}>
+                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual from {excuseFrom} and related activities for the following period due to a medical condition.
+                  </Text>
+
+                  {/* Start and End Dates */}
+                  <View style={styles.dateRange}>
+                    <Text style={styles.dateRangeLabel}>Start Date: {firstDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>End Date: {lastDayFormatted}</Text>
+                  </View>
+
+                  <Text style={styles.returnText}>
+                    Furthermore, the above-named patient <Text style={styles.boldText}>may return to {excuseFrom} after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                  </Text>
+                </>
+              )}
 
               <Text style={styles.paragraph}>Thank you,</Text>
             </View>
@@ -333,9 +366,11 @@ export function DoctorNoteTemplate({
               <Text style={styles.doctorName}>
                 Physician Name: {doctorInfo.name}, {doctorInfo.credentials}
               </Text>
-              <Text style={styles.npiNumber}>
-                NPI Number: {doctorInfo.licenseNumber}
-              </Text>
+              {stateLicense && (
+                <Text style={styles.npiNumber}>
+                  {stateLicense.stateName} Medical License Number: {stateLicense.licenseNumber}
+                </Text>
+              )}
             </View>
         </View>
       </Page>

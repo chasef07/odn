@@ -70,8 +70,9 @@ export const DenialEmail = ({
 
               <Text className="text-gray-700 text-base leading-relaxed mb-8">
                 Thank you for submitting your doctor&apos;s note request. After
-                careful review, we regret to inform you that your request was{' '}
-                <strong>not approved</strong> {denialReasonMessage}.
+                careful review by our medical team, we&apos;re unfortunately unable to
+                provide a doctor&apos;s note at this time in accordance with our
+                telehealth guidelines.
               </Text>
 
               {/* Refund Card */}
@@ -87,56 +88,6 @@ export const DenialEmail = ({
                   method. Please allow <strong>5-10 business days</strong>{' '}
                   for the refund to appear in your account.
                 </Text>
-              </Section>
-
-              {/* What's Next Section */}
-              <Section className="mb-8">
-                <Heading className="text-gray-900 text-xl font-bold mb-4">
-                  What happens next?
-                </Heading>
-
-                <div className="space-y-4">
-                  <Row className="items-start">
-                    <Column className="w-8">
-                      <Text className="text-xl font-bold m-0" style={{ color: '#009ed9' }}>
-                        1
-                      </Text>
-                    </Column>
-                    <Column>
-                      <Text className="text-gray-700 text-sm m-0">
-                        Your refund has been initiated and will appear within
-                        5-10 business days
-                      </Text>
-                    </Column>
-                  </Row>
-
-                  <Row className="items-start">
-                    <Column className="w-8">
-                      <Text className="text-xl font-bold m-0" style={{ color: '#009ed9' }}>
-                        2
-                      </Text>
-                    </Column>
-                    <Column>
-                      <Text className="text-gray-700 text-sm m-0">
-                        Check your bank statement for the credit from{' '}
-                        <strong>Online Doctor&apos;s Note</strong>
-                      </Text>
-                    </Column>
-                  </Row>
-
-                  <Row className="items-start">
-                    <Column className="w-8">
-                      <Text className="text-xl font-bold m-0" style={{ color: '#009ed9' }}>
-                        3
-                      </Text>
-                    </Column>
-                    <Column>
-                      <Text className="text-gray-700 text-sm m-0">
-                        Have questions? Our support team is here to help
-                      </Text>
-                    </Column>
-                  </Row>
-                </div>
               </Section>
 
               <Hr className="border-gray-200 my-8" />

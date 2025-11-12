@@ -72,12 +72,14 @@ export async function sendApprovalEmail({
   to,
   patientName,
   notePurpose,
+  absenceReason,
   pdfBuffer,
   pdfFilename,
 }: {
   to: string
   patientName: string
   notePurpose: string
+  absenceReason: string
   pdfBuffer: Buffer
   pdfFilename: string
 }) {
@@ -87,6 +89,7 @@ export async function sendApprovalEmail({
       ApprovalEmail({
         patientName,
         notePurpose,
+        absenceReason,
       })
     )
 

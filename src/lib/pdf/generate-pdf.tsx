@@ -38,19 +38,17 @@ export function formatReferenceId(submissionId: string, uppercase = false): stri
 function validateDoctorEnvVars(): DoctorInfo {
   const name = process.env.DOCTOR_NAME
   const credentials = process.env.DOCTOR_CREDENTIALS
-  const licenseNumber = process.env.DOCTOR_LICENSE_NUMBER
   const signatureUrl = process.env.DOCTOR_SIGNATURE_URL
 
-  if (!name || !credentials || !licenseNumber || !signatureUrl) {
+  if (!name || !credentials || !signatureUrl) {
     throw new Error(
-      'Missing required doctor environment variables. Please ensure DOCTOR_NAME, DOCTOR_CREDENTIALS, DOCTOR_LICENSE_NUMBER, and DOCTOR_SIGNATURE_URL are set in .env.local'
+      'Missing required doctor environment variables. Please ensure DOCTOR_NAME, DOCTOR_CREDENTIALS, and DOCTOR_SIGNATURE_URL are set in .env.local'
     )
   }
 
   return {
     name,
     credentials,
-    licenseNumber,
     signatureUrl,
   }
 }
