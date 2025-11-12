@@ -88,8 +88,7 @@ describe('denySubmission - Denial Automation', () => {
       user: { id: mockDoctorId },
     })
 
-    // Set environment variables
-    process.env.NEXT_PUBLIC_PAYMENT_AMOUNT = '2495' // $24.95
+    // Environment variables are managed by global test setup
   })
 
   afterEach(() => {
@@ -100,7 +99,10 @@ describe('denySubmission - Denial Automation', () => {
     it('should successfully deny submission with refund and email', async () => {
       // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
-      mockRefundsCreate.mockResolvedValue({ id: mockRefundId })
+      mockRefundsCreate.mockResolvedValue({
+        id: mockRefundId,
+        amount: 2495, // Amount in cents from Stripe refund
+      })
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
@@ -162,7 +164,10 @@ describe('denySubmission - Denial Automation', () => {
     it('should handle "7+ days" denial reason correctly', async () => {
       // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
-      mockRefundsCreate.mockResolvedValue({ id: mockRefundId })
+      mockRefundsCreate.mockResolvedValue({
+        id: mockRefundId,
+        amount: 2495, // Amount in cents from Stripe refund
+      })
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
@@ -181,7 +186,10 @@ describe('denySubmission - Denial Automation', () => {
     it('should handle "Other" denial reason correctly', async () => {
       // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
-      mockRefundsCreate.mockResolvedValue({ id: mockRefundId })
+      mockRefundsCreate.mockResolvedValue({
+        id: mockRefundId,
+        amount: 2495, // Amount in cents from Stripe refund
+      })
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
@@ -243,7 +251,10 @@ describe('denySubmission - Denial Automation', () => {
     it('should still deny if email fails but refund succeeds', async () => {
       // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
-      mockRefundsCreate.mockResolvedValue({ id: mockRefundId })
+      mockRefundsCreate.mockResolvedValue({
+        id: mockRefundId,
+        amount: 2495, // Amount in cents from Stripe refund
+      })
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockRejectedValue(new Error('Email service unavailable'))
 
@@ -405,7 +416,10 @@ describe('denySubmission - Denial Automation', () => {
     it('should convert cents to dollars correctly for email', async () => {
       // Arrange - Using the payment amount set in beforeEach (2495 cents)
       mockFindUnique.mockResolvedValue(mockSubmission)
-      mockRefundsCreate.mockResolvedValue({ id: mockRefundId })
+      mockRefundsCreate.mockResolvedValue({
+        id: mockRefundId,
+        amount: 2495, // Amount in cents from Stripe refund
+      })
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 

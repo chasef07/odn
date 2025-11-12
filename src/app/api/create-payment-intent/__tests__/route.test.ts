@@ -16,10 +16,13 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 // Mock Stripe using vi.hoisted
-const { mockPaymentIntentCreate, mockPaymentIntentCancel } = vi.hoisted(() => ({
-  mockPaymentIntentCreate: vi.fn(),
-  mockPaymentIntentCancel: vi.fn(),
-}))
+const { mockPaymentIntentCreate, mockPaymentIntentCancel, mockPricesRetrieve } = vi.hoisted(
+  () => ({
+    mockPaymentIntentCreate: vi.fn(),
+    mockPaymentIntentCancel: vi.fn(),
+    mockPricesRetrieve: vi.fn(),
+  })
+)
 
 vi.mock('stripe', () => {
   return {
@@ -28,10 +31,16 @@ vi.mock('stripe', () => {
         create: typeof mockPaymentIntentCreate
         cancel: typeof mockPaymentIntentCancel
       }
+      prices: {
+        retrieve: typeof mockPricesRetrieve
+      }
       constructor() {
         this.paymentIntents = {
           create: mockPaymentIntentCreate,
           cancel: mockPaymentIntentCancel,
+        }
+        this.prices = {
+          retrieve: mockPricesRetrieve,
         }
       }
     },
@@ -60,8 +69,15 @@ describe('POST /api/create-payment-intent', () => {
   beforeEach(() => {
     originalEnv = { ...process.env }
     process.env.STRIPE_SECRET_KEY = 'sk_test_mock_key'
-    process.env.NEXT_PUBLIC_PAYMENT_AMOUNT = '2495'
+    process.env.STRIPE_PRICE_ID = 'price_test_mock'
     vi.clearAllMocks()
+
+    // Default mock for price retrieval
+    mockPricesRetrieve.mockResolvedValue({
+      id: 'price_test_mock',
+      unit_amount: 2495,
+      currency: 'usd',
+    })
   })
 
   afterEach(() => {
@@ -180,6 +196,7 @@ describe('POST /api/create-payment-intent', () => {
 
     await POST(request)
 
+    expect(mockPricesRetrieve).toHaveBeenCalledWith('price_test_mock')
     expect(mockPaymentIntentCreate).toHaveBeenCalledWith({
       amount: 2495,
       currency: 'usd',
@@ -191,13 +208,12 @@ describe('POST /api/create-payment-intent', () => {
         product: 'doctors-note',
         service: 'online-doctors-note',
         email: mockFormData.email,
+        price_id: 'price_test_mock',
       },
     })
   })
 
-  it('should use payment amount from env variable (set at module load)', async () => {
-    // Note: PAYMENT_AMOUNT is evaluated at module load time
-    // This test verifies it's using the env var set in beforeEach (2495)
+  it('should fetch price from Stripe before creating payment intent', async () => {
     mockPaymentIntentCreate.mockResolvedValue({
       id: 'pi_123',
       client_secret: 'pi_mock',
@@ -215,20 +231,26 @@ describe('POST /api/create-payment-intent', () => {
 
     await POST(request)
 
+    expect(mockPricesRetrieve).toHaveBeenCalledWith('price_test_mock')
     expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         amount: 2495,
+        currency: 'usd',
       })
     )
   })
 
-  it('should use default payment amount if env variable not set', async () => {
-    delete process.env.NEXT_PUBLIC_PAYMENT_AMOUNT
+  it('should use amount from Stripe Price object', async () => {
+    mockPricesRetrieve.mockResolvedValue({
+      id: 'price_test_mock',
+      unit_amount: 3999, // Different amount
+      currency: 'usd',
+    })
 
     mockPaymentIntentCreate.mockResolvedValue({
       id: 'pi_123',
       client_secret: 'pi_mock',
-      amount: 2495,
+      amount: 3999,
       currency: 'usd',
     })
 
@@ -244,12 +266,71 @@ describe('POST /api/create-payment-intent', () => {
 
     expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        amount: 2495,
+        amount: 3999,
       })
     )
   })
 
-  it('should include correct metadata in payment intent', async () => {
+  it('should handle Stripe price fetch errors', async () => {
+    mockPricesRetrieve.mockRejectedValue(new Error('Price not found'))
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: mockFormData }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Unable to fetch pricing information. Please try again.')
+    expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+  })
+
+  it('should handle invalid price object (missing unit_amount)', async () => {
+    mockPricesRetrieve.mockResolvedValue({
+      id: 'price_test_mock',
+      unit_amount: null, // Invalid
+      currency: 'usd',
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: mockFormData }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Invalid pricing configuration. Please contact support.')
+    expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+  })
+
+  it('should handle invalid price object (missing currency)', async () => {
+    mockPricesRetrieve.mockResolvedValue({
+      id: 'price_test_mock',
+      unit_amount: 2495,
+      currency: null, // Invalid
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: mockFormData }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Invalid pricing configuration. Please contact support.')
+    expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+  })
+
+  it('should include correct metadata in payment intent including price_id', async () => {
     mockPaymentIntentCreate.mockResolvedValue({
       id: 'pi_123',
       client_secret: 'pi_mock',
@@ -273,6 +354,7 @@ describe('POST /api/create-payment-intent', () => {
           product: 'doctors-note',
           service: 'online-doctors-note',
           email: mockFormData.email,
+          price_id: 'price_test_mock',
         },
       })
     )
@@ -351,12 +433,18 @@ describe('POST /api/create-payment-intent', () => {
     expect(response.status).toBe(500)
   })
 
-  it('should use USD currency', async () => {
+  it('should use currency from Stripe Price object', async () => {
+    mockPricesRetrieve.mockResolvedValue({
+      id: 'price_test_mock',
+      unit_amount: 2495,
+      currency: 'eur', // Different currency
+    })
+
     mockPaymentIntentCreate.mockResolvedValue({
       id: 'pi_123',
       client_secret: 'pi_mock',
       amount: 2495,
-      currency: 'usd',
+      currency: 'eur',
     })
 
     mockPrismaCreate.mockResolvedValue({})
@@ -371,7 +459,7 @@ describe('POST /api/create-payment-intent', () => {
 
     expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        currency: 'usd',
+        currency: 'eur',
       })
     )
   })
