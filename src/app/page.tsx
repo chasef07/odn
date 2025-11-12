@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   ArrowRight,
   Shield,
@@ -33,43 +34,62 @@ export default function HomePage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="px-6 pt-16 pb-16">
-        <div className="mx-auto max-w-4xl text-center">
-          <h1 className="font-display text-foreground mb-6 text-5xl font-bold sm:text-6xl">
-            Get Your Doctor&apos;s Note Online
-          </h1>
-          <p className="text-muted-foreground mb-8 text-2xl">Fast, Legal, Affordable</p>
-          <p className="text-muted-foreground mb-10 text-lg">
-            Board-certified physicians. 100% online. Delivered in hours.
-          </p>
-
-          {/* Primary CTA */}
-          <button
-            onClick={() => router.push('/start')}
-            className="bg-primary hover:bg-primary/90 mb-4 inline-flex items-center justify-center gap-2 rounded-xl px-12 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl"
-          >
-            Get Your Note Now
-            <ArrowRight className="h-5 w-5" />
-          </button>
-
-          <p className="mb-8 text-base">
-            <span className="text-primary text-2xl font-bold">$24.95</span>
-            <span className="text-muted-foreground"> • Money-Back Guarantee</span>
-          </p>
-
-          {/* Trust Badges */}
-          <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-6 text-base">
-            <div className="flex items-center gap-2">
-              <Shield className="text-primary h-5 w-5" />
-              <span>HIPAA Compliant</span>
+      <section className="px-6 pt-16 pb-16 lg:min-h-[90vh] lg:flex lg:items-center">
+        <div className="mx-auto w-full max-w-7xl">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
+            {/* Right Column - Hero Image (appears first on mobile) */}
+            <div className="relative order-1 lg:order-2">
+              <Image
+                src="/images/homepage/hero.jpg"
+                alt="Doctor reviewing patient medical note"
+                width={1376}
+                height={1130}
+                priority
+                className="rounded-lg shadow-xl"
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <Star className="text-primary h-5 w-5" />
-              <span>12,000+ Notes Issued</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="text-primary h-5 w-5" />
-              <span>Licensed Doctors</span>
+
+            {/* Left Column - Text Content (appears second on mobile) */}
+            <div className="order-2 text-center lg:order-1 lg:text-left">
+              <h1 className="font-display text-foreground mb-6 text-5xl font-bold leading-tight sm:text-6xl">
+                The <span className="text-primary">convenient</span> way
+                <br />
+                to get a
+                <br />
+                doctor&apos;s note for
+                <br />
+                work or school!
+              </h1>
+
+              {/* Primary CTA */}
+              <button
+                onClick={() => router.push('/start')}
+                className="bg-primary hover:bg-primary/90 mb-4 inline-flex items-center justify-center gap-2 rounded-xl px-12 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl"
+              >
+                Get Your Note Now
+                <ArrowRight className="h-5 w-5" />
+              </button>
+
+              <p className="mb-8 text-base">
+                <span className="text-primary text-2xl font-bold">$24.95</span>
+                <span className="text-muted-foreground"> • Money-Back Guarantee</span>
+              </p>
+
+              {/* Trust Badges */}
+              <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-6 text-base lg:justify-start">
+                <div className="flex items-center gap-2">
+                  <Shield className="text-primary h-5 w-5" />
+                  <span>HIPAA Compliant</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Star className="text-primary h-5 w-5" />
+                  <span>12,000+ Notes Issued</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="text-primary h-5 w-5" />
+                  <span>Licensed Doctors</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -132,61 +152,68 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Benefits Section */}
+      {/* What's Included Section */}
       <section className="px-6 py-20">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-4 text-center text-4xl font-bold">Why OnlineDoctorNote?</h2>
-          <p className="text-muted-foreground mb-16 text-center text-lg">
-            The trusted choice for professional medical documentation
+        <div className="mx-auto max-w-7xl">
+          <h2 className="mb-4 text-center text-5xl font-bold">What&apos;s Included</h2>
+          <p className="text-primary mb-16 text-center text-2xl font-semibold">
+            It&apos;s way more than just a note!
           </p>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {/* Fast */}
-            <div className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-primary/20 hover:shadow-md">
-              <h3 className="mb-2 text-xl font-semibold">Fast</h3>
-              <p className="text-muted-foreground">
-                Get your note in hours, not days. Our physicians review requests promptly.
-              </p>
+          <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
+            {/* Left Column - Doctor Note Image */}
+            <div className="flex justify-center">
+              <Image
+                src="/images/homepage/Doctor-Note-letter-1024px.png"
+                alt="Sample doctor's note document"
+                width={1024}
+                height={1024}
+                className="w-full max-w-xl"
+              />
             </div>
 
-            {/* Affordable */}
-            <div className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-primary/20 hover:shadow-md">
-              <h3 className="mb-2 text-xl font-semibold">Affordable</h3>
-              <p className="text-muted-foreground">
-                Only $24.95 with no hidden fees. Save time and money compared to traditional visits.
-              </p>
-            </div>
+            {/* Right Column - Features */}
+            <div className="space-y-8">
+              {/* 100% Money Back Guarantee */}
+              <div className="flex items-center gap-5">
+                <DollarSign className="text-primary h-12 w-12 shrink-0" />
+                <h3 className="text-2xl font-semibold">100% Money Back Guarantee</h3>
+              </div>
 
-            {/* Legal */}
-            <div className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-primary/20 hover:shadow-md">
-              <h3 className="mb-2 text-xl font-semibold">Legal</h3>
-              <p className="text-muted-foreground">
-                Signed by licensed, board-certified physicians. Legitimate medical documentation.
-              </p>
-            </div>
+              {/* Employer/School Verification */}
+              <div className="flex items-center gap-5">
+                <Phone className="text-primary h-12 w-12 shrink-0" />
+                <h3 className="text-2xl font-semibold">Employer / School Verification Service</h3>
+              </div>
 
-            {/* Easy */}
-            <div className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-primary/20 hover:shadow-md">
-              <h3 className="mb-2 text-xl font-semibold">Easy</h3>
-              <p className="text-muted-foreground">
-                100% online process. Complete the form in minutes from anywhere.
-              </p>
-            </div>
+              {/* Board-Certified Doctors */}
+              <div className="flex items-center gap-5">
+                <BadgeCheck className="text-primary h-12 w-12 shrink-0" />
+                <h3 className="text-2xl font-semibold">Board-Certified Doctors</h3>
+              </div>
 
-            {/* Secure */}
-            <div className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-primary/20 hover:shadow-md">
-              <h3 className="mb-2 text-xl font-semibold">Secure</h3>
-              <p className="text-muted-foreground">
-                HIPAA compliant and fully confidential. Your privacy is our top priority.
-              </p>
-            </div>
+              {/* HIPAA Compliant */}
+              <div className="flex items-center gap-5">
+                <Shield className="text-primary h-12 w-12 shrink-0" />
+                <h3 className="text-2xl font-semibold">HIPAA Compliant</h3>
+              </div>
 
-            {/* Guaranteed */}
-            <div className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-primary/20 hover:shadow-md">
-              <h3 className="mb-2 text-xl font-semibold">Guaranteed</h3>
-              <p className="text-muted-foreground">
-                100% money-back guarantee if your note is not accepted. Risk-free service.
-              </p>
+              {/* Valid Nationwide */}
+              <div className="flex items-center gap-5">
+                <CheckCircle2 className="text-primary h-12 w-12 shrink-0" />
+                <h3 className="text-2xl font-semibold">Valid Nationwide</h3>
+              </div>
+
+              {/* CTA Button */}
+              <div className="pt-6">
+                <button
+                  onClick={() => router.push('/start')}
+                  className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center gap-2 rounded-xl px-12 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl"
+                >
+                  Get Your Note Now
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
