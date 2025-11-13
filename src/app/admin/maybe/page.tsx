@@ -98,7 +98,7 @@ export default async function MaybePortalPage() {
                 <div className="text-6xl mb-4">📋</div>
                 <h2 className="text-xl font-semibold text-gray-900">No Maybe Submissions</h2>
                 <p className="mt-2 text-sm text-gray-600">
-                  All submissions marked as "Maybe" will appear here for further review.
+                  All submissions marked as &ldquo;Maybe&rdquo; will appear here for further review.
                 </p>
                 <Link href="/admin/review" className="mt-6 inline-block">
                   <Button>Go to Review Queue</Button>
