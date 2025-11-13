@@ -197,12 +197,13 @@ const styles = StyleSheet.create({
 
 /**
  * Format date as MM/DD/YYYY
+ * Uses UTC methods to avoid timezone conversion issues
  */
 function formatDate(date: Date): string {
   const d = new Date(date)
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const year = d.getFullYear()
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  const year = d.getUTCFullYear()
   return `${month}/${day}/${year}`
 }
 
@@ -319,7 +320,7 @@ export function DoctorNoteTemplate({
               {isCaregiver ? (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition. Please excuse this individual from {excuseFrom} / {excuseFrom}-related activities for the following period, if possible.
+                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition. Please excuse this individual{notePurpose === 'other' ? '' : ` from ${excuseFrom} / ${excuseFrom}-related activities`} for the following period, if possible.
                   </Text>
 
                   {/* Start and End Dates */}
@@ -329,13 +330,13 @@ export function DoctorNoteTemplate({
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return to {excuseFrom} after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               ) : (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual from {excuseFrom} and related activities for the following period due to a medical condition.
+                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` from ${excuseFrom} and related activities`} for the following period due to a medical condition.
                   </Text>
 
                   {/* Start and End Dates */}
@@ -345,7 +346,7 @@ export function DoctorNoteTemplate({
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named patient <Text style={styles.boldText}>may return to {excuseFrom} after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               )}

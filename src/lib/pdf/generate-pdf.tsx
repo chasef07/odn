@@ -155,14 +155,22 @@ function resolveSignaturePath(signatureUrl: string): string {
  * Generate doctor's note PDF from submission data
  *
  * @param submission - Prisma Submission object with all patient/absence data
- * @param issueDate - Date to show as "Date Issued" (defaults to now)
+ * @param issueDate - Date to show as "Date Issued" (defaults to today in UTC)
  * @returns Promise<Buffer> - PDF file as Buffer for email attachment
  * @throws Error if required env vars missing or signature image not found
  */
 export async function generateDoctorNotePDF(
   submission: Submission,
-  issueDate: Date = new Date()
+  issueDate?: Date
 ): Promise<Buffer> {
+  // Default to today's date in UTC (calendar date, not timestamp)
+  const now = new Date()
+  const defaultIssueDate = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate()
+  ))
+  const finalIssueDate = issueDate || defaultIssueDate
   try {
     // Step 1: Validate environment variables
     const doctorInfo = validateDoctorEnvVars()
@@ -184,7 +192,7 @@ export async function generateDoctorNotePDF(
       <DoctorNoteTemplate
         submissionData={submissionData}
         doctorInfo={doctorInfoWithResolvedPath}
-        issueDate={issueDate}
+        issueDate={finalIssueDate}
       />
     )
 

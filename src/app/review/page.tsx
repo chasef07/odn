@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format, parse } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import Link from 'next/link'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -230,13 +231,14 @@ export default function ReviewPage() {
   }
 
   // Helper function to format date
+  // Uses UTC to avoid timezone shifts for calendar dates
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not provided'
     try {
       // Parse date in local timezone to avoid off-by-one day issues
       // dateString format is "yyyy-MM-dd"
       const date = parse(dateString, 'yyyy-MM-dd', new Date())
-      return format(date, 'MMMM d, yyyy')
+      return formatInTimeZone(date, 'UTC', 'MMMM d, yyyy')
     } catch {
       return dateString
     }

@@ -4,6 +4,7 @@
  */
 
 import { formatDistanceToNow, format, differenceInDays, differenceInYears, parse } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 
 /**
  * Denial reason types for submissions
@@ -47,6 +48,7 @@ export function calculateAge(dob: string | Date): number {
 
 /**
  * Format a date range into human-readable format
+ * Uses UTC to avoid timezone shifts for calendar dates
  * @param start - Start date (Date object or ISO string)
  * @param end - End date (Date object or ISO string)
  * @returns Formatted date range (e.g., "Nov 1-2, 2025")
@@ -56,10 +58,10 @@ export function formatDateRange(start: string | Date, end: string | Date): strin
     const startDate = parseLocalDate(start)
     const endDate = parseLocalDate(end)
 
-    const startMonth = format(startDate, 'MMM')
-    const startDay = format(startDate, 'd')
-    const endDay = format(endDate, 'd')
-    const year = format(endDate, 'yyyy')
+    const startMonth = formatInTimeZone(startDate, 'UTC', 'MMM')
+    const startDay = formatInTimeZone(startDate, 'UTC', 'd')
+    const endDay = formatInTimeZone(endDate, 'UTC', 'd')
+    const year = formatInTimeZone(endDate, 'UTC', 'yyyy')
 
     // Same day
     if (startDate.getTime() === endDate.getTime()) {
@@ -67,12 +69,12 @@ export function formatDateRange(start: string | Date, end: string | Date): strin
     }
 
     // Same month
-    if (format(startDate, 'MMM yyyy') === format(endDate, 'MMM yyyy')) {
+    if (formatInTimeZone(startDate, 'UTC', 'MMM yyyy') === formatInTimeZone(endDate, 'UTC', 'MMM yyyy')) {
       return `${startMonth} ${startDay}-${endDay}, ${year}`
     }
 
     // Different months
-    const endMonth = format(endDate, 'MMM')
+    const endMonth = formatInTimeZone(endDate, 'UTC', 'MMM')
     return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`
   } catch {
     return `${start} - ${end}`
@@ -111,13 +113,14 @@ export function formatRelativeTime(date: string | Date): string {
 
 /**
  * Format a date into full format (e.g., "November 1, 2025")
+ * Uses UTC to avoid timezone shifts for calendar dates
  * @param date - Date in ISO format
  * @returns Formatted date string
  */
 export function formatFullDate(date: string | Date): string {
   try {
     const dateObj = parseLocalDate(date)
-    return format(dateObj, 'MMMM d, yyyy')
+    return formatInTimeZone(dateObj, 'UTC', 'MMMM d, yyyy')
   } catch {
     return typeof date === 'string' ? date : date.toISOString()
   }

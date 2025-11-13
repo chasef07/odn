@@ -36,7 +36,7 @@ describe('validateAbsenceDates', () => {
     it('should return no errors for exactly 7-day absence (boundary)', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-22', // Exactly 7 days later
+        lastDayOff: '2025-01-21', // 7 days total (Jan 15-21 inclusive)
       }
 
       const errors = validateAbsenceDates(data)
@@ -117,27 +117,27 @@ describe('validateAbsenceDates', () => {
     it('should reject absence period exceeding 7 days', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-23', // 8 days later
+        lastDayOff: '2025-01-22', // 8 days total (Jan 15-22 inclusive)
       }
 
       const errors = validateAbsenceDates(data)
       expect(errors).toHaveLength(1)
       expect(errors[0]).toEqual({
         field: 'lastDayOff',
-        message: 'Absence period cannot exceed 7 days',
+        message: 'Absence period cannot exceed 7 consecutive days',
       })
     })
 
-    it('should reject absence period of 14 days', () => {
+    it('should reject absence period of 15 days', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-29', // 14 days later
+        lastDayOff: '2025-01-29', // 15 days total (Jan 15-29 inclusive)
       }
 
       const errors = validateAbsenceDates(data)
       expect(errors).toHaveLength(1)
       expect(errors[0].field).toBe('lastDayOff')
-      expect(errors[0].message).toContain('7 days')
+      expect(errors[0].message).toContain('7')
     })
   })
 
