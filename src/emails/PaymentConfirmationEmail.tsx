@@ -66,8 +66,8 @@ export const PaymentConfirmationEmail = ({
                   #{shortId}
                 </Heading>
                 <Text className="text-sm leading-relaxed m-0 text-gray-700">
-                  Save this reference number for your records. You can use it to track your
-                  submission or contact our support team if needed.
+                  Save this reference number for your records. You can use it to contact our
+                  support team if needed.
                 </Text>
               </Section>
 

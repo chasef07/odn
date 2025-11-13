@@ -19,7 +19,7 @@ This document provides context and guidelines for Claude Code when working with 
 - **Authentication**: Better Auth (email/password provider with bcrypt)
 - **Email**: React Email 5.0.1 + Resend 4.0.1
 - **PDF Generation**: @react-pdf/renderer (doctor's notes)
-- **Testing**: Vitest + Testing Library (270 passing tests)
+- **Testing**: Vitest + Testing Library (359 passing tests)
 - **Analytics**: Vercel Analytics
 - **Build**: Turbopack
 
@@ -47,6 +47,7 @@ src/
 │   ├── ApprovalEmail.tsx  # Modern approval notification email
 │   ├── DenialEmail.tsx    # Modern denial notification email
 │   ├── PaymentConfirmationEmail.tsx  # Payment confirmation email
+│   ├── __tests__/         # Email template tests
 │   └── README.md          # Email template documentation
 ├── lib/                   # Business logic & utilities
 │   ├── validation-schemas.ts    # 10 Zod schemas
@@ -54,12 +55,15 @@ src/
 │   ├── form-storage.ts          # localStorage helpers
 │   ├── form-constants.ts        # Static data
 │   ├── email.ts                 # Email sending utilities
+│   ├── email-helpers.ts         # Email helper functions (recipient names, absence text)
+│   ├── state-licenses.ts        # State-specific medical license mapping (44 states)
 │   ├── auth.ts                  # Better Auth config
 │   ├── auth-client.ts           # Better Auth client utilities
 │   ├── prisma.ts                # Prisma client singleton
 │   └── pdf/                     # PDF generation utilities
 │       ├── doctor-note-template.tsx  # PDF template using @react-pdf/renderer
-│       └── generate-pdf.ts      # PDF generation and validation
+│       ├── generate-pdf.ts      # PDF generation and validation
+│       └── __tests__/           # PDF generation tests
 └── prisma/
     └── schema.prisma      # Database schema
 scripts/
@@ -186,12 +190,15 @@ The application uses a multi-step form with conditional steps:
 
 ## Testing Strategy
 
-### Current Coverage (270 passing)
+### Current Coverage (359 passing)
 
 - ✅ Unit tests: All validators and utilities (100% passing)
 - ✅ Schema tests: All 10 Zod schemas (100% passing)
 - ✅ API tests: Stripe payment endpoints (100% passing)
 - ✅ Email tests: React Email rendering and sending (100% passing)
+- ✅ Email helper tests: Email logic for caregiver/appointment scenarios (100% passing)
+- ✅ PDF generation tests: Doctor's note template rendering (100% passing)
+- ✅ State license tests: 44-state medical license mapping (100% passing)
 - ✅ Admin action tests: Submission approval/denial workflow (100% passing)
 - ⚠️ Component tests: Not yet implemented
 - ⚠️ E2E tests: Not yet implemented
@@ -371,8 +378,8 @@ RESEND_FROM_EMAIL=noreply@onlinedoctornote.com  # From email address
 # Doctor Information (PDF Generation)
 DOCTOR_NAME="Dr. Jason Buchwald"         # Doctor's full name for PDF
 DOCTOR_CREDENTIALS="MD"                  # Medical credentials (MD, DO, NP, etc.)
-DOCTOR_LICENSE_NUMBER="1558307702"       # Medical license number
 DOCTOR_SIGNATURE_URL="/images/doctor-signature.png"  # Path to signature image
+# NOTE: DOCTOR_LICENSE_NUMBER removed - now using state-specific licenses from src/lib/state-licenses.ts
 
 # Cron Job Security
 CRON_SECRET=...                          # Cron job secret (generate with: openssl rand -hex 32)
@@ -398,7 +405,7 @@ NODE_ENV=development                     # Environment (development/production)
 
 ### GitHub Actions Workflows
 
-1. **test.yml**: Runs all tests on push/PR (270 passing)
+1. **test.yml**: Runs all tests on push/PR (359 passing)
 2. **claude-code-review.yml**: Automated code reviews on PRs
 3. **claude.yml**: Claude PR assistant (trigger with `@claude`)
 
@@ -406,7 +413,7 @@ NODE_ENV=development                     # Environment (development/production)
 
 ### Pre-commit Checklist
 
-- [ ] All tests pass (`npm test`) - 270 passing expected
+- [ ] All tests pass (`npm test`) - 359 passing expected
 - [ ] No TypeScript errors (`npm run build`)
 - [ ] No ESLint errors (`npm run lint`)
 - [ ] New features have tests
@@ -521,7 +528,7 @@ See [docs/SEO_GUIDE.md](./docs/SEO_GUIDE.md) for complete post-deployment checkl
 ```bash
 # Development
 npm run dev                 # Start dev server
-npm test                   # Run tests (270 passing)
+npm test                   # Run tests (359 passing)
 npm run test:ui            # Run tests with UI
 npm run test:coverage      # Run tests with coverage
 npm run email              # Preview email templates
@@ -551,7 +558,7 @@ npx tsc --noEmit          # Check TypeScript errors
 
 1. **Business Rules**: The 7-day absence limit and 7-day lookback are non-negotiable. Always verify with the user before modifying.
 
-2. **Test Coverage**: When adding new features, always write tests. The project maintains 80%+ coverage (270 passing tests).
+2. **Test Coverage**: When adding new features, always write tests. The project maintains 80%+ coverage (359 passing tests).
 
 3. **Type Safety**: Maintain strict TypeScript. No `any` types unless absolutely necessary.
 
@@ -571,11 +578,19 @@ npx tsc --noEmit          # Check TypeScript errors
 
 11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission + Payment Confirmation Email → Admin Review → Approve/Deny → Approval Email with PDF (if approved) or Denial Email with Refund (if denied)
 
-12. **Approval Automation**: When doctors approve submissions, the system automatically generates a professional PDF doctor's note using @react-pdf/renderer and sends it via email with Resend. PDF generation is BLOCKING (must succeed for approval), while email sending is NON-BLOCKING (logs warning if fails). Doctor information (name, credentials, license number, signature) is configured via environment variables for single-doctor systems.
+12. **Approval Automation**: When doctors approve submissions, the system automatically generates a professional PDF doctor's note using @react-pdf/renderer and sends it via email with Resend. PDF generation is BLOCKING (must succeed for approval), while email sending is NON-BLOCKING (logs warning if fails). Doctor information (name, credentials, signature) is configured via environment variables. State-specific medical license numbers are automatically pulled from `src/lib/state-licenses.ts` based on the patient's state.
 
 13. **Email System**: Uses React Email 5.0 with Tailwind CSS for modern, responsive email templates. Brand color is #009ed9 (cyan blue). Three email types: Payment Confirmation (sent immediately after payment via webhook with submission ID), Approval (includes PDF attachment), and Denial (includes refund confirmation). All emails are NON-BLOCKING in webhook/admin flows to prevent failures. Preview emails with `npm run email`. IMPORTANT: Email templates use standard hex colors (not OKLCH) for maximum email client compatibility.
 
-14. **PDF Generation**: Doctor's notes are generated on-the-fly using @react-pdf/renderer with a professional medical document template branded with Platinum Health Clinic. PDFs include patient information, absence dates, symptoms, doctor's signature, and dynamic "return to work/school" text based on note purpose. Contact email is hello@platinumhealthclinic.com. Test PDF generation locally with `npx tsx scripts/test-approval-flow.ts`.
+13a. **Email Logic (Caregiver & Appointment Scenarios)**: Email templates use helper functions from `src/lib/email-helpers.ts` to ensure consistent logic. The `notePurpose` (work/school/both) determines the email text - NOT the `absenceReason`. This ensures email and PDF text match perfectly:
+   - **Caregiver + Work**: Adult taking care of family → "from work" / "employer"
+   - **Caregiver + School**: Student taking care of family → "from school" / "school"
+   - **Appointment + Work**: Patient with work appointment → "from work" / "employer"
+   - **Appointment + School**: Patient with school appointment → "from school" / "school"
+
+   The caregiver/appointment status ONLY affects the closing empathy paragraph, not the "from work/school" text. Always use `getRecipientName(notePurpose)` and `getAbsenceFromText(notePurpose)` helper functions instead of inline conditionals.
+
+14. **PDF Generation**: Doctor's notes are generated on-the-fly using @react-pdf/renderer with a professional medical document template branded with Platinum Health Clinic. PDFs include patient information, absence dates, symptoms, doctor's signature, and dynamic "return to work/school" text based on note purpose. State-specific medical licenses are displayed using `src/lib/state-licenses.ts` (44 states mapped). Contact email is hello@platinumhealthclinic.com. Test PDF generation locally with `npx tsx scripts/test-approval-flow.ts`.
 
 15. **Analytics**: Vercel Analytics is integrated in `src/app/layout.tsx` for tracking page views and web vitals in production.
 
@@ -584,3 +599,5 @@ npx tsc --noEmit          # Check TypeScript errors
 17. **SEO Optimization**: Comprehensive SEO implementation including robots.txt, sitemap.xml, metadata optimization, OpenGraph tags, structured data (FAQPage schema), and AI crawler instructions (llms-full.txt). All form pages are noindexed to protect user privacy. See "SEO Implementation" section for details.
 
 18. **Monthly Limit Tracking**: The admin portal displays a warning when a patient (identified by email) has been approved for more than 7 days in a calendar month. This is a soft limit for informational purposes only - doctors can still approve submissions that exceed it. The system only counts APPROVED submissions and uses case-insensitive email matching. Note that this can be bypassed with multiple email addresses.
+
+19. **State Medical Licenses**: The system supports 44 U.S. states with state-specific medical license numbers configured in `src/lib/state-licenses.ts`. PDFs automatically display the appropriate license for the patient's state. If a state is not in the mapping, no license section is displayed (graceful degradation).

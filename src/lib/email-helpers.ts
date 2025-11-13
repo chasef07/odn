@@ -1,0 +1,34 @@
+/**
+ * Email Helper Functions
+ * Centralized logic for email templates to ensure consistency
+ */
+
+/**
+ * Get the appropriate recipient name based on note purpose
+ * This determines "employer", "school", or "employer or school" in email text
+ *
+ * Note: Caregiver status does NOT affect this - only notePurpose matters
+ * - Caregiver + Work → employer (adult taking care of family)
+ * - Caregiver + School → school (student taking care of family)
+ */
+export function getRecipientName(notePurpose: string): string {
+  if (notePurpose === 'work') return 'employer'
+  if (notePurpose === 'school') return 'school'
+  if (notePurpose === 'both') return 'employer or school'
+
+  return 'employer or school' // fallback for 'other'
+}
+
+/**
+ * Get the "from X" text for email body
+ * Maps note purpose to the appropriate absence location text
+ *
+ * Note: Caregiver status does NOT affect this - only notePurpose matters
+ */
+export function getAbsenceFromText(notePurpose: string): string {
+  if (notePurpose === 'work') return 'from work'
+  if (notePurpose === 'school') return 'from school'
+  if (notePurpose === 'both') return 'from work and school'
+
+  return '' // Generic case for 'other'
+}

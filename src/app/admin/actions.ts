@@ -184,6 +184,7 @@ export async function approveSubmission(submissionId: string) {
         to: submission.email,
         patientName,
         notePurpose: submission.notePurpose,
+        absenceReason: submission.absenceReason,
         pdfBuffer,
         pdfFilename,
       })

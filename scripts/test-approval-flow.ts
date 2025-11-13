@@ -19,8 +19,8 @@ import { generateDoctorNotePDF } from '../src/lib/pdf/generate-pdf'
 import fs from 'fs'
 import path from 'path'
 
-// Load .env.local file
-config({ path: '.env.local' })
+// Load .env.local file with override to ensure it takes precedence
+config({ path: '.env.local', override: true })
 
 // Sample submission data for testing
 const mockSubmission: Submission = {
