@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Mail,
   Phone,
+  MapPin,
 } from 'lucide-react'
 import {
   Accordion,
@@ -21,6 +22,7 @@ import {
 import { Card } from '@/components/ui/card'
 import { CTAButton } from '@/components/ui/cta-button'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 
 export default function HomePage() {
   return (
@@ -67,11 +69,11 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Star className="text-primary h-5 w-5" />
-                  <span>12,000+ Notes Issued</span>
+                  <span>17,000+ Notes Issued</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="text-primary h-5 w-5" />
-                  <span>Licensed Doctors</span>
+                  <span>U.S. Licensed Doctors</span>
                 </div>
               </div>
             </div>
@@ -119,7 +121,7 @@ export default function HomePage() {
                 3
               </div>
               <h3 className="mb-2 text-center text-xl font-bold">Get Your Note</h3>
-              <p className="text-muted-foreground text-center">Get your note in hours.</p>
+              <p className="text-muted-foreground text-center">Delivered by email in minutes.</p>
             </div>
           </div>
 
@@ -180,7 +182,7 @@ export default function HomePage() {
 
               {/* Valid Nationwide */}
               <div className="flex items-center gap-5">
-                <CheckCircle2 className="text-primary h-12 w-12 shrink-0" />
+                <MapPin className="text-primary h-12 w-12 shrink-0" />
                 <h3 className="text-2xl font-semibold">Valid Nationwide</h3>
               </div>
 
@@ -193,98 +195,145 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FAQ Section */}
+      {/* Why Patients Love Us Section */}
       <section className="bg-blue-50 px-6 py-20">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="mb-16 text-center text-5xl font-bold">Why Patients Love Us</h2>
+
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            {/* Testimonial 1 */}
+            <figure className="rounded-2xl bg-white p-8 shadow-sm">
+              {/* 5 Stars */}
+              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
+                ))}
+              </div>
+
+              {/* Quote */}
+              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
+                I got my letter within 15 minutes! What a great service.
+              </blockquote>
+
+              {/* Author */}
+              <figcaption className="font-semibold text-gray-600">J. S</figcaption>
+            </figure>
+
+            {/* Testimonial 2 */}
+            <figure className="rounded-2xl bg-white p-8 shadow-sm">
+              {/* 5 Stars */}
+              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
+                ))}
+              </div>
+
+              {/* Quote */}
+              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
+                That was way easier than going to the doctor&apos;s office in person.
+              </blockquote>
+
+              {/* Author */}
+              <figcaption className="font-semibold text-gray-600">D. R.</figcaption>
+            </figure>
+
+            {/* Testimonial 3 */}
+            <figure className="rounded-2xl bg-white p-8 shadow-sm">
+              {/* 5 Stars */}
+              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
+                ))}
+              </div>
+
+              {/* Quote */}
+              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
+                My work called to verify the letter and there was no issue. That was easy!
+              </blockquote>
+
+              {/* Author */}
+              <figcaption className="font-semibold text-gray-600">C. H.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="bg-white px-6 py-20">
         <div className="mx-auto max-w-3xl">
-          <h2 className="mb-4 text-center text-4xl font-bold">Frequently Asked Questions</h2>
-          <p className="text-muted-foreground mb-12 text-center text-lg">
-            Everything you need to know about our service
-          </p>
+          <h2 className="mb-12 text-center text-4xl font-bold">Frequently Asked Questions</h2>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="item-1" className="border-b px-4 last:border-b-0">
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  How long does it take to get my note?
+          <div className="space-y-4">
+            <Accordion type="single" collapsible className="w-full space-y-4">
+              <AccordionItem value="item-1" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
+                  What is a doctor&apos;s note?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  Most notes are delivered within 2-4 hours. Our board-certified physicians review
-                  requests promptly to ensure you receive your note as quickly as possible.
+                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
+                  A doctor&apos;s note is a written document provided by a healthcare professional that confirms your evaluation and health condition and excuses you from work and / or school. It typically includes basic information about you and the dates of absence. For privacy purposes, it should not include detailed information about your health condition.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="item-2" className="border-b px-4 last:border-b-0">
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  Is this legal?
+              <AccordionItem value="item-2" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
+                  Who is eligible for a doctor&apos;s note?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  Yes, completely legal. Our notes are signed by licensed, board-certified
-                  physicians who review each case individually. These are legitimate medical
-                  documents.
+                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
+                  Employees, students, parents or guardians, and caregivers. If you are under the age of 18, please have your parent or guardian complete the online form.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="item-3" className="border-b px-4 last:border-b-0">
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  What can I use this note for?
+              <AccordionItem value="item-3" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
+                  Will my employer or school accept the note?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  Our notes can be used for work absences, school absences, and similar short-term
-                  needs. They cannot be used for FMLA, workers&apos; compensation, legal issues, or
-                  disability claims.
+                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
+                  We have a 100% money-back guarantee, so you never have to worry. Our doctor&apos;s notes are signed by a board-certified doctor in your state and contain all of the required information to be compliant while maintaining your privacy. If you have any issue, please contact us and our office staff will gladly assist with verification for your employer or school.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="item-4" className="border-b px-4 last:border-b-0">
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  What if my employer or school doesn&apos;t accept it?
+              <AccordionItem value="item-4" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
+                  How quickly can I get my doctor&apos;s note?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  We offer a 100% money-back guarantee. If your note is not accepted, we&apos;ll
-                  issue a full refund. Our notes are accepted by the vast majority of employers and
-                  schools nationwide.
+                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
+                  Our normal business hours are 8am to 12am EST. During that time, our doctors will usually issue a note within 30 minutes or less of reviewing your health forms, and our office will send a digital copy to your email. During off hours, it may take a little longer to get your note, but we will always try our best to be as quick as possible.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="item-5" className="border-b px-4 last:border-b-0">
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  What information do I need to provide?
+              <AccordionItem value="item-5" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
+                  Can I use my health insurance?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  You&apos;ll need basic personal information, the reason for your absence, dates
-                  you need covered, and contact information. The entire process takes less than 2
-                  minutes to complete.
+                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
+                  Currently we do not accept insurance. However, we do our best to make our services very affordable and the cost of $24.95 is usually less than your co-pay. Even better, a quick online note saves you a trip to the doctor&apos;s office.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="item-6" className="border-b px-4 last:border-b-0">
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  What states do you serve?
+              <AccordionItem value="item-6" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
+                  What can your doctor&apos;s note be used for?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  We currently serve 44 US states. Our physicians are licensed in multiple states
-                  to ensure compliance with local medical regulations.
+                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
+                  Your note from us can be used for simple work or school absences of 5 days or less. Generally this covers mild acute illnesses, minor injuries, mental health issues, doctor&apos;s appointments, and caregiver duties.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="item-7" className="border-b px-4 last:border-b-0">
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  Is my information secure?
+              <AccordionItem value="item-7" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
+                  What your doctor&apos;s note cannot be used for?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  Absolutely. We are HIPAA compliant and use industry-standard encryption to
-                  protect your personal and medical information. Your privacy is our top priority.
+                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
+                  At this time, we cannot provide notes for FMLA (Family and Medical Leave Act) purposes, absences for legal reasons such as a court appearance, insurance forms, return-to-work clearance, disability or workplace accommodations, and emotional support animal letters.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="item-8" className="border-b px-4 last:border-b-0">
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
-                  Do you accept insurance?
+              <AccordionItem value="item-8" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
+                  What can happen if you forge a doctor&apos;s note?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  No, we do not accept insurance. However, at only $24.95, our service is an
-                  affordable out-of-pocket option that saves you the time and expense of a
-                  traditional doctor visit.
+                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
+                  Forging a doctor&apos;s note can have serious legal and professional consequences. You can face disciplinary action at work or school. It is always best to obtain legitimate documentation from a licensed healthcare provider rather than attempting to create a fraudulent document.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -296,63 +345,13 @@ export default function HomePage() {
       <section className="px-6 py-20">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="mb-4 text-4xl font-bold">Ready to Get Your Doctor&apos;s Note?</h2>
-          <p className="text-muted-foreground mb-8 text-xl">Join 12,000+ satisfied customers</p>
+          <p className="text-muted-foreground mb-8 text-xl">Join 17,000+ satisfied patients</p>
 
           <CTAButton showPrice />
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t bg-gray-50 px-6 py-12">
-        <div className="mx-auto max-w-6xl">
-          {/* HIPAA Badge */}
-          <div className="mb-8 flex justify-center">
-            <div className="inline-flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-6 py-3 shadow-sm">
-              <Shield className="h-6 w-6 text-primary" />
-              <div className="text-left">
-                <div className="text-sm font-semibold text-gray-900">HIPAA Compliant</div>
-                <div className="text-xs text-muted-foreground">Secure & Confidential</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Links */}
-          <div className="text-muted-foreground mb-6 flex flex-wrap justify-center gap-6 text-sm">
-            <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
-              Privacy Policy
-            </Link>
-            <span>•</span>
-            <Link href="/terms-of-service" className="hover:text-foreground transition-colors">
-              Terms of Service
-            </Link>
-          </div>
-
-          {/* Contact Info */}
-          <div className="text-muted-foreground mb-6 flex flex-col items-center gap-3 text-sm">
-            <a
-              href="mailto:hello@onlinedoctornote.com"
-              className="hover:text-foreground flex items-center gap-2 transition-colors"
-            >
-              <Mail className="text-primary h-4 w-4" />
-              <span>hello@onlinedoctornote.com</span>
-            </a>
-            <div className="flex items-center gap-2">
-              <Phone className="text-primary h-4 w-4" />
-              <span>
-                <a href="tel:917-300-8543" className="hover:text-foreground transition-colors">
-                  917-300-8543
-                </a>
-                {' '}(8am–8pm EST everyday)
-              </span>
-            </div>
-          </div>
-
-          {/* Copyright */}
-          <p className="text-muted-foreground text-center text-xs">
-            © 2025 OnlineDoctorNote. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Structured Data - FAQ */}
       <script
