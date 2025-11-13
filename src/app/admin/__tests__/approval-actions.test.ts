@@ -151,6 +151,7 @@ describe('approveSubmission - Approval Automation', () => {
         to: 'patient@example.com',
         patientName: 'John Doe',
         notePurpose: 'work',
+        absenceReason: 'illness',
         pdfBuffer: mockPDFBuffer,
         pdfFilename: mockPDFFilename,
       })

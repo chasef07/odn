@@ -4,6 +4,7 @@
  */
 
 import { format } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { MonthlyUsage } from '@/lib/monthly-limit'
 import { Card } from '@/components/ui/card'
 
@@ -45,7 +46,7 @@ export function MonthlyLimitWarning({
               <ul className="list-disc list-inside space-y-1 ml-2">
                 {monthlyUsage.submissions.map((sub) => (
                   <li key={sub.id}>
-                    {format(sub.firstDayOff, 'MMM d')} - {format(sub.lastDayOff, 'MMM d')}
+                    {formatInTimeZone(sub.firstDayOff, 'UTC', 'MMM d')} - {formatInTimeZone(sub.lastDayOff, 'UTC', 'MMM d')}
                     {' '}({sub.days} {sub.days === 1 ? 'day' : 'days'})
                     {sub.approvedAt && (
                       <span className="text-xs ml-1">

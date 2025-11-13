@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { FormLayout } from '@/components/form-layout'
 import { FormCard } from '@/components/form/FormCard'
 import { FormField } from '@/components/form/FormField'
@@ -21,7 +22,8 @@ type FormData = {
 
 export default function AbsenceDatesPage() {
   const router = useRouter()
-  const today = format(new Date(), 'yyyy-MM-dd')
+  // Use UTC to ensure "today" is consistent regardless of timezone
+  const today = formatInTimeZone(new Date(), 'UTC', 'yyyy-MM-dd')
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
   const currentStep = recipient === 'someone_else' ? 7 : 6

@@ -18,6 +18,7 @@ export interface DateValidationError {
 
 /**
  * Validates absence date ranges according to business rules
+ * Uses UTC to avoid timezone shifts for calendar dates
  * - First day cannot be more than MAX_DAYS_IN_PAST days in the past
  * - Last day must be >= first day
  * - Last day cannot be more than MAX_ABSENCE_DAYS days from first day
@@ -29,13 +30,13 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
   const errors: DateValidationError[] = []
 
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  today.setUTCHours(0, 0, 0, 0)
 
   const firstDay = new Date(data.firstDayOff)
-  firstDay.setHours(0, 0, 0, 0)
+  firstDay.setUTCHours(0, 0, 0, 0)
 
   const lastDay = new Date(data.lastDayOff)
-  lastDay.setHours(0, 0, 0, 0)
+  lastDay.setUTCHours(0, 0, 0, 0)
 
   // Check if first day is too far in the past
   const cutoffDate = subDays(today, DATE_LIMITS.MAX_DAYS_IN_PAST + 1)
@@ -55,11 +56,14 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
   }
 
   // Check if absence period exceeds maximum allowed days
+  // Note: We need to count inclusive days (e.g., Jan 1 to Jan 7 = 7 days, not 6)
+  // So we add 1 to the difference to get the total number of days
   const daysDifference = differenceInDays(lastDay, firstDay)
-  if (daysDifference > DATE_LIMITS.MAX_ABSENCE_DAYS) {
+  const totalDays = daysDifference + 1
+  if (totalDays > DATE_LIMITS.MAX_ABSENCE_DAYS) {
     errors.push({
       field: 'lastDayOff',
-      message: `Absence period cannot exceed ${DATE_LIMITS.MAX_ABSENCE_DAYS} days`,
+      message: `Absence period cannot exceed ${DATE_LIMITS.MAX_ABSENCE_DAYS} consecutive days`,
     })
   }
 
