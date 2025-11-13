@@ -8,9 +8,9 @@ import prisma from '../src/lib/prisma'
 import bcrypt from 'bcryptjs'
 
 async function createDoctorUser() {
-  const email = 'fagenchase@gmail.com'
-  const password = 'Doctor@2024'
-  const name = 'Dr. Admin'
+  const email = 'hello@onlinedoctornote.com'
+  const password = '32240'
+  const name = 'Dr. Buchwald'
 
   console.log('🔐 Hashing password with bcrypt...')
   // Use bcrypt instead of scrypt - it's a standard format
