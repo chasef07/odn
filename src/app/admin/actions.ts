@@ -5,7 +5,7 @@
 
 'use server'
 
-import { SubmissionStatus } from '@prisma/client'
+import { Prisma, SubmissionStatus } from '@prisma/client'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
@@ -148,7 +148,8 @@ export async function approveSubmission(submissionId: string) {
       return { success: false, error: 'Submission not found' }
     }
 
-    if (submission.status !== SubmissionStatus.PENDING_REVIEW) {
+    // Allow approval from PENDING_REVIEW or MAYBE status
+    if (submission.status !== SubmissionStatus.PENDING_REVIEW && submission.status !== SubmissionStatus.MAYBE) {
       return {
         success: false,
         error: `Cannot approve submission with status: ${submission.status}`
@@ -214,6 +215,7 @@ export async function approveSubmission(submissionId: string) {
     // Revalidate admin pages
     revalidatePath('/admin')
     revalidatePath('/admin/review')
+    revalidatePath('/admin/maybe')
 
     // Return success with optional warning
     if (emailWarning) {
@@ -258,7 +260,8 @@ export async function denySubmission(submissionId: string, reason: string) {
       return { success: false, error: 'Submission not found' }
     }
 
-    if (submission.status !== SubmissionStatus.PENDING_REVIEW) {
+    // Allow denial from PENDING_REVIEW or MAYBE status
+    if (submission.status !== SubmissionStatus.PENDING_REVIEW && submission.status !== SubmissionStatus.MAYBE) {
       return {
         success: false,
         error: `Cannot deny submission with status: ${submission.status}`
@@ -389,5 +392,166 @@ export async function maybeSubmission(submissionId: string) {
   } catch (error) {
     console.error('Error marking submission as maybe:', error)
     return { success: false, error: 'Failed to mark submission as maybe' }
+  }
+}
+
+/**
+ * Get all submissions with MAYBE status
+ * @returns Array of maybe submissions with patient info
+ */
+export async function getMaybeSubmissions() {
+  try {
+    await getCurrentDoctor() // Verify authentication
+
+    const submissions = await prisma.submission.findMany({
+      where: {
+        status: SubmissionStatus.MAYBE,
+      },
+      select: {
+        id: true,
+        patientFirstName: true,
+        patientLastName: true,
+        firstDayOff: true,
+        lastDayOff: true,
+        reviewedAt: true,
+      },
+      orderBy: {
+        reviewedAt: 'desc', // Most recent first
+      },
+    })
+
+    // Format dates consistently using UTC components to avoid timezone shifts
+    const formattedSubmissions = submissions.map((sub) => {
+      const formatDateUTC = (date: Date) => {
+        const year = date.getUTCFullYear()
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(date.getUTCDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
+
+      return {
+        id: sub.id,
+        patientFirstName: sub.patientFirstName,
+        patientLastName: sub.patientLastName,
+        firstDayOff: formatDateUTC(sub.firstDayOff),
+        lastDayOff: formatDateUTC(sub.lastDayOff),
+        reviewedAt: sub.reviewedAt,
+      }
+    })
+
+    return { success: true, submissions: formattedSubmissions }
+  } catch (error) {
+    console.error('Error fetching maybe submissions:', error)
+    return { success: false, error: 'Failed to fetch maybe submissions', submissions: [] }
+  }
+}
+
+// Type for submission with formatted date strings (for client components)
+export type FormattedSubmission = Omit<
+  Prisma.SubmissionGetPayload<object>,
+  'patientDateOfBirth' | 'guardianDateOfBirth' | 'firstDayOff' | 'lastDayOff'
+> & {
+  patientDateOfBirth: string
+  guardianDateOfBirth: string | null
+  firstDayOff: string
+  lastDayOff: string
+}
+
+/**
+ * Get single submission by ID for editing
+ * @param submissionId - Submission ID to fetch
+ * @returns Full submission data with dates formatted consistently
+ */
+export async function getSubmissionById(submissionId: string): Promise<
+  | { success: true; submission: FormattedSubmission }
+  | { success: false; error: string }
+> {
+  try {
+    await getCurrentDoctor() // Verify authentication
+
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+    })
+
+    if (!submission) {
+      return { success: false, error: 'Submission not found' }
+    }
+
+    // Format dates consistently using UTC components to avoid timezone shifts
+    const formatDateUTC = (date: Date): string => {
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
+    // Return submission with formatted date fields
+    const formattedSubmission: FormattedSubmission = {
+      ...submission,
+      patientDateOfBirth: formatDateUTC(submission.patientDateOfBirth),
+      guardianDateOfBirth: submission.guardianDateOfBirth ? formatDateUTC(submission.guardianDateOfBirth) : null,
+      firstDayOff: formatDateUTC(submission.firstDayOff),
+      lastDayOff: formatDateUTC(submission.lastDayOff),
+    }
+
+    return {
+      success: true,
+      submission: formattedSubmission,
+    }
+  } catch (error) {
+    console.error('Error fetching submission:', error)
+    return { success: false, error: 'Failed to fetch submission' }
+  }
+}
+
+/**
+ * Update submission fields (keeps status as MAYBE)
+ * @param submissionId - Submission ID to update
+ * @param data - Updated submission data
+ * @returns Success status
+ */
+export async function updateSubmission(
+  submissionId: string,
+  data: {
+    patientFirstName?: string
+    patientLastName?: string
+    patientDateOfBirth?: Date
+    guardianFirstName?: string | null
+    guardianLastName?: string | null
+    guardianDateOfBirth?: Date | null
+    email?: string
+    phone?: string
+    state?: string
+    notePurpose?: string
+    otherNotePurpose?: string | null
+    firstDayOff?: Date
+    lastDayOff?: Date
+    absenceReason?: string
+    otherAbsenceReason?: string | null
+    symptoms?: string[]
+    otherSymptomText?: string | null
+    additionalInformation?: string | null
+  }
+) {
+  try {
+    await getCurrentDoctor() // Verify authentication
+
+    // Update submission with new values, keep status as MAYBE
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+    })
+
+    // Revalidate admin pages
+    revalidatePath('/admin/maybe')
+    revalidatePath(`/admin/maybe/${submissionId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating submission:', error)
+    return { success: false, error: 'Failed to update submission' }
   }
 }

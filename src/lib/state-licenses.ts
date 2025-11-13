@@ -10,6 +10,7 @@ export const STATE_LICENSES: Record<string, string> = {
   Colorado: 'CDR.0004879',
   Connecticut: '77218',
   Delaware: 'C1-0027990',
+  'District of Columbia': 'MD500003047',
   Florida: 'ME90639',
   Georgia: '103351',
   Hawaii: 'MD-25049-0',

@@ -3,7 +3,9 @@
  * Displays dashboard statistics in card format
  */
 
+import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 interface AdminStatsProps {
   pendingCount: number
@@ -29,11 +31,6 @@ export function AdminStats({ pendingCount, approvedToday, deniedToday, maybeCoun
       value: deniedToday,
       color: 'text-red-600',
     },
-    {
-      label: 'Maybe',
-      value: maybeCount,
-      color: 'text-yellow-600',
-    },
   ]
 
   return (
@@ -48,6 +45,23 @@ export function AdminStats({ pendingCount, approvedToday, deniedToday, maybeCoun
           </CardContent>
         </Card>
       ))}
+
+      {/* Maybe Card with View Button */}
+      <Card className="p-0">
+        <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
+          <div className="text-2xl font-bold text-yellow-600 mb-1 sm:text-4xl sm:mb-2">
+            {maybeCount}
+          </div>
+          <div className="text-xs text-muted-foreground sm:text-sm mb-2">Maybe</div>
+          {maybeCount > 0 && (
+            <Link href="/admin/maybe">
+              <Button size="sm" variant="outline" className="text-xs h-7 px-2 border-yellow-500 text-yellow-600 hover:bg-yellow-50">
+                View
+              </Button>
+            </Link>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
