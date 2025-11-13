@@ -16,6 +16,7 @@ import {
   Link,
 } from '@react-pdf/renderer'
 import { getStateLicense } from '../state-licenses'
+import { join } from 'path'
 
 // Define comprehensive type for submission data
 export interface DoctorNoteData {
@@ -293,6 +294,9 @@ export function DoctorNoteTemplate({
   // Get state-specific medical license
   const stateLicense = getStateLicense(submissionData.state)
 
+  // Logo path - use absolute path from project root for reliability in all environments
+  const logoPath = join(process.cwd(), 'public', 'images', 'logo.png')
+
   return (
     <Document>
       <Page size="LETTER" style={styles.page} wrap={false}>
@@ -301,7 +305,7 @@ export function DoctorNoteTemplate({
           {/* Logo and Clinic Name (LEFT) */}
           <View style={styles.headerLeft}>
             <Image
-              src={`${process.cwd()}/public/images/logo.png`}
+              src={logoPath}
               style={styles.logo}
             />
             <Text style={styles.clinicName}>Platinum Health</Text>

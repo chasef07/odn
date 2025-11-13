@@ -1,6 +1,14 @@
 /**
  * Convert SVG logo to PNG for PDF generation
  * @react-pdf/renderer doesn't support SVG, so we need PNG
+ *
+ * NOTE: This is a ONE-TIME utility script, not part of the build process.
+ * The generated logo.png is already committed to the repository.
+ *
+ * To use this script:
+ * 1. Install sharp: npm install --save-dev sharp
+ * 2. Run: npx tsx scripts/convert-logo.ts
+ * 3. Commit the updated public/images/logo.png if needed
  */
 
 import sharp from 'sharp'
@@ -9,7 +17,7 @@ import { join } from 'path'
 
 async function convertLogo() {
   try {
-    const svgPath = join(process.cwd(), 'stethoscope_favicon_bigger.svg')
+    const svgPath = join(process.cwd(), 'src/app/icon.svg')
     const outputPath = join(process.cwd(), 'public/images/logo.png')
 
     console.log('📄 Reading SVG file...')
