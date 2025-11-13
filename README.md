@@ -465,6 +465,12 @@ See [docs/PRODUCTION_DEPLOYMENT.md](./docs/PRODUCTION_DEPLOYMENT.md) for complet
 - Implemented FAQPage structured data for rich snippets
 - Added MedicalBusiness schema.org markup
 
+### Branding
+- **Favicon**: Custom SVG favicon (`src/app/icon.svg`) featuring cyan stethoscope design
+- **Color**: Cyan blue (#00b8d4) matching brand identity
+- **Format**: SVG for optimal scalability and modern browser support
+- **Location**: Metadata file in `src/app/` directory (Next.js 16 App Router convention)
+
 ## Documentation
 
 - [Testing Guide](./TESTING.md) - Comprehensive testing documentation

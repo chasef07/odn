@@ -6,11 +6,36 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { format } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { Button } from '@/components/ui/button'
 import { getMaybeSubmissions } from '../actions'
 import { MaybeActionButtons } from '@/components/admin/MaybeActionButtons'
+
+// Helper to format calendar dates consistently in UTC
+function formatCalendarDate(dateString: string): string {
+  // Parse YYYY-MM-DD as UTC midnight to avoid timezone shifts
+  const [year, month, day] = dateString.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return formatInTimeZone(date, 'UTC', 'MMM d, yyyy')
+}
+
+// Helper to format calendar date range
+function formatDateRange(start: string, end: string): string {
+  if (start === end) {
+    return formatCalendarDate(start)
+  }
+  const [startYear, startMonth, startDay] = start.split('-').map(Number)
+  const [endYear, endMonth, endDay] = end.split('-').map(Number)
+  const startDate = new Date(Date.UTC(startYear, startMonth - 1, startDay))
+  const endDate = new Date(Date.UTC(endYear, endMonth - 1, endDay))
+
+  const startFormatted = formatInTimeZone(startDate, 'UTC', 'MMM d')
+  const endFormatted = formatInTimeZone(endDate, 'UTC', 'MMM d, yyyy')
+  return `${startFormatted} - ${endFormatted}`
+}
 
 export default async function MaybePortalPage() {
   // SECURITY: Check authentication
@@ -127,33 +152,14 @@ export default async function MaybePortalPage() {
                         {submission.patientFirstName} {submission.patientLastName}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                        {submission.firstDayOff === submission.lastDayOff
-                          ? new Date(submission.firstDayOff + 'T12:00:00').toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })
-                          : `${new Date(submission.firstDayOff + 'T12:00:00').toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                            })} - ${new Date(submission.lastDayOff + 'T12:00:00').toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}`}
+                        {formatDateRange(submission.firstDayOff, submission.lastDayOff)}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">
                         {submission.id}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {submission.reviewedAt
-                          ? new Date(submission.reviewedAt).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
+                          ? format(new Date(submission.reviewedAt), "MMM d, yyyy 'at' h:mm a")
                           : 'N/A'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
