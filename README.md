@@ -18,20 +18,24 @@ This application provides a user-friendly interface for individuals to obtain do
 - **Mobile Responsive**: Optimized UI for all device sizes
 - **Form Persistence**: Auto-saves progress to localStorage
 - **Database**: PostgreSQL with Prisma ORM for production data
-- **Comprehensive Testing**: 270 automated tests passing with 80%+ coverage
+- **Comprehensive Testing**: 359 automated tests passing with 80%+ coverage
 
 ### Email & Notifications
 - **Modern Email Templates**: Beautiful React Email 5.0 templates with Tailwind CSS
+- **Smart Email Logic**: Helper functions ensure consistent text for caregiver/appointment scenarios
 - **Payment Confirmation**: Instant email with submission ID after successful payment
 - **Approval Emails**: Automated emails with PDF attachment on approval
 - **Denial Emails**: Automated refund notification emails
 - **Email Provider**: Resend for reliable email delivery
 - **Responsive Design**: Mobile-optimized email layouts
+- **Dynamic Content**: Email text automatically matches PDF content based on work/school purpose
 
 ### PDF Generation
 - **Professional PDFs**: Auto-generated doctor's notes using @react-pdf/renderer
 - **Platinum Health Clinic Branding**: Custom letterhead and contact information
+- **State-Specific Medical Licenses**: Automatic display of appropriate license for 44 U.S. states
 - **Digital Signatures**: Doctor signature included on all notes
+- **Caregiver Support**: Dynamic language for caregivers vs. patients
 - **Instant Delivery**: PDF attached to approval emails
 
 ### Admin Features
@@ -118,8 +122,8 @@ RESEND_FROM_EMAIL=noreply@onlinedoctornote.com
 # Doctor Information (for PDF generation)
 DOCTOR_NAME="Dr. Jason Buchwald"
 DOCTOR_CREDENTIALS="MD"
-DOCTOR_LICENSE_NUMBER="1558307702"
 DOCTOR_SIGNATURE_URL="/images/doctor-signature.png"
+# NOTE: DOCTOR_LICENSE_NUMBER removed - state-specific licenses in src/lib/state-licenses.ts
 ```
 
 See `.env.example` for complete configuration with comments.
@@ -249,10 +253,13 @@ Now test payments will trigger webhook events locally!
 
 The project has comprehensive test coverage:
 
-- **249 tests passing** (all passing, no skipped tests)
-- **Unit tests**: Validators, utilities, schemas (100% passing)
+- **359 tests passing** (all passing, no skipped tests)
+- **Unit tests**: Validators, utilities, schemas, email helpers (100% passing)
 - **Integration tests**: API routes with mocked Stripe (100% passing)
 - **Email tests**: React Email rendering and sending (100% passing)
+- **PDF tests**: Doctor's note template rendering (100% passing)
+- **State license tests**: 44-state medical license mapping (100% passing)
+- **Admin tests**: Approval/denial workflow automation (100% passing)
 - **Coverage**: 80%+ across the codebase
 
 See [TESTING.md](./TESTING.md) for detailed testing documentation.
