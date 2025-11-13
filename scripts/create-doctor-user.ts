@@ -4,10 +4,8 @@
  * Run with: npx tsx scripts/create-doctor-user.ts
  */
 
-import { PrismaClient } from '@prisma/client'
+import prisma from '../src/lib/prisma'
 import bcrypt from 'bcryptjs'
-
-const prisma = new PrismaClient()
 
 async function createDoctorUser() {
   const email = 'fagenchase@gmail.com'
