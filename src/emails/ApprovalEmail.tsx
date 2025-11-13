@@ -15,6 +15,7 @@ import {
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
 import * as React from 'react'
+import { getRecipientName, getAbsenceFromText } from '@/lib/email-helpers'
 
 interface ApprovalEmailProps {
   patientName: string
@@ -81,7 +82,7 @@ export const ApprovalEmail = ({
               <Text className="text-gray-700 text-base leading-relaxed mb-6">
                 We want to start by thanking you for entrusting us with your health needs.
                 Please find the attached doctor&apos;s note for a medically excused absence{' '}
-                {isCaregiver ? 'from work' : bodyPurpose}.
+                {getAbsenceFromText(notePurpose)}.
               </Text>
 
               <Heading className="text-gray-900 text-xl font-bold mb-4">
@@ -111,7 +112,7 @@ export const ApprovalEmail = ({
                 </Column>
                 <Column>
                   <Text className="text-gray-700 text-base m-0 leading-relaxed">
-                    If your {isCaregiver ? 'employer' : notePurpose === 'work' ? 'employer' : notePurpose === 'school' ? 'school' : 'employer or school'} needs
+                    If your {getRecipientName(notePurpose)} needs
                     further verification, please ask them to email our medical office at{' '}
                     <Link
                       href="mailto:hello@platinumhealthclinic.com"
