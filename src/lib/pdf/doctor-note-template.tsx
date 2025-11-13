@@ -71,53 +71,78 @@ const styles = StyleSheet.create({
     fontFamily: 'Times-Roman',
     backgroundColor: '#ffffff',
     lineHeight: 1.5,
+    borderLeft: '16px solid #009fe6',
   },
-  // Header with light blue background
+  // Header with white background
   headerSection: {
-    backgroundColor: '#E0F2FE',
-    height: 120,
+    backgroundColor: '#ffffff',
     paddingLeft: 72,
     paddingRight: 72,
-    paddingTop: 25,
-    paddingBottom: 25,
+    paddingTop: 30,
+    paddingBottom: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  headerSeparator: {
+    borderBottom: '2px solid #1e3a8a',
+    marginLeft: 72,
+    marginRight: 72,
+    marginBottom: 20,
+  },
   headerLeft: {
     flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  logo: {
+    width: 60,
+    height: 60,
+    marginBottom: 8,
+  },
+  clinicName: {
+    fontSize: 24,
+    fontFamily: 'Times-Bold',
+    color: '#111827',
+    letterSpacing: 0.5,
   },
   headerRight: {
     flexDirection: 'column',
     alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: '100%',
   },
-  headerLine: {
+  doctorInfoTop: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+  },
+  doctorName: {
+    fontSize: 11,
+    fontFamily: 'Times-Bold',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  doctorCredentials: {
     fontSize: 10,
-    marginBottom: 3,
     color: '#1F2937',
+  },
+  contactInfoBottom: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
   },
   emailLink: {
     fontSize: 10,
-    marginBottom: 3,
+    marginBottom: 2,
     color: '#1F2937',
     textDecoration: 'none',
   },
-  clinicName: {
-    fontSize: 16,
-    fontFamily: 'Times-Bold',
-    color: '#111827',
-    letterSpacing: 0.5,
-    marginTop: 10,
-  },
-  servingStates: {
+  headerLine: {
     fontSize: 10,
     color: '#1F2937',
-    marginBottom: 3,
   },
   contentSection: {
     paddingLeft: 72,
-    paddingRight: 72,
-    paddingTop: 30,
+    paddingRight: 50,
+    paddingTop: 10,
     paddingBottom: 40,
     flex: 1,
   },
@@ -149,8 +174,10 @@ const styles = StyleSheet.create({
   },
   paragraph: {
     marginBottom: 12,
-    textAlign: 'justify',
-    lineHeight: 1.5,
+    textAlign: 'left',
+    lineHeight: 1.6,
+    wordWrap: 'normal',
+    hyphens: 'none',
   },
   concernHeader: {
     marginBottom: 12,
@@ -165,8 +192,10 @@ const styles = StyleSheet.create({
   },
   returnText: {
     marginBottom: 12,
-    textAlign: 'justify',
-    lineHeight: 1.5,
+    textAlign: 'left',
+    lineHeight: 1.6,
+    wordWrap: 'normal',
+    hyphens: 'none',
   },
   boldText: {
     fontFamily: 'Times-Bold',
@@ -185,7 +214,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     objectFit: 'contain',
   },
-  doctorName: {
+  physicianName: {
     fontSize: 12,
     fontFamily: 'Times-Bold',
   },
@@ -267,23 +296,39 @@ export function DoctorNoteTemplate({
   return (
     <Document>
       <Page size="LETTER" style={styles.page} wrap={false}>
-        {/* Header Section - Modern design with light blue background */}
+        {/* Header Section - Modern design with white background and blue left border */}
         <View style={styles.headerSection}>
-          {/* Contact information (LEFT) */}
+          {/* Logo and Clinic Name (LEFT) */}
           <View style={styles.headerLeft}>
-            <Text style={styles.servingStates}>Proudly Serving Patients in Over 40 States</Text>
-            <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>
-              <Text>Email: hello@platinumhealthclinic.com</Text>
-            </Link>
-            <Text style={styles.headerLine}>Phone: 786-292-3730</Text>
-            <Text style={styles.headerLine}>Fax: 786-289-9316</Text>
-          </View>
-
-          {/* Clinic name (RIGHT) */}
-          <View style={styles.headerRight}>
+            <Image
+              src={`${process.cwd()}/public/images/logo.png`}
+              style={styles.logo}
+            />
             <Text style={styles.clinicName}>Platinum Health</Text>
           </View>
+
+          {/* Doctor Info and Contact (RIGHT) */}
+          <View style={styles.headerRight}>
+            <View style={styles.doctorInfoTop}>
+              <Text style={styles.doctorName}>{doctorInfo.name}, {doctorInfo.credentials}</Text>
+              {stateLicense && (
+                <Text style={styles.doctorCredentials}>
+                  {stateLicense.stateName} License: {stateLicense.licenseNumber}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.contactInfoBottom}>
+              <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>
+                <Text>hello@platinumhealthclinic.com</Text>
+              </Link>
+              <Text style={styles.headerLine}>Phone: 786-292-3730</Text>
+            </View>
+          </View>
         </View>
+
+        {/* Separator Line */}
+        <View style={styles.headerSeparator} />
 
         {/* Content Section */}
         <View style={styles.contentSection}>
@@ -364,7 +409,7 @@ export function DoctorNoteTemplate({
                 />
               )}
 
-              <Text style={styles.doctorName}>
+              <Text style={styles.physicianName}>
                 Physician Name: {doctorInfo.name}, {doctorInfo.credentials}
               </Text>
               {stateLicense && (
