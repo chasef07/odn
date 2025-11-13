@@ -38,18 +38,23 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
 
   // Approval modal state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  const [approvalError, setApprovalError] = useState<string | null>(null)
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
   const [denialReason, setDenialReason] = useState<string>('')
   const [otherReason, setOtherReason] = useState('')
+  const [denialError, setDenialError] = useState<string | null>(null)
 
   const handleApproveClick = () => {
+    setApprovalError(null)
     setShowApprovalDialog(true)
   }
 
   const handleApproveConfirm = async () => {
     setIsLoading(true)
+    setApprovalError(null)
+
     try {
       const result = await approveSubmission(submissionId)
 
@@ -57,11 +62,11 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
         setShowApprovalDialog(false)
         router.refresh() // Refresh to remove from list
       } else {
-        alert(`Failed to approve: ${result.error || 'Unknown error'}`)
+        setApprovalError(result.error || 'Unknown error')
+        setIsLoading(false)
       }
     } catch (err) {
-      alert('An unexpected error occurred')
-    } finally {
+      setApprovalError(err instanceof Error ? err.message : 'An unexpected error occurred')
       setIsLoading(false)
     }
   }
@@ -69,6 +74,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   const handleDenyClick = () => {
     setDenialReason('')
     setOtherReason('')
+    setDenialError(null)
     setShowDenialDialog(true)
   }
 
@@ -76,11 +82,13 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     const finalReason = denialReason === 'Other' ? otherReason : denialReason
 
     if (!finalReason) {
-      alert('Please select or enter a denial reason')
+      setDenialError('Please select or enter a denial reason')
       return
     }
 
     setIsLoading(true)
+    setDenialError(null)
+
     try {
       const result = await denySubmission(submissionId, finalReason)
 
@@ -88,11 +96,11 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
         setShowDenialDialog(false)
         router.refresh() // Refresh to remove from list
       } else {
-        alert(`Failed to deny: ${result.error || 'Unknown error'}`)
+        setDenialError(result.error || 'Unknown error')
+        setIsLoading(false)
       }
     } catch (err) {
-      alert('An unexpected error occurred')
-    } finally {
+      setDenialError(err instanceof Error ? err.message : 'An unexpected error occurred')
       setIsLoading(false)
     }
   }
@@ -130,10 +138,17 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
           <DialogHeader>
             <DialogTitle>Approve Submission</DialogTitle>
             <DialogDescription>
-              This will generate a doctor's note PDF and send it to the patient via email.
+              This will generate a doctor&apos;s note PDF and send it to the patient via email.
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+
+          {approvalError && (
+            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+              <strong>Error:</strong> {approvalError}
+            </div>
+          )}
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -163,6 +178,12 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+
+          {denialError && (
+            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+              <strong>Error:</strong> {denialError}
+            </div>
+          )}
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
