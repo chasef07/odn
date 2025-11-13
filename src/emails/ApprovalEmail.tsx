@@ -40,16 +40,7 @@ export const ApprovalEmail = ({
     other: '',
   }
 
-  // Map note purpose to body text ("from X")
-  const bodyPurposeMap: Record<string, string> = {
-    work: 'from work',
-    school: 'from school',
-    both: 'from work and school',
-    other: '', // Generic: "medically excused absence" only
-  }
-
   const subjectPurpose = subjectPurposeMap[notePurpose] || ''
-  const bodyPurpose = bodyPurposeMap[notePurpose] || ''
   const currentYear = new Date().getFullYear()
 
   // Dynamic subject line based on absence reason or note purpose
