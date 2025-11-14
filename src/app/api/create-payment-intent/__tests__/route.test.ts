@@ -3,14 +3,18 @@ import { NextRequest } from 'next/server'
 import type { FormData } from '@/lib/form-storage'
 
 // Mock Prisma using vi.hoisted
-const { mockPrismaCreate } = vi.hoisted(() => ({
+const { mockPrismaCreate, mockPrismaUpdate, mockPrismaDelete } = vi.hoisted(() => ({
   mockPrismaCreate: vi.fn(),
+  mockPrismaUpdate: vi.fn(),
+  mockPrismaDelete: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
   default: {
     temporarySubmission: {
       create: mockPrismaCreate,
+      update: mockPrismaUpdate,
+      delete: mockPrismaDelete,
     },
   },
 }))
@@ -87,16 +91,30 @@ describe('POST /api/create-payment-intent', () => {
   it('should create a payment intent and temporary submission successfully', async () => {
     const mockClientSecret = 'pi_mock_client_secret'
     const mockPaymentIntentId = 'pi_123456'
+    const mockTempSubmissionId = 'temp_123'
 
+    // Mock TemporarySubmission.create (step 1 - with placeholder ID)
+    mockPrismaCreate.mockResolvedValue({
+      id: mockTempSubmissionId,
+      paymentIntentId: expect.stringMatching(/^pending_/), // Placeholder ID
+      formData: mockFormData,
+      expiresAt: new Date(),
+    })
+
+    // Mock PaymentIntent.create (step 2)
     mockPaymentIntentCreate.mockResolvedValue({
       id: mockPaymentIntentId,
       client_secret: mockClientSecret,
       amount: 2495,
       currency: 'usd',
+      metadata: {
+        temporarySubmissionId: mockTempSubmissionId,
+      },
     })
 
-    mockPrismaCreate.mockResolvedValue({
-      id: 'temp_123',
+    // Mock TemporarySubmission.update (step 3 - link to real payment intent ID)
+    mockPrismaUpdate.mockResolvedValue({
+      id: mockTempSubmissionId,
       paymentIntentId: mockPaymentIntentId,
       formData: mockFormData,
       expiresAt: new Date(),
@@ -115,11 +133,30 @@ describe('POST /api/create-payment-intent', () => {
     expect(data).toEqual({
       clientSecret: mockClientSecret,
     })
+
+    // Verify TemporarySubmission was created FIRST with placeholder
     expect(mockPrismaCreate).toHaveBeenCalledWith({
       data: {
-        paymentIntentId: mockPaymentIntentId,
+        paymentIntentId: expect.stringMatching(/^pending_/),
         formData: mockFormData,
         expiresAt: expect.any(Date),
+      },
+    })
+
+    // Verify PaymentIntent includes metadata with temp submission ID
+    expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          temporarySubmissionId: mockTempSubmissionId,
+        }),
+      })
+    )
+
+    // Verify TemporarySubmission was updated with real payment intent ID
+    expect(mockPrismaUpdate).toHaveBeenCalledWith({
+      where: { id: mockTempSubmissionId },
+      data: {
+        paymentIntentId: mockPaymentIntentId,
       },
     })
   })
@@ -179,6 +216,12 @@ describe('POST /api/create-payment-intent', () => {
   })
 
   it('should call Stripe with correct parameters', async () => {
+    const mockTempSubmissionId = 'temp_456'
+
+    mockPrismaCreate.mockResolvedValue({
+      id: mockTempSubmissionId,
+    })
+
     mockPaymentIntentCreate.mockResolvedValue({
       id: 'pi_123',
       client_secret: 'pi_mock',
@@ -186,7 +229,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaCreate.mockResolvedValue({})
+    mockPrismaUpdate.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -209,6 +252,7 @@ describe('POST /api/create-payment-intent', () => {
         service: 'online-doctors-note',
         email: mockFormData.email,
         price_id: 'price_test_mock',
+        temporarySubmissionId: mockTempSubmissionId, // NEW: fallback reference
       },
     })
   })
@@ -376,18 +420,10 @@ describe('POST /api/create-payment-intent', () => {
     expect(data.error).toBe('Payment processing error. Please try again.')
   })
 
-  it('should cancel payment intent if database fails', async () => {
-    const mockPaymentIntentId = 'pi_123456'
-
-    mockPaymentIntentCreate.mockResolvedValue({
-      id: mockPaymentIntentId,
-      client_secret: 'pi_mock_secret',
-      amount: 2495,
-      currency: 'usd',
-    })
-
+  it('should return 500 if database fails to create TemporarySubmission', async () => {
+    // In the new flow, TemporarySubmission is created FIRST
+    // If it fails, no PaymentIntent is created, so nothing to cancel
     mockPrismaCreate.mockRejectedValue(new Error('Database error'))
-    mockPaymentIntentCancel.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -400,11 +436,25 @@ describe('POST /api/create-payment-intent', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Unable to process your request. Please try again.')
-    expect(mockPaymentIntentCancel).toHaveBeenCalledWith(mockPaymentIntentId)
+
+    // PaymentIntent should NOT be created or canceled since DB failed first
+    expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    expect(mockPaymentIntentCancel).not.toHaveBeenCalled()
   })
 
   it('should handle invalid Stripe key error', async () => {
+    const mockTempSubmissionId = 'temp_789'
+
+    // TemporarySubmission created successfully
+    mockPrismaCreate.mockResolvedValue({
+      id: mockTempSubmissionId,
+    })
+
+    // PaymentIntent creation fails (invalid API key)
     mockPaymentIntentCreate.mockRejectedValue(new Error('Invalid API Key provided'))
+
+    // Cleanup deletes temp submission
+    mockPrismaDelete.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -417,6 +467,11 @@ describe('POST /api/create-payment-intent', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Payment processing error. Please try again.')
+
+    // Verify cleanup was attempted
+    expect(mockPrismaDelete).toHaveBeenCalledWith({
+      where: { id: mockTempSubmissionId },
+    })
   })
 
   it('should handle network errors', async () => {

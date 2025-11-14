@@ -7,6 +7,42 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-10-29.clover',
 })
 
+/**
+ * Attempts to cancel a Stripe payment intent with retries and exponential backoff
+ * @param stripe Stripe instance
+ * @param paymentIntentId Payment intent ID to cancel
+ * @param maxRetries Maximum number of retry attempts (default: 3)
+ * @returns true if cancellation succeeded, false otherwise
+ */
+async function cancelPaymentIntentWithRetry(
+  stripe: Stripe,
+  paymentIntentId: string,
+  maxRetries = 3
+): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await stripe.paymentIntents.cancel(paymentIntentId)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Payment intent canceled successfully on attempt ${i + 1}:`, paymentIntentId)
+      }
+      return true
+    } catch (error) {
+      console.error(`Failed to cancel payment intent (attempt ${i + 1}/${maxRetries}):`, error)
+
+      if (i < maxRetries - 1) {
+        // Wait before retry with exponential backoff: 100ms, 200ms, 400ms
+        await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, i)))
+      }
+    }
+  }
+
+  // All retries failed
+  console.error('CRITICAL: Failed to cancel payment intent after all retries', {
+    paymentIntentId,
+  })
+  return false
+}
+
 export async function POST(request: NextRequest) {
   try {
     // 1. Parse request body
@@ -76,7 +112,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 5. Create Stripe payment intent with dynamic price
+    // 5. Create TemporarySubmission FIRST with placeholder payment intent ID
+    // This ensures the database record exists before the PaymentIntent is created,
+    // preventing race conditions where webhooks fire before DB writes complete
+    let tempSubmissionId: string
+    try {
+      const tempSubmission = await prisma.temporarySubmission.create({
+        data: {
+          paymentIntentId: `pending_${Date.now()}`, // Temporary placeholder
+          formData: formData as unknown as Record<string, unknown>,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        },
+      })
+      tempSubmissionId = tempSubmission.id
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('TemporarySubmission created:', tempSubmissionId)
+      }
+    } catch (dbError) {
+      console.error('Database error creating TemporarySubmission:', dbError)
+      return NextResponse.json(
+        { error: 'Unable to process your request. Please try again.' },
+        { status: 500 }
+      )
+    }
+
+    // 6. Create Stripe payment intent SECOND with reference to temp submission
+    // The metadata.temporarySubmissionId provides a fallback lookup path for webhooks
     let paymentIntent: Stripe.PaymentIntent
     try {
       paymentIntent = await stripe.paymentIntents.create({
@@ -91,43 +153,76 @@ export async function POST(request: NextRequest) {
           service: 'online-doctors-note',
           email: formData.email || '',
           price_id: price.id,
+          temporarySubmissionId: tempSubmissionId, // Add reference for webhook fallback
         },
       })
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('PaymentIntent created:', paymentIntent.id)
+      }
     } catch (stripeError) {
       console.error('Stripe API error:', stripeError)
+
+      // Cleanup: Delete the temporary submission we just created
+      try {
+        await prisma.temporarySubmission.delete({
+          where: { id: tempSubmissionId },
+        })
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Cleaned up TemporarySubmission after Stripe error:', tempSubmissionId)
+        }
+      } catch (cleanupError) {
+        console.error('Failed to cleanup TemporarySubmission:', cleanupError)
+      }
+
       return NextResponse.json(
         { error: 'Payment processing error. Please try again.' },
         { status: 500 }
       )
     }
 
-    // 6. Create TemporarySubmission with form data
+    // 7. Update TemporarySubmission with real payment intent ID
+    // This links the database record to the actual Stripe payment
     try {
-      await prisma.temporarySubmission.create({
+      await prisma.temporarySubmission.update({
+        where: { id: tempSubmissionId },
         data: {
           paymentIntentId: paymentIntent.id,
-          formData: formData as unknown as Record<string, unknown>, // Prisma Json type
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
         },
       })
-    } catch (dbError) {
-      console.error('Database error creating TemporarySubmission:', dbError)
 
-      // CRITICAL: Payment intent created but DB failed
-      // Log this for manual recovery
-      console.error('CRITICAL: Payment intent created but TemporarySubmission failed', {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('TemporarySubmission updated with PaymentIntent ID:', paymentIntent.id)
+      }
+    } catch (updateError) {
+      console.error('Failed to update TemporarySubmission with payment intent ID:', updateError)
+
+      // CRITICAL: We have a payment intent AND a temp submission, but they're not linked
+      console.error('CRITICAL: Payment intent created but update failed', {
         paymentIntentId: paymentIntent.id,
+        tempSubmissionId: tempSubmissionId,
         email: formData.email,
       })
 
-      // Cancel the payment intent to prevent charging user
+      // Try to cancel payment intent with retry logic
+      const cancelSucceeded = await cancelPaymentIntentWithRetry(stripe, paymentIntent.id)
+
+      // Try to delete temp submission
       try {
-        await stripe.paymentIntents.cancel(paymentIntent.id)
+        await prisma.temporarySubmission.delete({
+          where: { id: tempSubmissionId },
+        })
         if (process.env.NODE_ENV === 'development') {
-          console.log('Payment intent canceled successfully:', paymentIntent.id)
+          console.log('Cleaned up TemporarySubmission after update failure:', tempSubmissionId)
         }
-      } catch (cancelError) {
-        console.error('Failed to cancel payment intent:', cancelError)
+      } catch (cleanupError) {
+        console.error('Failed to cleanup TemporarySubmission after update failure:', cleanupError)
+      }
+
+      if (!cancelSucceeded) {
+        // Payment intent exists but couldn't be canceled - webhook might still process it
+        // The metadata.temporarySubmissionId will allow webhook to find the temp submission
+        console.error('CRITICAL: PaymentIntent may still be active, webhook can use metadata fallback')
       }
 
       return NextResponse.json(
@@ -136,7 +231,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 7. Success - return client secret
+    // 8. Success - return client secret
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
     })
