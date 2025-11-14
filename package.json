@@ -17,6 +17,7 @@
     "email": "email dev --dir src/emails"
   },
   "dependencies": {
+    "@fontsource/plus-jakarta-sans": "^5.2.8",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.19.0",
     "@prisma/extension-accelerate": "^2.0.2",
