@@ -347,14 +347,15 @@ export async function denySubmission(submissionId: string, reason: string) {
       },
     })
 
+    // Revalidate admin pages
+    revalidatePath('/admin')
+    revalidatePath('/admin/review')
+    revalidatePath('/admin/maybe')
+
     // Return success with optional warning
     if (emailWarning) {
       return { success: true, warning: emailWarning }
     }
-
-    // Revalidate admin pages
-    revalidatePath('/admin')
-    revalidatePath('/admin/review')
 
     return { success: true }
   } catch (error) {
@@ -387,6 +388,7 @@ export async function maybeSubmission(submissionId: string) {
     // Revalidate admin pages
     revalidatePath('/admin')
     revalidatePath('/admin/review')
+    revalidatePath('/admin/maybe')
 
     return { success: true }
   } catch (error) {
@@ -411,6 +413,7 @@ export async function getMaybeSubmissions() {
         id: true,
         patientFirstName: true,
         patientLastName: true,
+        email: true,
         firstDayOff: true,
         lastDayOff: true,
         reviewedAt: true,
@@ -433,6 +436,7 @@ export async function getMaybeSubmissions() {
         id: sub.id,
         patientFirstName: sub.patientFirstName,
         patientLastName: sub.patientLastName,
+        email: sub.email,
         firstDayOff: formatDateUTC(sub.firstDayOff),
         lastDayOff: formatDateUTC(sub.lastDayOff),
         reviewedAt: sub.reviewedAt,

@@ -81,7 +81,6 @@ async function main() {
   const requiredEnvVars = [
     'DOCTOR_NAME',
     'DOCTOR_CREDENTIALS',
-    'DOCTOR_LICENSE_NUMBER',
     'DOCTOR_SIGNATURE_URL',
   ]
 
@@ -97,7 +96,8 @@ async function main() {
     process.exit(1)
   }
 
-  console.log('✅ All environment variables found\n')
+  console.log('✅ All environment variables found')
+  console.log('ℹ️  Using state-specific medical licenses from src/lib/state-licenses.ts\n')
 
   // Create output directory
   const outputDir = path.join(process.cwd(), 'test-output')
@@ -131,8 +131,8 @@ async function main() {
     console.log('Doctor Information Used:')
     console.log(`   Name: ${process.env.DOCTOR_NAME}`)
     console.log(`   Credentials: ${process.env.DOCTOR_CREDENTIALS}`)
-    console.log(`   License: ${process.env.DOCTOR_LICENSE_NUMBER}`)
     console.log(`   Signature: ${process.env.DOCTOR_SIGNATURE_URL}`)
+    console.log(`   License: State-specific (from state-licenses.ts)`)
     console.log('=' .repeat(60))
   } catch (error) {
     console.error('\n❌ Error generating PDF:')

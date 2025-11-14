@@ -14,8 +14,68 @@ import {
   StyleSheet,
   Image,
   Link,
+  Font,
 } from '@react-pdf/renderer'
 import { getStateLicense } from '../state-licenses'
+import { getPdfActivitiesText } from '../email-helpers'
+import { join } from 'path'
+import { existsSync } from 'fs'
+
+/**
+ * Validate that font files exist before registration
+ * Throws descriptive error if fonts are missing
+ */
+function validateFontFiles(): void {
+  const fontPaths = [
+    join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-400-normal.woff'),
+    join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-700-normal.woff'),
+  ]
+
+  for (const fontPath of fontPaths) {
+    if (!existsSync(fontPath)) {
+      throw new Error(
+        `Font file not found: ${fontPath}\n` +
+        'Please run "npm install" to install font dependencies (@fontsource/plus-jakarta-sans).'
+      )
+    }
+  }
+}
+
+/**
+ * Register Plus Jakarta Sans font with error handling
+ *
+ * Font Source: @fontsource/plus-jakarta-sans npm package
+ * - Loads from node_modules (installed via package.json)
+ * - Uses WOFF format for optimal PDF compatibility
+ * - Includes normal (400) and bold (700) weights
+ * - Validates files exist before registration
+ *
+ * Fallback: If fonts fail to load, @react-pdf/renderer uses system fonts
+ */
+try {
+  validateFontFiles()
+
+  Font.register({
+    family: 'Plus Jakarta Sans',
+    fonts: [
+      {
+        src: join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-400-normal.woff'),
+        fontWeight: 'normal',
+      },
+      {
+        src: join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-700-normal.woff'),
+        fontWeight: 'bold',
+      },
+    ],
+  })
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Plus Jakarta Sans fonts loaded successfully for PDF generation')
+  }
+} catch (error) {
+  console.error('⚠️ Font loading failed, PDF will use fallback system fonts:', error)
+  // Continue execution - @react-pdf/renderer will use default fonts
+}
 
 // Define comprehensive type for submission data
 export interface DoctorNoteData {
@@ -60,146 +120,211 @@ interface DoctorNoteTemplateProps {
   issueDate: Date
 }
 
-// Create styles - Times New Roman 12pt, elevated design with modern header and watermark
+// Create styles - Plus Jakarta Sans font
 const styles = StyleSheet.create({
   page: {
     paddingTop: 0,
     paddingBottom: 0,
     paddingLeft: 0,
     paddingRight: 0,
-    fontSize: 12,
-    fontFamily: 'Times-Roman',
+    fontSize: 7,
+    fontFamily: 'Plus Jakarta Sans',
     backgroundColor: '#ffffff',
-    lineHeight: 1.5,
+    lineHeight: 1.3,
+    position: 'relative',
   },
-  // Header with light blue background
+  // Image in bottom right - NOT a watermark
+  watermarkContainer: {
+    position: 'absolute',
+    bottom: -40,
+    right: -40,
+    opacity: 1,
+    zIndex: 1,
+  },
+  watermarkImage: {
+    width: 350,
+    height: 350,
+    objectFit: 'contain',
+  },
+  // Header with light blue diagonal background
   headerSection: {
-    backgroundColor: '#E0F2FE',
-    height: 120,
+    backgroundColor: '#d9edf7',
     paddingLeft: 72,
     paddingRight: 72,
-    paddingTop: 25,
-    paddingBottom: 25,
+    paddingTop: 30,
+    paddingBottom: 30,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
+    position: 'relative',
+    zIndex: 1,
   },
   headerLeft: {
     flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  tagline: {
+    fontSize: 7,
+    fontFamily: 'Plus Jakarta Sans',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  emailLink: {
+    fontSize: 7,
+    marginBottom: 1,
+    color: '#0066cc',
+    textDecoration: 'underline',
+  },
+  headerLine: {
+    fontSize: 7,
+    fontFamily: 'Plus Jakarta Sans',
+    color: '#111827',
+    marginBottom: 2,
   },
   headerRight: {
     flexDirection: 'column',
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
-  headerLine: {
-    fontSize: 10,
-    marginBottom: 3,
-    color: '#1F2937',
-  },
-  emailLink: {
-    fontSize: 10,
-    marginBottom: 3,
-    color: '#1F2937',
-    textDecoration: 'none',
+  logo: {
+    width: 50,
+    height: 50,
+    marginBottom: 4,
   },
   clinicName: {
-    fontSize: 16,
-    fontFamily: 'Times-Bold',
+    fontSize: 14,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
     color: '#111827',
     letterSpacing: 0.5,
-    marginTop: 10,
-  },
-  servingStates: {
-    fontSize: 10,
-    color: '#1F2937',
-    marginBottom: 3,
   },
   contentSection: {
     paddingLeft: 72,
     paddingRight: 72,
-    paddingTop: 30,
+    paddingTop: 40,
     paddingBottom: 40,
-    flex: 1,
-  },
-  title: {
-    fontSize: 14,
-    fontFamily: 'Times-Bold',
-    textAlign: 'center',
-    marginBottom: 30,
-    textTransform: 'uppercase',
+    position: 'relative',
+    zIndex: 1,
   },
   // Field styling with bold labels
   fieldLine: {
-    fontSize: 12,
-    marginBottom: 8,
+    fontSize: 7,
+    marginBottom: 2,
   },
   fieldLabel: {
-    fontFamily: 'Times-Bold',
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
   },
   dateIssued: {
-    fontSize: 12,
-    marginBottom: 18,
+    fontSize: 7,
+    marginBottom: 10,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
   },
   patientSection: {
-    marginBottom: 18,
+    marginBottom: 0,
+  },
+  patientField: {
+    fontSize: 7,
+    marginBottom: 10,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
   },
   letterBody: {
-    marginBottom: 18,
-    lineHeight: 1.5,
+    marginBottom: 0,
+    lineHeight: 1.0,
   },
   paragraph: {
-    marginBottom: 12,
-    textAlign: 'justify',
+    fontSize: 7,
+    marginBottom: 10,
+    textAlign: 'left',
+    lineHeight: 1.5,
+  },
+  thankYou: {
+    fontSize: 7,
+    marginBottom: 10,
+    textAlign: 'left',
     lineHeight: 1.5,
   },
   concernHeader: {
-    marginBottom: 12,
+    fontSize: 7,
+    marginBottom: 10,
+    lineHeight: 1.5,
   },
   dateRange: {
-    marginTop: 12,
-    marginBottom: 12,
+    marginTop: 0,
+    marginBottom: 0,
   },
   dateRangeLabel: {
-    fontFamily: 'Times-Bold',
-    marginBottom: 3,
+    fontSize: 7,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
+    marginBottom: 10,
+    lineHeight: 1.0,
   },
   returnText: {
-    marginBottom: 12,
-    textAlign: 'justify',
+    fontSize: 7,
+    marginBottom: 10,
+    textAlign: 'left',
     lineHeight: 1.5,
   },
   boldText: {
-    fontFamily: 'Times-Bold',
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
   },
   closing: {
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: 0,
+    marginBottom: 15,
+  },
+  signatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    position: 'relative',
   },
   signatureLabel: {
-    fontSize: 12,
-    marginBottom: 8,
+    fontSize: 7,
+    marginRight: 50,
   },
   signatureImage: {
-    width: 120,
-    height: 40,
-    marginBottom: 5,
+    width: 140,
+    height: 50,
     objectFit: 'contain',
+    position: 'absolute',
+    left: 15,
+    top: -15,
   },
-  doctorName: {
-    fontSize: 12,
-    fontFamily: 'Times-Bold',
+  physicianName: {
+    fontSize: 7,
+    marginBottom: 10,
+    marginTop: 0,
   },
   npiNumber: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 7,
+    marginTop: 0,
   },
 })
 
 /**
- * Format date as MM/DD/YYYY
+ * Format date as Month DD, YYYY (e.g., October 12, 2025)
  * Uses UTC methods to avoid timezone conversion issues
  */
 function formatDate(date: Date): string {
+  const d = new Date(date)
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+  const month = monthNames[d.getUTCMonth()]
+  const day = d.getUTCDate()
+  const year = d.getUTCFullYear()
+  return `${month} ${day}, ${year}`
+}
+
+/**
+ * Format date of birth as MM/DD/YYYY
+ * Uses UTC methods to avoid timezone conversion issues
+ */
+function formatDateOfBirth(date: Date): string {
   const d = new Date(date)
   const month = String(d.getUTCMonth() + 1).padStart(2, '0')
   const day = String(d.getUTCDate()).padStart(2, '0')
@@ -208,7 +333,7 @@ function formatDate(date: Date): string {
 }
 
 /**
- * Format note purpose for excuse text
+ * Format note purpose for excuse text (used in "may return to X" text)
  */
 function formatExcuseFrom(purpose: string, other?: string | null): string {
   if (purpose === 'other' && other) {
@@ -218,10 +343,10 @@ function formatExcuseFrom(purpose: string, other?: string | null): string {
   const purposeMap: Record<string, string> = {
     work: 'work',
     school: 'school',
-    both: 'work or school',
+    both: 'work and school',
   }
 
-  return purposeMap[purpose] || 'work or school'
+  return purposeMap[purpose] || 'work and school'
 }
 
 /**
@@ -259,28 +384,44 @@ export function DoctorNoteTemplate({
   const dateIssuedFormatted = formatDate(issueDate)
   const firstDayFormatted = formatDate(firstDayOff)
   const lastDayFormatted = formatDate(lastDayOff)
-  const dobFormatted = formatDate(patientDateOfBirth)
+  const dobFormatted = formatDateOfBirth(patientDateOfBirth)
 
   // Get state-specific medical license
   const stateLicense = getStateLicense(submissionData.state)
 
+  // Logo path - use absolute path from project root for reliability in all environments
+  const logoPath = join(process.cwd(), 'public', 'images', 'logo.png')
+  const watermarkPath = join(process.cwd(), 'public', 'images', 'no-bg.png')
+
   return (
     <Document>
-      <Page size="LETTER" style={styles.page} wrap={false}>
-        {/* Header Section - Modern design with light blue background */}
+      <Page size="LETTER" style={styles.page}>
+        {/* Watermark in bottom right */}
+        <View style={styles.watermarkContainer}>
+          <Image
+            src={watermarkPath}
+            style={styles.watermarkImage}
+          />
+        </View>
+
+        {/* Header Section - Light blue background matching Doe John note */}
         <View style={styles.headerSection}>
-          {/* Contact information (LEFT) */}
+          {/* Contact Info (LEFT) */}
           <View style={styles.headerLeft}>
-            <Text style={styles.servingStates}>Proudly Serving Patients in Over 40 States</Text>
-            <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>
-              <Text>Email: hello@platinumhealthclinic.com</Text>
-            </Link>
-            <Text style={styles.headerLine}>Phone: 786-292-3730</Text>
+            <Text style={styles.tagline}>Proudly Serving Patients in Over 40 States</Text>
+            <Text style={styles.headerLine}>
+              Email: <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>hello@platinumhealthclinic.com</Link>
+            </Text>
+            <Text style={styles.headerLine}>Phone: 917-300-8543</Text>
             <Text style={styles.headerLine}>Fax: 786-289-9316</Text>
           </View>
 
-          {/* Clinic name (RIGHT) */}
+          {/* Logo and Clinic Name (RIGHT) */}
           <View style={styles.headerRight}>
+            <Image
+              src={logoPath}
+              style={styles.logo}
+            />
             <Text style={styles.clinicName}>Platinum Health</Text>
           </View>
         </View>
@@ -289,24 +430,20 @@ export function DoctorNoteTemplate({
         <View style={styles.contentSection}>
             {/* Date Issued */}
             <Text style={styles.dateIssued}>
-              <Text style={styles.fieldLabel}>Date Issued: </Text>
-              {dateIssuedFormatted}
+              Date Issued: {dateIssuedFormatted}
             </Text>
 
             {/* Patient/Caregiver Information */}
             <View style={styles.patientSection}>
-              <Text style={styles.fieldLine}>
-                <Text style={styles.fieldLabel}>{isCaregiver ? 'Caregiver Name: ' : 'Patient Name: '}</Text>
-                {patientFullName}
+              <Text style={styles.patientField}>
+                {isCaregiver ? 'Caregiver Name: ' : 'Patient Name: '}{patientFullName}
               </Text>
-              <Text style={styles.fieldLine}>
-                <Text style={styles.fieldLabel}>Date of Birth: </Text>
-                {dobFormatted}
+              <Text style={styles.patientField}>
+                Date of Birth: {dobFormatted}
               </Text>
               {guardianFullName && (
-                <Text style={styles.fieldLine}>
-                  <Text style={styles.fieldLabel}>Parent / Guardian: </Text>
-                  {guardianFullName}
+                <Text style={styles.patientField}>
+                  Parent / Guardian: {guardianFullName}
                 </Text>
               )}
             </View>
@@ -320,7 +457,7 @@ export function DoctorNoteTemplate({
               {isCaregiver ? (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition. Please excuse this individual{notePurpose === 'other' ? '' : ` from ${excuseFrom} / ${excuseFrom}-related activities`} for the following period, if possible.
+                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition. Please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period, if possible.
                   </Text>
 
                   {/* Start and End Dates */}
@@ -336,7 +473,7 @@ export function DoctorNoteTemplate({
               ) : (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` from ${excuseFrom} and related activities`} for the following period due to a medical condition.
+                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period due to a medical condition.
                   </Text>
 
                   {/* Start and End Dates */}
@@ -351,25 +488,27 @@ export function DoctorNoteTemplate({
                 </>
               )}
 
-              <Text style={styles.paragraph}>Thank you,</Text>
+              <Text style={styles.thankYou}>Thank you,</Text>
             </View>
 
             {/* Signature Section */}
             <View style={styles.closing}>
-              <Text style={styles.signatureLabel}>Signature:</Text>
-              {doctorInfo.signatureUrl && (
-                <Image
-                  src={doctorInfo.signatureUrl}
-                  style={styles.signatureImage}
-                />
-              )}
+              <View style={styles.signatureRow}>
+                <Text style={styles.signatureLabel}>Signature:</Text>
+                {doctorInfo.signatureUrl && (
+                  <Image
+                    src={doctorInfo.signatureUrl}
+                    style={styles.signatureImage}
+                  />
+                )}
+              </View>
 
-              <Text style={styles.doctorName}>
-                Physician Name: {doctorInfo.name}, {doctorInfo.credentials}
+              <Text style={styles.physicianName}>
+                Physician Name: Jason Buchwald, MD FACEP
               </Text>
               {stateLicense && (
                 <Text style={styles.npiNumber}>
-                  {stateLicense.stateName} Medical License Number: {stateLicense.licenseNumber}
+                  {stateLicense.stateName} Medical License #{stateLicense.licenseNumber}
                 </Text>
               )}
             </View>

@@ -98,7 +98,7 @@ export default async function MaybePortalPage() {
                 <div className="text-6xl mb-4">📋</div>
                 <h2 className="text-xl font-semibold text-gray-900">No Maybe Submissions</h2>
                 <p className="mt-2 text-sm text-gray-600">
-                  All submissions marked as "Maybe" will appear here for further review.
+                  All submissions marked as &ldquo;Maybe&rdquo; will appear here for further review.
                 </p>
                 <Link href="/admin/review" className="mt-6 inline-block">
                   <Button>Go to Review Queue</Button>
@@ -123,13 +123,13 @@ export default async function MaybePortalPage() {
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
                     >
-                      Absence Dates
+                      Email
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
                     >
-                      Submission ID
+                      Absence Dates
                     </th>
                     <th
                       scope="col"
@@ -152,10 +152,10 @@ export default async function MaybePortalPage() {
                         {submission.patientFirstName} {submission.patientLastName}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                        {formatDateRange(submission.firstDayOff, submission.lastDayOff)}
+                        {submission.email}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">
-                        {submission.id}
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                        {formatDateRange(submission.firstDayOff, submission.lastDayOff)}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {submission.reviewedAt
