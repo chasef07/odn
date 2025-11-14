@@ -592,6 +592,8 @@ npx tsc --noEmit          # Check TypeScript errors
 
 14. **PDF Generation**: Doctor's notes are generated on-the-fly using @react-pdf/renderer with a professional medical document template branded with Platinum Health Clinic. PDFs include patient information, absence dates, symptoms, doctor's signature, and dynamic "return to work/school" text based on note purpose. State-specific medical licenses are displayed using `src/lib/state-licenses.ts` (44 states mapped). Contact email is hello@platinumhealthclinic.com. Test PDF generation locally with `npx tsx scripts/test-approval-flow.ts`.
 
+14a. **PDF Font Loading**: PDFs use Plus Jakarta Sans font loaded from the `@fontsource/plus-jakarta-sans` npm package. The font registration code in `src/lib/pdf/doctor-note-template.tsx` includes validation and error handling to ensure fonts load correctly in all environments (development, testing, production/Vercel). If fonts fail to load, the system gracefully falls back to system fonts with a warning. The font files are loaded from `node_modules/@fontsource/plus-jakarta-sans/files/` using WOFF format for optimal PDF compatibility. Font loading is validated before registration and includes development-time logging for troubleshooting.
+
 15. **Analytics**: Vercel Analytics is integrated in `src/app/layout.tsx` for tracking page views and web vitals in production.
 
 16. **Stripe Webhooks (Local Dev)**: Use Stripe CLI (`stripe listen --forward-to localhost:3000/api/webhooks/stripe`) to test webhook events locally. The webhook secret from CLI output must be added to `.env.local`.

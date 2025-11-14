@@ -19,21 +19,63 @@ import {
 import { getStateLicense } from '../state-licenses'
 import { getPdfActivitiesText } from '../email-helpers'
 import { join } from 'path'
+import { existsSync } from 'fs'
 
-// Register Plus Jakarta Sans font
-Font.register({
-  family: 'Plus Jakarta Sans',
-  fonts: [
-    {
-      src: join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-400-normal.woff'),
-      fontWeight: 'normal',
-    },
-    {
-      src: join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-700-normal.woff'),
-      fontWeight: 'bold',
-    },
-  ],
-})
+/**
+ * Validate that font files exist before registration
+ * Throws descriptive error if fonts are missing
+ */
+function validateFontFiles(): void {
+  const fontPaths = [
+    join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-400-normal.woff'),
+    join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-700-normal.woff'),
+  ]
+
+  for (const fontPath of fontPaths) {
+    if (!existsSync(fontPath)) {
+      throw new Error(
+        `Font file not found: ${fontPath}\n` +
+        'Please run "npm install" to install font dependencies (@fontsource/plus-jakarta-sans).'
+      )
+    }
+  }
+}
+
+/**
+ * Register Plus Jakarta Sans font with error handling
+ *
+ * Font Source: @fontsource/plus-jakarta-sans npm package
+ * - Loads from node_modules (installed via package.json)
+ * - Uses WOFF format for optimal PDF compatibility
+ * - Includes normal (400) and bold (700) weights
+ * - Validates files exist before registration
+ *
+ * Fallback: If fonts fail to load, @react-pdf/renderer uses system fonts
+ */
+try {
+  validateFontFiles()
+
+  Font.register({
+    family: 'Plus Jakarta Sans',
+    fonts: [
+      {
+        src: join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-400-normal.woff'),
+        fontWeight: 'normal',
+      },
+      {
+        src: join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-700-normal.woff'),
+        fontWeight: 'bold',
+      },
+    ],
+  })
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Plus Jakarta Sans fonts loaded successfully for PDF generation')
+  }
+} catch (error) {
+  console.error('⚠️ Font loading failed, PDF will use fallback system fonts:', error)
+  // Continue execution - @react-pdf/renderer will use default fonts
+}
 
 // Define comprehensive type for submission data
 export interface DoctorNoteData {
@@ -195,18 +237,18 @@ const styles = StyleSheet.create({
     fontSize: 7,
     marginBottom: 10,
     textAlign: 'left',
-    lineHeight: 1.0,
+    lineHeight: 1.5,
   },
   thankYou: {
     fontSize: 7,
     marginBottom: 10,
     textAlign: 'left',
-    lineHeight: 1.0,
+    lineHeight: 1.5,
   },
   concernHeader: {
     fontSize: 7,
     marginBottom: 10,
-    lineHeight: 1.0,
+    lineHeight: 1.5,
   },
   dateRange: {
     marginTop: 0,
@@ -223,7 +265,7 @@ const styles = StyleSheet.create({
     fontSize: 7,
     marginBottom: 10,
     textAlign: 'left',
-    lineHeight: 1.0,
+    lineHeight: 1.5,
   },
   boldText: {
     fontFamily: 'Plus Jakarta Sans',
@@ -237,16 +279,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
+    position: 'relative',
   },
   signatureLabel: {
     fontSize: 7,
-    marginRight: -15,
+    marginRight: 50,
   },
   signatureImage: {
     width: 140,
     height: 50,
     objectFit: 'contain',
-    marginLeft: 0,
+    position: 'absolute',
+    left: 15,
+    top: -15,
   },
   physicianName: {
     fontSize: 7,
@@ -364,7 +409,9 @@ export function DoctorNoteTemplate({
           {/* Contact Info (LEFT) */}
           <View style={styles.headerLeft}>
             <Text style={styles.tagline}>Proudly Serving Patients in Over 40 States</Text>
-            <Text style={styles.headerLine}>Email: hello@platinumhealthclinic.com</Text>
+            <Text style={styles.headerLine}>
+              Email: <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>hello@platinumhealthclinic.com</Link>
+            </Text>
             <Text style={styles.headerLine}>Phone: 917-300-8543</Text>
             <Text style={styles.headerLine}>Fax: 786-289-9316</Text>
           </View>
