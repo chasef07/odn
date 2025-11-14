@@ -17,6 +17,7 @@ import {
   Font,
 } from '@react-pdf/renderer'
 import { getStateLicense } from '../state-licenses'
+import { getPdfActivitiesText } from '../email-helpers'
 import { join } from 'path'
 
 // Register Plus Jakarta Sans font
@@ -287,7 +288,7 @@ function formatDateOfBirth(date: Date): string {
 }
 
 /**
- * Format note purpose for excuse text
+ * Format note purpose for excuse text (used in "may return to X" text)
  */
 function formatExcuseFrom(purpose: string, other?: string | null): string {
   if (purpose === 'other' && other) {
@@ -297,10 +298,10 @@ function formatExcuseFrom(purpose: string, other?: string | null): string {
   const purposeMap: Record<string, string> = {
     work: 'work',
     school: 'school',
-    both: 'work or school',
+    both: 'work and school',
   }
 
-  return purposeMap[purpose] || 'work or school'
+  return purposeMap[purpose] || 'work and school'
 }
 
 /**
@@ -409,7 +410,7 @@ export function DoctorNoteTemplate({
               {isCaregiver ? (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition. Please excuse this individual{notePurpose === 'other' ? '' : notePurpose === 'work' ? ' from work / work-related activities' : notePurpose === 'school' ? ' from school / school-related activities' : ' from work or school / work or school-related activities'} for the following period, if possible.
+                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition. Please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period, if possible.
                   </Text>
 
                   {/* Start and End Dates */}
@@ -425,7 +426,7 @@ export function DoctorNoteTemplate({
               ) : (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : notePurpose === 'work' ? ' from work / work-related activities' : notePurpose === 'school' ? ' from school / school-related activities' : ' from work or school / work or school-related activities'} for the following period due to a medical condition.
+                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period due to a medical condition.
                   </Text>
 
                   {/* Start and End Dates */}

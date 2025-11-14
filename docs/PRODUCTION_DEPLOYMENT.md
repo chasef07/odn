@@ -7,6 +7,7 @@ Complete checklist for deploying OnlineDoctorNote to production.
 - [Pre-Deployment Checklist](#pre-deployment-checklist)
 - [Environment Configuration](#environment-configuration)
 - [Database Setup](#database-setup)
+- [Vercel Protection Bypass (Webhooks)](#vercel-protection-bypass-webhooks)
 - [Stripe Configuration](#stripe-configuration)
 - [Email Configuration](#email-configuration)
 - [Vercel Deployment](#vercel-deployment)
@@ -217,6 +218,109 @@ Follow the prompts to:
 - [ ] Test restore procedure
 - [ ] Document backup retention policy
 - [ ] Set up monitoring for backup failures
+
+## Vercel Protection Bypass (Webhooks)
+
+### Understanding Webhook Protection
+
+Stripe webhooks are automated requests from Stripe's servers to your application. If your Vercel deployment has **Deployment Protection** enabled (password protection, Vercel Authentication, etc.), Stripe webhooks will be blocked unless you configure a bypass.
+
+### Do You Need Protection Bypass?
+
+**Check your Vercel settings:**
+1. Go to: Your Project → Settings → **Deployment Protection**
+2. Look for enabled features:
+   - Password Protection
+   - Vercel Authentication
+   - Trusted IPs only
+
+**Decision Matrix:**
+
+| Protection Status | Action Required |
+|------------------|-----------------|
+| ✅ **No protection enabled** (public site) | **No bypass needed** - Webhooks work automatically |
+| 🔒 **Protection enabled** (password/auth) | **Bypass required** - Follow setup below |
+
+### Quick Test
+
+Test if your webhook endpoint is accessible:
+
+```bash
+# Try accessing your webhook in a private/incognito browser
+https://your-site.vercel.app/api/webhooks/stripe
+```
+
+**Results:**
+- **Password prompt appears** → You need bypass
+- **`{"error":"Missing signature"}` or similar** → No bypass needed (webhook is accessible)
+
+### Setting Up Protection Bypass
+
+If your deployment has protection enabled, add the webhook path to the bypass list:
+
+#### Option 1: Vercel Dashboard (Recommended)
+
+1. Go to: Project Settings → **Deployment Protection**
+2. Scroll to: **"Bypass for Automation"**
+3. Click: **"Add Path"**
+4. Enter: `/api/webhooks/stripe`
+5. Type: **Webhook**
+6. Save changes
+
+#### Option 2: vercel.json Configuration
+
+Add to your `vercel.json` file:
+
+```json
+{
+  "deploymentProtection": {
+    "bypass": [
+      {
+        "path": "/api/webhooks/stripe",
+        "type": "webhook"
+      }
+    ]
+  }
+}
+```
+
+Then commit and deploy.
+
+### Security Note
+
+**Your webhook is already secure** because:
+- ✅ Stripe signature verification (line 26 of webhook handler)
+- ✅ Cryptographically secure signature prevents unauthorized requests
+- ✅ Only valid Stripe requests with correct signature can process
+- ✅ No custom headers needed - Stripe's signature IS the security
+
+The bypass only allows Stripe to reach your endpoint; the signature verification prevents abuse.
+
+### Environment Variables for Webhooks
+
+Ensure these are set in Vercel:
+
+```env
+# Critical for webhook security
+STRIPE_WEBHOOK_SECRET=whsec_your_production_webhook_secret
+
+# Other Stripe keys
+STRIPE_SECRET_KEY=sk_live_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+```
+
+**Important**: The `STRIPE_WEBHOOK_SECRET` is different for each webhook endpoint you create in Stripe Dashboard. You'll get this secret AFTER creating the webhook.
+
+### Verification Checklist
+
+After configuring bypass:
+
+- [ ] Webhook path added to bypass list (if protection enabled)
+- [ ] `STRIPE_WEBHOOK_SECRET` set in Vercel environment variables
+- [ ] Webhook endpoint created in Stripe Dashboard
+- [ ] Test webhook with Stripe's "Send test webhook" feature
+- [ ] Check Vercel function logs for successful webhook receipt
+- [ ] Verify submission appears in database after test payment
 
 ## Stripe Configuration
 
