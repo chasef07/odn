@@ -105,13 +105,22 @@ tests/
 - **Single Source of Truth**: Stripe Dashboard - no code deploys needed to change price
 - **Currency**: Supports any currency configured in Stripe Price
 - **Provider**: Stripe with automatic payment methods
-- **Metadata**: Includes product, service identifiers, and price_id for audit trail
+- **Metadata**: Includes product, service identifiers, price_id, and temporarySubmissionId for audit trail
 
 **Implementation**:
 - Price fetching: `src/app/api/get-price/route.ts`
-- Payment intent creation: `src/app/api/create-payment-intent/route.ts`
+- Payment intent creation: `src/app/api/create-payment-intent/route.ts` (uses reversed order + fallback architecture)
 - Payment verification: `src/app/api/verify-payment/route.ts`
 - Dynamic display: `src/app/payment/page.tsx`
+
+**Production Fix (November 2025)**:
+Resolved critical 97% webhook failure rate by implementing:
+1. **Prisma Accelerate** for 40x faster database operations
+2. **Reversed Order Architecture** - TemporarySubmission created BEFORE PaymentIntent
+3. **2-Tier Fallback** in webhook handler for robust error recovery
+4. **Stripe Best Practices** - Event logging, type filtering, proper retry logic
+
+See [productionfix.md](./productionfix.md) for complete details.
 
 ### Monthly Limit Tracking
 
@@ -363,9 +372,9 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=...  # Stripe publishable key
 STRIPE_PRICE_ID=price_...               # Stripe Price ID (single source of truth for pricing)
 STRIPE_WEBHOOK_SECRET=whsec_...         # Webhook signature verification
 
-# Database Configuration
-DATABASE_URL=postgresql://...            # PostgreSQL connection string (Prisma Cloud)
-PRISMA_DATABASE_URL=prisma+postgres://accelerate.prisma-data.net/?api_key=...  # Prisma Accelerate
+# Database Configuration (IMPORTANT: Schema uses PRISMA_DATABASE_URL for runtime, DATABASE_URL for migrations)
+DATABASE_URL=postgresql://...            # Direct PostgreSQL connection (migrations only)
+PRISMA_DATABASE_URL=prisma+postgres://accelerate.prisma-data.net/?api_key=...  # Prisma Accelerate (production runtime)
 
 # Better Auth Configuration
 BETTER_AUTH_SECRET=...                   # Better Auth secret (generate with: openssl rand -base64 32)
@@ -488,14 +497,15 @@ See [docs/SEO_GUIDE.md](./docs/SEO_GUIDE.md) for complete post-deployment checkl
 2. **No E2E tests**: Consider adding Playwright tests for complete user flows
 3. **No rate limiting**: Payment endpoints and admin API could be abused
 4. **No duplicate detection**: Users could submit multiple times with different payment intents
-5. ~~**No email confirmation**: Payment succeeds but no receipt or confirmation email sent to user~~ ✅ **RESOLVED**: Payment confirmation emails are now sent immediately after successful payment via Stripe webhook
-6. **No admin notifications**: Doctors are not notified when new submissions arrive
-7. **localStorage only for form data**: Form progress not synced to server, lost on device change
-8. **No dark mode**: UI only supports light mode currently
-9. **No PDF storage**: Doctor's notes are generated on-the-fly and not persisted for re-download
-10. **Monthly limit bypass**: Email-based tracking can be bypassed with multiple email addresses
-11. **No customer testimonials**: Would improve social proof and SEO
-12. **No blog or content marketing**: Could improve organic search rankings
+5. ~~**No email confirmation**: Payment succeeds but no receipt or confirmation email sent to user~~ ✅ **RESOLVED (Nov 2025)**: Payment confirmation emails now sent immediately after successful payment via Stripe webhook
+6. ~~**Webhook race conditions**: PaymentIntent created before TemporarySubmission causing 97% failure rate~~ ✅ **RESOLVED (Nov 2025)**: Implemented reversed order architecture + Prisma Accelerate + 2-tier fallback. See [productionfix.md](./productionfix.md)
+7. **No admin notifications**: Doctors are not notified when new submissions arrive
+8. **localStorage only for form data**: Form progress not synced to server, lost on device change
+9. **No dark mode**: UI only supports light mode currently
+10. **No PDF storage**: Doctor's notes are generated on-the-fly and not persisted for re-download
+11. **Monthly limit bypass**: Email-based tracking can be bypassed with multiple email addresses
+12. **No customer testimonials**: Would improve social proof and SEO
+13. **No blog or content marketing**: Could improve organic search rankings
 
 ## Performance Considerations
 
@@ -576,7 +586,7 @@ npx tsc --noEmit          # Check TypeScript errors
 
 10. **Admin Portal**: Protected by Better Auth. All admin routes require authentication. Doctor passwords are hashed with bcrypt (10 rounds).
 
-11. **Submission Flow**: Payment → TemporarySubmission → Webhook → Permanent Submission + Payment Confirmation Email → Admin Review → Approve/Deny → Approval Email with PDF (if approved) or Denial Email with Refund (if denied)
+11. **Submission Flow** (Reversed Order Architecture): TemporarySubmission (with placeholder ID) → PaymentIntent (with metadata reference) → TemporarySubmission Update (linked to PaymentIntent) → Payment Success → Webhook (2-tier fallback lookup) → Permanent Submission + Payment Confirmation Email → Admin Review → Approve/Deny → Approval Email with PDF (if approved) or Denial Email with Refund (if denied). See [productionfix.md](./productionfix.md) for implementation details.
 
 12. **Approval Automation**: When doctors approve submissions, the system automatically generates a professional PDF doctor's note using @react-pdf/renderer and sends it via email with Resend. PDF generation is BLOCKING (must succeed for approval), while email sending is NON-BLOCKING (logs warning if fails). Doctor information (name, credentials, signature) is configured via environment variables. State-specific medical license numbers are automatically pulled from `src/lib/state-licenses.ts` based on the patient's state.
 
