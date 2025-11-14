@@ -61,175 +61,187 @@ interface DoctorNoteTemplateProps {
   issueDate: Date
 }
 
-// Create styles - Times New Roman 12pt, elevated design with modern header and watermark
+// Create styles - Arial font 7pt tiny, matching Doe John note design
 const styles = StyleSheet.create({
   page: {
     paddingTop: 0,
     paddingBottom: 0,
     paddingLeft: 0,
     paddingRight: 0,
-    fontSize: 12,
-    fontFamily: 'Times-Roman',
+    fontSize: 10,
+    fontFamily: 'Helvetica',
     backgroundColor: '#ffffff',
-    lineHeight: 1.5,
-    borderLeft: '16px solid #009fe6',
+    lineHeight: 1.3,
+    position: 'relative',
   },
-  // Header with white background
+  // Image in bottom right - NOT a watermark
+  watermarkContainer: {
+    position: 'absolute',
+    bottom: -40,
+    right: -40,
+    opacity: 1,
+    zIndex: 1,
+  },
+  watermarkImage: {
+    width: 350,
+    height: 350,
+    objectFit: 'contain',
+  },
+  // Header with light blue diagonal background
   headerSection: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#d9edf7',
     paddingLeft: 72,
     paddingRight: 72,
     paddingTop: 30,
-    paddingBottom: 20,
+    paddingBottom: 30,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-  },
-  headerSeparator: {
-    borderBottom: '2px solid #1e3a8a',
-    marginLeft: 72,
-    marginRight: 72,
-    marginBottom: 20,
+    position: 'relative',
+    zIndex: 1,
   },
   headerLeft: {
     flexDirection: 'column',
     alignItems: 'flex-start',
   },
-  logo: {
-    width: 60,
-    height: 60,
-    marginBottom: 8,
-  },
-  clinicName: {
-    fontSize: 24,
-    fontFamily: 'Times-Bold',
+  tagline: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
     color: '#111827',
-    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  emailLink: {
+    fontSize: 9,
+    marginBottom: 1,
+    color: '#0066cc',
+    textDecoration: 'underline',
+  },
+  headerLine: {
+    fontSize: 9,
+    color: '#111827',
+    marginBottom: 1,
   },
   headerRight: {
     flexDirection: 'column',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: '100%',
+    alignItems: 'center',
   },
-  doctorInfoTop: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
+  logo: {
+    width: 50,
+    height: 50,
+    marginBottom: 4,
   },
-  doctorName: {
-    fontSize: 11,
-    fontFamily: 'Times-Bold',
+  clinicName: {
+    fontSize: 16.5,
+    fontFamily: 'Helvetica-Bold',
     color: '#111827',
-    marginBottom: 2,
-  },
-  doctorCredentials: {
-    fontSize: 10,
-    color: '#1F2937',
-  },
-  contactInfoBottom: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-  },
-  emailLink: {
-    fontSize: 10,
-    marginBottom: 2,
-    color: '#1F2937',
-    textDecoration: 'none',
-  },
-  headerLine: {
-    fontSize: 10,
-    color: '#1F2937',
+    letterSpacing: 0.5,
   },
   contentSection: {
     paddingLeft: 72,
-    paddingRight: 50,
-    paddingTop: 10,
+    paddingRight: 72,
+    paddingTop: 40,
     paddingBottom: 40,
-    flex: 1,
-  },
-  title: {
-    fontSize: 14,
-    fontFamily: 'Times-Bold',
-    textAlign: 'center',
-    marginBottom: 30,
-    textTransform: 'uppercase',
+    position: 'relative',
+    zIndex: 1,
   },
   // Field styling with bold labels
   fieldLine: {
-    fontSize: 12,
-    marginBottom: 8,
+    fontSize: 8,
+    marginBottom: 6,
   },
   fieldLabel: {
-    fontFamily: 'Times-Bold',
+    fontFamily: 'Helvetica-Bold',
   },
   dateIssued: {
-    fontSize: 12,
-    marginBottom: 18,
-  },
-  patientSection: {
-    marginBottom: 18,
-  },
-  letterBody: {
-    marginBottom: 18,
-    lineHeight: 1.5,
-  },
-  paragraph: {
-    marginBottom: 12,
-    textAlign: 'left',
-    lineHeight: 1.6,
-    wordWrap: 'normal',
-    hyphens: 'none',
-  },
-  concernHeader: {
-    marginBottom: 12,
-  },
-  dateRange: {
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  dateRangeLabel: {
-    fontFamily: 'Times-Bold',
-    marginBottom: 3,
-  },
-  returnText: {
-    marginBottom: 12,
-    textAlign: 'left',
-    lineHeight: 1.6,
-    wordWrap: 'normal',
-    hyphens: 'none',
-  },
-  boldText: {
-    fontFamily: 'Times-Bold',
-  },
-  closing: {
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  signatureLabel: {
-    fontSize: 12,
+    fontSize: 8,
     marginBottom: 8,
   },
+  patientSection: {
+    marginBottom: 8,
+  },
+  letterBody: {
+    marginBottom: 8,
+    lineHeight: 1.3,
+  },
+  paragraph: {
+    fontSize: 8,
+    marginBottom: 8,
+    textAlign: 'left',
+    lineHeight: 1.3,
+  },
+  concernHeader: {
+    fontSize: 8,
+    marginBottom: 8,
+  },
+  dateRange: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  dateRangeLabel: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 2,
+  },
+  returnText: {
+    fontSize: 8,
+    marginBottom: 8,
+    textAlign: 'left',
+    lineHeight: 1.3,
+  },
+  boldText: {
+    fontFamily: 'Helvetica-Bold',
+  },
+  closing: {
+    marginTop: 0,
+    marginBottom: 15,
+  },
+  signatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  signatureLabel: {
+    fontSize: 8,
+    marginRight: -28,
+  },
   signatureImage: {
-    width: 120,
-    height: 40,
-    marginBottom: 5,
+    width: 180,
+    height: 60,
     objectFit: 'contain',
   },
   physicianName: {
-    fontSize: 12,
-    fontFamily: 'Times-Bold',
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 2,
+    marginTop: 4,
   },
   npiNumber: {
-    fontSize: 12,
+    fontSize: 8,
     marginTop: 2,
   },
 })
 
 /**
- * Format date as MM/DD/YYYY
+ * Format date as Month DD, YYYY (e.g., October 12, 2025)
  * Uses UTC methods to avoid timezone conversion issues
  */
 function formatDate(date: Date): string {
+  const d = new Date(date)
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+  const month = monthNames[d.getUTCMonth()]
+  const day = d.getUTCDate()
+  const year = d.getUTCFullYear()
+  return `${month} ${day}, ${year}`
+}
+
+/**
+ * Format date of birth as MM/DD/YYYY
+ * Uses UTC methods to avoid timezone conversion issues
+ */
+function formatDateOfBirth(date: Date): string {
   const d = new Date(date)
   const month = String(d.getUTCMonth() + 1).padStart(2, '0')
   const day = String(d.getUTCDate()).padStart(2, '0')
@@ -289,50 +301,47 @@ export function DoctorNoteTemplate({
   const dateIssuedFormatted = formatDate(issueDate)
   const firstDayFormatted = formatDate(firstDayOff)
   const lastDayFormatted = formatDate(lastDayOff)
-  const dobFormatted = formatDate(patientDateOfBirth)
+  const dobFormatted = formatDateOfBirth(patientDateOfBirth)
 
   // Get state-specific medical license
   const stateLicense = getStateLicense(submissionData.state)
 
   // Logo path - use absolute path from project root for reliability in all environments
   const logoPath = join(process.cwd(), 'public', 'images', 'logo.png')
+  const watermarkPath = join(process.cwd(), 'public', 'images', 'no-bg.png')
 
   return (
     <Document>
-      <Page size="LETTER" style={styles.page} wrap={false}>
-        {/* Header Section - Modern design with white background and blue left border */}
+      <Page size="LETTER" style={styles.page}>
+        {/* Watermark in bottom right */}
+        <View style={styles.watermarkContainer}>
+          <Image
+            src={watermarkPath}
+            style={styles.watermarkImage}
+          />
+        </View>
+
+        {/* Header Section - Light blue background matching Doe John note */}
         <View style={styles.headerSection}>
-          {/* Logo and Clinic Name (LEFT) */}
+          {/* Contact Info (LEFT) */}
           <View style={styles.headerLeft}>
+            <Text style={styles.tagline}>Proudly Serving Patients in Over 40 States</Text>
+            <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>
+              <Text>Email: hello@platinumhealthclinic.com</Text>
+            </Link>
+            <Text style={styles.headerLine}>Phone: 917-300-8543</Text>
+            <Text style={styles.headerLine}>Fax: 786-289-9316</Text>
+          </View>
+
+          {/* Logo and Clinic Name (RIGHT) */}
+          <View style={styles.headerRight}>
             <Image
               src={logoPath}
               style={styles.logo}
             />
             <Text style={styles.clinicName}>Platinum Health</Text>
           </View>
-
-          {/* Doctor Info and Contact (RIGHT) */}
-          <View style={styles.headerRight}>
-            <View style={styles.doctorInfoTop}>
-              <Text style={styles.doctorName}>{doctorInfo.name}, {doctorInfo.credentials}</Text>
-              {stateLicense && (
-                <Text style={styles.doctorCredentials}>
-                  {stateLicense.stateName} License: {stateLicense.licenseNumber}
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.contactInfoBottom}>
-              <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>
-                <Text>hello@platinumhealthclinic.com</Text>
-              </Link>
-              <Text style={styles.headerLine}>Phone: 786-292-3730</Text>
-            </View>
-          </View>
         </View>
-
-        {/* Separator Line */}
-        <View style={styles.headerSeparator} />
 
         {/* Content Section */}
         <View style={styles.contentSection}>
@@ -379,7 +388,7 @@ export function DoctorNoteTemplate({
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named caregiver may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, <Text style={styles.boldText}>with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               ) : (
@@ -395,7 +404,7 @@ export function DoctorNoteTemplate({
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named patient may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, <Text style={styles.boldText}>with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               )}
@@ -405,20 +414,22 @@ export function DoctorNoteTemplate({
 
             {/* Signature Section */}
             <View style={styles.closing}>
-              <Text style={styles.signatureLabel}>Signature:</Text>
-              {doctorInfo.signatureUrl && (
-                <Image
-                  src={doctorInfo.signatureUrl}
-                  style={styles.signatureImage}
-                />
-              )}
+              <View style={styles.signatureRow}>
+                <Text style={styles.signatureLabel}>Signature:</Text>
+                {doctorInfo.signatureUrl && (
+                  <Image
+                    src={doctorInfo.signatureUrl}
+                    style={styles.signatureImage}
+                  />
+                )}
+              </View>
 
               <Text style={styles.physicianName}>
-                Physician Name: {doctorInfo.name}, {doctorInfo.credentials}
+                Physician Name: Jason Buchwald, MD FACEP
               </Text>
               {stateLicense && (
                 <Text style={styles.npiNumber}>
-                  {stateLicense.stateName} Medical License Number: {stateLicense.licenseNumber}
+                  {stateLicense.stateName} Medical License #{stateLicense.licenseNumber}
                 </Text>
               )}
             </View>
