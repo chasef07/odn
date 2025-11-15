@@ -592,7 +592,7 @@ describe('POST /api/create-payment-intent', () => {
     expect(response.headers.get('content-type')).toContain('application/json')
   })
 
-  it('should set expiry time to 24 hours', async () => {
+  it('should set expiry time to 2 hours (industry standard for checkout expiration)', async () => {
     const now = Date.now()
 
     mockPaymentIntentCreate.mockResolvedValue({
@@ -614,7 +614,7 @@ describe('POST /api/create-payment-intent', () => {
 
     const createCall = mockPrismaCreate.mock.calls[0][0]
     const expiresAt = createCall.data.expiresAt.getTime()
-    const expectedExpiry = now + 24 * 60 * 60 * 1000
+    const expectedExpiry = now + 2 * 60 * 60 * 1000 // 2 hours
 
     // Allow 1 second variance for test execution time
     expect(Math.abs(expiresAt - expectedExpiry)).toBeLessThan(1000)

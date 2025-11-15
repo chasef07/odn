@@ -109,6 +109,72 @@ export async function getDashboardStats() {
 }
 
 /**
+ * Get approved submissions for today
+ * @returns Array of approved submissions with name, email, and approval timestamp
+ */
+export async function getApprovedSubmissionsForToday() {
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const submissions = await prisma.submission.findMany({
+      where: {
+        status: SubmissionStatus.APPROVED,
+        reviewedAt: { gte: today },
+      },
+      select: {
+        id: true,
+        patientFirstName: true,
+        patientLastName: true,
+        email: true,
+        approvalEmailSentAt: true,
+      },
+      orderBy: {
+        approvalEmailSentAt: 'desc', // Newest first
+      },
+    })
+
+    return { success: true, data: submissions }
+  } catch (error) {
+    console.error('Error fetching approved submissions:', error)
+    return { success: false, error: 'Failed to fetch approved submissions' }
+  }
+}
+
+/**
+ * Get denied submissions for today
+ * @returns Array of denied submissions with name, email, and denial timestamp
+ */
+export async function getDeniedSubmissionsForToday() {
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const submissions = await prisma.submission.findMany({
+      where: {
+        status: SubmissionStatus.DENIED,
+        reviewedAt: { gte: today },
+      },
+      select: {
+        id: true,
+        patientFirstName: true,
+        patientLastName: true,
+        email: true,
+        denialEmailSentAt: true,
+      },
+      orderBy: {
+        denialEmailSentAt: 'desc', // Newest first
+      },
+    })
+
+    return { success: true, data: submissions }
+  } catch (error) {
+    console.error('Error fetching denied submissions:', error)
+    return { success: false, error: 'Failed to fetch denied submissions' }
+  }
+}
+
+/**
  * Get monthly limit data for a patient
  * @param email - Patient email
  * @param referenceDate - Date to check (usually first day off)
@@ -283,32 +349,90 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     }
 
-    // Step 2: Process Stripe refund (BLOCKING - must succeed)
-    let refund: Stripe.Refund
-    try {
-      refund = await stripe.refunds.create({
-        payment_intent: submission.stripePaymentIntentId,
-        reason: 'requested_by_customer',
-        metadata: {
-          submissionId: submission.id,
-          denialReason: reason,
-          processedBy: 'admin-denial-automation',
+    // Step 2: Update database FIRST (with optimistic locking to prevent race conditions)
+    // This prevents two doctors from denying the same submission simultaneously
+    const now = new Date()
+    const updateResult = await prisma.submission.updateMany({
+      where: {
+        id: submissionId,
+        status: {
+          in: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
         },
-      })
+        stripeRefundId: null, // Only if not already refunded
+      },
+      data: {
+        status: SubmissionStatus.DENIED,
+        denialReason: reason,
+        reviewedByAdminId: doctorId,
+        reviewedAt: now,
+        stripeRefundId: `pending_${submissionId}`, // Placeholder - will be replaced after refund
+        refundedAt: now,
+      },
+    })
+
+    // If no rows were updated, another doctor already reviewed this
+    if (updateResult.count === 0) {
+      return {
+        success: false,
+        error: 'This submission has already been reviewed by another doctor',
+      }
+    }
+
+    // Step 3: Process Stripe refund (BLOCKING - must succeed)
+    // FIX 2: Add idempotency key to prevent duplicate refunds on network retry
+    let refund: Stripe.Refund
+    const idempotencyKey = `refund_${submissionId}_${doctorId}`
+
+    try {
+      refund = await stripe.refunds.create(
+        {
+          payment_intent: submission.stripePaymentIntentId,
+          reason: 'requested_by_customer',
+          metadata: {
+            submissionId: submission.id,
+            denialReason: reason,
+            processedBy: 'admin-denial-automation',
+          },
+        },
+        {
+          idempotencyKey: idempotencyKey, // Prevents duplicate refunds on retry (24h cache)
+        }
+      )
 
       if (process.env.NODE_ENV === 'development') {
         console.log(`Refund processed: ${refund.id} for submission ${submissionId}`)
       }
     } catch (stripeError) {
-      // Refund failed - DO NOT update submission status
+      // CRITICAL: Refund failed - rollback database status
       console.error('Stripe refund failed:', stripeError)
+
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          status: SubmissionStatus.PENDING_REVIEW, // Rollback to original status
+          stripeRefundId: null,
+          reviewedByAdminId: null,
+          reviewedAt: null,
+          refundedAt: null,
+          denialReason: null,
+        },
+      })
+
       return {
         success: false,
         error: `Failed to process refund: ${stripeError instanceof Error ? stripeError.message : 'Unknown error'}`
       }
     }
 
-    // Step 3: Send denial email FIRST (NON-BLOCKING - log error but don't fail)
+    // Step 4: Update database with actual refund ID (replace placeholder)
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        stripeRefundId: refund.id, // Replace placeholder with real Stripe refund ID
+      },
+    })
+
+    // Step 5: Send denial email (NON-BLOCKING - log error but don't fail)
     const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
     const refundAmountDollars = refund.amount / 100 // Convert cents to dollars from Stripe refund
     let emailSentAt: Date | undefined
@@ -332,25 +456,21 @@ export async function denySubmission(submissionId: string, reason: string) {
       emailWarning = 'Submission denied and refunded, but email notification failed to send'
     }
 
-    // Step 4: Single atomic database update with all fields
-    const now = new Date()
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: {
-        status: SubmissionStatus.DENIED,
-        denialReason: reason,
-        reviewedByAdminId: doctorId,
-        reviewedAt: now,
-        stripeRefundId: refund.id,
-        refundedAt: now,
-        denialEmailSentAt: emailSentAt, // Only set if email succeeded
-      },
-    })
+    // Step 6: Update email timestamp if email succeeded
+    if (emailSentAt) {
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          denialEmailSentAt: emailSentAt, // Only set if email succeeded
+        },
+      })
+    }
 
     // Revalidate admin pages
     revalidatePath('/admin')
     revalidatePath('/admin/review')
     revalidatePath('/admin/maybe')
+    revalidatePath('/admin/denied')
 
     // Return success with optional warning
     if (emailWarning) {
