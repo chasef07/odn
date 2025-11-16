@@ -10,6 +10,7 @@ import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { getDeniedSubmissionsForToday } from '../actions'
+import { formatDateWithTime } from '@/lib/admin-utils'
 
 export default async function DeniedSubmissionsPage() {
   // SECURITY: Check authentication
@@ -127,15 +128,9 @@ export default async function DeniedSubmissionsPage() {
                         {submission.email}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="text-base">❌</span>
-                          {submission.denialEmailSentAt
-                            ? new Date(submission.denialEmailSentAt).toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              })
-                            : 'N/A'}
-                        </span>
+                        {submission.denialEmailSentAt
+                          ? formatDateWithTime(submission.denialEmailSentAt)
+                          : 'N/A'}
                       </td>
                     </tr>
                   ))}

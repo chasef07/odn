@@ -10,6 +10,7 @@ import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { getApprovedSubmissionsForToday } from '../actions'
+import { formatDateWithTime } from '@/lib/admin-utils'
 
 export default async function ApprovedSubmissionsPage() {
   // SECURITY: Check authentication
@@ -127,15 +128,9 @@ export default async function ApprovedSubmissionsPage() {
                         {submission.email}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="text-base">✅</span>
-                          {submission.approvalEmailSentAt
-                            ? new Date(submission.approvalEmailSentAt).toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              })
-                            : 'N/A'}
-                        </span>
+                        {submission.approvalEmailSentAt
+                          ? formatDateWithTime(submission.approvalEmailSentAt)
+                          : 'N/A'}
                       </td>
                     </tr>
                   ))}

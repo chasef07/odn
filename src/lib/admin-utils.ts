@@ -127,14 +127,15 @@ export function formatFullDate(date: string | Date): string {
 }
 
 /**
- * Format a date with time (e.g., "Nov 1, 2025 at 10:00 AM")
+ * Format a date with time in Eastern Time (e.g., "Nov 1, 2025 at 10:00 AM ET")
+ * Admin portal always displays times in America/New_York timezone
  * @param date - Date in ISO format
- * @returns Formatted date with time
+ * @returns Formatted date with time in Eastern Time
  */
 export function formatDateWithTime(date: string | Date): string {
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date
-    return format(dateObj, "MMM d, yyyy 'at' h:mm a")
+    return formatInTimeZone(dateObj, 'America/New_York', "MMM d, yyyy 'at' h:mm a")
   } catch {
     return typeof date === 'string' ? date : date.toISOString()
   }

@@ -6,13 +6,13 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { format } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { Button } from '@/components/ui/button'
 import { getMaybeSubmissions } from '../actions'
 import { MaybeActionButtons } from '@/components/admin/MaybeActionButtons'
+import { formatDateWithTime } from '@/lib/admin-utils'
 
 // Helper to format calendar dates consistently in UTC
 function formatCalendarDate(dateString: string): string {
@@ -159,7 +159,7 @@ export default async function MaybePortalPage() {
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {submission.reviewedAt
-                          ? format(new Date(submission.reviewedAt), "MMM d, yyyy 'at' h:mm a")
+                          ? formatDateWithTime(submission.reviewedAt)
                           : 'N/A'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
