@@ -6,7 +6,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { formatInTimeZone } from 'date-fns-tz'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { Button } from '@/components/ui/button'
