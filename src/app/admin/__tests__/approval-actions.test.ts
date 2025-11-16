@@ -64,6 +64,15 @@ vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }))
 
+// Mock Stripe
+vi.mock('stripe', () => ({
+  default: class MockStripe {
+    constructor() {
+      // Mock Stripe constructor
+    }
+  },
+}))
+
 // Now import the function under test
 import { approveSubmission } from '../actions'
 

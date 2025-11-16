@@ -15,36 +15,51 @@ interface AdminStatsProps {
 }
 
 export function AdminStats({ pendingCount, approvedToday, deniedToday, maybeCount = 0 }: AdminStatsProps) {
-  const stats = [
-    {
-      label: 'Pending Reviews',
-      value: pendingCount,
-      color: 'text-blue-600',
-    },
-    {
-      label: 'Approved Today',
-      value: approvedToday,
-      color: 'text-green-600',
-    },
-    {
-      label: 'Denied Today',
-      value: deniedToday,
-      color: 'text-red-600',
-    },
-  ]
-
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {stats.map((stat) => (
-        <Card key={stat.label} className="p-0">
-          <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
-            <div className={`text-2xl font-bold ${stat.color} mb-1 sm:text-4xl sm:mb-2`}>
-              {stat.value}
-            </div>
-            <div className="text-xs text-muted-foreground sm:text-sm">{stat.label}</div>
-          </CardContent>
-        </Card>
-      ))}
+      {/* Pending Reviews Card */}
+      <Card className="p-0">
+        <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
+          <div className="text-2xl font-bold text-blue-600 mb-1 sm:text-4xl sm:mb-2">
+            {pendingCount}
+          </div>
+          <div className="text-xs text-muted-foreground sm:text-sm">Pending Reviews</div>
+        </CardContent>
+      </Card>
+
+      {/* Approved Today Card with View Button */}
+      <Card className="p-0">
+        <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
+          <div className="text-2xl font-bold text-green-600 mb-1 sm:text-4xl sm:mb-2">
+            {approvedToday}
+          </div>
+          <div className="text-xs text-muted-foreground sm:text-sm mb-2">Approved Today</div>
+          {approvedToday > 0 && (
+            <Link href="/admin/approved">
+              <Button size="sm" variant="outline" className="text-xs h-7 px-2 border-green-500 text-green-600 hover:bg-green-50">
+                View
+              </Button>
+            </Link>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Denied Today Card with View Button */}
+      <Card className="p-0">
+        <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
+          <div className="text-2xl font-bold text-red-600 mb-1 sm:text-4xl sm:mb-2">
+            {deniedToday}
+          </div>
+          <div className="text-xs text-muted-foreground sm:text-sm mb-2">Denied Today</div>
+          {deniedToday > 0 && (
+            <Link href="/admin/denied">
+              <Button size="sm" variant="outline" className="text-xs h-7 px-2 border-red-500 text-red-600 hover:bg-red-50">
+                View
+              </Button>
+            </Link>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Maybe Card with View Button */}
       <Card className="p-0">

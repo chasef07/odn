@@ -6,36 +6,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { format } from 'date-fns'
-import { formatInTimeZone } from 'date-fns-tz'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { Button } from '@/components/ui/button'
-import { getMaybeSubmissions } from '../actions'
-import { MaybeActionButtons } from '@/components/admin/MaybeActionButtons'
-
-// Helper to format calendar dates consistently in UTC
-function formatCalendarDate(dateString: string): string {
-  // Parse YYYY-MM-DD as UTC midnight to avoid timezone shifts
-  const [year, month, day] = dateString.split('-').map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
-  return formatInTimeZone(date, 'UTC', 'MMM d, yyyy')
-}
-
-// Helper to format calendar date range
-function formatDateRange(start: string, end: string): string {
-  if (start === end) {
-    return formatCalendarDate(start)
-  }
-  const [startYear, startMonth, startDay] = start.split('-').map(Number)
-  const [endYear, endMonth, endDay] = end.split('-').map(Number)
-  const startDate = new Date(Date.UTC(startYear, startMonth - 1, startDay))
-  const endDate = new Date(Date.UTC(endYear, endMonth - 1, endDay))
-
-  const startFormatted = formatInTimeZone(startDate, 'UTC', 'MMM d')
-  const endFormatted = formatInTimeZone(endDate, 'UTC', 'MMM d, yyyy')
-  return `${startFormatted} - ${endFormatted}`
-}
+import { getMaybeSubmissions, getManualSubmissions } from '../actions'
+import { MaybePortalTabs } from '@/components/admin/MaybePortalTabs'
 
 export default async function MaybePortalPage() {
   // SECURITY: Check authentication
@@ -47,8 +22,15 @@ export default async function MaybePortalPage() {
     redirect('/admin/login')
   }
 
-  // Fetch all maybe submissions
-  const result = await getMaybeSubmissions()
+  // Fetch all maybe and manual submissions
+  const [maybeResult, manualResult] = await Promise.all([
+    getMaybeSubmissions(),
+    getManualSubmissions()
+  ])
+
+  const maybeSubmissions = maybeResult.success ? maybeResult.submissions : []
+  const manualSubmissions = manualResult.success ? manualResult.submissions : []
+  const totalCount = maybeSubmissions.length + manualSubmissions.length
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -74,9 +56,9 @@ export default async function MaybePortalPage() {
           {/* Header with back button */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Maybe Submissions</h1>
+              <h1 className="text-3xl font-bold text-foreground">Review Portal</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                {result.success ? `${result.submissions.length} submissions need review` : 'Failed to load submissions'}
+                {totalCount} {totalCount === 1 ? 'submission' : 'submissions'} awaiting review
               </p>
             </div>
             <Link href="/admin">
@@ -85,92 +67,21 @@ export default async function MaybePortalPage() {
           </div>
 
           {/* Error state */}
-          {!result.success && (
+          {(!maybeResult.success || !manualResult.success) && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <p className="text-sm text-red-600">{result.error || 'Failed to load maybe submissions'}</p>
+              <p className="text-sm text-red-600">
+                {!maybeResult.success && (maybeResult.error || 'Failed to load maybe submissions')}
+                {!maybeResult.success && !manualResult.success && ' | '}
+                {!manualResult.success && (manualResult.error || 'Failed to load manual submissions')}
+              </p>
             </div>
           )}
 
-          {/* Empty state */}
-          {result.success && result.submissions.length === 0 && (
-            <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-              <div className="mx-auto max-w-md">
-                <div className="text-6xl mb-4">📋</div>
-                <h2 className="text-xl font-semibold text-gray-900">No Maybe Submissions</h2>
-                <p className="mt-2 text-sm text-gray-600">
-                  All submissions marked as &ldquo;Maybe&rdquo; will appear here for further review.
-                </p>
-                <Link href="/admin/review" className="mt-6 inline-block">
-                  <Button>Go to Review Queue</Button>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Table view */}
-          {result.success && result.submissions.length > 0 && (
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                    >
-                      Patient Name
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                    >
-                      Email
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                    >
-                      Absence Dates
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                    >
-                      Marked as Maybe
-                    </th>
-                    <th scope="col" className="relative px-6 py-3">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {result.submissions.map((submission) => (
-                    <tr
-                      key={submission.id}
-                      className="transition-colors hover:bg-gray-50"
-                    >
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                        {submission.patientFirstName} {submission.patientLastName}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                        {submission.email}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                        {formatDateRange(submission.firstDayOff, submission.lastDayOff)}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {submission.reviewedAt
-                          ? format(new Date(submission.reviewedAt), "MMM d, yyyy 'at' h:mm a")
-                          : 'N/A'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        <MaybeActionButtons submissionId={submission.id} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* Tabs Component */}
+          <MaybePortalTabs
+            maybeSubmissions={maybeSubmissions}
+            manualSubmissions={manualSubmissions}
+          />
         </div>
       </main>
     </div>

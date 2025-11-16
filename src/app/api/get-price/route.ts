@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -6,14 +7,30 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 /**
+ * Cached price fetcher
+ * Caches Stripe price data for 1 hour to reduce API calls and improve performance
+ */
+const getCachedPrice = unstable_cache(
+  async (priceId: string) => {
+    const price = await stripe.prices.retrieve(priceId)
+    return price
+  },
+  ['stripe-price'],
+  {
+    revalidate: 3600, // Cache for 1 hour (price changes are infrequent)
+    tags: ['stripe-price'],
+  }
+)
+
+/**
  * GET /api/get-price
- * Fetches the current price from Stripe Price ID
+ * Fetches the current price from Stripe Price ID (with 1-hour cache)
  * Returns formatted amount, currency, and price ID
  */
 export async function GET() {
   try {
-    // Fetch price from Stripe
-    const price = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!)
+    // Fetch price from Stripe (cached for 1 hour)
+    const price = await getCachedPrice(process.env.STRIPE_PRICE_ID!)
 
     // Validate price has required fields
     if (!price.unit_amount || !price.currency) {

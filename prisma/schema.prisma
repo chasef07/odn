@@ -16,6 +16,7 @@ enum SubmissionStatus {
   APPROVED
   DENIED
   MAYBE
+  MANUAL
 }
 
 // Better Auth - User table (admin/doctor accounts)

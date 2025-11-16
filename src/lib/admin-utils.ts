@@ -4,7 +4,7 @@
  */
 
 import { formatDistanceToNow, format, differenceInDays, differenceInYears, parse } from 'date-fns'
-import { formatInTimeZone } from 'date-fns-tz'
+import { formatInTimeZone, toZonedTime } from 'date-fns-tz'
 
 /**
  * Denial reason types for submissions
@@ -127,14 +127,15 @@ export function formatFullDate(date: string | Date): string {
 }
 
 /**
- * Format a date with time (e.g., "Nov 1, 2025 at 10:00 AM")
+ * Format a date with time in Eastern Time (e.g., "Nov 1, 2025 at 10:00 AM ET")
+ * Admin portal always displays times in America/New_York timezone
  * @param date - Date in ISO format
- * @returns Formatted date with time
+ * @returns Formatted date with time in Eastern Time
  */
 export function formatDateWithTime(date: string | Date): string {
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date
-    return format(dateObj, "MMM d, yyyy 'at' h:mm a")
+    return formatInTimeZone(dateObj, 'America/New_York', "MMM d, yyyy 'at' h:mm a")
   } catch {
     return typeof date === 'string' ? date : date.toISOString()
   }
@@ -163,4 +164,26 @@ export function formatNotePurpose(purpose: string): string {
     other: 'Other',
   }
   return purposes[purpose] || purpose
+}
+
+/**
+ * Get the start of the business day (6am ET) for admin portal stats
+ * Admin stats reset at 6am Eastern Time instead of midnight UTC
+ * @returns Date object representing 6am ET today (or yesterday's 6am if before 6am)
+ */
+export function getBusinessDayStart(): Date {
+  const now = new Date()
+  const nowET = toZonedTime(now, 'America/New_York')
+
+  // Set to 6am ET today
+  nowET.setHours(6, 0, 0, 0)
+
+  // If current time is before 6am ET, use yesterday's 6am
+  const currentET = toZonedTime(new Date(), 'America/New_York')
+  if (currentET.getHours() < 6) {
+    nowET.setDate(nowET.getDate() - 1)
+  }
+
+  // Return as UTC Date for database queries
+  return nowET
 }
