@@ -14,6 +14,7 @@ import prisma from '@/lib/prisma'
 import Stripe from 'stripe'
 import { sendDenialEmail, sendApprovalEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
+import { getBusinessDayStart } from '@/lib/admin-utils'
 
 // Initialize Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -62,8 +63,8 @@ export async function getSubmissionsForReview() {
  */
 export async function getDashboardStats() {
   try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // Business day starts at 6am ET (not midnight UTC)
+    const today = getBusinessDayStart()
 
     const [pendingCount, approvedToday, deniedToday, maybeCount] = await Promise.all([
       // Pending reviews
@@ -114,8 +115,8 @@ export async function getDashboardStats() {
  */
 export async function getApprovedSubmissionsForToday() {
   try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // Business day starts at 6am ET (not midnight UTC)
+    const today = getBusinessDayStart()
 
     const submissions = await prisma.submission.findMany({
       where: {
@@ -147,8 +148,8 @@ export async function getApprovedSubmissionsForToday() {
  */
 export async function getDeniedSubmissionsForToday() {
   try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // Business day starts at 6am ET (not midnight UTC)
+    const today = getBusinessDayStart()
 
     const submissions = await prisma.submission.findMany({
       where: {
