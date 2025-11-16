@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { approveSubmission, denySubmission } from '@/app/admin/actions'
+import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
 
 interface MaybeActionButtonsProps {
   submissionId: string
@@ -45,6 +45,10 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   const [denialReason, setDenialReason] = useState<string>('')
   const [otherReason, setOtherReason] = useState('')
   const [denialError, setDenialError] = useState<string | null>(null)
+
+  // Manual note modal state
+  const [showManualDialog, setShowManualDialog] = useState(false)
+  const [manualError, setManualError] = useState<string | null>(null)
 
   const handleApproveClick = () => {
     setApprovalError(null)
@@ -105,6 +109,31 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     }
   }
 
+  const handleManualClick = () => {
+    setManualError(null)
+    setShowManualDialog(true)
+  }
+
+  const handleManualConfirm = async () => {
+    setIsLoading(true)
+    setManualError(null)
+
+    try {
+      const result = await markAsManual(submissionId)
+
+      if (result.success) {
+        setShowManualDialog(false)
+        router.refresh() // Refresh to move to manual notes tab
+      } else {
+        setManualError(result.error || 'Unknown error')
+        setIsLoading(false)
+      }
+    } catch (err) {
+      setManualError(err instanceof Error ? err.message : 'An unexpected error occurred')
+      setIsLoading(false)
+    }
+  }
+
   return (
     <>
       <div className="flex items-center justify-end gap-2">
@@ -129,6 +158,14 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
           size="sm"
         >
           Deny
+        </Button>
+        <Button
+          onClick={handleManualClick}
+          disabled={isLoading}
+          variant="secondary"
+          size="sm"
+        >
+          Manual Note
         </Button>
       </div>
 
@@ -229,6 +266,42 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
               variant="destructive"
             >
               {isLoading ? 'Processing...' : 'Deny & Refund'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Note Confirmation Dialog */}
+      <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark as Manual Note?</DialogTitle>
+            <DialogDescription>
+              This will move the submission to Manual Notes where you can approve or deny without sending automated emails.
+              You will handle the note manually.
+            </DialogDescription>
+          </DialogHeader>
+
+          {manualError && (
+            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+              <strong>Error:</strong> {manualError}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowManualDialog(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleManualConfirm}
+              disabled={isLoading}
+              variant="secondary"
+            >
+              {isLoading ? 'Processing...' : 'Mark as Manual'}
             </Button>
           </DialogFooter>
         </DialogContent>

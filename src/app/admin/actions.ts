@@ -214,14 +214,47 @@ export async function approveSubmission(submissionId: string) {
       return { success: false, error: 'Submission not found' }
     }
 
-    // Allow approval from PENDING_REVIEW or MAYBE status
-    if (submission.status !== SubmissionStatus.PENDING_REVIEW && submission.status !== SubmissionStatus.MAYBE) {
+    // Allow approval from PENDING_REVIEW, MAYBE, or MANUAL status
+    if (
+      submission.status !== SubmissionStatus.PENDING_REVIEW &&
+      submission.status !== SubmissionStatus.MAYBE &&
+      submission.status !== SubmissionStatus.MANUAL
+    ) {
       return {
         success: false,
         error: `Cannot approve submission with status: ${submission.status}`
       }
     }
 
+    // Check if this is a manual approval (skip automation)
+    const isManual = submission.status === SubmissionStatus.MANUAL
+
+    if (isManual) {
+      // Manual approval: Skip PDF generation and email sending
+      const now = new Date()
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          status: SubmissionStatus.APPROVED,
+          reviewedByAdminId: doctorId,
+          reviewedAt: now,
+          approvalEmailSentAt: null, // No email sent for manual approvals
+        },
+      })
+
+      // Revalidate admin pages
+      revalidatePath('/admin')
+      revalidatePath('/admin/review')
+      revalidatePath('/admin/maybe')
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Manual approval completed for submission ${submissionId}`)
+      }
+
+      return { success: true }
+    }
+
+    // Standard approval: Generate PDF and send email
     // Step 2: Generate PDF (BLOCKING - must succeed)
     let pdfBuffer: Buffer
     let pdfFilename: string
@@ -326,13 +359,50 @@ export async function denySubmission(submissionId: string, reason: string) {
       return { success: false, error: 'Submission not found' }
     }
 
-    // Allow denial from PENDING_REVIEW or MAYBE status
-    if (submission.status !== SubmissionStatus.PENDING_REVIEW && submission.status !== SubmissionStatus.MAYBE) {
+    // Allow denial from PENDING_REVIEW, MAYBE, or MANUAL status
+    if (
+      submission.status !== SubmissionStatus.PENDING_REVIEW &&
+      submission.status !== SubmissionStatus.MAYBE &&
+      submission.status !== SubmissionStatus.MANUAL
+    ) {
       return {
         success: false,
         error: `Cannot deny submission with status: ${submission.status}`
       }
     }
+
+    // Check if this is a manual denial (skip automation)
+    const isManual = submission.status === SubmissionStatus.MANUAL
+
+    if (isManual) {
+      // Manual denial: Skip refund processing and email sending
+      const now = new Date()
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          status: SubmissionStatus.DENIED,
+          denialReason: reason,
+          reviewedByAdminId: doctorId,
+          reviewedAt: now,
+          denialEmailSentAt: null, // No email sent for manual denials
+          // No refund fields set (stripeRefundId, refundedAt remain null)
+        },
+      })
+
+      // Revalidate admin pages
+      revalidatePath('/admin')
+      revalidatePath('/admin/review')
+      revalidatePath('/admin/maybe')
+      revalidatePath('/admin/denied')
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Manual denial completed for submission ${submissionId}`)
+      }
+
+      return { success: true }
+    }
+
+    // Standard denial: Process refund and send email
 
     if (!submission.stripePaymentIntentId) {
       return {
@@ -518,6 +588,53 @@ export async function maybeSubmission(submissionId: string) {
 }
 
 /**
+ * Mark a submission as manual (doctor will handle note manually)
+ * @param submissionId - Submission ID to mark as manual
+ * @returns Success status
+ */
+export async function markAsManual(submissionId: string) {
+  try {
+    const doctorId = await getCurrentDoctor()
+
+    // Verify submission is in MAYBE status
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      select: { status: true },
+    })
+
+    if (!submission) {
+      return { success: false, error: 'Submission not found' }
+    }
+
+    if (submission.status !== SubmissionStatus.MAYBE) {
+      return {
+        success: false,
+        error: `Can only mark MAYBE submissions as manual, current status: ${submission.status}`
+      }
+    }
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: SubmissionStatus.MANUAL,
+        reviewedByAdminId: doctorId,
+        reviewedAt: new Date(),
+      },
+    })
+
+    // Revalidate admin pages
+    revalidatePath('/admin')
+    revalidatePath('/admin/review')
+    revalidatePath('/admin/maybe')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error marking submission as manual:', error)
+    return { success: false, error: 'Failed to mark submission as manual' }
+  }
+}
+
+/**
  * Get all submissions with MAYBE status
  * @returns Array of maybe submissions with patient info
  */
@@ -567,6 +684,59 @@ export async function getMaybeSubmissions() {
   } catch (error) {
     console.error('Error fetching maybe submissions:', error)
     return { success: false, error: 'Failed to fetch maybe submissions', submissions: [] }
+  }
+}
+
+/**
+ * Get all submissions with MANUAL status
+ * @returns Array of manual submissions with patient info
+ */
+export async function getManualSubmissions() {
+  try {
+    await getCurrentDoctor() // Verify authentication
+
+    const submissions = await prisma.submission.findMany({
+      where: {
+        status: SubmissionStatus.MANUAL,
+      },
+      select: {
+        id: true,
+        patientFirstName: true,
+        patientLastName: true,
+        email: true,
+        firstDayOff: true,
+        lastDayOff: true,
+        reviewedAt: true,
+      },
+      orderBy: {
+        reviewedAt: 'desc', // Most recent first
+      },
+    })
+
+    // Format dates consistently using UTC components to avoid timezone shifts
+    const formattedSubmissions = submissions.map((sub) => {
+      const formatDateUTC = (date: Date) => {
+        const year = date.getUTCFullYear()
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(date.getUTCDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
+
+      return {
+        id: sub.id,
+        patientFirstName: sub.patientFirstName,
+        patientLastName: sub.patientLastName,
+        email: sub.email,
+        firstDayOff: formatDateUTC(sub.firstDayOff),
+        lastDayOff: formatDateUTC(sub.lastDayOff),
+        reviewedAt: sub.reviewedAt,
+      }
+    })
+
+    return { success: true, submissions: formattedSubmissions }
+  } catch (error) {
+    console.error('Error fetching manual submissions:', error)
+    return { success: false, error: 'Failed to fetch manual submissions', submissions: [] }
   }
 }
 
