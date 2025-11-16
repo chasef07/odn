@@ -5,9 +5,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("PRISMA_DATABASE_URL")  // Prisma Accelerate connection
-  directUrl = env("DATABASE_URL")          // Direct connection for migrations
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // Enums
