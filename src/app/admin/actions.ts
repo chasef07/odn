@@ -16,6 +16,10 @@ import { sendDenialEmail, sendApprovalEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { getBusinessDayStart } from '@/lib/admin-utils'
 
+// Export shared submission types for components
+export type MaybeSubmission = Awaited<ReturnType<typeof getMaybeSubmissions>>['submissions'][number]
+export type ManualSubmission = Awaited<ReturnType<typeof getManualSubmissions>>['submissions'][number]
+
 // Initialize Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-10-29.clover',

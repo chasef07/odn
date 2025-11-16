@@ -10,6 +10,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { MaybeActionButtons } from './MaybeActionButtons'
 import { ManualActionButtons } from './ManualActionButtons'
 import { formatDateWithTime } from '@/lib/admin-utils'
+import type { MaybeSubmission, ManualSubmission } from '@/app/admin/actions'
 
 // Helper to format calendar dates consistently in UTC
 function formatCalendarDate(dateString: string): string {
@@ -34,19 +35,9 @@ function formatDateRange(start: string, end: string): string {
   return `${startFormatted} - ${endFormatted}`
 }
 
-interface Submission {
-  id: string
-  patientFirstName: string
-  patientLastName: string
-  email: string
-  firstDayOff: string
-  lastDayOff: string
-  reviewedAt: Date | null
-}
-
 interface MaybePortalTabsProps {
-  maybeSubmissions: Submission[]
-  manualSubmissions: Submission[]
+  maybeSubmissions: MaybeSubmission[]
+  manualSubmissions: ManualSubmission[]
 }
 
 export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePortalTabsProps) {
