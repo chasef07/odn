@@ -6,6 +6,13 @@ import { FormLayout } from '@/components/form-layout'
 import { CheckCircle2 } from 'lucide-react'
 import { clearFormData } from '@/lib/form-storage'
 
+// TypeScript declaration for gtag
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void
+  }
+}
+
 const CURRENT_STEP = 10
 
 export default function PaymentSuccessPage() {
@@ -46,6 +53,14 @@ export default function PaymentSuccessPage() {
 
         if (data.status === 'succeeded') {
           setStatus('success')
+
+          // Fire Google Ads conversion event
+          if (typeof window !== 'undefined' && window.gtag) {
+            window.gtag('event', 'conversion', {
+              'send_to': 'AW-17015921669/3D1gCPbbhboaEIW46bE_',
+              'transaction_id': paymentIntent
+            })
+          }
 
           // Clear form data after successful payment verification
           try {

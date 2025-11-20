@@ -109,7 +109,12 @@ export function SubmissionCard({ submission, currentIndex, totalCount }: Submiss
           <div className="space-y-1 text-xs">
             <div>
               <span className="text-muted-foreground">Purpose: </span>
-              <span>{submission.notePurpose}</span>
+              <span>
+                {submission.notePurpose}
+                {submission.notePurpose === 'other' && submission.otherNotePurpose && (
+                  <span> - {submission.otherNotePurpose}</span>
+                )}
+              </span>
             </div>
             <div>
               <span className="text-muted-foreground">Dates: </span>
@@ -119,7 +124,12 @@ export function SubmissionCard({ submission, currentIndex, totalCount }: Submiss
             </div>
             <div>
               <span className="text-muted-foreground">Reason: </span>
-              <span>{submission.absenceReason}</span>
+              <span>
+                {submission.absenceReason}
+                {submission.absenceReason === 'Other' && submission.otherAbsenceReason && (
+                  <span> - {submission.otherAbsenceReason}</span>
+                )}
+              </span>
             </div>
             {symptoms.length > 0 && (
               <div>

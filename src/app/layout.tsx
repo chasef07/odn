@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Manrope } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import Script from 'next/script'
 import './globals.css'
 import '@/lib/env' // Validate environment variables on startup
 
@@ -114,6 +115,20 @@ export default function RootLayout({
       <body className={`${sans.variable} antialiased`}>
         {children}
         <Analytics />
+
+        {/* Google Ads Global Tag */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-17015921669"
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-17015921669');
+          `}
+        </Script>
       </body>
     </html>
   )

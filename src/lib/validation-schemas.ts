@@ -126,6 +126,16 @@ export const page3Schema = z.object({
         })
         return
       }
+
+      // Validate TLD is in common TLDs list
+      const isValidTLD = COMMON_TLDS.some(validTld => tld === validTld || email.endsWith(validTld))
+      if (!isValidTLD) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please enter a valid email address with a recognized domain',
+        })
+        return
+      }
     }),
   phone: z
     .string()

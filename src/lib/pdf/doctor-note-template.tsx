@@ -412,7 +412,7 @@ export function DoctorNoteTemplate({
             <Text style={styles.headerLine}>
               Email: <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>hello@platinumhealthclinic.com</Link>
             </Text>
-            <Text style={styles.headerLine}>Phone: 917-300-8543</Text>
+            <Text style={styles.headerLine}>Phone: 786-292-3070</Text>
             <Text style={styles.headerLine}>Fax: 786-289-9316</Text>
           </View>
 

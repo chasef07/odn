@@ -1,0 +1,172 @@
+/**
+ * Resend Approval Emails Script
+ *
+ * This script identifies approved submissions that never received their approval email
+ * (due to Cloudflare outage or other delivery issues) and resends them.
+ *
+ * Usage:
+ *   - Dry run (preview): npx tsx scripts/resend-approval-emails.ts
+ *   - Actually send: npx tsx scripts/resend-approval-emails.ts --send
+ */
+
+import { PrismaClient } from '@prisma/client'
+import { sendApprovalEmail } from '@/lib/email'
+import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
+
+const prisma = new PrismaClient()
+
+interface ResendStats {
+  total: number
+  successful: number
+  failed: number
+  errors: Array<{ submissionId: string; email: string; error: string }>
+}
+
+/**
+ * Find approved submissions that never received approval email
+ */
+async function findMissingApprovalEmails() {
+  const submissions = await prisma.submission.findMany({
+    where: {
+      status: 'APPROVED',
+      approvalEmailSentAt: null,
+    },
+    orderBy: {
+      reviewedAt: 'desc', // Most recent first
+    },
+  })
+
+  return submissions
+}
+
+/**
+ * Resend approval email with PDF attachment
+ */
+async function resendApprovalEmail(submissionId: string): Promise<void> {
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+  })
+
+  if (!submission) {
+    throw new Error(`Submission ${submissionId} not found`)
+  }
+
+  // Generate PDF
+  const pdfBuffer = await generateDoctorNotePDF(submission)
+  const pdfFilename = generatePDFFilename(submission.id)
+
+  // Send email
+  const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+  await sendApprovalEmail({
+    to: submission.email,
+    patientName,
+    notePurpose: submission.notePurpose,
+    absenceReason: submission.absenceReason,
+    pdfBuffer,
+    pdfFilename,
+  })
+
+  // Update database to mark email as sent
+  await prisma.submission.update({
+    where: { id: submissionId },
+    data: {
+      approvalEmailSentAt: new Date(),
+    },
+  })
+}
+
+/**
+ * Main function
+ */
+async function main() {
+  const args = process.argv.slice(2)
+  const shouldSend = args.includes('--send')
+
+  console.log('🔍 Searching for approved submissions missing approval emails...\n')
+
+  try {
+    const submissions = await findMissingApprovalEmails()
+
+    if (submissions.length === 0) {
+      console.log('✅ All approved submissions have received their approval emails!')
+      return
+    }
+
+    console.log(`📧 Found ${submissions.length} submission(s) missing approval emails:\n`)
+
+    // Display submissions
+    submissions.forEach((submission, index) => {
+      const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+      const reviewedDate = submission.reviewedAt?.toLocaleDateString() || 'Unknown'
+      console.log(`${index + 1}. ${patientName} (${submission.email})`)
+      console.log(`   Submission ID: ${submission.id}`)
+      console.log(`   Approved on: ${reviewedDate}`)
+      console.log(`   Note purpose: ${submission.notePurpose}`)
+      console.log('')
+    })
+
+    if (!shouldSend) {
+      console.log('ℹ️  DRY RUN MODE - No emails will be sent.')
+      console.log('ℹ️  To actually send these emails, run:')
+      console.log('   npx tsx scripts/resend-approval-emails.ts --send\n')
+      return
+    }
+
+    // Actually send emails
+    console.log('📤 Sending approval emails...\n')
+
+    const stats: ResendStats = {
+      total: submissions.length,
+      successful: 0,
+      failed: 0,
+      errors: [],
+    }
+
+    for (const submission of submissions) {
+      const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+      try {
+        console.log(`Sending to ${patientName} (${submission.email})...`)
+        await resendApprovalEmail(submission.id)
+        stats.successful++
+        console.log(`✅ Success!\n`)
+      } catch (error) {
+        stats.failed++
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        console.log(`❌ Failed: ${errorMessage}\n`)
+        stats.errors.push({
+          submissionId: submission.id,
+          email: submission.email,
+          error: errorMessage,
+        })
+      }
+    }
+
+    // Print summary
+    console.log('\n' + '='.repeat(60))
+    console.log('📊 SUMMARY')
+    console.log('='.repeat(60))
+    console.log(`Total submissions: ${stats.total}`)
+    console.log(`✅ Successfully sent: ${stats.successful}`)
+    console.log(`❌ Failed: ${stats.failed}`)
+
+    if (stats.errors.length > 0) {
+      console.log('\n❌ Failed submissions:')
+      stats.errors.forEach((error) => {
+        console.log(`  - ${error.submissionId} (${error.email}): ${error.error}`)
+      })
+    }
+
+    console.log('')
+  } catch (error) {
+    console.error('❌ Script failed:', error)
+    throw error
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
+// Run the script
+main().catch((error) => {
+  console.error('Fatal error:', error)
+  process.exit(1)
+})
