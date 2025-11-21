@@ -62,14 +62,49 @@ export async function GET(request: NextRequest) {
     }
 
     // ✅ Authorized - proceed with cleanup
-    // Delete expired TemporarySubmissions
-    const result = await prisma.temporarySubmission.deleteMany({
-      where: {
-        expiresAt: {
-          lt: new Date(), // Less than current time
-        },
-      },
-    })
+    // Delete expired TemporarySubmissions with retry logic for transient failures
+    let result
+    let retries = 3
+    let lastError
+
+    for (let i = 0; i < retries; i++) {
+      try {
+        result = await prisma.temporarySubmission.deleteMany({
+          where: {
+            expiresAt: {
+              lt: new Date(), // Less than current time
+            },
+          },
+        })
+
+        // Success - break out of retry loop
+        break
+      } catch (error) {
+        lastError = error
+        console.error(`❌ Cleanup attempt ${i + 1}/${retries} failed:`, error)
+
+        if (i < retries - 1) {
+          // Wait before retry with exponential backoff: 1s, 2s, 4s
+          const waitTime = 1000 * Math.pow(2, i)
+          await new Promise(resolve => setTimeout(resolve, waitTime))
+        }
+      }
+    }
+
+    // If all retries failed, return error
+    if (!result) {
+      console.error('❌ All cleanup retries failed', {
+        retries,
+        lastError,
+        timestamp: new Date().toISOString(),
+      })
+
+      return NextResponse.json({
+        success: false,
+        error: 'Cleanup failed after retries',
+        timestamp: new Date().toISOString(),
+      }, { status: 500 })
+    }
 
     if (process.env.NODE_ENV === 'development') {
       console.log(`✅ Cron job completed: Cleaned up ${result.count} expired TemporarySubmissions`, {
