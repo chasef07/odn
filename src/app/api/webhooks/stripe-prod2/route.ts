@@ -43,21 +43,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true }, { status: 200 })
     }
 
-    // 3. Reject events older than 10 minutes (prevents legacy/stale events from processing)
-    // This protects against old retry storms from previous system deployments
+    // 3. Smart age validation: Reject OLD events that were ALREADY PROCESSED
+    // Allows legitimate old events (abandoned checkouts, webhook retries) to process
     const eventAge = Date.now() - (event.created * 1000)
     const MAX_EVENT_AGE = 10 * 60 * 1000 // 10 minutes in milliseconds
 
     if (eventAge > MAX_EVENT_AGE) {
-      console.warn('Rejecting stale event (possible legacy/retry):', {
-        eventId: event.id,
-        paymentIntentId: (event.data.object as Stripe.PaymentIntent).id,
-        ageMinutes: Math.floor(eventAge / 60000),
-        created: new Date(event.created * 1000).toISOString(),
-        receivedAt: new Date().toISOString(),
+      const paymentIntent = event.data.object as Stripe.PaymentIntent
+
+      // Check if this payment was already processed successfully
+      const existingSubmission = await prisma.submission.findUnique({
+        where: { stripePaymentIntentId: paymentIntent.id },
+        select: { id: true }
       })
-      // Return 200 OK to stop Stripe from retrying
-      return NextResponse.json({ received: true }, { status: 200 })
+
+      if (existingSubmission) {
+        // Already processed - safe to reject this duplicate/legacy retry
+        console.warn('Rejecting stale event (already processed):', {
+          eventId: event.id,
+          paymentIntentId: paymentIntent.id,
+          submissionId: existingSubmission.id,
+          ageMinutes: Math.floor(eventAge / 60000),
+        })
+        return NextResponse.json({ received: true }, { status: 200 })
+      }
+
+      // NOT processed yet - this is a legitimate old event:
+      // - Abandoned checkout (user returned days later)
+      // - Webhook retry after first attempt failed
+      // Allow processing to continue
+      console.warn('Allowing stale event (never processed):', {
+        eventId: event.id,
+        paymentIntentId: paymentIntent.id,
+        ageMinutes: Math.floor(eventAge / 60000),
+        reason: 'No Submission exists - likely abandoned checkout or failed first attempt',
+      })
+      // Don't return - fall through to processing logic below
     }
 
     // 4. Log event for debugging and audit trail (Stripe best practice)
