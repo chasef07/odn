@@ -43,20 +43,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true }, { status: 200 })
     }
 
-    // 3. Smart age validation: Reject OLD events that were ALREADY PROCESSED
+    // 3. Extract payment intent for reuse
+    const paymentIntent = event.data.object as Stripe.PaymentIntent
+
+    // 4. Check idempotency + age validation (single DB query for both)
+    // This query serves two purposes:
+    // - Prevents duplicate processing (idempotency)
+    // - Enables smart age validation for old events
+    const existingSubmission = await prisma.submission.findUnique({
+      where: { stripePaymentIntentId: paymentIntent.id },
+      select: { id: true }
+    })
+
+    // 5. Smart age validation: Reject OLD events that were ALREADY PROCESSED
     // Allows legitimate old events (abandoned checkouts, webhook retries) to process
     const eventAge = Date.now() - (event.created * 1000)
     const MAX_EVENT_AGE = 10 * 60 * 1000 // 10 minutes in milliseconds
 
     if (eventAge > MAX_EVENT_AGE) {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent
-
-      // Check if this payment was already processed successfully
-      const existingSubmission = await prisma.submission.findUnique({
-        where: { stripePaymentIntentId: paymentIntent.id },
-        select: { id: true }
-      })
-
       if (existingSubmission) {
         // Already processed - safe to reject this duplicate/legacy retry
         console.warn('Rejecting stale event (already processed):', {
@@ -81,39 +85,27 @@ export async function POST(request: NextRequest) {
       // Don't return - fall through to processing logic below
     }
 
-    // 4. Log event for debugging and audit trail (Stripe best practice)
+    // 6. Idempotency check for recent events (reuse existingSubmission from above)
+    if (existingSubmission) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Submission already processed (idempotent):', {
+          eventId: event.id,
+          paymentIntentId: paymentIntent.id,
+          submissionId: existingSubmission.id,
+        })
+      }
+      return NextResponse.json({ received: true })
+    }
+
+    // 7. Log event for debugging and audit trail (Stripe best practice)
     if (process.env.NODE_ENV === 'development') {
       console.log('Webhook event received:', {
         eventId: event.id,
         eventType: event.type,
+        paymentIntentId: paymentIntent.id,
         created: new Date(event.created * 1000).toISOString(),
       })
     }
-
-    // 5. Handle payment_intent.succeeded event (we already filtered for this above)
-    const paymentIntent = event.data.object as Stripe.PaymentIntent
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Processing payment_intent.succeeded:', {
-        eventId: event.id,
-        paymentIntentId: paymentIntent.id,
-      })
-    }
-
-    // 6. Check idempotency (prevent duplicate processing)
-      const existingSubmission = await prisma.submission.findUnique({
-        where: { stripePaymentIntentId: paymentIntent.id },
-      })
-
-      if (existingSubmission) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Submission already processed (idempotent):', {
-            eventId: event.id,
-            paymentIntentId: paymentIntent.id,
-          })
-        }
-        return NextResponse.json({ received: true })
-      }
 
       // 7. Retrieve form data from TemporarySubmission
       // Primary lookup by paymentIntentId
