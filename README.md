@@ -258,7 +258,7 @@ brew install stripe/stripe-cli/stripe
 stripe login
 
 # Forward webhooks to local server
-stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod
+stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod2
 
 # Copy the webhook signing secret to .env.local
 # STRIPE_WEBHOOK_SECRET=whsec_...

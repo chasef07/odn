@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         data: {
           paymentIntentId: `pending_${Date.now()}`, // Temporary placeholder
           formData: formData as unknown as Record<string, unknown>,
-          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours (industry standard for checkout expiration)
+          expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days - prevents premature cleanup if payment is delayed
         },
       })
       tempSubmissionId = tempSubmission.id
