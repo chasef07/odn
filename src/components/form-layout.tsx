@@ -1,3 +1,5 @@
+'use client'
+
 import { ReactNode } from 'react'
 import { ShieldCheck, DollarSign } from 'lucide-react'
 import { FormProgress } from './form-progress'
@@ -29,10 +31,10 @@ export function FormLayout({
 
   return (
     <div className="text-foreground min-h-screen bg-white">
-      <main className="mx-auto w-full max-w-4xl px-6 py-8">
+      <main className="mx-auto w-full max-w-4xl px-6 py-6 md:py-8">
         {/* Top Bar: Progress + Trust Badges */}
         {!hideProgressAndBadges && (
-          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <FormProgress currentStep={currentStep} />
             </div>
@@ -52,11 +54,11 @@ export function FormLayout({
         )}
 
         {/* Title - Centered on White Background */}
-        <div className="mb-4 text-center">
-          <h1 className="font-display text-foreground mb-4 text-4xl font-bold sm:text-5xl">
+        <div className="mb-3 text-center">
+          <h1 className="font-display text-foreground mb-3 text-3xl font-bold sm:text-4xl md:text-5xl">
             {personalizedTitle}
           </h1>
-          <p className="text-muted-foreground mx-auto max-w-2xl text-lg">{description}</p>
+          {description && <p className="text-muted-foreground mx-auto max-w-2xl text-base sm:text-lg">{description}</p>}
         </div>
 
         {/* Form Content */}

@@ -30,25 +30,11 @@ export default function HomePage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="px-6 py-20 lg:flex lg:items-center">
+      <section className="px-6 py-12 lg:py-20 lg:flex lg:items-center">
         <div className="mx-auto w-full max-w-7xl">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-            {/* Right Column - Hero Image (appears first on mobile) */}
-            <div className="relative order-1 lg:order-2">
-              <Image
-                src="/images/homepage/hero.jpg"
-                alt="Doctor reviewing patient medical note"
-                width={1376}
-                height={1130}
-                priority
-                quality={90}
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="rounded-lg shadow-xl"
-              />
-            </div>
-
-            {/* Left Column - Text Content (appears second on mobile) */}
-            <div className="order-2 text-center lg:order-1 lg:text-left">
+            {/* Left Column - Text Content (appears first on mobile) */}
+            <div className="order-1 text-center lg:text-left">
               <h1 className="font-display text-foreground mb-6 text-5xl font-bold leading-tight sm:text-6xl">
                 The <span className="text-primary">convenient</span> way to get a doctor&apos;s note for work or school!
               </h1>
@@ -76,6 +62,20 @@ export default function HomePage() {
                   <span>U.S. Licensed Doctors</span>
                 </div>
               </div>
+            </div>
+
+            {/* Right Column - Hero Image (appears second on mobile) */}
+            <div className="relative order-2">
+              <Image
+                src="/images/homepage/hero.jpg"
+                alt="Doctor reviewing patient medical note"
+                width={1376}
+                height={1130}
+                priority
+                quality={90}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="rounded-lg shadow-xl"
+              />
             </div>
           </div>
         </div>

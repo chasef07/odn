@@ -104,7 +104,7 @@ export function FormRadioGroup({
           return (
             <label
               key={option.value}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 shadow-sm transition-all ${
+              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-2.5 shadow-sm transition-all ${
                 isSelected
                   ? 'border-primary bg-primary/10 text-primary ring-primary/20 ring-2'
                   : 'border-border/40 text-foreground hover:border-primary/40 bg-white hover:shadow-md'

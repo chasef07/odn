@@ -72,6 +72,7 @@ export default function SymptomsPage() {
     }
 
     saveFormData(data)
+
     router.push('/additional-info')
   }
 
@@ -98,7 +99,7 @@ export default function SymptomsPage() {
       description={pageDescription}
       usePersonalization={true}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-8">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <FormCheckboxGroup
           fieldName="symptoms"
           legend={legendText}
@@ -106,6 +107,7 @@ export default function SymptomsPage() {
           register={register('symptoms')}
           error={errors.symptoms as FieldError | undefined}
           selectedValues={symptoms}
+          gridClassName="grid gap-2.5 sm:grid-cols-2 md:grid-cols-3"
         />
 
         {/* Show text input when "Other" is selected */}

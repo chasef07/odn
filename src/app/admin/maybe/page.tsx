@@ -37,16 +37,11 @@ export default async function MaybePortalPage() {
       {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <Link href="/admin" className="flex items-center gap-2">
-              <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
-                Admin Portal
-              </span>
-            </Link>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">{session.user.email}</span>
-              <LogoutButton />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
             </div>
+            <LogoutButton />
           </div>
         </div>
       </header>

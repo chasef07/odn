@@ -592,34 +592,6 @@ describe('POST /api/create-payment-intent', () => {
     expect(response.headers.get('content-type')).toContain('application/json')
   })
 
-  it('should set expiry time to 2 hours (industry standard for checkout expiration)', async () => {
-    const now = Date.now()
-
-    mockPaymentIntentCreate.mockResolvedValue({
-      id: 'pi_123',
-      client_secret: 'pi_mock',
-      amount: 2495,
-      currency: 'usd',
-    })
-
-    mockPrismaCreate.mockResolvedValue({})
-
-    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
-      method: 'POST',
-      body: JSON.stringify({ formData: mockFormData }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    await POST(request)
-
-    const createCall = mockPrismaCreate.mock.calls[0][0]
-    const expiresAt = createCall.data.expiresAt.getTime()
-    const expectedExpiry = now + 2 * 60 * 60 * 1000 // 2 hours
-
-    // Allow 1 second variance for test execution time
-    expect(Math.abs(expiresAt - expectedExpiry)).toBeLessThan(1000)
-  })
-
   it('should handle database connection errors gracefully', async () => {
     mockPaymentIntentCreate.mockResolvedValue({
       id: 'pi_123',

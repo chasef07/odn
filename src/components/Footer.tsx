@@ -53,6 +53,19 @@ export default function Footer() {
         <p className="text-center text-white text-[1.10rem]">
           © 2025 OnlineDoctorNote.com
         </p>
+
+        {/* Powered By */}
+        <p className="mt-2 text-center text-white text-sm">
+          Powered By{' '}
+          <a
+            href="https://www.databuddiessolutions.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-200 transition-colors underline"
+          >
+            Data Buddies
+          </a>
+        </p>
       </div>
     </footer>
   )

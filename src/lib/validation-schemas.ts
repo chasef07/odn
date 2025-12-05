@@ -66,6 +66,19 @@ export const guardianSchema = z.object({
     }),
 })
 
+// Common domain typos and their corrections
+const COMMON_DOMAIN_TYPOS: Record<string, string> = {
+  'gnail.com': 'gmail.com',
+  'gmai.com': 'gmail.com',
+  'gmial.com': 'gmail.com',
+  'gamil.com': 'gmail.com',
+  'glail.com': 'gmail.com',
+  'gmal.com': 'gmail.com',
+  'icould.com': 'icloud.com',
+  'ymail.com': 'gmail.com',
+  'yhoo.com': 'yahoo.com',
+}
+
 // Common TLD typos and their corrections
 const COMMON_TLD_TYPOS: Record<string, string> = {
   '.con': '.com',
@@ -101,6 +114,21 @@ export const page3Schema = z.object({
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'Please enter a valid email address',
+        })
+        return
+      }
+
+      // Extract domain from email (everything after @)
+      const atIndex = email.indexOf('@')
+      const domain = email.slice(atIndex + 1)
+
+      // Check for common domain typos (e.g., gnail.com -> gmail.com)
+      const domainSuggestion = COMMON_DOMAIN_TYPOS[domain]
+      if (domainSuggestion) {
+        const suggestedEmail = email.slice(0, atIndex + 1) + domainSuggestion
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Did you mean "${suggestedEmail}"? Please check your email address.`,
         })
         return
       }

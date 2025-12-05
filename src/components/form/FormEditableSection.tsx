@@ -44,15 +44,15 @@ export function FormEditableSection({
   const isEditing = editingSection === sectionId
 
   return (
-    <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
+    <div className="border-border/40 rounded-xl border bg-white p-4 md:p-6 shadow-sm">
       {isEditing ? (
         // Edit Mode
-        <div className="space-y-4">
+        <div className="space-y-3">
           <h3 className="text-foreground text-sm font-semibold">{title}</h3>
 
           {editContent}
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-1">
             <button
               type="button"
               onClick={() => onCancel(sectionId)}

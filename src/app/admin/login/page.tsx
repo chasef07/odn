@@ -31,13 +31,17 @@ export default function AdminLoginPage() {
         password,
       })
 
+      console.log('Login result:', result)
+
       if (result.error) {
+        console.error('Login error:', result.error)
         setError('Invalid email or password')
       } else {
         router.push('/admin')
         router.refresh()
       }
     } catch (err) {
+      console.error('Login exception:', err)
       setError('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)

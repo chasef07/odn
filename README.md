@@ -159,9 +159,20 @@ src/
 
 - **Login**: `/admin/login` (Better Auth protected)
 - **Dashboard**: Review submissions with filters (pending/approved/denied/maybe/manual)
+- **Search**: Find any submission by name, email, or ID (`/admin/search`)
 - **Actions**: Approve (sends PDF via email) or Deny (refunds + email)
+- **Edit & Re-approve**: Modify any field and regenerate PDF with updated information
 - **Monthly Limits**: Visual warnings when patients exceed 7 days/month
 - **Other Fields**: Displays custom text when users select "other" (e.g., "other - custom reason")
+
+### Admin Search & Edit
+
+- **Search by**: Patient name (partial match), email (contains), or submission ID
+- **View**: Complete submission details with all form fields
+- **Edit**: Modify any field directly from the search results
+- **Status Control**: Change status between Approved, Denied, Maybe, and Manual
+- **Re-approval**: Generate new PDF and send new email after editing approved submissions
+- **Smart Refunds**: Automatically checks if already refunded before processing
 
 ### Email System
 

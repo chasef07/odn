@@ -41,6 +41,7 @@ export default function AdditionalInfoPage() {
 
   const onSubmit = (data: FormData) => {
     saveFormData(data)
+
     router.push('/review')
   }
 

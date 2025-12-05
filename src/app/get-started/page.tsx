@@ -34,6 +34,7 @@ export default function Home() {
 
   const onSubmit = (data: FormData) => {
     saveFormData(data)
+
     router.push('/who-is-using')
   }
 
@@ -85,7 +86,7 @@ export default function Home() {
           <FormNavigation backRoute="/" isSubmitting={isSubmitting} />
 
           {/* Social Proof - Bottom of Form */}
-          <div className="space-y-3 pt-10 text-center">
+          <div className="space-y-3 pt-4 text-center">
             <div className="flex items-center justify-center gap-1">
               {[...Array(5)].map((_, i) => (
                 <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />

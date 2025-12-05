@@ -374,7 +374,7 @@ describe('ApprovalEmail - Contact Information', () => {
     expect(html).toContain('hello@onlinedoctornote.com')
   })
 
-  it('should contain "reply to this email" in point 1 for changes', async () => {
+  it('should contain "reply to hello@onlinedoctornote.com" in point 1 for changes', async () => {
     const html = await render(
       <ApprovalEmail
         patientName="John Doe"
@@ -383,8 +383,9 @@ describe('ApprovalEmail - Contact Information', () => {
       />
     )
 
-    // Point 1 should mention replying to email for changes
-    expect(html).toContain('reply to this email')
+    // Point 1 should mention replying to hello@onlinedoctornote.com for changes
+    expect(html).toContain('reply to')
+    expect(html).toContain('hello@onlinedoctornote.com')
   })
 })
 

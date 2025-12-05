@@ -61,6 +61,7 @@ export default function AbsenceDatesPage() {
     }
 
     saveFormData(data)
+
     router.push('/absence-reason')
   }
 
@@ -73,21 +74,25 @@ export default function AbsenceDatesPage() {
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <FormCard spacing="space-y-4">
-          <FormField
-            id="firstDayOff"
-            label="First Day Off"
-            type="date"
-            register={register('firstDayOff')}
-            error={errors.firstDayOff}
-          />
+          <div className="max-w-[240px]">
+            <FormField
+              id="firstDayOff"
+              label="First Day Off"
+              type="date"
+              register={register('firstDayOff')}
+              error={errors.firstDayOff}
+            />
+          </div>
 
-          <FormField
-            id="lastDayOff"
-            label="Last Day Off"
-            type="date"
-            register={register('lastDayOff')}
-            error={errors.lastDayOff}
-          />
+          <div className="max-w-[240px]">
+            <FormField
+              id="lastDayOff"
+              label="Last Day Off"
+              type="date"
+              register={register('lastDayOff')}
+              error={errors.lastDayOff}
+            />
+          </div>
         </FormCard>
 
         <FormNavigation backRoute="/note-purpose" isSubmitting={isSubmitting} />
