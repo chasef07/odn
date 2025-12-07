@@ -9,16 +9,16 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Main Content - Centered */}
-      <main className="mx-auto max-w-2xl px-6 py-16 text-center">
+      <main className="mx-auto max-w-2xl px-6 py-12 text-center">
         {/* Headlines */}
         <h1 className="font-display text-foreground mb-4 text-4xl font-bold sm:text-5xl">
           Need a quick doctor&apos;s note for work or school?
         </h1>
 
-        <p className="text-muted-foreground mb-12 text-2xl">You&apos;re in the right place.</p>
+        <p className="text-muted-foreground mb-8 text-2xl">You&apos;re in the right place.</p>
 
         {/* Value Props with Checkmarks */}
-        <div className="mx-auto mb-12 max-w-xl space-y-4 text-left">
+        <div className="mx-auto mb-8 max-w-xl space-y-4 text-left">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-500" />
             <p className="text-foreground text-lg">
@@ -52,7 +52,7 @@ export default function LandingPage() {
         </button>
 
         {/* Disclaimer */}
-        <div className="mx-auto mt-16 max-w-xl">
+        <div className="mx-auto mt-6 max-w-xl">
           <p className="text-muted-foreground text-sm leading-relaxed">
             <span className="font-medium">Please note:</span> This service is not meant to be used
             for legal issues, FMLA, workman&apos;s compensation, or disability and insurance claims.

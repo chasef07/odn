@@ -33,6 +33,7 @@ export default function WhoIsUsingPage() {
 
   const onSubmit = (data: FormData) => {
     saveFormData(data)
+
     router.push('/basic-info')
   }
 

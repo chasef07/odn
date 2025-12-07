@@ -31,16 +31,11 @@ export default async function AdminDashboardPage() {
         {/* Header */}
         <header className="border-b bg-white shadow-sm">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between">
-              <Link href="/admin" className="flex items-center gap-2">
-                <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
-                  Admin Portal
-                </span>
-              </Link>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">{session.user.email}</span>
-                <LogoutButton />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
               </div>
+              <LogoutButton />
             </div>
           </div>
         </header>
@@ -56,34 +51,39 @@ export default async function AdminDashboardPage() {
     )
   }
 
-  const { pendingCount, approvedToday, deniedToday, maybeCount } = statsResult.data
+  const { pendingCount, approvedToday, deniedToday, maybeCount, manualCount } = statsResult.data
 
   return (
     <div>
       {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <Link href="/admin" className="flex items-center gap-2">
-              <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
-                Admin Portal
-              </span>
-            </Link>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">{session.user.email}</span>
-              <LogoutButton />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
             </div>
+            <LogoutButton />
           </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-8">
           {/* Page Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage and review patient doctor note submissions
-            </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+              <p className="text-muted-foreground mt-1">
+                Manage and review patient doctor note submissions
+              </p>
+            </div>
+            <Link href="/admin/search">
+              <Button variant="outline" className="gap-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Search All Submissions
+              </Button>
+            </Link>
           </div>
 
           {/* Stats Cards */}
@@ -92,6 +92,7 @@ export default async function AdminDashboardPage() {
             approvedToday={approvedToday}
             deniedToday={deniedToday}
             maybeCount={maybeCount}
+            manualCount={manualCount}
           />
 
           {/* Start Reviewing Button */}

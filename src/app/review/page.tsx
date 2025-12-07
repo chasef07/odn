@@ -251,7 +251,7 @@ export default function ReviewPage() {
       description="Please review all details carefully before continuing to payment."
       usePersonalization={true}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pb-8" style={{ WebkitOverflowScrolling: 'touch' }}>
         {/* Patient Information */}
         <FormEditableSection
           sectionId="personal"
@@ -511,7 +511,7 @@ export default function ReviewPage() {
         />
 
         {/* Terms Checkboxes - Native Checkboxes */}
-        <div className="border-border/40 space-y-4 rounded-xl border bg-white p-6 shadow-sm">
+        <div className="border-border/40 space-y-3 rounded-xl border bg-white p-4 md:p-6 shadow-sm">
           <div className="flex items-start space-x-3">
             <input
               type="checkbox"
@@ -543,11 +543,23 @@ export default function ReviewPage() {
               className="text-foreground flex-1 cursor-pointer text-sm leading-relaxed font-normal"
             >
               I agree to the{' '}
-              <Link href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              <Link
+                href="/terms-of-service"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
                 Terms of Service
               </Link>
               {' '}and{' '}
-              <Link href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              <Link
+                href="/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
                 Privacy Policy
               </Link>.
             </label>

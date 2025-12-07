@@ -26,7 +26,12 @@ src/
 ├── app/
 │   ├── admin/              # Admin portal (Better Auth protected)
 │   │   ├── login/         # Doctor login
-│   │   └── review/        # Submission review dashboard
+│   │   ├── review/        # Submission review dashboard
+│   │   ├── search/        # Search & edit submissions
+│   │   │   └── [id]/      # Single submission detail/edit
+│   │   ├── maybe/         # Maybe queue with editable cards
+│   │   ├── approved/      # Today's approved submissions
+│   │   └── denied/        # Today's denied submissions
 │   ├── api/               # API routes
 │   │   ├── auth/          # Better Auth endpoints
 │   │   ├── create-payment-intent/
@@ -36,6 +41,10 @@ src/
 │   └── [form-pages]/      # 12 form steps
 ├── components/
 │   ├── admin/             # Admin components
+│   │   ├── SearchPage.tsx           # Search interface
+│   │   ├── SearchSubmissionDetail.tsx # Edit/view submission
+│   │   ├── StatusBadge.tsx          # Reusable status badge
+│   │   └── ...
 │   ├── form/              # Form components
 │   └── ui/                # shadcn/ui components
 ├── emails/                # React Email templates
@@ -215,12 +224,36 @@ npx tsx scripts/delete-all-users.ts
 
 **Auth**: Better Auth with email/password (bcrypt, 10 rounds)
 
+**Admin Routes**:
+- `/admin` - Dashboard with stats and "Search All Submissions" button
+- `/admin/review` - Tinder-style card review for pending submissions
+- `/admin/search` - Search submissions by name, email, or ID
+- `/admin/search/[id]` - View/edit single submission with status actions
+- `/admin/maybe` - Maybe queue with editable cards
+- `/admin/approved` - Today's approved submissions
+- `/admin/denied` - Today's denied submissions
+
 **Submission Status Flow**:
 1. `PENDING_REVIEW` - Initial state
 2. `APPROVED` - Doctor approves
 3. `DENIED` - Doctor denies
 4. `MAYBE` - Needs more review
 5. `MANUAL` - Doctor-handled offline
+
+**Search & Edit Feature** (`/admin/search`):
+- Search by name (partial match on first/last), email (contains), or ID (prefix)
+- View all form fields for any submission regardless of status
+- Edit any field and save changes
+- Status action buttons: Approve, Re-Approve, Deny, Maybe, Manual
+- Re-approval generates new PDF and sends new email
+- Smart refund handling: checks `stripeRefundId` before processing
+
+**Key Server Actions** (`src/app/admin/actions.ts`):
+- `searchSubmissions()` - Paginated search with type selector
+- `reApproveSubmission()` - Regenerate PDF and resend email
+- `changeSubmissionStatus()` - Handle complex status transitions
+- `approveSubmission()` / `denySubmission()` - Standard approval/denial
+- `updateSubmission()` - Save field edits
 
 **Database Models**:
 - `User` - Admin/doctor accounts
@@ -441,6 +474,10 @@ Run tests: `npm test`
 
 23. **Admin Portal - Other Fields**: When users select "other" for note purpose or absence reason, the admin portal displays both "other" and their custom text (e.g., "other - custom reason").
 
+24. **Admin Search**: `/admin/search` allows searching ALL submissions by name, email, or ID. Supports editing any field and changing status. Re-approval triggers new PDF generation and email.
+
+25. **Status Transitions**: Use `changeSubmissionStatus()` for non-approval transitions. Use `approveSubmission()` or `reApproveSubmission()` for approvals. Denial after approval checks `stripeRefundId` to avoid double refunds.
+
 ## Useful Commands
 
 ```bash
@@ -474,4 +511,4 @@ npx tsc --noEmit          # Check TypeScript
 
 ---
 
-**Last Updated**: 2025-11-20
+**Last Updated**: 2025-12-04

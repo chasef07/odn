@@ -64,7 +64,7 @@ export default function AbsenceReasonPage() {
 
   return (
     <FormLayout currentStep={currentStep} title={title} description="" usePersonalization={true}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <FormRadioGroup
           fieldName="absenceReason"
           legend="What is your reason for absence?"
@@ -72,7 +72,7 @@ export default function AbsenceReasonPage() {
           register={register('absenceReason')}
           error={errors.absenceReason}
           selectedValue={selectedReason ?? undefined}
-          gridClassName="grid gap-3 sm:grid-cols-2"
+          gridClassName="grid gap-2.5 sm:grid-cols-2"
         />
 
         {/* Show text input when "Other" is selected */}

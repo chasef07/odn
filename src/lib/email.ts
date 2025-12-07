@@ -3,6 +3,7 @@ import { render } from '@react-email/render'
 import DenialEmail from '@/emails/DenialEmail'
 import ApprovalEmail from '@/emails/ApprovalEmail'
 import PaymentConfirmationEmail from '@/emails/PaymentConfirmationEmail'
+import BounceAlertEmail from '@/emails/BounceAlertEmail'
 
 // Initialize Resend client with API key from environment
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -155,6 +156,68 @@ export async function sendPaymentConfirmationEmail({
     console.error('Failed to send payment confirmation email:', error)
     throw new Error(
       `Failed to send payment confirmation email: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+/**
+ * Sends a bounce alert email to the admin team
+ *
+ * @param bouncedEmail - Email address that bounced
+ * @param bounceReason - Reason for the bounce
+ * @param emailType - Type of email that bounced (approval, denial, payment_confirmation, unknown)
+ * @param submission - Submission data (optional)
+ * @returns Promise that resolves to the email send result
+ * @throws Error if email sending fails
+ */
+export async function sendBounceAlertEmail({
+  bouncedEmail,
+  bounceReason,
+  emailType,
+  submission,
+}: {
+  bouncedEmail: string
+  bounceReason: string
+  emailType: 'approval' | 'denial' | 'payment_confirmation' | 'unknown'
+  submission: {
+    id: string
+    patientFirstName: string
+    patientLastName: string
+    phone: string
+    status: string
+  } | null
+}) {
+  try {
+    // Render the React Email component to HTML
+    const emailHtml = await render(
+      BounceAlertEmail({
+        bouncedEmail,
+        bounceReason,
+        emailType,
+        patientFirstName: submission?.patientFirstName,
+        patientLastName: submission?.patientLastName,
+        patientPhone: submission?.phone,
+        submissionId: submission?.id,
+        submissionStatus: submission?.status,
+      })
+    )
+
+    const patientName = submission
+      ? `${submission.patientFirstName} ${submission.patientLastName}`
+      : bouncedEmail
+
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: 'hello@onlinedoctornote.com',
+      subject: `🚨 Email Bounce Alert: ${patientName}`,
+      html: emailHtml,
+    })
+
+    return result
+  } catch (error) {
+    console.error('Failed to send bounce alert email:', error)
+    throw new Error(
+      `Failed to send bounce alert email: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
   }
 }

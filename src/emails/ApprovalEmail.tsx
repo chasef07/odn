@@ -89,8 +89,15 @@ export const ApprovalEmail = ({
                 <Column>
                   <Text className="text-gray-700 text-base m-0 leading-relaxed">
                     Please review the note to make sure that the information is accurate.
-                    If you need us to make any changes, please reply to this email with
-                    instructions and we will promptly handle it.
+                    If you need us to make any changes, please reply to{' '}
+                    <Link
+                      href="mailto:hello@onlinedoctornote.com"
+                      className="font-medium no-underline"
+                      style={{ color: '#009ed9' }}
+                    >
+                      hello@onlinedoctornote.com
+                    </Link>{' '}
+                    with instructions and we will promptly handle it.
                   </Text>
                 </Column>
               </Row>

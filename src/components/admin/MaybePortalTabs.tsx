@@ -116,8 +116,9 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
 
       {/* Table View */}
       {submissions.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="-mx-4 sm:mx-0">
+          <div className="overflow-x-auto rounded-none sm:rounded-lg border-y sm:border border-gray-200 bg-white shadow">
+            <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th
@@ -180,6 +181,7 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

@@ -62,6 +62,7 @@ export default function NotePurposePage() {
 
   const onSubmit = (data: FormData) => {
     saveFormData(data)
+
     router.push('/absence-dates')
   }
 

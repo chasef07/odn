@@ -67,6 +67,7 @@ export default function GuardianInfoPage() {
     }
 
     saveFormData(data)
+
     router.push('/contact-info')
   }
 

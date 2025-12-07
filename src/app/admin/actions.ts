@@ -70,7 +70,7 @@ export async function getDashboardStats() {
     // Business day starts at 6am ET (not midnight UTC)
     const today = getBusinessDayStart()
 
-    const [pendingCount, approvedToday, deniedToday, maybeCount] = await Promise.all([
+    const [pendingCount, approvedToday, deniedToday, maybeCount, manualCount] = await Promise.all([
       // Pending reviews
       prisma.submission.count({
         where: { status: SubmissionStatus.PENDING_REVIEW },
@@ -96,6 +96,11 @@ export async function getDashboardStats() {
       prisma.submission.count({
         where: { status: SubmissionStatus.MAYBE },
       }),
+
+      // Manual (all time)
+      prisma.submission.count({
+        where: { status: SubmissionStatus.MANUAL },
+      }),
     ])
 
     return {
@@ -105,6 +110,7 @@ export async function getDashboardStats() {
         approvedToday,
         deniedToday,
         maybeCount,
+        manualCount,
       },
     }
   } catch (error) {
@@ -745,6 +751,143 @@ export async function getManualSubmissions() {
   }
 }
 
+// Type for search result submissions
+export type SearchSubmission = {
+  id: string
+  patientFirstName: string
+  patientLastName: string
+  email: string
+  status: SubmissionStatus
+  notePurpose: string
+  firstDayOff: string
+  lastDayOff: string
+  createdAt: Date
+}
+
+/**
+ * Search submissions by name, email, or ID
+ * @param query - Search query string
+ * @param searchType - Type of search: 'name', 'email', or 'id'
+ * @param page - Page number (1-indexed)
+ * @param limit - Results per page
+ * @returns Paginated search results
+ */
+export async function searchSubmissions({
+  query,
+  searchType,
+  page = 1,
+  limit = 10,
+}: {
+  query: string
+  searchType: 'name' | 'email' | 'id'
+  page?: number
+  limit?: number
+}): Promise<{
+  success: boolean
+  submissions?: SearchSubmission[]
+  total?: number
+  error?: string
+}> {
+  try {
+    await getCurrentDoctor() // Verify authentication
+
+    if (!query || query.trim().length === 0) {
+      return { success: true, submissions: [], total: 0 }
+    }
+
+    const skip = (page - 1) * limit
+    const trimmedQuery = query.trim()
+
+    // Build where clause based on search type
+    let whereClause: Prisma.SubmissionWhereInput = {}
+
+    switch (searchType) {
+      case 'name': {
+        // Split query into parts for flexible matching
+        const nameParts = trimmedQuery.split(/\s+/)
+        if (nameParts.length === 1) {
+          // Single term: search both first and last name
+          whereClause = {
+            OR: [
+              { patientFirstName: { contains: nameParts[0], mode: 'insensitive' } },
+              { patientLastName: { contains: nameParts[0], mode: 'insensitive' } },
+            ],
+          }
+        } else {
+          // Multiple terms: first matches firstName, last matches lastName
+          whereClause = {
+            AND: [
+              { patientFirstName: { contains: nameParts[0], mode: 'insensitive' } },
+              { patientLastName: { contains: nameParts[nameParts.length - 1], mode: 'insensitive' } },
+            ],
+          }
+        }
+        break
+      }
+
+      case 'email':
+        whereClause = {
+          email: { contains: trimmedQuery.toLowerCase(), mode: 'insensitive' },
+        }
+        break
+
+      case 'id':
+        // Support both full UUID and partial ID (prefix match)
+        whereClause = {
+          id: { startsWith: trimmedQuery.toLowerCase() },
+        }
+        break
+    }
+
+    // Execute search with pagination
+    const [submissions, total] = await Promise.all([
+      prisma.submission.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          patientFirstName: true,
+          patientLastName: true,
+          email: true,
+          status: true,
+          notePurpose: true,
+          firstDayOff: true,
+          lastDayOff: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.submission.count({ where: whereClause }),
+    ])
+
+    // Format dates consistently using UTC components
+    const formatDateUTC = (date: Date): string => {
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
+    const formattedSubmissions: SearchSubmission[] = submissions.map((sub) => ({
+      id: sub.id,
+      patientFirstName: sub.patientFirstName,
+      patientLastName: sub.patientLastName,
+      email: sub.email,
+      status: sub.status,
+      notePurpose: sub.notePurpose,
+      firstDayOff: formatDateUTC(sub.firstDayOff),
+      lastDayOff: formatDateUTC(sub.lastDayOff),
+      createdAt: sub.createdAt,
+    }))
+
+    return { success: true, submissions: formattedSubmissions, total }
+  } catch (error) {
+    console.error('Error searching submissions:', error)
+    return { success: false, error: 'Failed to search submissions' }
+  }
+}
+
 // Type for submission with formatted date strings (for client components)
 export type FormattedSubmission = Omit<
   Prisma.SubmissionGetPayload<object>,
@@ -847,10 +990,333 @@ export async function updateSubmission(
     // Revalidate admin pages
     revalidatePath('/admin/maybe')
     revalidatePath(`/admin/maybe/${submissionId}`)
+    revalidatePath('/admin/search')
+    revalidatePath(`/admin/search/${submissionId}`)
 
     return { success: true }
   } catch (error) {
     console.error('Error updating submission:', error)
     return { success: false, error: 'Failed to update submission' }
+  }
+}
+
+/**
+ * Re-approve an already approved submission (generates new PDF and sends new email)
+ * Use this when edits were made to an approved submission and a new note is needed
+ * @param submissionId - Submission ID to re-approve
+ * @returns Success status with optional warning
+ */
+export async function reApproveSubmission(submissionId: string) {
+  try {
+    const doctorId = await getCurrentDoctor()
+
+    // Fetch submission
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+    })
+
+    if (!submission) {
+      return { success: false, error: 'Submission not found' }
+    }
+
+    // Generate new PDF (BLOCKING - must succeed)
+    let pdfBuffer: Buffer
+    let pdfFilename: string
+    try {
+      pdfBuffer = await generateDoctorNotePDF(submission)
+      pdfFilename = generatePDFFilename(submission.id)
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Re-approval: PDF generated: ${pdfFilename} for submission ${submissionId}`)
+      }
+    } catch (pdfError) {
+      console.error('Re-approval PDF generation failed:', pdfError)
+      return {
+        success: false,
+        error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`,
+      }
+    }
+
+    // Send new approval email (NON-BLOCKING)
+    const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+    let emailSentAt: Date | undefined
+    let emailWarning: string | undefined
+
+    try {
+      await sendApprovalEmail({
+        to: submission.email,
+        patientName,
+        notePurpose: submission.notePurpose,
+        absenceReason: submission.absenceReason,
+        pdfBuffer,
+        pdfFilename,
+      })
+      emailSentAt = new Date()
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Re-approval email sent to ${submission.email} for submission ${submissionId}`)
+      }
+    } catch (emailError) {
+      console.error('Re-approval email failed:', emailError)
+      emailWarning = 'Re-approval processed, but email notification failed to send'
+    }
+
+    // Update database
+    const now = new Date()
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: SubmissionStatus.APPROVED,
+        reviewedByAdminId: doctorId,
+        reviewedAt: now,
+        approvalEmailSentAt: emailSentAt,
+        updatedAt: now,
+      },
+    })
+
+    // Revalidate pages
+    revalidatePath('/admin')
+    revalidatePath('/admin/search')
+    revalidatePath(`/admin/search/${submissionId}`)
+    revalidatePath('/admin/approved')
+
+    if (emailWarning) {
+      return { success: true, warning: emailWarning }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error re-approving submission:', error)
+    return {
+      success: false,
+      error: `Failed to re-approve submission: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    }
+  }
+}
+
+/**
+ * Change submission status with appropriate handling for each transition
+ * Handles complex cases like denying after approval (check refund status)
+ * @param submissionId - Submission ID to change
+ * @param newStatus - Target status
+ * @param denialReason - Required if newStatus is DENIED
+ * @returns Success status with optional warning
+ */
+export async function changeSubmissionStatus(
+  submissionId: string,
+  newStatus: SubmissionStatus,
+  denialReason?: string
+): Promise<{ success: boolean; error?: string; warning?: string }> {
+  try {
+    const doctorId = await getCurrentDoctor()
+
+    // Fetch current submission
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+    })
+
+    if (!submission) {
+      return { success: false, error: 'Submission not found' }
+    }
+
+    const currentStatus = submission.status
+    const now = new Date()
+
+    // Handle different status transitions
+    switch (newStatus) {
+      case SubmissionStatus.APPROVED: {
+        // For approval, use the regular approveSubmission or reApproveSubmission
+        // This function handles simpler status changes
+        return { success: false, error: 'Use approveSubmission or reApproveSubmission for approvals' }
+      }
+
+      case SubmissionStatus.DENIED: {
+        if (!denialReason) {
+          return { success: false, error: 'Denial reason is required' }
+        }
+
+        // Check if already denied
+        if (currentStatus === SubmissionStatus.DENIED) {
+          return { success: false, error: 'Submission is already denied' }
+        }
+
+        // Check if refund already processed
+        const alreadyRefunded = !!submission.stripeRefundId
+
+        if (alreadyRefunded) {
+          // Already refunded - just update status and send email
+          await prisma.submission.update({
+            where: { id: submissionId },
+            data: {
+              status: SubmissionStatus.DENIED,
+              denialReason,
+              reviewedByAdminId: doctorId,
+              reviewedAt: now,
+              updatedAt: now,
+            },
+          })
+
+          // Try to send denial email (NON-BLOCKING)
+          let emailWarning: string | undefined
+          try {
+            const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+            // Note: Can't get refund amount since it's already processed, use 0
+            await sendDenialEmail({
+              to: submission.email,
+              patientName,
+              denialReason,
+              refundAmount: 0, // Already refunded previously
+            })
+          } catch {
+            emailWarning = 'Status changed but email notification failed to send'
+          }
+
+          revalidatePath('/admin')
+          revalidatePath('/admin/search')
+          revalidatePath(`/admin/search/${submissionId}`)
+          revalidatePath('/admin/denied')
+
+          return {
+            success: true,
+            warning: emailWarning || 'Submission denied. Note: Refund was already processed previously.',
+          }
+        }
+
+        // Need to process refund
+        if (!submission.stripePaymentIntentId) {
+          return { success: false, error: 'No payment intent ID found for this submission' }
+        }
+
+        // Process refund
+        const idempotencyKey = `refund_${submissionId}_${doctorId}_change`
+        let refund: Stripe.Refund
+
+        try {
+          refund = await stripe.refunds.create(
+            {
+              payment_intent: submission.stripePaymentIntentId,
+              reason: 'requested_by_customer',
+              metadata: {
+                submissionId: submission.id,
+                denialReason,
+                processedBy: 'admin-status-change',
+              },
+            },
+            { idempotencyKey }
+          )
+        } catch (stripeError) {
+          console.error('Refund failed during status change:', stripeError)
+          return {
+            success: false,
+            error: `Failed to process refund: ${stripeError instanceof Error ? stripeError.message : 'Unknown error'}`,
+          }
+        }
+
+        // Update database with refund info
+        await prisma.submission.update({
+          where: { id: submissionId },
+          data: {
+            status: SubmissionStatus.DENIED,
+            denialReason,
+            reviewedByAdminId: doctorId,
+            reviewedAt: now,
+            stripeRefundId: refund.id,
+            refundedAt: now,
+            updatedAt: now,
+          },
+        })
+
+        // Send denial email (NON-BLOCKING)
+        let emailWarning: string | undefined
+        try {
+          const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
+          const refundAmountDollars = refund.amount / 100
+          await sendDenialEmail({
+            to: submission.email,
+            patientName,
+            denialReason,
+            refundAmount: refundAmountDollars,
+          })
+        } catch {
+          emailWarning = 'Submission denied and refunded, but email notification failed to send'
+        }
+
+        revalidatePath('/admin')
+        revalidatePath('/admin/search')
+        revalidatePath(`/admin/search/${submissionId}`)
+        revalidatePath('/admin/denied')
+
+        return { success: true, warning: emailWarning }
+      }
+
+      case SubmissionStatus.MAYBE: {
+        // Simple status change to MAYBE
+        await prisma.submission.update({
+          where: { id: submissionId },
+          data: {
+            status: SubmissionStatus.MAYBE,
+            reviewedByAdminId: doctorId,
+            reviewedAt: now,
+            updatedAt: now,
+          },
+        })
+
+        revalidatePath('/admin')
+        revalidatePath('/admin/search')
+        revalidatePath(`/admin/search/${submissionId}`)
+        revalidatePath('/admin/maybe')
+
+        return { success: true }
+      }
+
+      case SubmissionStatus.MANUAL: {
+        // Simple status change to MANUAL
+        await prisma.submission.update({
+          where: { id: submissionId },
+          data: {
+            status: SubmissionStatus.MANUAL,
+            reviewedByAdminId: doctorId,
+            reviewedAt: now,
+            updatedAt: now,
+          },
+        })
+
+        revalidatePath('/admin')
+        revalidatePath('/admin/search')
+        revalidatePath(`/admin/search/${submissionId}`)
+        revalidatePath('/admin/maybe')
+
+        return { success: true }
+      }
+
+      case SubmissionStatus.PENDING_REVIEW: {
+        // Allow moving back to pending (rare case)
+        await prisma.submission.update({
+          where: { id: submissionId },
+          data: {
+            status: SubmissionStatus.PENDING_REVIEW,
+            reviewedByAdminId: null,
+            reviewedAt: null,
+            updatedAt: now,
+          },
+        })
+
+        revalidatePath('/admin')
+        revalidatePath('/admin/search')
+        revalidatePath(`/admin/search/${submissionId}`)
+        revalidatePath('/admin/review')
+
+        return { success: true }
+      }
+
+      default:
+        return { success: false, error: `Unknown status: ${newStatus}` }
+    }
+  } catch (error) {
+    console.error('Error changing submission status:', error)
+    return {
+      success: false,
+      error: `Failed to change status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    }
   }
 }

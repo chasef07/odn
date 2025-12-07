@@ -306,6 +306,80 @@ describe('Validation Schemas', () => {
         }
       })
 
+      // Domain typo detection tests
+      it('should reject gnail.com and suggest gmail.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'test@gnail.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('test@gmail.com')
+          expect(result.error.issues[0].message).toContain('Did you mean')
+        }
+      })
+
+      it('should reject gmai.com and suggest gmail.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'user@gmai.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('user@gmail.com')
+        }
+      })
+
+      it('should reject gmial.com and suggest gmail.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'hello@gmial.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('hello@gmail.com')
+        }
+      })
+
+      it('should reject gamil.com and suggest gmail.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'contact@gamil.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('contact@gmail.com')
+        }
+      })
+
+      it('should reject glail.com and suggest gmail.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'user@glail.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('user@gmail.com')
+        }
+      })
+
+      it('should reject gmal.com and suggest gmail.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'test@gmal.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('test@gmail.com')
+        }
+      })
+
+      it('should reject icould.com and suggest icloud.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'user@icould.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('user@icloud.com')
+        }
+      })
+
+      it('should reject ymail.com and suggest gmail.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'contact@ymail.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('contact@gmail.com')
+        }
+      })
+
+      it('should reject yhoo.com and suggest yahoo.com', () => {
+        const result = page3Schema.safeParse({ ...validData, email: 'hello@yhoo.com' })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('hello@yahoo.com')
+        }
+      })
+
       it('should accept valid .com email', () => {
         const result = page3Schema.safeParse({ ...validData, email: 'test@example.com' })
         expect(result.success).toBe(true)

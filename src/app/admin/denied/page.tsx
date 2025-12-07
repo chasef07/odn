@@ -31,16 +31,11 @@ export default async function DeniedSubmissionsPage() {
         {/* Header */}
         <header className="border-b bg-white shadow-sm">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between">
-              <Link href="/admin" className="flex items-center gap-2">
-                <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
-                  Admin Portal
-                </span>
-              </Link>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">{session.user.email}</span>
-                <LogoutButton />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
               </div>
+              <LogoutButton />
             </div>
           </div>
         </header>
@@ -63,16 +58,11 @@ export default async function DeniedSubmissionsPage() {
       {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <Link href="/admin" className="flex items-center gap-2">
-              <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
-                Admin Portal
-              </span>
-            </Link>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">{session.user.email}</span>
-              <LogoutButton />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
             </div>
+            <LogoutButton />
           </div>
         </div>
       </header>
@@ -103,8 +93,9 @@ export default async function DeniedSubmissionsPage() {
               </Link>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden border border-red-200">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div className="-mx-4 sm:mx-0">
+              <div className="bg-white rounded-none sm:rounded-lg shadow overflow-x-auto border-y sm:border border-red-200">
+                <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-red-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -136,6 +127,7 @@ export default async function DeniedSubmissionsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

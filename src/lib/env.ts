@@ -13,6 +13,7 @@ const requiredEnvVars = [
   'CRON_SECRET',
   'BETTER_AUTH_SECRET',
   'RESEND_API_KEY',
+  'RESEND_WEBHOOK_SECRET',
 ] as const
 
 export function validateEnvironment() {

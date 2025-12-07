@@ -87,35 +87,41 @@ export default function BasicInfoPage() {
     <FormLayout currentStep={CURRENT_STEP} title={pageTitle} description="">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField
-              id="patientFirstName"
-              label="First Name"
-              register={register('patientFirstName', {
-                onChange: handleNameChange('patientFirstName'),
-              })}
-              error={errors.patientFirstName}
-              placeholder="Enter first name"
-            />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                id="patientFirstName"
+                label="First Name"
+                register={register('patientFirstName', {
+                  onChange: handleNameChange('patientFirstName'),
+                })}
+                error={errors.patientFirstName}
+                placeholder="Enter first name"
+              />
 
-            <FormField
-              id="patientLastName"
-              label="Last Name"
-              register={register('patientLastName', {
-                onChange: handleNameChange('patientLastName'),
-              })}
-              error={errors.patientLastName}
-              placeholder="Enter last name"
-            />
+              <FormField
+                id="patientLastName"
+                label="Last Name"
+                register={register('patientLastName', {
+                  onChange: handleNameChange('patientLastName'),
+                })}
+                error={errors.patientLastName}
+                placeholder="Enter last name"
+              />
+            </div>
+
+            <div className="w-full sm:w-auto">
+              <div className="max-w-[240px]">
+                <FormField
+                  id="patientDateOfBirth"
+                  label="Date of Birth"
+                  type="date"
+                  register={register('patientDateOfBirth')}
+                  error={errors.patientDateOfBirth}
+                />
+              </div>
+            </div>
           </div>
-
-          <FormField
-            id="patientDateOfBirth"
-            label="Date of Birth"
-            type="date"
-            register={register('patientDateOfBirth')}
-            error={errors.patientDateOfBirth}
-          />
         </FormCard>
 
         <FormNavigation backRoute="/who-is-using" isSubmitting={isSubmitting} />

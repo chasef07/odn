@@ -49,6 +49,7 @@ export default function ContactInfoPage() {
 
   const onSubmit = (data: FormData) => {
     saveFormData(data)
+
     router.push('/note-purpose')
   }
 
