@@ -377,8 +377,9 @@ export function DoctorNoteTemplate({
     ? `${guardianFirstName} ${guardianLastName}`
     : null
 
-  // Check if this is a caregiver note
+  // Check if this is a caregiver note or doctor's appointment
   const isCaregiver = absenceReason === 'Taking care of someone'
+  const isAppointment = absenceReason === "Doctor's appointment"
 
   const excuseFrom = formatExcuseFrom(notePurpose, otherNotePurpose)
   const dateIssuedFormatted = formatDate(issueDate)
@@ -468,6 +469,22 @@ export function DoctorNoteTemplate({
 
                   <Text style={styles.returnText}>
                     Furthermore, the above-named caregiver <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                  </Text>
+                </>
+              ) : isAppointment ? (
+                <>
+                  <Text style={styles.paragraph}>
+                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period for a doctor's appointment.
+                  </Text>
+
+                  {/* Start and End Dates */}
+                  <View style={styles.dateRange}>
+                    <Text style={styles.dateRangeLabel}>Start Date: {firstDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>End Date: {lastDayFormatted}</Text>
+                  </View>
+
+                  <Text style={styles.returnText}>
+                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               ) : (
