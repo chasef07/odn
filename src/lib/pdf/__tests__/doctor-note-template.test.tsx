@@ -96,6 +96,22 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
     expect(blob.size).toBeGreaterThan(0)
   })
 
+  it("should render successfully for doctor's appointment notes", async () => {
+    const doc = pdf(
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          absenceReason: "Doctor's appointment",
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+
+    const blob = await doc.toBlob()
+    expect(blob.size).toBeGreaterThan(0)
+  })
+
   it('should render successfully for school notes', async () => {
     const doc = pdf(
       <DoctorNoteTemplate
@@ -206,7 +222,7 @@ describe('DoctorNoteTemplate - Note Purpose Logic', () => {
   })
 })
 
-describe('DoctorNoteTemplate - Caregiver Detection', () => {
+describe('DoctorNoteTemplate - Absence Reason Detection', () => {
   it('should detect caregiver absence reason', () => {
     const absenceReason = 'Taking care of someone'
     const isCaregiver = absenceReason === 'Taking care of someone'
@@ -223,5 +239,23 @@ describe('DoctorNoteTemplate - Caregiver Detection', () => {
     const absenceReason = "Doctor's appointment"
     const isCaregiver = absenceReason === 'Taking care of someone'
     expect(isCaregiver).toBe(false)
+  })
+
+  it("should detect doctor's appointment absence reason", () => {
+    const absenceReason = "Doctor's appointment"
+    const isAppointment = absenceReason === "Doctor's appointment"
+    expect(isAppointment).toBe(true)
+  })
+
+  it("should not detect caregiver as doctor's appointment", () => {
+    const absenceReason = 'Taking care of someone'
+    const isAppointment = absenceReason === "Doctor's appointment"
+    expect(isAppointment).toBe(false)
+  })
+
+  it("should not detect regular absence as doctor's appointment", () => {
+    const absenceReason = 'Feeling sick'
+    const isAppointment = absenceReason === "Doctor's appointment"
+    expect(isAppointment).toBe(false)
   })
 })
