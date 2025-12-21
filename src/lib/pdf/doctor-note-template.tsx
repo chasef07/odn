@@ -214,11 +214,24 @@ const styles = StyleSheet.create({
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: 'bold',
   },
+  headerInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   dateIssued: {
     fontSize: 7,
-    marginBottom: 10,
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: 'bold',
+    lineHeight: 1,
+  },
+  medicalRecordNumber: {
+    fontSize: 7,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
+    lineHeight: 1,
+    marginTop: -4.315,
   },
   patientSection: {
     marginBottom: 0,
@@ -387,6 +400,9 @@ export function DoctorNoteTemplate({
   const lastDayFormatted = formatDate(lastDayOff)
   const dobFormatted = formatDateOfBirth(patientDateOfBirth)
 
+  // Format medical record number from submission ID (first 12 chars, uppercase)
+  const medicalRecordNumber = submissionData.submissionId.replace(/-/g, '').substring(0, 12).toUpperCase()
+
   // Get state-specific medical license
   const stateLicense = getStateLicense(submissionData.state)
 
@@ -429,10 +445,15 @@ export function DoctorNoteTemplate({
 
         {/* Content Section */}
         <View style={styles.contentSection}>
-            {/* Date Issued */}
-            <Text style={styles.dateIssued}>
-              Date Issued: {dateIssuedFormatted}
-            </Text>
+            {/* Date Issued and Medical Record Number */}
+            <View style={styles.headerInfoRow}>
+              <Text style={styles.dateIssued}>
+                Date Issued: {dateIssuedFormatted}
+              </Text>
+              <Text style={styles.medicalRecordNumber}>
+                Medical Record #: {medicalRecordNumber}
+              </Text>
+            </View>
 
             {/* Patient/Caregiver Information */}
             <View style={styles.patientSection}>

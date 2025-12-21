@@ -44,6 +44,7 @@ export async function sendDenialEmail({
 
     const result = await resend.emails.send({
       from: FROM_EMAIL,
+      replyTo: 'hello@onlinedoctornote.com',
       to,
       subject: "Your Doctor's Note Request - Update",
       html: emailHtml,
@@ -97,6 +98,7 @@ export async function sendApprovalEmail({
     // Send email with PDF attachment
     const result = await resend.emails.send({
       from: FROM_EMAIL,
+      replyTo: 'hello@onlinedoctornote.com',
       to,
       subject: "Your Doctor's Note is Approved!",
       html: emailHtml,
@@ -146,6 +148,7 @@ export async function sendPaymentConfirmationEmail({
 
     const result = await resend.emails.send({
       from: FROM_EMAIL,
+      replyTo: 'hello@onlinedoctornote.com',
       to,
       subject: "Payment Confirmed - Your Doctor's Note Request Received",
       html: emailHtml,
