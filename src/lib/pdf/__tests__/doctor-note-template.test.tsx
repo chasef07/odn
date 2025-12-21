@@ -168,6 +168,40 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
     const blob = await doc.toBlob()
     expect(blob.size).toBeGreaterThan(0)
   })
+
+  it('should render successfully with Medical Record # field for standard UUID', async () => {
+    const doc = pdf(
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          submissionId: '550e8400-e29b-41d4-a716-446655440000',
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+
+    const blob = await doc.toBlob()
+    expect(blob.size).toBeGreaterThan(0)
+    // Medical record number should be formatted as first 12 chars uppercase: 550E8400E29B
+  })
+
+  it('should render successfully with Medical Record # field for short UUID', async () => {
+    const doc = pdf(
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          submissionId: 'abc123def456',
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+
+    const blob = await doc.toBlob()
+    expect(blob.size).toBeGreaterThan(0)
+    // Medical record number should be formatted as: ABC123DEF456
+  })
 })
 
 describe('DoctorNoteTemplate - State License Logic', () => {
