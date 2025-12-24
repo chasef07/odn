@@ -78,7 +78,8 @@ export default function AdminReviewPage() {
 
       const result = await getMonthlyLimitData(
         currentSubmission.email,
-        new Date(currentSubmission.firstDayOff)
+        new Date(currentSubmission.firstDayOff),
+        new Date(currentSubmission.lastDayOff)
       )
 
       if (result.success && result.data) {
