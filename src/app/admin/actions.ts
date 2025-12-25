@@ -188,17 +188,18 @@ export async function getDeniedSubmissionsForToday() {
 /**
  * Get monthly limit data for a patient
  * @param email - Patient email
- * @param referenceDate - Date to check (usually first day off)
+ * @param firstDayOff - First day of absence request
+ * @param lastDayOff - Last day of absence request
  * @returns Monthly usage data
  */
-export async function getMonthlyLimitData(email: string, referenceDate: Date) {
+export async function getMonthlyLimitData(
+  email: string,
+  firstDayOff: Date,
+  lastDayOff: Date
+) {
   try {
     // Use the existing utility function
-    const result = await wouldExceedMonthlyLimit(
-      email,
-      referenceDate,
-      referenceDate // For single day, use same date
-    )
+    const result = await wouldExceedMonthlyLimit(email, firstDayOff, lastDayOff)
 
     return { success: true, data: result }
   } catch (error) {
