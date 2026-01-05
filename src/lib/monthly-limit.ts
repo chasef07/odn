@@ -1,10 +1,10 @@
 /**
- * Monthly Limit Utilities
- * Calculate and track cumulative days off per patient per month
+ * Rolling 30-Day Limit Utilities
+ * Calculate and track cumulative days off per patient in a rolling 30-day window
  */
 
 import { SubmissionStatus } from '@prisma/client'
-import { startOfMonth, endOfMonth, differenceInDays } from 'date-fns'
+import { subDays, differenceInDays, startOfDay } from 'date-fns'
 import prisma from './prisma'
 
 export interface MonthlyUsage {
@@ -20,29 +20,40 @@ export interface MonthlyUsage {
   remainingDays: number
 }
 
-const MONTHLY_LIMIT = 7 // Maximum days off allowed per month
+const ROLLING_LIMIT = 7 // Maximum days off allowed per 30-day rolling window
+const WINDOW_DAYS = 30 // Lookback window in days
 
 /**
- * Calculate total days off for a patient in a given month
+ * Calculate total days off for a patient in a rolling 30-day window
  * @param email - Patient email address
- * @param referenceDate - Any date within the month to check
+ * @param referenceDate - The firstDayOff of the submission being reviewed
  * @returns MonthlyUsage object with total days and submission details
  */
 export async function getMonthlyDaysUsed(
   email: string,
   referenceDate: Date
 ): Promise<MonthlyUsage> {
-  const monthStart = startOfMonth(referenceDate)
-  const monthEnd = endOfMonth(referenceDate)
+  // Normalize to start of day for consistent date comparison
+  const normalizedReference = startOfDay(referenceDate)
 
-  // Query all APPROVED submissions for this email in this month
+  // Calculate 30-day window boundaries
+  // Window is: [referenceDate - 30 days] to [referenceDate - 1 day]
+  // This is EXCLUSIVE of the current submission's dates
+  const windowStart = subDays(normalizedReference, WINDOW_DAYS)
+  const windowEnd = subDays(normalizedReference, 1) // Exclusive of referenceDate itself
+
+  // Query all APPROVED submissions for this email where ANY day overlaps with the window
+  // A submission overlaps if: firstDayOff <= windowEnd AND lastDayOff >= windowStart
   const submissions = await prisma.submission.findMany({
     where: {
       email: email.toLowerCase(),
       status: SubmissionStatus.APPROVED,
+      // Submission's date range overlaps with the window
       firstDayOff: {
-        gte: monthStart,
-        lte: monthEnd,
+        lte: windowEnd, // Submission must start on or before window end
+      },
+      lastDayOff: {
+        gte: windowStart, // Submission must end on or after window start
       },
     },
     select: {
@@ -74,15 +85,15 @@ export async function getMonthlyDaysUsed(
   return {
     totalDays,
     submissions: submissionsWithDays,
-    exceedsLimit: totalDays > MONTHLY_LIMIT,
-    remainingDays: Math.max(0, MONTHLY_LIMIT - totalDays),
+    exceedsLimit: totalDays > ROLLING_LIMIT,
+    remainingDays: Math.max(0, ROLLING_LIMIT - totalDays),
   }
 }
 
 /**
- * Check if adding a new request would exceed monthly limit
+ * Check if adding a new request would exceed rolling 30-day limit
  * @param email - Patient email address
- * @param firstDayOff - First day off for new request
+ * @param firstDayOff - First day off for new request (used as reference for 30-day window)
  * @param lastDayOff - Last day off for new request
  * @returns Object with current usage, new total, and whether it exceeds limit
  */
@@ -104,6 +115,6 @@ export async function wouldExceedMonthlyLimit(
     currentUsage,
     requestedDays,
     newTotal,
-    wouldExceed: newTotal > MONTHLY_LIMIT,
+    wouldExceed: newTotal > ROLLING_LIMIT,
   }
 }
