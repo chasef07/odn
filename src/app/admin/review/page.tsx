@@ -289,8 +289,8 @@ export default function AdminReviewPage() {
         className={`flex-1 overflow-auto transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
       >
         <div className="space-y-4">
-          {/* Monthly Limit Warning */}
-          {!isLoadingMonthlyData && monthlyLimitData && monthlyLimitData.wouldExceed && (
+          {/* 30-Day Limit Warning (shows when approaching or exceeding) */}
+          {!isLoadingMonthlyData && monthlyLimitData && (
             <MonthlyLimitWarning
               monthlyUsage={monthlyLimitData.currentUsage}
               requestedDays={monthlyLimitData.requestedDays}
