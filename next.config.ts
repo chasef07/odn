@@ -43,18 +43,18 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://va.vercel-scripts.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
-              // Updated connect-src to allow your prod domain
-              "connect-src 'self' https://onlinedoctornote.com https://*.onlinedoctornote.com https://api.stripe.com https://vitals.vercel-insights.com",
-              "frame-src https://js.stripe.com",
+              "connect-src 'self' https://onlinedoctornote.com https://*.onlinedoctornote.com https://api.stripe.com https://vitals.vercel-insights.com https://www.googletagmanager.com https://www.google-analytics.com",
+              "frame-src https://js.stripe.com https://www.googletagmanager.com",
               "font-src 'self' data:",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
             ].join('; '),
-          },
+          }
+,
         ],
       },
     ]
