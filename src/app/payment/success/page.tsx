@@ -23,6 +23,8 @@ export default function PaymentSuccessPage() {
     return params.get('payment_intent') ? 'loading' : 'error'
   })
 
+  const [email, setEmail] = useState<string | null>(null)
+
   useEffect(() => {
     if (!paymentIntent) {
       return
@@ -46,6 +48,9 @@ export default function PaymentSuccessPage() {
 
         if (data.status === 'succeeded') {
           setStatus('success')
+          if (data.email) {
+            setEmail(data.email)
+          }
 
           // Clear form data after successful payment verification
           try {
@@ -116,7 +121,13 @@ export default function PaymentSuccessPage() {
           <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-green-600" />
           <h2 className="text-foreground mb-2 text-2xl font-bold">Thank you for your payment!</h2>
           <p className="text-muted-foreground">
-            Your doctor&apos;s note is being processed and will be sent to your email shortly.
+            Your doctor&apos;s note is being processed and will be sent to{' '}
+            {email ? (
+              <span className="font-medium text-foreground">{email}</span>
+            ) : (
+              'your email'
+            )}{' '}
+            shortly.
           </p>
         </div>
 

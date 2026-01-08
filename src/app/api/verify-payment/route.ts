@@ -16,10 +16,11 @@ export async function POST(request: NextRequest) {
     // Retrieve the payment intent from Stripe to verify its status
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
 
-    // Return the actual payment status from Stripe
+    // Return the actual payment status from Stripe along with the email
     return NextResponse.json({
       status: paymentIntent.status,
       amount: paymentIntent.amount,
+      email: paymentIntent.metadata?.email || null,
     })
   } catch (error) {
     console.error('Error verifying payment:', error)

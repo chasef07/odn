@@ -43,6 +43,7 @@ describe('POST /api/verify-payment', () => {
       id: mockPaymentIntentId,
       status: 'succeeded',
       amount: 2999,
+      metadata: { email: 'test@example.com' },
     })
 
     const request = new NextRequest('http://localhost:3000/api/verify-payment', {
@@ -57,7 +58,46 @@ describe('POST /api/verify-payment', () => {
     expect(data).toEqual({
       status: 'succeeded',
       amount: 2999,
+      email: 'test@example.com',
     })
+  })
+
+  it('should return null email when metadata is missing', async () => {
+    mockRetrieve.mockResolvedValue({
+      id: 'pi_mock',
+      status: 'succeeded',
+      amount: 2999,
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
+      method: 'POST',
+      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(data.email).toBeNull()
+  })
+
+  it('should return null email when metadata.email is empty', async () => {
+    mockRetrieve.mockResolvedValue({
+      id: 'pi_mock',
+      status: 'succeeded',
+      amount: 2999,
+      metadata: { email: '' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
+      method: 'POST',
+      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    // Empty string is falsy, so || null returns null
+    expect(data.email).toBeNull()
   })
 
   it('should call Stripe retrieve with payment intent ID', async () => {
