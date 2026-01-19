@@ -400,8 +400,8 @@ export function DoctorNoteTemplate({
   const lastDayFormatted = formatDate(lastDayOff)
   const dobFormatted = formatDateOfBirth(patientDateOfBirth)
 
-  // Format medical record number from submission ID (first 12 chars, uppercase)
-  const medicalRecordNumber = submissionData.submissionId.replace(/-/g, '').substring(0, 12).toUpperCase()
+  // Format medical record number from submission ID (first 8 chars, uppercase)
+  const medicalRecordNumber = submissionData.submissionId.toUpperCase().substring(0, 8)
 
   // Get state-specific medical license
   const stateLicense = getStateLicense(submissionData.state)

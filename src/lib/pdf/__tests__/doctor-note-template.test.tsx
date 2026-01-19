@@ -183,7 +183,7 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
 
     const blob = await doc.toBlob()
     expect(blob.size).toBeGreaterThan(0)
-    // Medical record number should be formatted as first 12 chars uppercase: 550E8400E29B
+    // Medical record number should be formatted as first 8 chars uppercase: 550E8400
   })
 
   it('should render successfully with Medical Record # field for short UUID', async () => {
@@ -200,7 +200,7 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
 
     const blob = await doc.toBlob()
     expect(blob.size).toBeGreaterThan(0)
-    // Medical record number should be formatted as: ABC123DEF456
+    // Medical record number should be formatted as first 8 chars uppercase: ABC123DE
   })
 })
 
