@@ -1005,9 +1005,10 @@ export async function updateSubmission(
  * Re-approve an already approved submission (generates new PDF and sends new email)
  * Use this when edits were made to an approved submission and a new note is needed
  * @param submissionId - Submission ID to re-approve
+ * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
  * @returns Success status with optional warning
  */
-export async function reApproveSubmission(submissionId: string) {
+export async function reApproveSubmission(submissionId: string, evaluationDate?: string) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -1020,11 +1021,19 @@ export async function reApproveSubmission(submissionId: string) {
       return { success: false, error: 'Submission not found' }
     }
 
+    // Parse evaluation date if provided (for custom "Date Issued" on PDF)
+    let issueDate: Date | undefined = undefined
+    if (evaluationDate) {
+      const [year, month, day] = evaluationDate.split('-').map(Number)
+      // Create UTC date to match PDF template's formatDate() which uses getUTCMonth/getUTCDate
+      issueDate = new Date(Date.UTC(year, month - 1, day))
+    }
+
     // Generate new PDF (BLOCKING - must succeed)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate)
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {

@@ -38,6 +38,7 @@ export const AVAILABLE_STATES = [
   'Ohio',
   'Oklahoma',
   'Pennsylvania',
+  'South Carolina',
   'South Dakota',
   'Tennessee',
   'Texas',

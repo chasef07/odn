@@ -38,6 +38,7 @@ export const STATE_LICENSES: Record<string, string> = {
   Ohio: '35C.002270',
   Oklahoma: '45149',
   Pennsylvania: 'MD488266C',
+  'South Carolina': '96185',
   'South Dakota': '16942',
   Tennessee: '73567',
   Texas: 'V6158',

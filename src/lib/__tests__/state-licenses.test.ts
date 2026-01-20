@@ -9,9 +9,9 @@ import { AVAILABLE_STATES } from '../form-constants'
 
 describe('STATE_LICENSES', () => {
   describe('Data Integrity', () => {
-    it('should have exactly 44 state mappings', () => {
+    it('should have exactly 45 state mappings', () => {
       const stateCount = Object.keys(STATE_LICENSES).length
-      expect(stateCount).toBe(44)
+      expect(stateCount).toBe(45)
     })
 
     it('should have license numbers for all AVAILABLE_STATES', () => {
@@ -148,7 +148,7 @@ describe('getStateLicense', () => {
     })
 
     it('should return null for states not in AVAILABLE_STATES', () => {
-      // States not in the 44 available states
+      // States not in the 45 available states
       const unavailableStates = [
         'Alaska',
         'Arkansas',
@@ -156,7 +156,6 @@ describe('getStateLicense', () => {
         'North Carolina',
         'Oregon',
         'Rhode Island',
-        'South Carolina',
       ]
 
       unavailableStates.forEach((state) => {
