@@ -187,7 +187,7 @@ export const page4Schema = z.object({
 
 export const page5Schema = z
   .object({
-    notePurpose: z.enum(['work', 'school', 'both', 'other']).nullable(),
+    notePurpose: z.enum(['work', 'school', 'both', 'travel', 'other']).nullable(),
     otherNotePurpose: z
       .string()
       .max(500, 'Purpose description must be less than 500 characters')

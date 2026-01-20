@@ -25,7 +25,7 @@ export interface FormData {
   phone?: string
 
   // Page 5 - Note Purpose
-  notePurpose?: 'work' | 'school' | 'both' | 'other' | null
+  notePurpose?: 'work' | 'school' | 'both' | 'travel' | 'other' | null
   otherNotePurpose?: string
 
   // Page 6 - Absence Dates

@@ -37,6 +37,7 @@ export const ApprovalEmail = ({
     work: 'For Work',
     school: 'For School',
     both: 'For Work and School',
+    travel: 'For Travel',
     other: '',
   }
 

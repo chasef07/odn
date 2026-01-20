@@ -161,6 +161,7 @@ export function formatNotePurpose(purpose: string): string {
     work: 'Work Excuse',
     school: 'School Excuse',
     both: 'Work & School Excuse',
+    travel: 'Travel Excuse',
     other: 'Other',
   }
   return purposes[purpose] || purpose
