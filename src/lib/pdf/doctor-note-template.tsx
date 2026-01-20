@@ -357,6 +357,7 @@ function formatExcuseFrom(purpose: string, other?: string | null): string {
     work: 'work',
     school: 'school',
     both: 'work and school',
+    travel: 'travel',
   }
 
   return purposeMap[purpose] || 'work and school'

@@ -33,6 +33,7 @@ const NOTE_PURPOSE_LABELS: Record<string, string> = {
   work: 'Work',
   school: 'School',
   both: 'Work & School',
+  travel: 'Travel',
   other: 'Other',
 }
 

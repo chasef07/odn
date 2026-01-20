@@ -64,9 +64,13 @@ export const NOTE_PURPOSES = {
     label: 'Both Work & School',
     description: "Need coverage for both? We'll prepare a note suitable for either audience.",
   },
+  travel: {
+    label: 'Travel',
+    description: 'For airlines, employers, or other travel-related documentation needs.',
+  },
   other: {
     label: 'Other',
-    description: 'Select this if the note is for travel, court, volunteer work, or another reason.',
+    description: 'Select this if the note is for court, volunteer work, or another reason.',
   },
 } as const
 
