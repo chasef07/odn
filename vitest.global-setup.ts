@@ -12,6 +12,7 @@ export async function setup() {
 
   // Set DATABASE_URL for Prisma client
   process.env.DATABASE_URL = server.database.connectionString
+  process.env.PRISMA_DATABASE_URL = server.database.connectionString
 
   console.log('\n🗄️  Prisma Dev server started for testing')
   console.log(`   Connection: ${server.database.connectionString.split('@')[1]?.split('/')[0] ?? 'localhost'}`)
