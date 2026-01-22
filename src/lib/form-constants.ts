@@ -34,6 +34,7 @@ export const AVAILABLE_STATES = [
   'New Jersey',
   'New Mexico',
   'New York',
+  'North Carolina',
   'North Dakota',
   'Ohio',
   'Oklahoma',

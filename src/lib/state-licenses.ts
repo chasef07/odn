@@ -34,6 +34,7 @@ export const STATE_LICENSES: Record<string, string> = {
   'New Jersey': '25IA12537400',
   'New Mexico': 'TM2025-0105',
   'New York': '229551',
+  'North Carolina': '2026-00243',
   'North Dakota': '22135',
   Ohio: '35C.002270',
   Oklahoma: '45149',
