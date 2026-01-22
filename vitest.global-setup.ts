@@ -1,9 +1,8 @@
 import { startPrismaDevServer } from '@prisma/dev'
-import type { GlobalSetupContext } from 'vitest/node'
 
 let server: Awaited<ReturnType<typeof startPrismaDevServer>> | null = null
 
-export async function setup({ provide }: GlobalSetupContext) {
+export async function setup() {
   // Start a local PostgreSQL-compatible server using PGlite
   // This is 100% isolated from production - runs entirely on localhost
   server = await startPrismaDevServer({
