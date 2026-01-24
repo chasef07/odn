@@ -27,13 +27,17 @@ const NOTE_PURPOSE_OPTIONS = [
     label: NOTE_PURPOSES.both.label,
   },
   {
+    value: 'travel' as const,
+    label: NOTE_PURPOSES.travel.label,
+  },
+  {
     value: 'other' as const,
     label: NOTE_PURPOSES.other.label,
   },
 ]
 
 type FormData = {
-  notePurpose: 'work' | 'school' | 'both' | 'other' | null
+  notePurpose: 'work' | 'school' | 'both' | 'travel' | 'other' | null
   otherNotePurpose?: string
 }
 

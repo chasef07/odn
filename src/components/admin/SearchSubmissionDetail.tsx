@@ -88,6 +88,11 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const [otherSymptomText, setOtherSymptomText] = useState(submission.otherSymptomText || '')
   const [additionalInformation, setAdditionalInformation] = useState(submission.additionalInformation || '')
 
+  // Evaluation date for PDF (ephemeral - not stored in database)
+  const [evaluationDate, setEvaluationDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  )
+
   const handleSave = async () => {
     setIsLoading(true)
     setError(null)
@@ -134,9 +139,10 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Use reApproveSubmission for already approved submissions
+      // Use reApproveSubmission for already approved submissions (pass evaluation date)
+      // For new approvals from search page, also use reApproveSubmission to allow custom evaluation date
       const result = submission.status === SubmissionStatus.APPROVED
-        ? await reApproveSubmission(submission.id)
+        ? await reApproveSubmission(submission.id, evaluationDate)
         : await approveSubmission(submission.id)
 
       if (result.success) {
@@ -473,6 +479,18 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 <Input value={otherNotePurpose} onChange={(e) => setOtherNotePurpose(e.target.value)} disabled={isLoading} />
               </div>
             )}
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Evaluation Date (for PDF)</Label>
+              <Input
+                type="date"
+                value={evaluationDate}
+                onChange={(e) => setEvaluationDate(e.target.value)}
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                This date appears as &quot;Date Issued&quot; on the PDF. Not stored in database.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -663,7 +681,8 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 <SelectContent>
                   <SelectItem value="Legal">Legal - Cannot provide note for this situation</SelectItem>
                   <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
-                  <SelectItem value="Insufficient Information">Insufficient Information</SelectItem>
+                  <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
+                  <SelectItem value="Refund">Refund</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>

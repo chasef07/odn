@@ -13,6 +13,7 @@ This document provides guidelines and context for AI assistants (Claude Code) wo
 - **UI**: React 19, Tailwind CSS 4, shadcn/ui, Radix UI
 - **Forms**: react-hook-form + Zod validation
 - **Database**: PostgreSQL + Prisma ORM + Prisma Accelerate
+- **Local DB**: PGlite (via @prisma/dev) for local development/testing
 - **Payments**: Stripe (v2025-10-29.clover API)
 - **Auth**: Better Auth (email/password + bcrypt)
 - **Email**: React Email + Resend
@@ -92,7 +93,7 @@ Implementation: `src/lib/validation-schemas.ts`
 
 Key files:
 - `src/app/api/create-payment-intent/route.ts`
-- `src/app/api/webhooks/stripe-prod/route.ts`
+- `src/app/api/webhooks/stripe-prod2/route.ts`
 - `src/app/api/verify-payment/route.ts`
 
 ### Monthly Limit Tracking
@@ -207,7 +208,7 @@ npx prisma migrate dev      # Production
 npx tsx scripts/delete-all-users.ts
 ```
 
-**Important**: Production DB is PostgreSQL on Prisma Cloud. Tests use local SQLite (`test.db`).
+**Important**: Production DB is PostgreSQL on Prisma Cloud. Tests use local PostgreSQL-compatible database via PGlite (`@prisma/dev`).
 
 ### Debugging Stripe
 
@@ -216,7 +217,7 @@ npx tsx scripts/delete-all-users.ts
 - Test cards: `4242 4242 4242 4242`
 - Check Stripe Dashboard for logs
 - Review API route logs in dev
-- Check webhook signature in `/api/webhooks/stripe-prod`
+- Check webhook signature in `/api/webhooks/stripe-prod2`
 
 ### Admin Portal
 
@@ -345,6 +346,25 @@ Test locally: `npx tsx scripts/test-approval-flow.ts`
 
 Implementation: `src/lib/pdf/doctor-note-template.tsx`
 
+## Local Development & Testing
+
+### Local Database Setup
+
+The project uses **PGlite** (via `@prisma/dev`) for local development and testing:
+
+- **Purpose**: Run app locally with PostgreSQL-compatible database (100% isolated from production)
+- **Automated Setup**: Tests automatically start/stop PGlite via `vitest.global-setup.ts`
+- **Manual Usage**: Use npm scripts for local development:
+  - `npm run db:local:detach` - Start local database in background
+  - `npm run db:local:stop` - Stop local database
+  - `npm run db:local:ls` - List running local databases
+
+**Environment Variables**:
+- `DATABASE_URL` - Set automatically by PGlite during tests
+- `PRISMA_DATABASE_URL` - Also set automatically (required by Prisma schema)
+
+See `docs/LOCAL_DEVELOPMENT_TESTING.md` for complete setup guide.
+
 ## Testing
 
 **Current coverage**: Comprehensive (369+ passing tests)
@@ -359,7 +379,7 @@ Implementation: `src/lib/pdf/doctor-note-template.tsx`
 - ⚠️ Component tests (not implemented)
 - ⚠️ E2E tests (not implemented)
 
-**Test Safety**: Tests ALWAYS use local SQLite (`test.db`), never production PostgreSQL.
+**Test Safety**: Tests use local PostgreSQL-compatible database via PGlite (`@prisma/dev`), never production PostgreSQL. Automated setup/teardown via `vitest.global-setup.ts`.
 
 Run tests: `npm test`
 
@@ -382,7 +402,7 @@ Run tests: `npm test`
 2. `claude-code-review.yml` - Automated code reviews
 3. `claude.yml` - Claude PR assistant (trigger with `@claude`)
 
-**CI Safety**: No access to production credentials. Tests use SQLite only.
+**CI Safety**: No access to production credentials. Tests use PGlite (local PostgreSQL-compatible database) only.
 
 ### Pre-commit Checklist
 
@@ -444,7 +464,7 @@ Run tests: `npm test`
 
 8. **localStorage**: Form data persists in localStorage. Consider privacy implications.
 
-9. **Database Safety**: NEVER use production DATABASE_URL in tests. Always use `file:./test.db`.
+9. **Database Safety**: NEVER use production DATABASE_URL in tests. Tests automatically use PGlite (local PostgreSQL-compatible database) via `vitest.global-setup.ts`.
 
 10. **Admin Auth**: Protected by Better Auth. Passwords hashed with bcrypt (10 rounds).
 
@@ -462,7 +482,7 @@ Run tests: `npm test`
 
 17. **Analytics**: Vercel Analytics integrated in `layout.tsx`.
 
-18. **Webhooks (Local)**: Use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod`
+18. **Webhooks (Local)**: Use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod2`
 
 19. **Webhook Filtering**: Only processes `payment_intent.succeeded`. Rejects events >10 minutes old. Returns 200 for all other events.
 
@@ -511,4 +531,4 @@ npx tsc --noEmit          # Check TypeScript
 
 ---
 
-**Last Updated**: 2025-12-04
+**Last Updated**: 2026-01-22

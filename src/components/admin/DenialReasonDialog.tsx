@@ -37,6 +37,16 @@ const DENIAL_REASONS: { value: DenialReason; label: string; description: string 
     description: 'Request exceeds the 7-day absence limit',
   },
   {
+    value: 'Duplicate',
+    label: 'Duplicate Submission',
+    description: 'Patient submitted the intake form twice',
+  },
+  {
+    value: 'Refund',
+    label: 'Refund',
+    description: 'Process refund for customer',
+  },
+  {
     value: 'Other',
     label: 'Other Reason',
     description: 'Other reason for denial',

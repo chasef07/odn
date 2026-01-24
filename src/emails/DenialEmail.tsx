@@ -27,16 +27,8 @@ export const DenialEmail = ({
   denialReason = 'Other',
   refundAmount = 24.95,
 }: DenialEmailProps) => {
-  // Map internal denial reasons to user-friendly messages
-  const reasonMessages = {
-    Legal: 'because our service provides medical excuse notes only. For jury duty or court appearances, your employer/school must accept the official summons or court documentation provided by the court system',
-    '7+ days': 'because the absence period exceeds our 7-day limit',
-    Other: 'after careful review of your submission',
-  }
-
-  const denialReasonMessage =
-    reasonMessages[denialReason as keyof typeof reasonMessages] ||
-    reasonMessages.Other
+  // denialReason kept for potential future use/logging
+  void denialReason
 
   // Format refund amount as currency
   const formattedRefund = new Intl.NumberFormat('en-US', {
@@ -68,11 +60,19 @@ export const DenialEmail = ({
                 Hi <strong>{patientName}</strong>,
               </Text>
 
-              <Text className="text-gray-700 text-base leading-relaxed mb-8">
+              <Text className="text-gray-700 text-base leading-relaxed mb-4">
                 Thank you for submitting your doctor&apos;s note request. After
-                careful review by our medical team, we&apos;re unfortunately unable to
-                provide a doctor&apos;s note at this time in accordance with our
-                telehealth guidelines.
+                careful review by our medical team, we are unfortunately unable
+                to provide a doctor&apos;s note at this time.
+              </Text>
+
+              <Text className="text-gray-700 text-base leading-relaxed mb-8">
+                This determination may be due to a variety of factors, including
+                but not limited to: exceeding the number of excused days
+                permitted under our clinical guidelines, submission of a
+                duplicate request, requests related to legal matters, workplace
+                accommodation requests, or other limitations within our clinical
+                and compliance guidelines.
               </Text>
 
               {/* Refund Card */}

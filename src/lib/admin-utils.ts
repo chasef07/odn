@@ -9,7 +9,7 @@ import { formatInTimeZone, toZonedTime } from 'date-fns-tz'
 /**
  * Denial reason types for submissions
  */
-export type DenialReason = 'Legal' | '7+ days' | 'Other'
+export type DenialReason = 'Legal' | '7+ days' | 'Duplicate' | 'Refund' | 'Other'
 
 /**
  * Parse date string in local timezone to avoid off-by-one day issues
@@ -161,6 +161,7 @@ export function formatNotePurpose(purpose: string): string {
     work: 'Work Excuse',
     school: 'School Excuse',
     both: 'Work & School Excuse',
+    travel: 'Travel Excuse',
     other: 'Other',
   }
   return purposes[purpose] || purpose

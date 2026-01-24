@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'jsdom',
       globals: true,
+      globalSetup: './vitest.global-setup.ts',
       setupFiles: ['./vitest.setup.ts'],
       env: {
         // Load test environment variables from .env.test

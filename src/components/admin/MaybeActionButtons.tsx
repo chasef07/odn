@@ -232,7 +232,8 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
                 <SelectContent>
                   <SelectItem value="Legal">Legal - Cannot provide note for this situation</SelectItem>
                   <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
-                  <SelectItem value="Insufficient Information">Insufficient Information</SelectItem>
+                  <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
+                  <SelectItem value="Refund">Refund</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
