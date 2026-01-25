@@ -89,8 +89,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const [additionalInformation, setAdditionalInformation] = useState(submission.additionalInformation || '')
 
   // Evaluation date for PDF (ephemeral - not stored in database)
+  // Use toLocaleDateString('en-CA') to get YYYY-MM-DD in local time (not UTC)
   const [evaluationDate, setEvaluationDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    new Date().toLocaleDateString('en-CA')
   )
 
   const handleSave = async () => {
