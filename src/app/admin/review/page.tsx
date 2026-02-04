@@ -40,6 +40,7 @@ export default function AdminReviewPage() {
 
   const [showCompletion, setShowCompletion] = useState(false)
   const [showDenialDialog, setShowDenialDialog] = useState(false)
+  const [diagnosis, setDiagnosis] = useState('')
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
 
@@ -92,16 +93,19 @@ export default function AdminReviewPage() {
     fetchMonthlyData()
   }, [currentSubmission])
 
-  // Handle approval
+  // Handle approval - directly approve with optional diagnosis
   const handleApprove = async () => {
     if (!currentSubmission || isTransitioning) return
 
     setIsTransitioning(true)
 
-    // Call server action to approve
-    const result = await approveSubmission(currentSubmission.id)
+    // Call server action to approve with optional diagnosis
+    const result = await approveSubmission(currentSubmission.id, diagnosis || undefined)
 
     if (result.success) {
+      // Reset diagnosis
+      setDiagnosis('')
+
       // Add to approved list
       setReviewedSubmissions((prev) => ({
         ...prev,
@@ -200,8 +204,8 @@ export default function AdminReviewPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Prevent if transitioning or on completion screen
-      if (isTransitioning || showCompletion) return
+      // Prevent if transitioning, on completion screen, or dialog is open
+      if (isTransitioning || showCompletion || showDenialDialog) return
 
       if (e.key === 'ArrowLeft') {
         e.preventDefault() // Prevent scroll
@@ -218,7 +222,7 @@ export default function AdminReviewPage() {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, isTransitioning, showCompletion, currentSubmission])
+  }, [currentIndex, isTransitioning, showCompletion, showDenialDialog, currentSubmission])
 
   // Handle return to dashboard
   const handleReturnToDashboard = () => {
@@ -302,6 +306,8 @@ export default function AdminReviewPage() {
             submission={currentSubmission}
             currentIndex={currentIndex}
             totalCount={submissions.length}
+            diagnosis={diagnosis}
+            onDiagnosisChange={setDiagnosis}
           />
         </div>
       </div>

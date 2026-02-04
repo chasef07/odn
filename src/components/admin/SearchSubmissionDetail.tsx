@@ -94,6 +94,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     new Date().toLocaleDateString('en-CA')
   )
 
+  // Diagnosis for PDF (ephemeral - not stored in database)
+  const [diagnosis, setDiagnosis] = useState('')
+
   const handleSave = async () => {
     setIsLoading(true)
     setError(null)
@@ -140,11 +143,11 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Use reApproveSubmission for already approved submissions (pass evaluation date)
+      // Use reApproveSubmission for already approved submissions (pass evaluation date and diagnosis)
       // For new approvals from search page, also use reApproveSubmission to allow custom evaluation date
       const result = submission.status === SubmissionStatus.APPROVED
-        ? await reApproveSubmission(submission.id, evaluationDate)
-        : await approveSubmission(submission.id)
+        ? await reApproveSubmission(submission.id, evaluationDate, diagnosis || undefined)
+        : await approveSubmission(submission.id, diagnosis || undefined)
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -490,6 +493,19 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               />
               <p className="text-xs text-muted-foreground">
                 This date appears as &quot;Date Issued&quot; on the PDF. Not stored in database.
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Diagnosis (optional)</Label>
+              <Textarea
+                value={diagnosis}
+                onChange={(e) => setDiagnosis(e.target.value)}
+                placeholder=""
+                rows={2}
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for default text. Not stored in database.
               </p>
             </div>
           </div>

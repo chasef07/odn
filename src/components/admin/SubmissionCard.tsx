@@ -4,6 +4,8 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import type { Submission } from '@prisma/client'
 import {
   calculateAge,
@@ -18,9 +20,11 @@ interface SubmissionCardProps {
   submission: Submission
   currentIndex: number
   totalCount: number
+  diagnosis?: string
+  onDiagnosisChange?: (value: string) => void
 }
 
-export function SubmissionCard({ submission, currentIndex, totalCount }: SubmissionCardProps) {
+export function SubmissionCard({ submission, currentIndex, totalCount, diagnosis, onDiagnosisChange }: SubmissionCardProps) {
   const patientAge = calculateAge(submission.patientDateOfBirth)
   const dateRange = formatDateRange(submission.firstDayOff, submission.lastDayOff)
   const dayCount = calculateDaysDifference(submission.firstDayOff, submission.lastDayOff)
@@ -145,6 +149,25 @@ export function SubmissionCard({ submission, currentIndex, totalCount }: Submiss
             )}
           </div>
         </div>
+
+        {/* Diagnosis (optional) */}
+        {onDiagnosisChange !== undefined && (
+          <div className="space-y-1.5 border-t pt-2">
+            <Label htmlFor="diagnosis" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Diagnosis (optional)
+            </Label>
+            <Textarea
+              id="diagnosis"
+              value={diagnosis ?? ''}
+              onChange={(e) => onDiagnosisChange(e.target.value)}
+              placeholder=""
+              rows={2}
+            />
+            <p className="text-xs text-muted-foreground">
+              Appears on the PDF after the medical condition text. Leave blank for default text.
+            </p>
+          </div>
+        )}
 
         {/* Submitted */}
         <div className="space-y-1.5 border-t pt-2">

@@ -251,9 +251,9 @@ npx tsx scripts/delete-all-users.ts
 
 **Key Server Actions** (`src/app/admin/actions.ts`):
 - `searchSubmissions()` - Paginated search with type selector
-- `reApproveSubmission()` - Regenerate PDF and resend email
+- `reApproveSubmission(id, evaluationDate?, diagnosis?)` - Regenerate PDF and resend email
 - `changeSubmissionStatus()` - Handle complex status transitions
-- `approveSubmission()` / `denySubmission()` - Standard approval/denial
+- `approveSubmission(id, diagnosis?)` / `denySubmission()` - Standard approval/denial
 - `updateSubmission()` - Save field edits
 
 **Database Models**:
@@ -470,13 +470,13 @@ Run tests: `npm test`
 
 11. **Submission Flow**: TemporarySubmission (placeholder) → PaymentIntent (metadata reference) → Webhook (2-tier fallback) → Permanent Submission → Email notifications.
 
-12. **Approval Process**: Generates PDF (BLOCKING) → Sends email (NON-BLOCKING). PDF generation must succeed for approval.
+12. **Approval Process**: Generates PDF (BLOCKING) → Sends email (NON-BLOCKING). PDF generation must succeed for approval. Optional `diagnosis` param appends text after the medical condition sentence on the PDF (ephemeral, not stored in DB).
 
 13. **Email System**: React Email 5.0 with Tailwind. Three types: payment confirmation, approval (with PDF), denial (with refund).
 
 14. **Email Logic**: Use `getRecipientName()` and `getAbsenceFromText()` helpers. `notePurpose` determines text, not `absenceReason`.
 
-15. **PDF Generation**: On-demand using @react-pdf/renderer. State-specific licenses from `state-licenses.ts`.
+15. **PDF Generation**: On-demand using @react-pdf/renderer. State-specific licenses from `state-licenses.ts`. Accepts optional `diagnosis` text appended to the body paragraph.
 
 16. **PDF Fonts**: Plus Jakarta Sans from npm package with validation and fallback handling.
 

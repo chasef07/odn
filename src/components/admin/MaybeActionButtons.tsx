@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
 
 interface MaybeActionButtonsProps {
@@ -39,6 +40,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   // Approval modal state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
+  const [diagnosis, setDiagnosis] = useState('')
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
@@ -52,6 +54,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
 
   const handleApproveClick = () => {
     setApprovalError(null)
+    setDiagnosis('')
     setShowApprovalDialog(true)
   }
 
@@ -60,10 +63,11 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
 
     try {
-      const result = await approveSubmission(submissionId)
+      const result = await approveSubmission(submissionId, diagnosis || undefined)
 
       if (result.success) {
         setShowApprovalDialog(false)
+        setDiagnosis('')
         router.refresh() // Refresh to remove from list
       } else {
         setApprovalError(result.error || 'Unknown error')
@@ -179,6 +183,21 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <Label htmlFor="maybe-diagnosis">Diagnosis (optional)</Label>
+            <Textarea
+              id="maybe-diagnosis"
+              value={diagnosis}
+              onChange={(e) => setDiagnosis(e.target.value)}
+              placeholder=""
+              rows={2}
+              disabled={isLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for default text.
+            </p>
+          </div>
 
           {approvalError && (
             <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">

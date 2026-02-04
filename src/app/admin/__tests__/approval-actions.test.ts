@@ -150,7 +150,7 @@ describe('approveSubmission - Approval Automation', () => {
       })
 
       // Verify PDF was generated with submission data
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission)
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined)
 
       // Verify PDF filename was generated
       expect(mockGeneratePDFFilename).toHaveBeenCalledWith(mockSubmission.id)
@@ -419,7 +419,9 @@ describe('approveSubmission - Approval Automation', () => {
           guardianFirstName: 'Jane',
           guardianLastName: 'Doe',
           recipient: 'someone_else',
-        })
+        }),
+        undefined,
+        undefined
       )
     })
   })

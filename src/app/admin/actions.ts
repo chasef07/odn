@@ -213,7 +213,7 @@ export async function getMonthlyLimitData(
  * @param submissionId - Submission ID to approve
  * @returns Success status with detailed error messages
  */
-export async function approveSubmission(submissionId: string) {
+export async function approveSubmission(submissionId: string, diagnosis?: string) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -271,7 +271,7 @@ export async function approveSubmission(submissionId: string) {
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission)
+      pdfBuffer = await generateDoctorNotePDF(submission, undefined, diagnosis)
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {
@@ -1008,7 +1008,7 @@ export async function updateSubmission(
  * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
  * @returns Success status with optional warning
  */
-export async function reApproveSubmission(submissionId: string, evaluationDate?: string) {
+export async function reApproveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -1033,7 +1033,7 @@ export async function reApproveSubmission(submissionId: string, evaluationDate?:
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission, issueDate)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis)
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {

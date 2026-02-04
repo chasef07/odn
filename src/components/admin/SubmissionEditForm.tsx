@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
-import { updateSubmission, type FormattedSubmission } from '@/app/admin/actions'
+import { updateSubmission, approveSubmission, type FormattedSubmission } from '@/app/admin/actions'
 
 interface SubmissionEditFormProps {
   submission: FormattedSubmission
@@ -70,6 +70,33 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
   const [additionalInformation, setAdditionalInformation] = useState(
     submission.additionalInformation || ''
   )
+
+  // Diagnosis for PDF (ephemeral - not stored in database)
+  const [diagnosis, setDiagnosis] = useState('')
+
+  const handleApprove = async () => {
+    setIsLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const result = await approveSubmission(submission.id, diagnosis || undefined)
+
+      if (result.success) {
+        setSuccess('Submission approved! PDF sent to patient.')
+        setDiagnosis('')
+        setTimeout(() => {
+          router.push('/admin/maybe')
+        }, 1000)
+      } else {
+        setError(result.error || 'Failed to approve submission')
+      }
+    } catch (err) {
+      setError('An unexpected error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleSave = async () => {
     setIsLoading(true)
@@ -305,6 +332,25 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
+            {/* Diagnosis (ephemeral - for PDF only) */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900">Diagnosis</h2>
+              <div className="space-y-2">
+                <Label htmlFor="diagnosis">Diagnosis (optional)</Label>
+                <Textarea
+                  id="diagnosis"
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                  placeholder=""
+                  rows={2}
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Appears on the PDF after the medical condition text. Leave blank for default text. Not stored in database.
+                </p>
+              </div>
+            </div>
+
             {/* Absence Dates */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Absence Dates</h2>
@@ -409,6 +455,14 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
             <div className="flex gap-3 border-t border-gray-200 pt-6">
               <Button onClick={handleSave} disabled={isLoading} size="lg">
                 {isLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <Button
+                onClick={handleApprove}
+                disabled={isLoading}
+                size="lg"
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isLoading ? 'Approving...' : 'Approve & Send PDF'}
               </Button>
               <Link href="/admin/maybe">
                 <Button variant="outline" disabled={isLoading} size="lg">
