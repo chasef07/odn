@@ -25,7 +25,7 @@ interface SearchPageProps {
   initialResults?: SearchSubmission[]
   initialTotal?: number
   initialQuery?: string
-  initialSearchType?: 'name' | 'email' | 'id'
+  initialSearchType?: 'name' | 'email' | 'id' | 'phone'
   initialPage?: number
 }
 
@@ -49,7 +49,7 @@ export function SearchPage({
   const [isPending, startTransition] = useTransition()
 
   const [query, setQuery] = useState(initialQuery)
-  const [searchType, setSearchType] = useState<'name' | 'email' | 'id'>(initialSearchType)
+  const [searchType, setSearchType] = useState<'name' | 'email' | 'id' | 'phone'>(initialSearchType)
   const [results, setResults] = useState<SearchSubmission[]>(initialResults)
   const [total, setTotal] = useState(initialTotal)
   const [page, setPage] = useState(initialPage)
@@ -116,7 +116,7 @@ export function SearchPage({
       <div>
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Search Submissions</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Search across all submissions by name, email, or ID
+          Search across all submissions by name, email, phone, or ID
         </p>
       </div>
 
@@ -131,7 +131,9 @@ export function SearchPage({
                 ? 'Enter patient name...'
                 : searchType === 'email'
                   ? 'Enter email address...'
-                  : 'Enter submission ID...'
+                  : searchType === 'phone'
+                    ? 'Enter phone number...'
+                    : 'Enter submission ID...'
             }
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -143,7 +145,7 @@ export function SearchPage({
         <div className="flex gap-2">
           <Select
             value={searchType}
-            onValueChange={(value: 'name' | 'email' | 'id') => setSearchType(value)}
+            onValueChange={(value: 'name' | 'email' | 'id' | 'phone') => setSearchType(value)}
             disabled={isPending}
           >
             <SelectTrigger className="w-32">
@@ -152,6 +154,7 @@ export function SearchPage({
             <SelectContent>
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="email">Email</SelectItem>
+              <SelectItem value="phone">Phone</SelectItem>
               <SelectItem value="id">ID</SelectItem>
             </SelectContent>
           </Select>
@@ -302,7 +305,7 @@ export function SearchPage({
           <Search className="mx-auto h-12 w-12 text-gray-300" />
           <p className="mt-4 text-gray-500">Enter a search term to find submissions</p>
           <p className="mt-1 text-sm text-gray-400">
-            Search by patient name, email address, or submission ID
+            Search by patient name, email address, phone number, or submission ID
           </p>
         </div>
       ) : null}

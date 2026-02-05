@@ -791,7 +791,7 @@ export async function searchSubmissions({
   limit = 10,
 }: {
   query: string
-  searchType: 'name' | 'email' | 'id'
+  searchType: 'name' | 'email' | 'id' | 'phone'
   page?: number
   limit?: number
 }): Promise<{
@@ -849,6 +849,15 @@ export async function searchSubmissions({
           id: { startsWith: trimmedQuery.toLowerCase() },
         }
         break
+
+      case 'phone': {
+        // Strip non-digits from query to normalize phone number
+        const digitsOnly = trimmedQuery.replace(/\D/g, '')
+        whereClause = {
+          phone: { contains: digitsOnly },
+        }
+        break
+      }
     }
 
     // Execute search with pagination
