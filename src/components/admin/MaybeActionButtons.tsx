@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
 
 interface MaybeActionButtonsProps {
@@ -39,6 +40,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   // Approval modal state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
+  const [withRestrictions, setWithRestrictions] = useState(true)
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
@@ -52,6 +54,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
 
   const handleApproveClick = () => {
     setApprovalError(null)
+    setWithRestrictions(true) // Reset to default when opening dialog
     setShowApprovalDialog(true)
   }
 
@@ -60,7 +63,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
 
     try {
-      const result = await approveSubmission(submissionId)
+      const result = await approveSubmission(submissionId, withRestrictions)
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -185,6 +188,18 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
               <strong>Error:</strong> {approvalError}
             </div>
           )}
+
+          <div className="flex items-center gap-2 py-4">
+            <Switch
+              id="maybe-restrictions-toggle"
+              checked={withRestrictions}
+              onCheckedChange={setWithRestrictions}
+              disabled={isLoading}
+            />
+            <Label htmlFor="maybe-restrictions-toggle" className="text-sm">
+              Include &quot;with no restrictions&quot; in PDF
+            </Label>
+          </div>
 
           <DialogFooter>
             <Button

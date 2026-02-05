@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -94,6 +95,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     new Date().toLocaleDateString('en-CA')
   )
 
+  // Restrictions toggle for PDF (ephemeral - not stored in database)
+  const [withRestrictions, setWithRestrictions] = useState(true)
+
   const handleSave = async () => {
     setIsLoading(true)
     setError(null)
@@ -143,8 +147,8 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
       // Use reApproveSubmission for already approved submissions (pass evaluation date)
       // For new approvals from search page, also use reApproveSubmission to allow custom evaluation date
       const result = submission.status === SubmissionStatus.APPROVED
-        ? await reApproveSubmission(submission.id, evaluationDate)
-        : await approveSubmission(submission.id)
+        ? await reApproveSubmission(submission.id, evaluationDate, withRestrictions)
+        : await approveSubmission(submission.id, withRestrictions)
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -491,6 +495,17 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               <p className="text-xs text-muted-foreground">
                 This date appears as &quot;Date Issued&quot; on the PDF. Not stored in database.
               </p>
+            </div>
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <Switch
+                id="restrictions-toggle"
+                checked={withRestrictions}
+                onCheckedChange={setWithRestrictions}
+                disabled={isLoading}
+              />
+              <Label htmlFor="restrictions-toggle" className="text-sm">
+                Include &quot;with no restrictions&quot; in PDF
+              </Label>
             </div>
           </div>
         </div>

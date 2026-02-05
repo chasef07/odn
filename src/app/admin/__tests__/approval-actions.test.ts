@@ -149,8 +149,8 @@ describe('approveSubmission - Approval Automation', () => {
         where: { id: mockSubmissionId },
       })
 
-      // Verify PDF was generated with submission data
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission)
+      // Verify PDF was generated with submission data and default withRestrictions=true
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, true)
 
       // Verify PDF filename was generated
       expect(mockGeneratePDFFilename).toHaveBeenCalledWith(mockSubmission.id)
@@ -226,6 +226,56 @@ describe('approveSubmission - Approval Automation', () => {
           notePurpose: 'both',
         })
       )
+    })
+  })
+
+  describe('withRestrictions parameter', () => {
+    it('should pass withRestrictions=true (default) to PDF generation', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, true)
+    })
+
+    it('should pass withRestrictions=true explicitly to PDF generation', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId, true)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, true)
+    })
+
+    it('should pass withRestrictions=false to PDF generation when specified', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId, false)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, false)
     })
   })
 
@@ -413,13 +463,15 @@ describe('approveSubmission - Approval Automation', () => {
       // Assert
       expect(result).toEqual({ success: true })
 
-      // Verify PDF was generated with guardian info
+      // Verify PDF was generated with guardian info and withRestrictions=true (default)
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         expect.objectContaining({
           guardianFirstName: 'Jane',
           guardianLastName: 'Doe',
           recipient: 'someone_else',
-        })
+        }),
+        undefined,
+        true
       )
     })
   })
