@@ -213,9 +213,10 @@ export async function getMonthlyLimitData(
  * @param submissionId - Submission ID to approve
  * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
  * @param diagnosis - Optional diagnosis text to include in the PDF
+ * @param withRestrictions - Whether to include ", with no restrictions" text in PDF (defaults to true)
  * @returns Success status with detailed error messages
  */
-export async function approveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string) {
+export async function approveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string, withRestrictions: boolean = true) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -281,7 +282,7 @@ export async function approveSubmission(submissionId: string, evaluationDate?: s
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions)
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {
@@ -1016,9 +1017,11 @@ export async function updateSubmission(
  * Use this when edits were made to an approved submission and a new note is needed
  * @param submissionId - Submission ID to re-approve
  * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
+ * @param diagnosis - Optional diagnosis text to include in the PDF
+ * @param withRestrictions - Whether to include ", with no restrictions" text in PDF (defaults to true)
  * @returns Success status with optional warning
  */
-export async function reApproveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string) {
+export async function reApproveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string, withRestrictions: boolean = true) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -1043,7 +1046,7 @@ export async function reApproveSubmission(submissionId: string, evaluationDate?:
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions)
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {

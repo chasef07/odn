@@ -149,8 +149,8 @@ describe('approveSubmission - Approval Automation', () => {
         where: { id: mockSubmissionId },
       })
 
-      // Verify PDF was generated with submission data (issueDate and diagnosis)
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined)
+      // Verify PDF was generated with submission data (issueDate, diagnosis, withRestrictions)
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
 
       // Verify PDF filename was generated
       expect(mockGeneratePDFFilename).toHaveBeenCalledWith(mockSubmission.id)
@@ -242,11 +242,63 @@ describe('approveSubmission - Approval Automation', () => {
       // Assert
       expect(result).toEqual({ success: true })
 
-      // Verify PDF was generated with the custom issue date (as UTC Date)
+      // Verify PDF was generated with the custom issue date (as UTC Date), no diagnosis, default withRestrictions
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         mockSubmission,
-        new Date(Date.UTC(2024, 0, 20)) // January 20, 2024 UTC
+        new Date(Date.UTC(2024, 0, 20)), // January 20, 2024 UTC
+        undefined, // diagnosis
+        true // withRestrictions (default)
       )
+    })
+  })
+
+  describe('withRestrictions parameter', () => {
+    it('should pass withRestrictions=true (default) to PDF generation', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
+    })
+
+    it('should pass withRestrictions=true explicitly to PDF generation', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId, undefined, undefined, true)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
+    })
+
+    it('should pass withRestrictions=false to PDF generation when specified', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId, undefined, undefined, false)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, false)
     })
   })
 
@@ -434,15 +486,16 @@ describe('approveSubmission - Approval Automation', () => {
       // Assert
       expect(result).toEqual({ success: true })
 
-      // Verify PDF was generated with guardian info (second arg is optional issueDate)
+      // Verify PDF was generated with guardian info (issueDate, diagnosis, withRestrictions)
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         expect.objectContaining({
           guardianFirstName: 'Jane',
           guardianLastName: 'Doe',
           recipient: 'someone_else',
         }),
-        undefined,
-        undefined
+        undefined, // issueDate
+        undefined, // diagnosis
+        true // withRestrictions (default)
       )
     })
   })

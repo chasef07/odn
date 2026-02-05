@@ -8,6 +8,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -55,6 +57,7 @@ export default function AdminReviewPage() {
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
+  const [withRestrictions, setWithRestrictions] = useState(true)
 
   const currentSubmission = submissions[currentIndex]
   const isLastSubmission = currentIndex === submissions.length - 1
@@ -119,8 +122,8 @@ export default function AdminReviewPage() {
     setIsTransitioning(true)
     setApprovalError(null)
 
-    // Call server action to approve with evaluation date and diagnosis
-    const result = await approveSubmission(currentSubmission.id, evaluationDate, diagnosis || undefined)
+    // Call server action to approve with evaluation date, diagnosis, and restrictions toggle
+    const result = await approveSubmission(currentSubmission.id, evaluationDate, diagnosis || undefined, withRestrictions)
 
     if (result.success) {
       setShowApprovalDialog(false)
@@ -143,6 +146,7 @@ export default function AdminReviewPage() {
         } else {
           // Move to next submission
           setCurrentIndex((prev) => prev + 1)
+          setWithRestrictions(true) // Reset to default for next submission
         }
         setIsTransitioning(false)
       }, 150)
@@ -182,6 +186,7 @@ export default function AdminReviewPage() {
         } else {
           // Move to next submission
           setCurrentIndex((prev) => prev + 1)
+          setWithRestrictions(true) // Reset to default for next submission
         }
         setIsTransitioning(false)
       }, 150)
@@ -215,6 +220,7 @@ export default function AdminReviewPage() {
         } else {
           // Move to next submission
           setCurrentIndex((prev) => prev + 1)
+          setWithRestrictions(true) // Reset to default for next submission
         }
         setIsTransitioning(false)
       }, 150)
@@ -333,6 +339,18 @@ export default function AdminReviewPage() {
             onDiagnosisChange={setDiagnosis}
           />
         </div>
+      </div>
+
+      {/* Restrictions Toggle */}
+      <div className="mx-auto flex w-full max-w-2xl shrink-0 items-center justify-center gap-2 pb-2">
+        <Switch
+          id="restrictions-toggle"
+          checked={withRestrictions}
+          onCheckedChange={setWithRestrictions}
+        />
+        <Label htmlFor="restrictions-toggle" className="text-sm text-muted-foreground">
+          Include &quot;with no restrictions&quot; in PDF
+        </Label>
       </div>
 
       {/* Action Buttons - Tinder-style - always visible */}

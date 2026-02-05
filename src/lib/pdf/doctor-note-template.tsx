@@ -119,6 +119,7 @@ interface DoctorNoteTemplateProps {
   doctorInfo: DoctorInfo
   issueDate: Date
   diagnosis?: string
+  withRestrictions?: boolean
 }
 
 // Create styles - Plus Jakarta Sans font
@@ -372,6 +373,7 @@ export function DoctorNoteTemplate({
   doctorInfo,
   issueDate,
   diagnosis,
+  withRestrictions = true,
 }: DoctorNoteTemplateProps): React.ReactElement {
   const {
     patientFirstName,
@@ -492,7 +494,7 @@ export function DoctorNoteTemplate({
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               ) : isAppointment ? (
@@ -508,7 +510,7 @@ export function DoctorNoteTemplate({
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               ) : (
@@ -524,7 +526,7 @@ export function DoctorNoteTemplate({
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}, with no restrictions.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               )}

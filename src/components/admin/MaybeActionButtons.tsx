@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
@@ -43,6 +44,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
   const [diagnosis, setDiagnosis] = useState('')
+  const [withRestrictions, setWithRestrictions] = useState(true)
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
@@ -58,6 +60,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
     setEvaluationDate(getTodayLocal())
     setDiagnosis('')
+    setWithRestrictions(true) // Reset to default when opening dialog
     setShowApprovalDialog(true)
   }
 
@@ -66,7 +69,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
 
     try {
-      const result = await approveSubmission(submissionId, evaluationDate, diagnosis || undefined)
+      const result = await approveSubmission(submissionId, evaluationDate, diagnosis || undefined, withRestrictions)
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -193,6 +196,18 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
             onDiagnosisChange={setDiagnosis}
             error={approvalError}
           />
+
+          <div className="flex items-center gap-2 py-4">
+            <Switch
+              id="maybe-restrictions-toggle"
+              checked={withRestrictions}
+              onCheckedChange={setWithRestrictions}
+              disabled={isLoading}
+            />
+            <Label htmlFor="maybe-restrictions-toggle" className="text-sm">
+              Include &quot;with no restrictions&quot; in PDF
+            </Label>
+          </div>
 
           <DialogFooter>
             <Button

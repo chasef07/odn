@@ -156,13 +156,15 @@ function resolveSignaturePath(signatureUrl: string): string {
  *
  * @param submission - Prisma Submission object with all patient/absence data
  * @param issueDate - Date to show as "Date Issued" (defaults to today in Eastern Time)
+ * @param withRestrictions - Whether to include ", with no restrictions" text (defaults to true)
  * @returns Promise<Buffer> - PDF file as Buffer for email attachment
  * @throws Error if required env vars missing or signature image not found
  */
 export async function generateDoctorNotePDF(
   submission: Submission,
   issueDate?: Date,
-  diagnosis?: string
+  diagnosis?: string,
+  withRestrictions: boolean = true
 ): Promise<Buffer> {
   // Default to today's date in Eastern Time (America/New_York)
   // This ensures the PDF shows the correct calendar date for the doctor
@@ -198,6 +200,7 @@ export async function generateDoctorNotePDF(
         doctorInfo={doctorInfoWithResolvedPath}
         issueDate={finalIssueDate}
         diagnosis={diagnosis}
+        withRestrictions={withRestrictions}
       />
     )
 
