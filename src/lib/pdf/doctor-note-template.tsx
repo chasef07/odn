@@ -118,6 +118,7 @@ interface DoctorNoteTemplateProps {
   submissionData: DoctorNoteData
   doctorInfo: DoctorInfo
   issueDate: Date
+  diagnosis?: string
   withRestrictions?: boolean
 }
 
@@ -371,6 +372,7 @@ export function DoctorNoteTemplate({
   submissionData,
   doctorInfo,
   issueDate,
+  diagnosis,
   withRestrictions = true,
 }: DoctorNoteTemplateProps): React.ReactElement {
   const {
@@ -482,7 +484,7 @@ export function DoctorNoteTemplate({
               {isCaregiver ? (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition. Please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period, if possible.
+                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition.{diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''} Please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period, if possible.
                   </Text>
 
                   {/* Start and End Dates */}
@@ -498,7 +500,7 @@ export function DoctorNoteTemplate({
               ) : isAppointment ? (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period for a doctor's appointment.
+                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period for a doctor&apos;s appointment.{diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
                   </Text>
 
                   {/* Start and End Dates */}
@@ -514,7 +516,7 @@ export function DoctorNoteTemplate({
               ) : (
                 <>
                   <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period due to a medical condition.
+                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period due to a medical condition.{diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
                   </Text>
 
                   {/* Start and End Dates */}
