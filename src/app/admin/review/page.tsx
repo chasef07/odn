@@ -8,10 +8,19 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { SubmissionCard } from '@/components/admin/SubmissionCard'
 import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
+import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import type { DenialReason } from '@/lib/admin-utils'
 import type { Submission } from '@prisma/client'
 import {
@@ -40,6 +49,9 @@ export default function AdminReviewPage() {
 
   const [showCompletion, setShowCompletion] = useState(false)
   const [showDenialDialog, setShowDenialDialog] = useState(false)
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
+  const [approvalError, setApprovalError] = useState<string | null>(null)
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
 
@@ -92,16 +104,26 @@ export default function AdminReviewPage() {
     fetchMonthlyData()
   }, [currentSubmission])
 
-  // Handle approval
-  const handleApprove = async () => {
+  // Handle approval - show dialog first
+  const handleApprove = () => {
+    if (!currentSubmission || isTransitioning) return
+    setApprovalError(null)
+    setShowApprovalDialog(true)
+  }
+
+  // Handle approval confirmation with evaluation date
+  const handleApproveConfirm = async () => {
     if (!currentSubmission || isTransitioning) return
 
     setIsTransitioning(true)
+    setApprovalError(null)
 
-    // Call server action to approve
-    const result = await approveSubmission(currentSubmission.id)
+    // Call server action to approve with evaluation date
+    const result = await approveSubmission(currentSubmission.id, evaluationDate)
 
     if (result.success) {
+      setShowApprovalDialog(false)
+
       // Add to approved list
       setReviewedSubmissions((prev) => ({
         ...prev,
@@ -110,6 +132,9 @@ export default function AdminReviewPage() {
 
       // Quick fade transition
       setTimeout(() => {
+        // Reset evaluation date to today for next submission
+        setEvaluationDate(getTodayLocal())
+
         if (isLastSubmission) {
           // Show completion screen
           setShowCompletion(true)
@@ -121,7 +146,7 @@ export default function AdminReviewPage() {
       }, 150)
     } else {
       setIsTransitioning(false)
-      setError(result.error || 'Failed to approve submission')
+      setApprovalError(result.error || 'Failed to approve submission')
     }
   }
 
@@ -367,6 +392,41 @@ export default function AdminReviewPage() {
         onOpenChange={setShowDenialDialog}
         onConfirm={handleDenyConfirm}
       />
+
+      {/* Approval Dialog */}
+      <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Submission?</DialogTitle>
+            <DialogDescription>
+              Confirm approval and set the evaluation date for the PDF.
+            </DialogDescription>
+          </DialogHeader>
+
+          <ApprovalDialogContent
+            evaluationDate={evaluationDate}
+            onDateChange={setEvaluationDate}
+            error={approvalError}
+          />
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowApprovalDialog(false)}
+              disabled={isTransitioning}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleApproveConfirm}
+              disabled={isTransitioning}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isTransitioning ? 'Approving...' : 'Approve & Send PDF'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

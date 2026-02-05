@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
 
 interface MaybeActionButtonsProps {
@@ -39,6 +40,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   // Approval modal state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
+  const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
@@ -52,6 +54,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
 
   const handleApproveClick = () => {
     setApprovalError(null)
+    setEvaluationDate(getTodayLocal())
     setShowApprovalDialog(true)
   }
 
@@ -60,7 +63,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
 
     try {
-      const result = await approveSubmission(submissionId)
+      const result = await approveSubmission(submissionId, evaluationDate)
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -175,16 +178,15 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
           <DialogHeader>
             <DialogTitle>Approve Submission</DialogTitle>
             <DialogDescription>
-              This will generate a doctor&apos;s note PDF and send it to the patient via email.
-              This action cannot be undone.
+              Confirm approval and set the evaluation date for the PDF.
             </DialogDescription>
           </DialogHeader>
 
-          {approvalError && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
-              <strong>Error:</strong> {approvalError}
-            </div>
-          )}
+          <ApprovalDialogContent
+            evaluationDate={evaluationDate}
+            onDateChange={setEvaluationDate}
+            error={approvalError}
+          />
 
           <DialogFooter>
             <Button
