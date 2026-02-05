@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -21,6 +22,11 @@ import {
 } from '@/components/ui/select'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import { updateSubmission, approveSubmission, type FormattedSubmission } from '@/app/admin/actions'
+
+// Get today's date in YYYY-MM-DD format using local timezone
+function getTodayLocal(): string {
+  return new Date().toLocaleDateString('en-CA')
+}
 
 interface SubmissionEditFormProps {
   submission: FormattedSubmission
@@ -71,8 +77,10 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
     submission.additionalInformation || ''
   )
 
-  // Diagnosis for PDF (ephemeral - not stored in database)
+  // Ephemeral fields for PDF (not stored in database)
+  const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
   const [diagnosis, setDiagnosis] = useState('')
+  const [withRestrictions, setWithRestrictions] = useState(true)
 
   const handleApprove = async () => {
     setIsLoading(true)
@@ -80,7 +88,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
     setSuccess(null)
 
     try {
-      const result = await approveSubmission(submission.id, diagnosis || undefined)
+      const result = await approveSubmission(submission.id, evaluationDate, diagnosis || undefined, withRestrictions)
 
       if (result.success) {
         setSuccess('Submission approved! PDF sent to patient.')
@@ -332,23 +340,52 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
-            {/* Diagnosis (ephemeral - for PDF only) */}
+            {/* PDF Options (ephemeral - not stored in database) */}
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">Diagnosis</h2>
-              <div className="space-y-2">
-                <Label htmlFor="diagnosis">Diagnosis (optional)</Label>
-                <Textarea
-                  id="diagnosis"
-                  value={diagnosis}
-                  onChange={(e) => setDiagnosis(e.target.value)}
-                  placeholder=""
-                  rows={2}
+              <h2 className="text-lg font-semibold text-gray-900">PDF Options</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="evaluationDate">Evaluation Date</Label>
+                  <Input
+                    id="evaluationDate"
+                    type="date"
+                    value={evaluationDate}
+                    onChange={(e) => setEvaluationDate(e.target.value)}
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Appears as &quot;Date Issued&quot; on the PDF.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="diagnosis">Diagnosis (optional)</Label>
+                  <Textarea
+                    id="diagnosis"
+                    value={diagnosis}
+                    onChange={(e) => setDiagnosis(e.target.value)}
+                    placeholder=""
+                    rows={2}
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Appears after the medical condition text. Leave blank for default.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="withRestrictions"
+                  checked={withRestrictions}
+                  onCheckedChange={setWithRestrictions}
                   disabled={isLoading}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Appears on the PDF after the medical condition text. Leave blank for default text. Not stored in database.
-                </p>
+                <Label htmlFor="withRestrictions" className="text-sm">
+                  Include &quot;with no restrictions&quot; in PDF
+                </Label>
               </div>
+              <p className="text-xs text-muted-foreground">
+                These options are not stored in the database - they only affect the generated PDF.
+              </p>
             </div>
 
             {/* Absence Dates */}

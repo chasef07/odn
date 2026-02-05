@@ -5,7 +5,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import type { Submission } from '@prisma/client'
 import {
   calculateAge,
@@ -20,11 +22,25 @@ interface SubmissionCardProps {
   submission: Submission
   currentIndex: number
   totalCount: number
+  evaluationDate?: string
+  onEvaluationDateChange?: (value: string) => void
   diagnosis?: string
   onDiagnosisChange?: (value: string) => void
+  withRestrictions?: boolean
+  onWithRestrictionsChange?: (value: boolean) => void
 }
 
-export function SubmissionCard({ submission, currentIndex, totalCount, diagnosis, onDiagnosisChange }: SubmissionCardProps) {
+export function SubmissionCard({
+  submission,
+  currentIndex,
+  totalCount,
+  evaluationDate,
+  onEvaluationDateChange,
+  diagnosis,
+  onDiagnosisChange,
+  withRestrictions,
+  onWithRestrictionsChange,
+}: SubmissionCardProps) {
   const patientAge = calculateAge(submission.patientDateOfBirth)
   const dateRange = formatDateRange(submission.firstDayOff, submission.lastDayOff)
   const dayCount = calculateDaysDifference(submission.firstDayOff, submission.lastDayOff)
@@ -150,22 +166,59 @@ export function SubmissionCard({ submission, currentIndex, totalCount, diagnosis
           </div>
         </div>
 
-        {/* Diagnosis (optional) */}
-        {onDiagnosisChange !== undefined && (
-          <div className="space-y-1.5 border-t pt-2">
-            <Label htmlFor="diagnosis" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Diagnosis (optional)
-            </Label>
-            <Textarea
-              id="diagnosis"
-              value={diagnosis ?? ''}
-              onChange={(e) => onDiagnosisChange(e.target.value)}
-              placeholder=""
-              rows={2}
-            />
-            <p className="text-xs text-muted-foreground">
-              Appears on the PDF after the medical condition text. Leave blank for default text.
-            </p>
+        {/* PDF Options */}
+        {(onEvaluationDateChange || onDiagnosisChange || onWithRestrictionsChange) && (
+          <div className="space-y-2 border-t pt-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              PDF Options
+            </h3>
+
+            {/* Evaluation Date */}
+            {onEvaluationDateChange && (
+              <div className="space-y-1">
+                <Label htmlFor="evaluationDate" className="text-xs text-muted-foreground">
+                  Evaluation Date
+                </Label>
+                <Input
+                  id="evaluationDate"
+                  type="date"
+                  value={evaluationDate ?? ''}
+                  onChange={(e) => onEvaluationDateChange(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            )}
+
+            {/* Diagnosis */}
+            {onDiagnosisChange && (
+              <div className="space-y-1">
+                <Label htmlFor="diagnosis" className="text-xs text-muted-foreground">
+                  Diagnosis (optional)
+                </Label>
+                <Textarea
+                  id="diagnosis"
+                  value={diagnosis ?? ''}
+                  onChange={(e) => onDiagnosisChange(e.target.value)}
+                  placeholder=""
+                  rows={2}
+                  className="text-sm"
+                />
+              </div>
+            )}
+
+            {/* Restrictions Toggle */}
+            {onWithRestrictionsChange && (
+              <div className="flex items-center gap-2 pt-1">
+                <Switch
+                  id="card-restrictions-toggle"
+                  checked={withRestrictions ?? true}
+                  onCheckedChange={onWithRestrictionsChange}
+                />
+                <Label htmlFor="card-restrictions-toggle" className="text-xs text-muted-foreground">
+                  Include &quot;with no restrictions&quot; in PDF
+                </Label>
+              </div>
+            )}
           </div>
         )}
 
