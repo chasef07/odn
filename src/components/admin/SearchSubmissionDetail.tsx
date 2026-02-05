@@ -33,9 +33,6 @@ import {
   updateSubmission,
   approveSubmission,
   denySubmission,
-  maybeSubmission,
-  markAsManual,
-  reApproveSubmission,
   changeSubmissionStatus,
   type FormattedSubmission,
 } from '@/app/admin/actions'
@@ -143,11 +140,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Use reApproveSubmission for already approved submissions (pass evaluation date and diagnosis)
-      // For new approvals from search page, also use reApproveSubmission to allow custom evaluation date
-      const result = submission.status === SubmissionStatus.APPROVED
-        ? await reApproveSubmission(submission.id, evaluationDate, diagnosis || undefined)
-        : await approveSubmission(submission.id, diagnosis || undefined)
+      // Always pass evaluationDate and diagnosis to approveSubmission
+      // This fixes the bug where first-time approvals from search page ignored the date
+      const result = await approveSubmission(submission.id, evaluationDate, diagnosis || undefined)
 
       if (result.success) {
         setShowApprovalDialog(false)

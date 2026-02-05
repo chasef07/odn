@@ -211,9 +211,11 @@ export async function getMonthlyLimitData(
 /**
  * Approve a submission with PDF generation and email notification
  * @param submissionId - Submission ID to approve
+ * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
+ * @param diagnosis - Optional diagnosis text to include in the PDF
  * @returns Success status with detailed error messages
  */
-export async function approveSubmission(submissionId: string, diagnosis?: string) {
+export async function approveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -267,11 +269,19 @@ export async function approveSubmission(submissionId: string, diagnosis?: string
     }
 
     // Standard approval: Generate PDF and send email
+    // Parse evaluation date if provided (for custom "Date Issued" on PDF)
+    let issueDate: Date | undefined = undefined
+    if (evaluationDate) {
+      const [year, month, day] = evaluationDate.split('-').map(Number)
+      // Create UTC date to match PDF template's formatDate() which uses getUTCMonth/getUTCDate
+      issueDate = new Date(Date.UTC(year, month - 1, day))
+    }
+
     // Step 2: Generate PDF (BLOCKING - must succeed)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission, undefined, diagnosis)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis)
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {
