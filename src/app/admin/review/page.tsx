@@ -22,7 +22,7 @@ import { SubmissionCard } from '@/components/admin/SubmissionCard'
 import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
-import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
+import { getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import type { DenialReason } from '@/lib/admin-utils'
 import type { Submission } from '@prisma/client'
 import {
@@ -335,22 +335,14 @@ export default function AdminReviewPage() {
             submission={currentSubmission}
             currentIndex={currentIndex}
             totalCount={submissions.length}
+            evaluationDate={evaluationDate}
+            onEvaluationDateChange={setEvaluationDate}
             diagnosis={diagnosis}
             onDiagnosisChange={setDiagnosis}
+            withRestrictions={withRestrictions}
+            onWithRestrictionsChange={setWithRestrictions}
           />
         </div>
-      </div>
-
-      {/* Restrictions Toggle */}
-      <div className="mx-auto flex w-full max-w-2xl shrink-0 items-center justify-center gap-2 pb-2">
-        <Switch
-          id="restrictions-toggle"
-          checked={withRestrictions}
-          onCheckedChange={setWithRestrictions}
-        />
-        <Label htmlFor="restrictions-toggle" className="text-sm text-muted-foreground">
-          Include &quot;with no restrictions&quot; in PDF
-        </Label>
       </div>
 
       {/* Action Buttons - Tinder-style - always visible */}
@@ -421,17 +413,15 @@ export default function AdminReviewPage() {
           <DialogHeader>
             <DialogTitle>Approve Submission?</DialogTitle>
             <DialogDescription>
-              Confirm approval and set the evaluation date for the PDF.
+              This will generate a doctor&apos;s note PDF and send it to the patient via email.
             </DialogDescription>
           </DialogHeader>
 
-          <ApprovalDialogContent
-            evaluationDate={evaluationDate}
-            onDateChange={setEvaluationDate}
-            diagnosis={diagnosis}
-            onDiagnosisChange={setDiagnosis}
-            error={approvalError}
-          />
+          {approvalError && (
+            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+              <strong>Error:</strong> {approvalError}
+            </div>
+          )}
 
           <DialogFooter>
             <Button

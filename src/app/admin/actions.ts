@@ -851,10 +851,19 @@ export async function searchSubmissions({
         break
 
       case 'phone': {
-        // Strip non-digits from query to normalize phone number
+        // Strip non-digits and format to match stored format (XXX) XXX-XXXX
         const digitsOnly = trimmedQuery.replace(/\D/g, '')
+        // Format the digits to match how phones are stored in the database
+        let formattedPhone = digitsOnly
+        if (digitsOnly.length <= 3) {
+          formattedPhone = digitsOnly
+        } else if (digitsOnly.length <= 6) {
+          formattedPhone = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`
+        } else {
+          formattedPhone = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`
+        }
         whereClause = {
-          phone: { contains: digitsOnly },
+          phone: { contains: formattedPhone },
         }
         break
       }
