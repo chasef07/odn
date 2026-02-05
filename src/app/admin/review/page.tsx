@@ -51,6 +51,7 @@ export default function AdminReviewPage() {
   const [showDenialDialog, setShowDenialDialog] = useState(false)
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
+  const [diagnosis, setDiagnosis] = useState('')
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
@@ -111,18 +112,19 @@ export default function AdminReviewPage() {
     setShowApprovalDialog(true)
   }
 
-  // Handle approval confirmation with evaluation date
+  // Handle approval confirmation with evaluation date and diagnosis
   const handleApproveConfirm = async () => {
     if (!currentSubmission || isTransitioning) return
 
     setIsTransitioning(true)
     setApprovalError(null)
 
-    // Call server action to approve with evaluation date
-    const result = await approveSubmission(currentSubmission.id, evaluationDate)
+    // Call server action to approve with evaluation date and diagnosis
+    const result = await approveSubmission(currentSubmission.id, evaluationDate, diagnosis || undefined)
 
     if (result.success) {
       setShowApprovalDialog(false)
+      setDiagnosis('')
 
       // Add to approved list
       setReviewedSubmissions((prev) => ({
@@ -225,8 +227,8 @@ export default function AdminReviewPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Prevent if transitioning or on completion screen
-      if (isTransitioning || showCompletion) return
+      // Prevent if transitioning, on completion screen, or dialog is open
+      if (isTransitioning || showCompletion || showDenialDialog) return
 
       if (e.key === 'ArrowLeft') {
         e.preventDefault() // Prevent scroll
@@ -243,7 +245,7 @@ export default function AdminReviewPage() {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, isTransitioning, showCompletion, currentSubmission])
+  }, [currentIndex, isTransitioning, showCompletion, showDenialDialog, currentSubmission])
 
   // Handle return to dashboard
   const handleReturnToDashboard = () => {
@@ -327,6 +329,8 @@ export default function AdminReviewPage() {
             submission={currentSubmission}
             currentIndex={currentIndex}
             totalCount={submissions.length}
+            diagnosis={diagnosis}
+            onDiagnosisChange={setDiagnosis}
           />
         </div>
       </div>
@@ -406,6 +410,8 @@ export default function AdminReviewPage() {
           <ApprovalDialogContent
             evaluationDate={evaluationDate}
             onDateChange={setEvaluationDate}
+            diagnosis={diagnosis}
+            onDiagnosisChange={setDiagnosis}
             error={approvalError}
           />
 

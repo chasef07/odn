@@ -91,6 +91,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     new Date().toLocaleDateString('en-CA')
   )
 
+  // Diagnosis for PDF (ephemeral - not stored in database)
+  const [diagnosis, setDiagnosis] = useState('')
+
   const handleSave = async () => {
     setIsLoading(true)
     setError(null)
@@ -137,9 +140,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Always pass evaluationDate to approveSubmission (which now accepts it)
+      // Always pass evaluationDate and diagnosis to approveSubmission
       // This fixes the bug where first-time approvals from search page ignored the date
-      const result = await approveSubmission(submission.id, evaluationDate)
+      const result = await approveSubmission(submission.id, evaluationDate, diagnosis || undefined)
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -485,6 +488,19 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               />
               <p className="text-xs text-muted-foreground">
                 This date appears as &quot;Date Issued&quot; on the PDF. Not stored in database.
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Diagnosis (optional)</Label>
+              <Textarea
+                value={diagnosis}
+                onChange={(e) => setDiagnosis(e.target.value)}
+                placeholder=""
+                rows={2}
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for default text. Not stored in database.
               </p>
             </div>
           </div>

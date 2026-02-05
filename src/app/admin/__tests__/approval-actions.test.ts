@@ -149,8 +149,8 @@ describe('approveSubmission - Approval Automation', () => {
         where: { id: mockSubmissionId },
       })
 
-      // Verify PDF was generated with submission data (second arg is optional issueDate)
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined)
+      // Verify PDF was generated with submission data (issueDate and diagnosis)
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined)
 
       // Verify PDF filename was generated
       expect(mockGeneratePDFFilename).toHaveBeenCalledWith(mockSubmission.id)
@@ -441,6 +441,7 @@ describe('approveSubmission - Approval Automation', () => {
           guardianLastName: 'Doe',
           recipient: 'someone_else',
         }),
+        undefined,
         undefined
       )
     })

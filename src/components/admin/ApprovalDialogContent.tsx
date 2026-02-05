@@ -2,15 +2,18 @@
 
 /**
  * Approval Dialog Content Component
- * Reusable content for approval dialogs with evaluation date picker
+ * Reusable content for approval dialogs with evaluation date picker and diagnosis input
  */
 
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 interface ApprovalDialogContentProps {
   evaluationDate: string
   onDateChange: (date: string) => void
+  diagnosis?: string
+  onDiagnosisChange?: (diagnosis: string) => void
   error?: string | null
   isReApproval?: boolean
 }
@@ -18,6 +21,8 @@ interface ApprovalDialogContentProps {
 export function ApprovalDialogContent({
   evaluationDate,
   onDateChange,
+  diagnosis,
+  onDiagnosisChange,
   error,
   isReApproval = false,
 }: ApprovalDialogContentProps) {
@@ -41,6 +46,22 @@ export function ApprovalDialogContent({
           This date appears as &quot;Date Issued&quot; on the PDF. Not stored in database.
         </p>
       </div>
+
+      {onDiagnosisChange && (
+        <div className="space-y-2">
+          <Label htmlFor="diagnosis">Diagnosis (optional)</Label>
+          <Textarea
+            id="diagnosis"
+            value={diagnosis || ''}
+            onChange={(e) => onDiagnosisChange(e.target.value)}
+            placeholder=""
+            rows={2}
+          />
+          <p className="text-xs text-muted-foreground">
+            Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for default text.
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">

@@ -161,7 +161,8 @@ function resolveSignaturePath(signatureUrl: string): string {
  */
 export async function generateDoctorNotePDF(
   submission: Submission,
-  issueDate?: Date
+  issueDate?: Date,
+  diagnosis?: string
 ): Promise<Buffer> {
   // Default to today's date in Eastern Time (America/New_York)
   // This ensures the PDF shows the correct calendar date for the doctor
@@ -196,6 +197,7 @@ export async function generateDoctorNotePDF(
         submissionData={submissionData}
         doctorInfo={doctorInfoWithResolvedPath}
         issueDate={finalIssueDate}
+        diagnosis={diagnosis}
       />
     )
 

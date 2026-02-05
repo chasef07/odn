@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
 
@@ -41,6 +42,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
+  const [diagnosis, setDiagnosis] = useState('')
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
@@ -55,6 +57,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   const handleApproveClick = () => {
     setApprovalError(null)
     setEvaluationDate(getTodayLocal())
+    setDiagnosis('')
     setShowApprovalDialog(true)
   }
 
@@ -63,10 +66,11 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
 
     try {
-      const result = await approveSubmission(submissionId, evaluationDate)
+      const result = await approveSubmission(submissionId, evaluationDate, diagnosis || undefined)
 
       if (result.success) {
         setShowApprovalDialog(false)
+        setDiagnosis('')
         router.refresh() // Refresh to remove from list
       } else {
         setApprovalError(result.error || 'Unknown error')
@@ -185,6 +189,8 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
           <ApprovalDialogContent
             evaluationDate={evaluationDate}
             onDateChange={setEvaluationDate}
+            diagnosis={diagnosis}
+            onDiagnosisChange={setDiagnosis}
             error={approvalError}
           />
 
