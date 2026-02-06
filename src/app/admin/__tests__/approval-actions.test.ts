@@ -149,8 +149,8 @@ describe('approveSubmission - Approval Automation', () => {
         where: { id: mockSubmissionId },
       })
 
-      // Verify PDF was generated with submission data
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission)
+      // Verify PDF was generated with submission data (issueDate, diagnosis, withRestrictions)
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
 
       // Verify PDF filename was generated
       expect(mockGeneratePDFFilename).toHaveBeenCalledWith(mockSubmission.id)
@@ -226,6 +226,79 @@ describe('approveSubmission - Approval Automation', () => {
           notePurpose: 'both',
         })
       )
+    })
+
+    it('should pass custom evaluation date to PDF generation', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act - pass a custom evaluation date
+      const result = await approveSubmission(mockSubmissionId, '2024-01-20')
+
+      // Assert
+      expect(result).toEqual({ success: true })
+
+      // Verify PDF was generated with the custom issue date (as UTC Date), no diagnosis, default withRestrictions
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
+        mockSubmission,
+        new Date(Date.UTC(2024, 0, 20)), // January 20, 2024 UTC
+        undefined, // diagnosis
+        true // withRestrictions (default)
+      )
+    })
+  })
+
+  describe('withRestrictions parameter', () => {
+    it('should pass withRestrictions=true (default) to PDF generation', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
+    })
+
+    it('should pass withRestrictions=true explicitly to PDF generation', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId, undefined, undefined, true)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
+    })
+
+    it('should pass withRestrictions=false to PDF generation when specified', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      // Act
+      const result = await approveSubmission(mockSubmissionId, undefined, undefined, false)
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, false)
     })
   })
 
@@ -413,13 +486,16 @@ describe('approveSubmission - Approval Automation', () => {
       // Assert
       expect(result).toEqual({ success: true })
 
-      // Verify PDF was generated with guardian info
+      // Verify PDF was generated with guardian info (issueDate, diagnosis, withRestrictions)
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         expect.objectContaining({
           guardianFirstName: 'Jane',
           guardianLastName: 'Doe',
           recipient: 'someone_else',
-        })
+        }),
+        undefined, // issueDate
+        undefined, // diagnosis
+        true // withRestrictions (default)
       )
     })
   })

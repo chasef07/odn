@@ -26,6 +26,9 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
 
 interface MaybeActionButtonsProps {
@@ -39,6 +42,9 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   // Approval modal state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
+  const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
+  const [diagnosis, setDiagnosis] = useState('')
+  const [withRestrictions, setWithRestrictions] = useState(true)
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
@@ -52,6 +58,9 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
 
   const handleApproveClick = () => {
     setApprovalError(null)
+    setEvaluationDate(getTodayLocal())
+    setDiagnosis('')
+    setWithRestrictions(true) // Reset to default when opening dialog
     setShowApprovalDialog(true)
   }
 
@@ -60,10 +69,11 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
 
     try {
-      const result = await approveSubmission(submissionId)
+      const result = await approveSubmission(submissionId, evaluationDate, diagnosis || undefined, withRestrictions)
 
       if (result.success) {
         setShowApprovalDialog(false)
+        setDiagnosis('')
         router.refresh() // Refresh to remove from list
       } else {
         setApprovalError(result.error || 'Unknown error')
@@ -175,16 +185,29 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
           <DialogHeader>
             <DialogTitle>Approve Submission</DialogTitle>
             <DialogDescription>
-              This will generate a doctor&apos;s note PDF and send it to the patient via email.
-              This action cannot be undone.
+              Confirm approval and set the evaluation date for the PDF.
             </DialogDescription>
           </DialogHeader>
 
-          {approvalError && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
-              <strong>Error:</strong> {approvalError}
-            </div>
-          )}
+          <ApprovalDialogContent
+            evaluationDate={evaluationDate}
+            onDateChange={setEvaluationDate}
+            diagnosis={diagnosis}
+            onDiagnosisChange={setDiagnosis}
+            error={approvalError}
+          />
+
+          <div className="flex items-center gap-2 py-4">
+            <Switch
+              id="maybe-restrictions-toggle"
+              checked={withRestrictions}
+              onCheckedChange={setWithRestrictions}
+              disabled={isLoading}
+            />
+            <Label htmlFor="maybe-restrictions-toggle" className="text-sm">
+              Include &quot;with no restrictions&quot; in PDF
+            </Label>
+          </div>
 
           <DialogFooter>
             <Button

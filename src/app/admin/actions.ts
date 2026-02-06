@@ -211,9 +211,12 @@ export async function getMonthlyLimitData(
 /**
  * Approve a submission with PDF generation and email notification
  * @param submissionId - Submission ID to approve
+ * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
+ * @param diagnosis - Optional diagnosis text to include in the PDF
+ * @param withRestrictions - Whether to include ", with no restrictions" text in PDF (defaults to true)
  * @returns Success status with detailed error messages
  */
-export async function approveSubmission(submissionId: string) {
+export async function approveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string, withRestrictions: boolean = true) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -267,11 +270,19 @@ export async function approveSubmission(submissionId: string) {
     }
 
     // Standard approval: Generate PDF and send email
+    // Parse evaluation date if provided (for custom "Date Issued" on PDF)
+    let issueDate: Date | undefined = undefined
+    if (evaluationDate) {
+      const [year, month, day] = evaluationDate.split('-').map(Number)
+      // Create UTC date to match PDF template's formatDate() which uses getUTCMonth/getUTCDate
+      issueDate = new Date(Date.UTC(year, month - 1, day))
+    }
+
     // Step 2: Generate PDF (BLOCKING - must succeed)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions)
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {
@@ -780,7 +791,7 @@ export async function searchSubmissions({
   limit = 10,
 }: {
   query: string
-  searchType: 'name' | 'email' | 'id'
+  searchType: 'name' | 'email' | 'id' | 'phone'
   page?: number
   limit?: number
 }): Promise<{
@@ -838,6 +849,24 @@ export async function searchSubmissions({
           id: { startsWith: trimmedQuery.toLowerCase() },
         }
         break
+
+      case 'phone': {
+        // Strip non-digits and format to match stored format (XXX) XXX-XXXX
+        const digitsOnly = trimmedQuery.replace(/\D/g, '')
+        // Format the digits to match how phones are stored in the database
+        let formattedPhone = digitsOnly
+        if (digitsOnly.length <= 3) {
+          formattedPhone = digitsOnly
+        } else if (digitsOnly.length <= 6) {
+          formattedPhone = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`
+        } else {
+          formattedPhone = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`
+        }
+        whereClause = {
+          phone: { contains: formattedPhone },
+        }
+        break
+      }
     }
 
     // Execute search with pagination
@@ -1006,9 +1035,11 @@ export async function updateSubmission(
  * Use this when edits were made to an approved submission and a new note is needed
  * @param submissionId - Submission ID to re-approve
  * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
+ * @param diagnosis - Optional diagnosis text to include in the PDF
+ * @param withRestrictions - Whether to include ", with no restrictions" text in PDF (defaults to true)
  * @returns Success status with optional warning
  */
-export async function reApproveSubmission(submissionId: string, evaluationDate?: string) {
+export async function reApproveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string, withRestrictions: boolean = true) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -1033,7 +1064,7 @@ export async function reApproveSubmission(submissionId: string, evaluationDate?:
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission, issueDate)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions)
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {

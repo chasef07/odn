@@ -8,10 +8,21 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { SubmissionCard } from '@/components/admin/SubmissionCard'
 import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
+import { getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import type { DenialReason } from '@/lib/admin-utils'
 import type { Submission } from '@prisma/client'
 import {
@@ -40,8 +51,13 @@ export default function AdminReviewPage() {
 
   const [showCompletion, setShowCompletion] = useState(false)
   const [showDenialDialog, setShowDenialDialog] = useState(false)
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
+  const [diagnosis, setDiagnosis] = useState('')
+  const [approvalError, setApprovalError] = useState<string | null>(null)
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
+  const [withRestrictions, setWithRestrictions] = useState(true)
 
   const currentSubmission = submissions[currentIndex]
   const isLastSubmission = currentIndex === submissions.length - 1
@@ -92,16 +108,27 @@ export default function AdminReviewPage() {
     fetchMonthlyData()
   }, [currentSubmission])
 
-  // Handle approval
-  const handleApprove = async () => {
+  // Handle approval - show dialog first
+  const handleApprove = () => {
+    if (!currentSubmission || isTransitioning) return
+    setApprovalError(null)
+    setShowApprovalDialog(true)
+  }
+
+  // Handle approval confirmation with evaluation date and diagnosis
+  const handleApproveConfirm = async () => {
     if (!currentSubmission || isTransitioning) return
 
     setIsTransitioning(true)
+    setApprovalError(null)
 
-    // Call server action to approve
-    const result = await approveSubmission(currentSubmission.id)
+    // Call server action to approve with evaluation date, diagnosis, and restrictions toggle
+    const result = await approveSubmission(currentSubmission.id, evaluationDate, diagnosis || undefined, withRestrictions)
 
     if (result.success) {
+      setShowApprovalDialog(false)
+      setDiagnosis('')
+
       // Add to approved list
       setReviewedSubmissions((prev) => ({
         ...prev,
@@ -110,18 +137,22 @@ export default function AdminReviewPage() {
 
       // Quick fade transition
       setTimeout(() => {
+        // Reset evaluation date to today for next submission
+        setEvaluationDate(getTodayLocal())
+
         if (isLastSubmission) {
           // Show completion screen
           setShowCompletion(true)
         } else {
           // Move to next submission
           setCurrentIndex((prev) => prev + 1)
+          setWithRestrictions(true) // Reset to default for next submission
         }
         setIsTransitioning(false)
       }, 150)
     } else {
       setIsTransitioning(false)
-      setError(result.error || 'Failed to approve submission')
+      setApprovalError(result.error || 'Failed to approve submission')
     }
   }
 
@@ -155,6 +186,7 @@ export default function AdminReviewPage() {
         } else {
           // Move to next submission
           setCurrentIndex((prev) => prev + 1)
+          setWithRestrictions(true) // Reset to default for next submission
         }
         setIsTransitioning(false)
       }, 150)
@@ -188,6 +220,7 @@ export default function AdminReviewPage() {
         } else {
           // Move to next submission
           setCurrentIndex((prev) => prev + 1)
+          setWithRestrictions(true) // Reset to default for next submission
         }
         setIsTransitioning(false)
       }, 150)
@@ -200,8 +233,8 @@ export default function AdminReviewPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Prevent if transitioning or on completion screen
-      if (isTransitioning || showCompletion) return
+      // Prevent if transitioning, on completion screen, or dialog is open
+      if (isTransitioning || showCompletion || showDenialDialog) return
 
       if (e.key === 'ArrowLeft') {
         e.preventDefault() // Prevent scroll
@@ -218,7 +251,7 @@ export default function AdminReviewPage() {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, isTransitioning, showCompletion, currentSubmission])
+  }, [currentIndex, isTransitioning, showCompletion, showDenialDialog, currentSubmission])
 
   // Handle return to dashboard
   const handleReturnToDashboard = () => {
@@ -302,6 +335,12 @@ export default function AdminReviewPage() {
             submission={currentSubmission}
             currentIndex={currentIndex}
             totalCount={submissions.length}
+            evaluationDate={evaluationDate}
+            onEvaluationDateChange={setEvaluationDate}
+            diagnosis={diagnosis}
+            onDiagnosisChange={setDiagnosis}
+            withRestrictions={withRestrictions}
+            onWithRestrictionsChange={setWithRestrictions}
           />
         </div>
       </div>
@@ -367,6 +406,41 @@ export default function AdminReviewPage() {
         onOpenChange={setShowDenialDialog}
         onConfirm={handleDenyConfirm}
       />
+
+      {/* Approval Dialog */}
+      <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Submission?</DialogTitle>
+            <DialogDescription>
+              This will generate a doctor&apos;s note PDF and send it to the patient via email.
+            </DialogDescription>
+          </DialogHeader>
+
+          {approvalError && (
+            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+              <strong>Error:</strong> {approvalError}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowApprovalDialog(false)}
+              disabled={isTransitioning}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleApproveConfirm}
+              disabled={isTransitioning}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isTransitioning ? 'Approving...' : 'Approve & Send PDF'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

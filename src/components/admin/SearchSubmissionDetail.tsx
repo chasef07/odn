@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -33,9 +34,6 @@ import {
   updateSubmission,
   approveSubmission,
   denySubmission,
-  maybeSubmission,
-  markAsManual,
-  reApproveSubmission,
   changeSubmissionStatus,
   type FormattedSubmission,
 } from '@/app/admin/actions'
@@ -94,6 +92,12 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     new Date().toLocaleDateString('en-CA')
   )
 
+  // Diagnosis for PDF (ephemeral - not stored in database)
+  const [diagnosis, setDiagnosis] = useState('')
+
+  // Restrictions toggle for PDF (ephemeral - not stored in database)
+  const [withRestrictions, setWithRestrictions] = useState(true)
+
   const handleSave = async () => {
     setIsLoading(true)
     setError(null)
@@ -140,11 +144,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Use reApproveSubmission for already approved submissions (pass evaluation date)
-      // For new approvals from search page, also use reApproveSubmission to allow custom evaluation date
-      const result = submission.status === SubmissionStatus.APPROVED
-        ? await reApproveSubmission(submission.id, evaluationDate)
-        : await approveSubmission(submission.id)
+      // Always pass evaluationDate, diagnosis, and withRestrictions to approveSubmission
+      // This fixes the bug where first-time approvals from search page ignored the date
+      const result = await approveSubmission(submission.id, evaluationDate, diagnosis || undefined, withRestrictions)
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -491,6 +493,30 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               <p className="text-xs text-muted-foreground">
                 This date appears as &quot;Date Issued&quot; on the PDF. Not stored in database.
               </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Diagnosis (optional)</Label>
+              <Textarea
+                value={diagnosis}
+                onChange={(e) => setDiagnosis(e.target.value)}
+                placeholder=""
+                rows={2}
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for default text. Not stored in database.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <Switch
+                id="restrictions-toggle"
+                checked={withRestrictions}
+                onCheckedChange={setWithRestrictions}
+                disabled={isLoading}
+              />
+              <Label htmlFor="restrictions-toggle" className="text-sm">
+                Include &quot;with no restrictions&quot; in PDF
+              </Label>
             </div>
           </div>
         </div>
