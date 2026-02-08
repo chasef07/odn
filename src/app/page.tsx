@@ -164,7 +164,7 @@ export default function HomePage() {
                     : 'translate-y-8 opacity-0'
                 }`}
               >
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#009ed9]/15 text-xl font-bold text-[#009ed9]">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#009ed9]/10 to-[#009ed9]/5 text-xl font-bold text-[#009ed9]">
                   {item.step}
                 </div>
                 <div>
@@ -259,7 +259,7 @@ export default function HomePage() {
                   }`}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="shrink-0 rounded-xl bg-gradient-to-br from-[#009ed9]/10 to-cyan-400/10 p-2.5">
+                    <div className="shrink-0 rounded-xl bg-gradient-to-br from-[#009ed9]/10 to-[#009ed9]/5 p-2.5">
                       <item.icon className="h-5 w-5 text-[#009ed9]" strokeWidth={1.5} />
                     </div>
                     <div>

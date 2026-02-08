@@ -93,7 +93,7 @@ export default function Home() {
               ))}
             </div>
             <p className="text-muted-foreground text-sm">
-              Join 17,000+ people who got their note in minutes
+              Join 30,000+ people who got their note in minutes
             </p>
           </div>
         </form>
