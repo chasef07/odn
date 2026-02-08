@@ -28,7 +28,7 @@ export default function AboutPage() {
           <div className="overflow-hidden rounded-2xl">
             <Image
               src="/images/homepage/about us.png"
-              alt="Our team of board-certified doctors"
+              alt="OnlineDoctorNote team providing telehealth services"
               width={800}
               height={500}
               className="h-auto w-full object-cover"

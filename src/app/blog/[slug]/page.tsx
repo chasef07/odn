@@ -255,6 +255,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   )
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 function formatMarkdown(content: string): string {
   return content
     .trim()
@@ -264,7 +273,7 @@ function formatMarkdown(content: string): string {
       if (!block) return ''
 
       if (block.startsWith('## ')) {
-        return `<h2>${block.slice(3)}</h2>`
+        return `<h2>${escapeHtml(block.slice(3))}</h2>`
       }
 
       if (block.startsWith('- ')) {
@@ -281,6 +290,9 @@ function formatMarkdown(content: string): string {
 }
 
 function inlineFormat(text: string): string {
+  // First escape HTML entities
+  text = escapeHtml(text)
+  // Then apply markdown formatting (bold and italic)
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
