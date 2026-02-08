@@ -78,7 +78,7 @@ Implementation: `src/lib/date-validators.ts`
 - Phone: 10 digits formatted as `(XXX) XXX-XXXX`
 - Email: Valid format, auto-lowercased, TLD whitelist validation (rejects invalid TLDs like `.clm`)
 - DOB: Between 1900-01-01 and today
-- State: Must be in `AVAILABLE_STATES` (44 states)
+- State: Must be in `AVAILABLE_STATES` (46 states)
 
 Implementation: `src/lib/validation-schemas.ts`
 
@@ -334,7 +334,7 @@ Uses @react-pdf/renderer with Plus Jakarta Sans font.
 
 **Features**:
 - Professional medical document template
-- State-specific medical licenses (44 states in `state-licenses.ts`)
+- State-specific medical licenses (46 states in `state-licenses.ts`)
 - Dynamic "return to work/school" text based on `notePurpose`
 - Branded with Platinum Health Clinic
 - Contact: hello@platinumhealthclinic.com
@@ -374,7 +374,7 @@ See `docs/LOCAL_DEVELOPMENT_TESTING.md` for complete setup guide.
 - ✅ API tests (Stripe mocked)
 - ✅ Email tests (rendering + sending)
 - ✅ PDF tests (generation + validation)
-- ✅ State license tests (44 states)
+- ✅ State license tests (46 states)
 - ✅ Admin action tests (approval/denial)
 - ⚠️ Component tests (not implemented)
 - ⚠️ E2E tests (not implemented)
@@ -486,7 +486,7 @@ Run tests: `npm test`
 
 19. **Webhook Filtering**: Only processes `payment_intent.succeeded`. Rejects events >10 minutes old. Returns 200 for all other events.
 
-20. **State Licenses**: 44 states supported in `state-licenses.ts`. Graceful degradation if state not mapped.
+20. **State Licenses**: 46 states supported in `state-licenses.ts`. Graceful degradation if state not mapped.
 
 21. **Monthly Limits**: Soft limit (warning only). Tracked by email. Can be bypassed (known limitation).
 

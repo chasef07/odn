@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Manrope } from 'next/font/google'
+import { Manrope, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
@@ -10,18 +10,25 @@ const sans = Manrope({
   subsets: ['latin'],
 })
 
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+})
+
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://onlinedoctornote.com'
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Online Doctor\'s Note - Fast, Legal, Affordable | $24.95',
+    default: 'Get a Doctor\'s Note in Minutes | OnlineDoctorNote',
     template: '%s | OnlineDoctorNote'
   },
-  description: 'Get a doctor\'s note online in hours. Board-certified physicians, 100% online, HIPAA compliant. For work or school absences. Only $24.95 with money-back guarantee.',
+  description: 'Get a doctor\'s note online in minutes, not days. Board-certified physicians, 100% online, HIPAA compliant. For work or school absences. Only $24.95 with money-back guarantee.',
   keywords: [
     'online doctor\'s note',
     'doctor\'s note online',
+    'get doctor note fast',
     'medical excuse note',
     'work absence note',
     'school absence note',
@@ -30,6 +37,7 @@ export const metadata: Metadata = {
     'board certified physician note',
     'HIPAA compliant medical note',
     'online medical excuse',
+    'doctor note same day',
   ],
   authors: [{ name: 'OnlineDoctorNote' }],
   creator: 'OnlineDoctorNote',
@@ -44,8 +52,8 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: siteUrl,
     siteName: 'OnlineDoctorNote',
-    title: 'Online Doctor\'s Note - Fast, Legal, Affordable | $24.95',
-    description: 'Get a legitimate doctor\'s note online in hours. Board-certified physicians, 100% online, HIPAA compliant. Only $24.95.',
+    title: 'Get a Doctor\'s Note in Minutes | OnlineDoctorNote',
+    description: 'Get a legitimate doctor\'s note online in minutes. Board-certified physicians, 100% online, HIPAA compliant. Only $24.95.',
     images: [
       {
         url: '/images/og-image.png',
@@ -133,7 +141,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${sans.variable} antialiased`}>
+      <body className={`${sans.variable} ${dmSans.variable} antialiased`}>
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe

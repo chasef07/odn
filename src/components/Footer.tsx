@@ -1,71 +1,68 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { Mail, Phone } from 'lucide-react'
 
 export default function Footer() {
   return (
-    <footer className="border-t bg-[#001830] px-6 py-12">
+    <footer className="border-t border-gray-100 bg-white px-4 py-12 md:px-6">
       <div className="mx-auto max-w-6xl">
-        {/* Footer Links */}
-        <div className="mb-6 flex flex-wrap justify-center gap-12 text-white text-[1.10rem]">
-          <Link href="/privacy-policy" className="hover:text-gray-200 transition-colors">
-            Privacy Policy
-          </Link>
-          <Link href="/terms-of-service" className="hover:text-gray-200 transition-colors">
-            Terms of Service
-          </Link>
-        </div>
+        <div className="flex flex-col items-center gap-8 text-center md:flex-row md:justify-between md:text-left">
+          {/* Contact Info */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-8">
+            <a
+              href="mailto:hello@onlinedoctornote.com"
+              className="flex items-center gap-2 text-sm text-gray-600 transition-colors hover:text-gray-900"
+            >
+              <Mail className="h-4 w-4" />
+              hello@onlinedoctornote.com
+            </a>
+            <a
+              href="tel:917-300-8543"
+              className="flex items-center gap-2 text-sm text-gray-600 transition-colors hover:text-gray-900"
+            >
+              <Phone className="h-4 w-4" />
+              917-300-8543
+              <span className="text-gray-400">(8am–8pm EST)</span>
+            </a>
+          </div>
 
-        {/* Contact Info */}
-        <div className="mb-6 flex flex-col items-center gap-3 text-white text-[1.10rem]">
-          <a
-            href="mailto:hello@onlinedoctornote.com"
-            className="hover:text-gray-200 flex items-center gap-2 transition-colors"
-          >
-            <Mail className="h-5 w-5 text-white" />
-            <span>hello@onlinedoctornote.com</span>
-          </a>
-          <div className="flex items-center gap-2">
-            <Phone className="h-5 w-5 text-white" />
-            <span>
-              <a href="tel:917-300-8543" className="hover:text-gray-200 transition-colors">
-                917-300-8543
-              </a>
-              {' '}(8am–8pm EST everyday)
-            </span>
+          {/* Links */}
+          <div className="flex flex-wrap justify-center gap-6 text-sm md:justify-end">
+            <Link href="/faq" className="text-gray-600 transition-colors hover:text-gray-900">
+              FAQ
+            </Link>
+            <Link href="/blog" className="text-gray-600 transition-colors hover:text-gray-900">
+              Blog
+            </Link>
+            <Link href="/privacy-policy" className="text-gray-600 transition-colors hover:text-gray-900">
+              Privacy
+            </Link>
+            <Link href="/terms-of-service" className="text-gray-600 transition-colors hover:text-gray-900">
+              Terms
+            </Link>
+            <Link href="/about" className="text-gray-600 transition-colors hover:text-gray-900">
+              About
+            </Link>
           </div>
         </div>
 
-        {/* HIPAA Badge Image */}
-        <div className="mb-6 flex justify-center">
-          <Image
-            src="/images/homepage/Hipaa-Compliant-Spanish-medical-translator.png"
-            alt="HIPAA Compliant - Health Insurance Portability and Accountability Act certified medical documentation service"
-            width={50}
-            height={25}
-            className="h-auto w-auto"
-          />
+        <div className="mt-8 flex flex-col items-center gap-4 border-t border-gray-100 pt-8 text-center md:flex-row md:justify-between md:text-left">
+          <p className="text-sm text-gray-500">
+            © {new Date().getFullYear()} OnlineDoctorNote.com · HIPAA Compliant
+          </p>
+          <p className="text-sm text-gray-400">
+            Powered by{' '}
+            <a
+              href="https://www.databuddiessolutions.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-500 transition-colors hover:text-gray-700"
+            >
+              Data Buddies
+            </a>
+          </p>
         </div>
-
-        {/* Copyright */}
-        <p className="text-center text-white text-[1.10rem]">
-          © 2025 OnlineDoctorNote.com
-        </p>
-
-        {/* Powered By */}
-        <p className="mt-2 text-center text-white text-sm">
-          Powered By{' '}
-          <a
-            href="https://www.databuddiessolutions.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gray-200 transition-colors underline"
-          >
-            Data Buddies
-          </a>
-        </p>
       </div>
     </footer>
   )
