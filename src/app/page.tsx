@@ -1,434 +1,346 @@
 'use client'
 
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import {
-  ArrowRight,
-  Shield,
-  Star,
-  DollarSign,
-  BadgeCheck,
-  CheckCircle2,
-  Mail,
-  Phone,
-  MapPin,
-} from 'lucide-react'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
-import { Card } from '@/components/ui/card'
-import { CTAButton } from '@/components/ui/cta-button'
+import { ArrowRight, Star, DollarSign, Phone, BadgeCheck, MapPin, Shield } from 'lucide-react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 export default function HomePage() {
+  const router = useRouter()
+  const [visibleSteps, setVisibleSteps] = useState<Set<number>>(new Set())
+  const stepRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  const herophrases = [
+    'From Your Phone',
+    'Without the Co-Pay',
+    'For Only $24.95',
+  ]
+  const [phraseIndex, setPhraseIndex] = useState(0)
+  const [isAnimating, setIsAnimating] = useState(false)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsAnimating(true)
+      setTimeout(() => {
+        setPhraseIndex((prev) => (prev + 1) % herophrases.length)
+        setIsAnimating(false)
+      }, 300)
+    }, 4500)
+    return () => clearInterval(interval)
+  }, [herophrases.length])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = Number(entry.target.getAttribute('data-step'))
+            setVisibleSteps((prev) => new Set([...prev, index]))
+          }
+        })
+      },
+      { threshold: 0.3, rootMargin: '0px 0px -50px 0px' }
+    )
+
+    stepRefs.current.forEach((ref) => {
+      if (ref) observer.observe(ref)
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Hero Section */}
-      <section className="px-6 py-12 lg:py-20 lg:flex lg:items-center">
-        <div className="mx-auto w-full max-w-7xl">
-          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-            {/* Left Column - Text Content (appears first on mobile) */}
-            <div className="order-1 text-center lg:text-left">
-              <h1 className="font-display text-foreground mb-6 text-5xl font-bold leading-tight sm:text-6xl">
-                The <span className="text-primary">convenient</span> way to get a doctor&apos;s note for work or school!
+      {/* Hero Section - Clean White */}
+      <section className="relative overflow-hidden bg-white px-5 py-10 md:px-6 md:py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid items-center gap-6 md:grid-cols-2 md:gap-12">
+            {/* Left - Text Content */}
+            <div className="order-1 text-left">
+              <h1 className="font-hero animate-fade-in-up mb-3 text-4xl font-bold leading-[1.1] tracking-tight text-gray-900 md:text-5xl lg:text-6xl">
+                Get a Doctor&apos;s Note
+                <span
+                  className={`block whitespace-nowrap text-[#009ed9] transition-all duration-300 ${
+                    isAnimating ? 'translate-y-2 opacity-0' : 'translate-y-0 opacity-100'
+                  }`}
+                >
+                  {herophrases[phraseIndex]}
+                </span>
               </h1>
 
-              {/* Primary CTA */}
-              <CTAButton className="mb-4" />
+              {/* Rating */}
+              <div className="animate-fade-in stagger-1 mb-6">
+                <div className="flex items-center">
+                  {/* 4 full stars */}
+                  {[...Array(4)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  ))}
+                  {/* Half star */}
+                  <div className="relative h-4 w-4">
+                    <Star className="absolute h-4 w-4 text-gray-300" />
+                    <div className="absolute overflow-hidden" style={{ width: '70%' }}>
+                      <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-1 text-sm text-gray-600">Trusted by 30,000+ patients across the US</p>
+              </div>
 
-              <p className="mb-8 text-base">
-                <span className="text-primary text-2xl font-bold">$24.95</span>
-                <span className="text-muted-foreground"> • Money-Back Guarantee</span>
-              </p>
-
-              {/* Trust Badges */}
-              <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-6 text-base lg:justify-start">
-                <div className="flex items-center gap-2">
-                  <Shield className="text-primary h-5 w-5" />
-                  <span>HIPAA Compliant</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Star className="text-primary h-5 w-5" />
-                  <span>17,000+ Notes Issued</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="text-primary h-5 w-5" />
-                  <span>U.S. Licensed Doctors</span>
-                </div>
+              {/* CTA */}
+              <div className="animate-fade-in-up stagger-2 flex flex-col items-start">
+                <button
+                  onClick={() => router.push('/start')}
+                  className="font-hero group inline-flex items-center justify-center gap-2 rounded-full bg-[#009ed9] px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-[#00b4f5]"
+                >
+                  Get Your Note
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </button>
+                <p className="mt-2 text-sm text-gray-500">
+                  <span className="font-semibold text-gray-900">$24.95</span> · Money-Back Guarantee
+                </p>
               </div>
             </div>
 
-            {/* Right Column - Hero Image (appears second on mobile) */}
-            <div className="relative order-2">
-              <Image
-                src="/images/homepage/hero.jpg"
-                alt="Doctor reviewing patient medical note"
-                width={1376}
-                height={1130}
-                priority
-                quality={90}
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="rounded-lg shadow-xl"
-              />
+            {/* Right - Doctor Note */}
+            <div className="order-2 flex justify-center">
+              <div className="animate-fade-in-up stagger-1">
+                <Image
+                  src="/images/homepage/Doctor-Note-letter-1024px.png"
+                  alt="Sample doctor's note"
+                  width={450}
+                  height={411}
+                  quality={90}
+                  priority
+                  className="w-full max-w-md drop-shadow-2xl transition-transform duration-500 hover:scale-105"
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="bg-blue-50 px-6 py-20">
+
+      {/* How It Works - Clean 3-Step */}
+      <section id="how-it-works" className="bg-white px-4 py-20 md:px-6 md:py-28">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-12 text-center text-4xl font-bold">How it Works</h2>
-
-          <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-[1fr_auto_1fr_auto_1fr]">
-            {/* Step 1 */}
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
-              <div className="bg-primary mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white">
-                1
-              </div>
-              <h3 className="mb-2 text-center text-xl font-bold">Complete the Online Form</h3>
-              <p className="text-muted-foreground text-center">
-                It only takes a few minutes.
-              </p>
-            </div>
-
-            {/* Arrow */}
-            <ArrowRight className="text-primary mx-auto hidden h-8 w-8 md:block" />
-
-            {/* Step 2 */}
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
-              <div className="bg-primary mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white">
-                2
-              </div>
-              <h3 className="mb-2 text-center text-xl font-bold">Get Doctor Approval</h3>
-              <p className="text-muted-foreground text-center">
-                A board-certified doctor will sign your note.
-              </p>
-            </div>
-
-            {/* Arrow */}
-            <ArrowRight className="text-primary mx-auto hidden h-8 w-8 md:block" />
-
-            {/* Step 3 */}
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
-              <div className="bg-primary mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white">
-                3
-              </div>
-              <h3 className="mb-2 text-center text-xl font-bold">Get Your Note</h3>
-              <p className="text-muted-foreground text-center">Delivered by email in minutes.</p>
-            </div>
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
+              How it works
+            </h2>
+            <p className="mx-auto max-w-2xl text-lg text-gray-600">
+              Three simple steps to get your doctor&apos;s note
+            </p>
           </div>
 
-          {/* CTA Below Boxes */}
-          <div className="mt-12 text-center">
-            <CTAButton />
+          <div className="grid gap-8 md:grid-cols-3 md:gap-12">
+            {[
+              {
+                step: '01',
+                title: 'Complete the form',
+                description: 'Answer a few simple questions about your absence. Takes about 2-3 minutes.',
+              },
+              {
+                step: '02',
+                title: 'Doctor reviews',
+                description: 'A board-certified physician licensed in your state reviews your request.',
+              },
+              {
+                step: '03',
+                title: 'Receive your note',
+                description: 'Get your signed doctor\'s note delivered straight to your email inbox.',
+              },
+            ].map((item, index) => (
+              <div
+                key={index}
+                ref={(el) => { stepRefs.current[index] = el }}
+                data-step={index}
+                className={`relative transition-all duration-700 ease-out ${
+                  visibleSteps.has(index)
+                    ? 'translate-y-0 opacity-100'
+                    : 'translate-y-8 opacity-0'
+                }`}
+              >
+                <span className="mb-4 block text-5xl font-light text-gray-200">{item.step}</span>
+                <h3 className="mb-2 text-xl font-semibold text-gray-900">{item.title}</h3>
+                <p className="text-gray-600">{item.description}</p>
+              </div>
+            ))}
+          </div>
+
+          <div
+            ref={(el) => { stepRefs.current[3] = el }}
+            data-step={3}
+            className={`mt-12 transition-all duration-700 ease-out ${
+              visibleSteps.has(3)
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-8 opacity-0'
+            }`}
+          >
+            <button
+              onClick={() => router.push('/start')}
+              className="font-hero group inline-flex items-center gap-2 rounded-full bg-[#009ed9] px-8 py-4 text-base font-medium text-white transition-all duration-300 hover:bg-[#00b4f5] hover:shadow-lg hover:shadow-[#009ed9]/25"
+            >
+              Get Your Note
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </button>
           </div>
         </div>
       </section>
 
-      {/* What's Included Section */}
-      <section className="px-6 py-20">
-        <div className="mx-auto max-w-7xl">
-          <h2 className="mb-4 text-center text-5xl font-bold">What&apos;s Included</h2>
-          <p className="text-primary mb-16 text-center text-2xl font-semibold">
-            It&apos;s way more than just a note!
+      {/* What's Included */}
+      <section className="bg-gradient-to-b from-gray-50 to-white px-4 py-20 md:px-6 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-10 text-center md:mb-14">
+            <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
+              What&apos;s included
+            </h2>
+          </div>
+
+          {/* Doctor image + feature cards layout */}
+          <div className="grid items-start gap-10 lg:grid-cols-[340px_1fr] lg:gap-14">
+            {/* Doctor image column */}
+            <div className="flex flex-col items-center lg:sticky lg:top-8">
+              <div className="relative mx-auto w-56 sm:w-64 lg:w-full">
+                <Image
+                  src="/images/stockvault-specialist-doctor177580.jpg"
+                  alt="Board-certified doctor"
+                  width={680}
+                  height={510}
+                  quality={90}
+                  className="relative rounded-2xl object-cover shadow-lg"
+                />
+              </div>
+              <p className="mt-5 text-center text-sm font-medium text-gray-500 lg:mt-6">
+                Every note is reviewed by a licensed physician
+              </p>
+            </div>
+
+            {/* Feature cards column */}
+            <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+              {[
+                {
+                  icon: BadgeCheck,
+                  title: 'Board-Certified Doctors',
+                  description: 'Licensed physicians in your state',
+                },
+                {
+                  icon: DollarSign,
+                  title: '100% Money Back Guarantee',
+                  description: 'Full refund if your note isn\'t accepted',
+                },
+                {
+                  icon: Phone,
+                  title: 'Employer / School Verification',
+                  description: 'We verify your note if contacted',
+                },
+                {
+                  icon: Shield,
+                  title: 'HIPAA Compliant',
+                  description: 'Your information stays private',
+                },
+                {
+                  icon: MapPin,
+                  title: 'Valid Nationwide',
+                  description: 'Accepted across 46 states',
+                },
+              ].map((item, index) => (
+                <div
+                  key={index}
+                  className={`group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 transition-all duration-300 hover:border-[#009ed9]/20 hover:shadow-lg hover:shadow-[#009ed9]/5 ${
+                    index === 4 ? 'sm:col-span-2' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="shrink-0 rounded-xl bg-gradient-to-br from-[#009ed9]/10 to-cyan-400/10 p-2.5">
+                      <item.icon className="h-5 w-5 text-[#009ed9]" strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="mb-0.5 text-base font-semibold text-gray-900">{item.title}</h3>
+                      <p className="text-sm text-gray-600">{item.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Subtle hover accent */}
+                  <div className="absolute -right-12 -top-12 h-24 w-24 rounded-full bg-[#009ed9]/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      {/* Testimonials - Clean Cards */}
+      <section className="bg-gray-50 px-4 py-20 md:px-6 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
+              What our patients say
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {[
+              {
+                quote: "Got my letter within 15 minutes. The process was incredibly smooth and professional.",
+                author: "Jessica M.",
+                location: "New York"
+              },
+              {
+                quote: "Way easier than going to the doctor's office. My employer accepted it without any questions.",
+                author: "Daniel R.",
+                location: "California"
+              },
+              {
+                quote: "My work called to verify and there was no issue. The verification service gave me complete peace of mind.",
+                author: "Chris H.",
+                location: "Texas"
+              }
+            ].map((testimonial, index) => (
+              <figure key={index} className="rounded-xl border border-gray-200 bg-white p-6 md:p-8">
+                <div className="mb-4 flex gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                <blockquote className="mb-6 text-gray-700">
+                  &ldquo;{testimonial.quote}&rdquo;
+                </blockquote>
+                <figcaption className="text-sm text-gray-500">
+                  <strong className="text-gray-900">{testimonial.author}</strong> · {testimonial.location}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+
+
+      {/* Final CTA - Simple */}
+      <section className="bg-gray-900 px-4 py-20 md:px-6 md:py-28">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="mb-4 text-3xl font-semibold tracking-tight text-white md:text-4xl">
+            Get Your Doctor&apos;s Note<br className="sm:hidden" /> From the Comfort of Your Home
+          </h2>
+          <p className="mb-8 text-lg text-gray-400">
+            Skip the waiting room. Get started now.
           </p>
-
-          <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
-            {/* Left Column - Doctor Note Image */}
-            <div className="flex justify-center">
-              <Image
-                src="/images/homepage/Doctor-Note-letter-1024px.png"
-                alt="Sample doctor's note document"
-                width={1024}
-                height={936}
-                quality={85}
-                sizes="(max-width: 1024px) 100vw, 576px"
-                className="w-full max-w-xl"
-              />
-            </div>
-
-            {/* Right Column - Features */}
-            <div className="space-y-8">
-              {/* 100% Money Back Guarantee */}
-              <div className="flex items-center gap-5">
-                <DollarSign className="text-primary h-12 w-12 shrink-0" />
-                <h3 className="text-2xl font-semibold">100% Money Back Guarantee</h3>
-              </div>
-
-              {/* Employer/School Verification */}
-              <div className="flex items-center gap-5">
-                <Phone className="text-primary h-12 w-12 shrink-0" />
-                <h3 className="text-2xl font-semibold">Employer / School Verification Service</h3>
-              </div>
-
-              {/* Board-Certified Doctors */}
-              <div className="flex items-center gap-5">
-                <BadgeCheck className="text-primary h-12 w-12 shrink-0" />
-                <h3 className="text-2xl font-semibold">Board-Certified Doctors</h3>
-              </div>
-
-              {/* HIPAA Compliant */}
-              <div className="flex items-center gap-5">
-                <Shield className="text-primary h-12 w-12 shrink-0" />
-                <h3 className="text-2xl font-semibold">HIPAA Compliant</h3>
-              </div>
-
-              {/* Valid Nationwide */}
-              <div className="flex items-center gap-5">
-                <MapPin className="text-primary h-12 w-12 shrink-0" />
-                <h3 className="text-2xl font-semibold">Valid Nationwide</h3>
-              </div>
-
-              {/* CTA Button */}
-              <div className="pt-6">
-                <CTAButton />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Why Patients Love Us Section */}
-      <section className="bg-blue-50 px-6 py-20">
-        <div className="mx-auto max-w-7xl">
-          <h2 className="mb-16 text-center text-5xl font-bold">Why Patients Love Us</h2>
-
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            {/* Testimonial 1 */}
-            <figure className="rounded-2xl bg-white p-8 shadow-sm">
-              {/* 5 Stars */}
-              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
-                ))}
-              </div>
-
-              {/* Quote */}
-              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
-                I got my letter within 15 minutes! What a great service.
-              </blockquote>
-
-              {/* Author */}
-              <figcaption className="font-semibold text-gray-600">J. S</figcaption>
-            </figure>
-
-            {/* Testimonial 2 */}
-            <figure className="rounded-2xl bg-white p-8 shadow-sm">
-              {/* 5 Stars */}
-              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
-                ))}
-              </div>
-
-              {/* Quote */}
-              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
-                That was way easier than going to the doctor&apos;s office in person.
-              </blockquote>
-
-              {/* Author */}
-              <figcaption className="font-semibold text-gray-600">D. R.</figcaption>
-            </figure>
-
-            {/* Testimonial 3 */}
-            <figure className="rounded-2xl bg-white p-8 shadow-sm">
-              {/* 5 Stars */}
-              <div className="mb-6 flex gap-1" aria-label="5 out of 5 stars">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-6 w-6 fill-primary text-primary" aria-hidden="true" />
-                ))}
-              </div>
-
-              {/* Quote */}
-              <blockquote className="mb-6 text-lg leading-relaxed text-gray-800">
-                My work called to verify the letter and there was no issue. That was easy!
-              </blockquote>
-
-              {/* Author */}
-              <figcaption className="font-semibold text-gray-600">C. H.</figcaption>
-            </figure>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="bg-white px-6 py-20">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="mb-12 text-center text-4xl font-bold">Frequently Asked Questions</h2>
-
-          <div className="space-y-4">
-            <Accordion type="single" collapsible className="w-full space-y-4">
-              <AccordionItem value="item-1" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
-                  What is a doctor&apos;s note?
-                </AccordionTrigger>
-                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
-                  A doctor&apos;s note is a written document provided by a healthcare professional that confirms your evaluation and health condition and excuses you from work and / or school. It typically includes basic information about you and the dates of absence. For privacy purposes, it should not include detailed information about your health condition.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="item-2" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
-                  Who is eligible for a doctor&apos;s note?
-                </AccordionTrigger>
-                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
-                  Employees, students, parents or guardians, and caregivers. If you are under the age of 18, please have your parent or guardian complete the online form.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="item-3" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
-                  Will my employer or school accept the note?
-                </AccordionTrigger>
-                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
-                  We have a 100% money-back guarantee, so you never have to worry. Our doctor&apos;s notes are signed by a board-certified doctor in your state and contain all of the required information to be compliant while maintaining your privacy. If you have any issue, please contact us and our office staff will gladly assist with verification for your employer or school.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="item-4" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
-                  How quickly can I get my doctor&apos;s note?
-                </AccordionTrigger>
-                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
-                  Our normal business hours are 8am to 12am EST. During that time, our doctors will usually issue a note within 30 minutes or less of reviewing your health forms, and our office will send a digital copy to your email. During off hours, it may take a little longer to get your note, but we will always try our best to be as quick as possible.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="item-5" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
-                  Can I use my health insurance?
-                </AccordionTrigger>
-                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
-                  Currently we do not accept insurance. However, we do our best to make our services very affordable and the cost of $24.95 is usually less than your co-pay. Even better, a quick online note saves you a trip to the doctor&apos;s office.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="item-6" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
-                  What can your doctor&apos;s note be used for?
-                </AccordionTrigger>
-                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
-                  Your note from us can be used for simple work or school absences of 5 days or less. Generally this covers mild acute illnesses, minor injuries, mental health issues, doctor&apos;s appointments, and caregiver duties.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="item-7" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
-                  What your doctor&apos;s note cannot be used for?
-                </AccordionTrigger>
-                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
-                  At this time, we cannot provide notes for FMLA (Family and Medical Leave Act) purposes, absences for legal reasons such as a court appearance, insurance forms, return-to-work clearance, disability or workplace accommodations, and emotional support animal letters.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="item-8" className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="text-left text-lg font-semibold hover:no-underline px-6 py-4">
-                  What can happen if you forge a doctor&apos;s note?
-                </AccordionTrigger>
-                <AccordionContent className="text-base text-foreground/75 leading-relaxed px-6 pb-6 pt-1">
-                  Forging a doctor&apos;s note can have serious legal and professional consequences. You can face disciplinary action at work or school. It is always best to obtain legitimate documentation from a licensed healthcare provider rather than attempting to create a fraudulent document.
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA Section */}
-      <section className="px-6 py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="mb-4 text-4xl font-bold">Ready to Get Your Doctor&apos;s Note?</h2>
-          <p className="text-muted-foreground mb-8 text-xl">Join 17,000+ satisfied patients</p>
-
-          <CTAButton showPrice />
+          <button
+            onClick={() => router.push('/start')}
+            className="inline-flex items-center gap-2 rounded-full bg-[#009ed9] px-8 py-4 text-base font-medium text-white transition-all hover:bg-[#00b4f5]"
+          >
+            Get Your Note — $24.95
+            <ArrowRight className="h-5 w-5" />
+          </button>
         </div>
       </section>
 
       <Footer />
-
-      {/* Structured Data - FAQ */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'FAQPage',
-            mainEntity: [
-              {
-                '@type': 'Question',
-                name: 'How long does it take to get my note?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'Most notes are delivered within 2-4 hours. Our board-certified physicians review requests promptly to ensure you receive your note as quickly as possible.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'Is this legal?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'Yes, completely legal. Our notes are signed by licensed, board-certified physicians who review each case individually. These are legitimate medical documents.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'What can I use this note for?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'Our notes can be used for work absences, school absences, and similar short-term needs. They cannot be used for FMLA, workers\' compensation, legal issues, or disability claims.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'What if my employer or school doesn\'t accept it?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'We offer a 100% money-back guarantee. If your note is not accepted, we\'ll issue a full refund. Our notes are accepted by the vast majority of employers and schools nationwide.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'What information do I need to provide?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'You\'ll need basic personal information, the reason for your absence, dates you need covered, and contact information. The entire process takes less than 2 minutes to complete.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'What states do you serve?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'We currently serve 44 US states. Our physicians are licensed in multiple states to ensure compliance with local medical regulations.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'Is my information secure?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'Absolutely. We are HIPAA compliant and use industry-standard encryption to protect your personal and medical information. Your privacy is our top priority.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'Do you accept insurance?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'No, we do not accept insurance. However, at only $24.95, our service is an affordable out-of-pocket option that saves you the time and expense of a traditional doctor visit.',
-                },
-              },
-            ],
-          }),
-        }}
-      />
     </div>
   )
 }
