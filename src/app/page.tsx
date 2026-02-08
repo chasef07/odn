@@ -14,7 +14,7 @@ export default function HomePage() {
 
   const herophrases = [
     'From Your Phone',
-    'Without the Co-Pay',
+    'Within Minutes',
     'For Only $24.95',
   ]
   const [phraseIndex, setPhraseIndex] = useState(0)
@@ -111,11 +111,11 @@ export default function HomePage() {
                 <Image
                   src="/images/homepage/Doctor-Note-letter-1024px.png"
                   alt="Sample doctor's note"
-                  width={450}
-                  height={411}
+                  width={600}
+                  height={548}
                   quality={90}
                   priority
-                  className="w-full max-w-md drop-shadow-2xl transition-transform duration-500 hover:scale-105"
+                  className="w-full max-w-lg drop-shadow-2xl transition-transform duration-500 hover:scale-105"
                 />
               </div>
             </div>
@@ -139,17 +139,17 @@ export default function HomePage() {
           <div className="grid gap-8 md:grid-cols-3 md:gap-12">
             {[
               {
-                step: '01',
+                step: '1',
                 title: 'Complete the form',
-                description: 'Answer a few simple questions about your absence. Takes about 2-3 minutes.',
+                description: 'Answer a few simple questions about your absence. Takes about 2 minutes.',
               },
               {
-                step: '02',
+                step: '2',
                 title: 'Doctor reviews',
                 description: 'A board-certified physician licensed in your state reviews your request.',
               },
               {
-                step: '03',
+                step: '3',
                 title: 'Receive your note',
                 description: 'Get your signed doctor\'s note delivered straight to your email inbox.',
               },
@@ -158,15 +158,19 @@ export default function HomePage() {
                 key={index}
                 ref={(el) => { stepRefs.current[index] = el }}
                 data-step={index}
-                className={`relative transition-all duration-700 ease-out ${
+                className={`relative flex items-start gap-5 transition-all duration-700 ease-out ${
                   visibleSteps.has(index)
                     ? 'translate-y-0 opacity-100'
                     : 'translate-y-8 opacity-0'
                 }`}
               >
-                <span className="mb-4 block text-5xl font-light text-gray-200">{item.step}</span>
-                <h3 className="mb-2 text-xl font-semibold text-gray-900">{item.title}</h3>
-                <p className="text-gray-600">{item.description}</p>
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#009ed9]/15 text-xl font-bold text-[#009ed9]">
+                  {item.step}
+                </div>
+                <div>
+                  <h3 className="mb-1 text-xl font-semibold text-gray-900">{item.title}</h3>
+                  <p className="text-gray-600">{item.description}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -174,7 +178,7 @@ export default function HomePage() {
           <div
             ref={(el) => { stepRefs.current[3] = el }}
             data-step={3}
-            className={`mt-12 transition-all duration-700 ease-out ${
+            className={`mt-12 text-center transition-all duration-700 ease-out ${
               visibleSteps.has(3)
                 ? 'translate-y-0 opacity-100'
                 : 'translate-y-8 opacity-0'
@@ -278,6 +282,23 @@ export default function HomePage() {
       <section className="bg-gray-50 px-4 py-20 md:px-6 md:py-28">
         <div className="mx-auto max-w-6xl">
           <div className="mb-16 text-center">
+            <div className="mb-5 flex justify-center -space-x-3">
+              {[
+                'https://randomuser.me/api/portraits/women/44.jpg',
+                'https://randomuser.me/api/portraits/men/32.jpg',
+                'https://randomuser.me/api/portraits/women/68.jpg',
+                'https://randomuser.me/api/portraits/men/75.jpg',
+              ].map((src, i) => (
+                <Image
+                  key={i}
+                  src={src}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 rounded-full border-2 border-white object-cover"
+                />
+              ))}
+            </div>
             <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
               What our patients say
             </h2>
