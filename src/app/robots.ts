@@ -3,6 +3,23 @@ import { MetadataRoute } from 'next'
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://onlinedoctornote.com'
 
+  // All form step pages that should not be crawled
+  const formPages = [
+    '/get-started',
+    '/basic-info',
+    '/guardian-info',
+    '/contact-info',
+    '/note-purpose',
+    '/absence-dates',
+    '/absence-reason',
+    '/symptoms',
+    '/additional-info',
+    '/review',
+    '/payment/',
+    '/approved',
+    '/who-is-using',
+  ]
+
   return {
     rules: [
       {
@@ -19,45 +36,15 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/admin/',
-          '/get-started',
-          '/basic-info',
-          '/guardian-info',
-          '/contact-info',
-          '/note-purpose',
-          '/absence-dates',
-          '/absence-reason',
-          '/symptoms',
-          '/additional-info',
-          '/review',
-          '/payment/',
-          '/approved',
-          '/who-is-using',
-        ],
-      },
-      {
-        userAgent: 'Googlebot',
-        allow: [
-          '/',
-          '/start',
-          '/about',
-          '/faq',
-          '/blog',
-          '/privacy-policy',
-          '/terms-of-service',
-        ],
-        disallow: [
-          '/api/',
-          '/admin/',
-          '/get-started',
-          '/payment/',
           '/*?',
+          ...formPages,
         ],
       },
+      // AI crawlers - limited to homepage + legal pages only
       {
-        userAgent: 'Bingbot',
+        userAgent: ['GPTBot', 'ChatGPT-User', 'anthropic-ai', 'Claude-Web'],
         allow: [
           '/',
-          '/start',
           '/about',
           '/faq',
           '/blog',
@@ -67,49 +54,10 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/admin/',
-          '/payment/',
+          '/start',
+          '/*?',
+          ...formPages,
         ],
-      },
-      // Control AI crawlers
-      {
-        userAgent: 'GPTBot', // ChatGPT crawler
-        allow: [
-          '/',
-          '/privacy-policy',
-          '/terms-of-service',
-        ],
-        disallow: [
-          '/api/',
-          '/admin/',
-          '/payment/',
-        ],
-      },
-      {
-        userAgent: 'ChatGPT-User',
-        allow: [
-          '/',
-          '/privacy-policy',
-          '/terms-of-service',
-        ],
-        disallow: ['/api/', '/admin/', '/payment/'],
-      },
-      {
-        userAgent: 'anthropic-ai', // Claude crawler
-        allow: [
-          '/',
-          '/privacy-policy',
-          '/terms-of-service',
-        ],
-        disallow: ['/api/', '/admin/', '/payment/'],
-      },
-      {
-        userAgent: 'Claude-Web',
-        allow: [
-          '/',
-          '/privacy-policy',
-          '/terms-of-service',
-        ],
-        disallow: ['/api/', '/admin/', '/payment/'],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

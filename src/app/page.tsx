@@ -8,9 +8,9 @@ import HowItWorksSection from '@/components/homepage/HowItWorksSection'
 import FinalCTASection from '@/components/homepage/FinalCTASection'
 
 export const metadata: Metadata = {
-  title: "Online Doctor's Note - Get a Doctor's Note from Your Phone in Minutes",
+  title: "Get a Doctor's Note for Work or School from the Comfort of Your Home",
   description:
-    "Get a legitimate doctor's note for work or school in minutes. Board-certified physicians, HIPAA compliant, valid nationwide. Only $24.95 with money-back guarantee.",
+    "Get an official doctor's note for work or school in minutes. Board-certified physicians, HIPAA compliant, valid nationwide. Only $24.95 with money-back guarantee.",
   keywords: [
     "doctor's note",
     "online doctor note",
@@ -21,9 +21,9 @@ export const metadata: Metadata = {
     'medical excuse',
   ],
   openGraph: {
-    title: "Online Doctor's Note - Get Your Note in Minutes",
+    title: "Get a Doctor's Note for Work or School from the Comfort of Your Home",
     description:
-      'Get a legitimate doctor\'s note from a board-certified physician. Fast, affordable, and accepted nationwide.',
+      'Get an official doctor\'s note from a board-certified physician. Fast, affordable, and accepted nationwide.',
     type: 'website',
     url: 'https://onlinedoctornote.com',
   },
