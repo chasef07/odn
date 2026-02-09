@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Menu, X, ArrowRight } from 'lucide-react'
@@ -16,6 +16,8 @@ const navLinks = [
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -29,8 +31,57 @@ export default function Header() {
     }
   }, [mobileMenuOpen])
 
+  // Focus trap and keyboard handling for mobile menu
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    // Focus the close button when menu opens
+    closeButtonRef.current?.focus()
+
+    // Handle escape key
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    // Handle tab key for focus trap
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !mobileMenuRef.current) return
+
+      const focusableElements = mobileMenuRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault()
+        lastElement?.focus()
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault()
+        firstElement?.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    document.addEventListener('keydown', handleTab)
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener('keydown', handleTab)
+    }
+  }, [mobileMenuOpen])
+
   return (
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white md:bg-white/80 md:backdrop-blur-xl">
+      {/* Skip to main content link - for keyboard/screen reader users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-[#009ed9] focus:px-4 focus:py-2 focus:text-white focus:outline-none focus:ring-2 focus:ring-white"
+      >
+        Skip to main content
+      </a>
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-6">
         {/* Text Logo */}
         <Link href="/" className="shrink-0">
@@ -64,9 +115,11 @@ export default function Header() {
 
         {/* Mobile Menu Button */}
         <button
+          ref={closeButtonRef}
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="relative z-50 rounded-lg p-2 text-gray-600 hover:bg-gray-100 md:hidden"
-          aria-label="Toggle menu"
+          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileMenuOpen}
         >
           {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
@@ -75,6 +128,7 @@ export default function Header() {
       {/* Mobile Menu - Full Screen Overlay */}
       {mobileMenuOpen && (
         <div
+          ref={mobileMenuRef}
           className="fixed inset-0 z-40 bg-white md:hidden"
           role="dialog"
           aria-modal="true"

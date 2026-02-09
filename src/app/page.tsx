@@ -42,8 +42,9 @@ export default function HomePage() {
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Hero Section - Client Component */}
-      <HeroSection />
+      <main id="main-content">
+        {/* Hero Section - Client Component */}
+        <HeroSection />
 
       {/* How It Works - Client Component */}
       <HowItWorksSection />
@@ -190,8 +191,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Final CTA - Client Component */}
-      <FinalCTASection />
+        {/* Final CTA - Client Component */}
+        <FinalCTASection />
+      </main>
 
       <Footer />
     </div>
