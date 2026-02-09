@@ -39,6 +39,9 @@ export default function robots(): MetadataRoute.Robots {
         allow: [
           '/',
           '/start',
+          '/about',
+          '/faq',
+          '/blog',
           '/privacy-policy',
           '/terms-of-service',
         ],

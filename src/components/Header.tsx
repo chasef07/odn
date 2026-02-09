@@ -74,7 +74,12 @@ export default function Header() {
 
       {/* Mobile Menu - Full Screen Overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-white md:hidden">
+        <div
+          className="fixed inset-0 z-40 bg-white md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile menu"
+        >
           <div className="flex h-full flex-col px-6 pt-20">
             {/* Navigation Links */}
             <div className="flex flex-col gap-2">

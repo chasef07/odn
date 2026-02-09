@@ -290,10 +290,12 @@ function formatMarkdown(content: string): string {
 }
 
 function inlineFormat(text: string): string {
-  // First escape HTML entities
-  text = escapeHtml(text)
-  // Then apply markdown formatting (bold and italic)
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+  // Escape all HTML first
+  let escaped = escapeHtml(text)
+  // Then replace the escaped markdown patterns with HTML tags
+  // Since we've already escaped, **foo** becomes **foo** (with escaped special chars if any)
+  // We can safely wrap these with tags
+  escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  escaped = escaped.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  return escaped
 }
