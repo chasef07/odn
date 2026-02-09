@@ -29,12 +29,11 @@ export const metadata: Metadata = {
   },
 }
 
-// Placeholder avatar data (using initials instead of external images)
 const testimonialAvatars = [
-  { initials: 'JM', bgColor: 'bg-blue-500' },
-  { initials: 'DR', bgColor: 'bg-green-500' },
-  { initials: 'CH', bgColor: 'bg-purple-500' },
-  { initials: 'TK', bgColor: 'bg-pink-500' },
+  '/images/avatars/avatar-1.jpg',
+  '/images/avatars/avatar-2.jpg',
+  '/images/avatars/avatar-3.jpg',
+  '/images/avatars/avatar-4.jpg',
 ]
 
 export default function HomePage() {
@@ -135,14 +134,15 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-16 text-center">
             <div className="mb-5 flex justify-center -space-x-3">
-              {testimonialAvatars.map((avatar, i) => (
-                <div
+              {testimonialAvatars.map((src, i) => (
+                <Image
                   key={i}
-                  className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white ${avatar.bgColor} text-xs font-semibold text-white`}
-                  aria-label={`Customer avatar ${i + 1}`}
-                >
-                  {avatar.initials}
-                </div>
+                  src={src}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 rounded-full border-2 border-white object-cover"
+                />
               ))}
             </div>
             <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
