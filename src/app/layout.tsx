@@ -20,10 +20,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://onlinedoctornote.co
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: {
-    default: 'Get a Doctor\'s Note in Minutes | OnlineDoctorNote',
-    template: '%s | OnlineDoctorNote'
-  },
+  title: 'Get a Doctor\'s Note in Minutes | OnlineDoctorNote',
   description: 'Get a doctor\'s note online in minutes, not days. Board-certified physicians, 100% online, HIPAA compliant. For work or school absences. Only $24.95 with money-back guarantee.',
   keywords: [
     'online doctor\'s note',
@@ -33,7 +30,7 @@ export const metadata: Metadata = {
     'work absence note',
     'school absence note',
     'telemedicine doctor note',
-    'legitimate doctor\'s note',
+    'official doctor\'s note',
     'board certified physician note',
     'HIPAA compliant medical note',
     'online medical excuse',
@@ -53,7 +50,7 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: 'OnlineDoctorNote',
     title: 'Get a Doctor\'s Note in Minutes | OnlineDoctorNote',
-    description: 'Get a legitimate doctor\'s note online in minutes. Board-certified physicians, 100% online, HIPAA compliant. Only $24.95.',
+    description: 'Get an official doctor\'s note online in minutes. Board-certified physicians, 100% online, HIPAA compliant. Only $24.95.',
     images: [
       {
         url: '/images/og-image.png',
