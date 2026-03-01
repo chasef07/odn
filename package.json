@@ -61,6 +61,11 @@
     "tailwind-merge": "^3.4.0",
     "zod": "^4.1.12"
   },
+  "overrides": {
+    "c12": {
+      "magicast": "^0.5.1"
+    }
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@prisma/dev": "^0.20.0",
