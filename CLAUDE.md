@@ -14,7 +14,7 @@ This document provides guidelines and context for AI assistants (Claude Code) wo
 - **Forms**: react-hook-form + Zod validation
 - **Database**: PostgreSQL + Prisma ORM + Prisma Accelerate
 - **Local DB**: PGlite (via @prisma/dev) for local development/testing
-- **Payments**: Stripe (v2025-10-29.clover API)
+- **Payments**: Stripe (v2026-02-25.clover API)
 - **Auth**: Better Auth (email/password + bcrypt)
 - **Email**: React Email + Resend
 - **PDF**: @react-pdf/renderer
@@ -93,7 +93,7 @@ Implementation: `src/lib/validation-schemas.ts`
 
 Key files:
 - `src/app/api/create-payment-intent/route.ts`
-- `src/app/api/webhooks/stripe-prod2/route.ts`
+- `src/app/api/webhooks/stripe-prod3/route.ts`
 - `src/app/api/verify-payment/route.ts`
 
 ### Monthly Limit Tracking
@@ -213,11 +213,11 @@ npx tsx scripts/delete-all-users.ts
 ### Debugging Stripe
 
 - Check `.env.local` for correct API keys
-- Verify API version: `2025-10-29.clover`
+- Verify API version: `2026-02-25.clover`
 - Test cards: `4242 4242 4242 4242`
 - Check Stripe Dashboard for logs
 - Review API route logs in dev
-- Check webhook signature in `/api/webhooks/stripe-prod2`
+- Check webhook signature in `/api/webhooks/stripe-prod3`
 
 ### Admin Portal
 
@@ -482,7 +482,7 @@ Run tests: `npm test`
 
 17. **Analytics**: Vercel Analytics integrated in `layout.tsx`.
 
-18. **Webhooks (Local)**: Use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod2`
+18. **Webhooks (Local)**: Use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3`
 
 19. **Webhook Filtering**: Only processes `payment_intent.succeeded`. Rejects events >10 minutes old. Returns 200 for all other events.
 
