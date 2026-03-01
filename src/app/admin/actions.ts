@@ -22,7 +22,7 @@ export type ManualSubmission = Awaited<ReturnType<typeof getManualSubmissions>>[
 
 // Initialize Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-10-29.clover',
+  apiVersion: '2026-02-25.clover',
 })
 
 
