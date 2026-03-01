@@ -18,7 +18,7 @@ A modern Next.js application that provides legitimate medical excuse notes for w
 - **Language**: TypeScript 5 (strict mode)
 - **UI**: React 19, Tailwind CSS 4, Radix UI, shadcn/ui
 - **Forms**: react-hook-form + Zod validation
-- **Payments**: Stripe (API v2025-10-29.clover)
+- **Payments**: Stripe (API v2026-02-25.clover)
 - **Database**: PostgreSQL + Prisma ORM + Prisma Accelerate
 - **Auth**: Better Auth (email/password with bcrypt)
 - **Email**: React Email + Resend
@@ -269,7 +269,7 @@ brew install stripe/stripe-cli/stripe
 stripe login
 
 # Forward webhooks to local server
-stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod2
+stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
 
 # Copy the webhook signing secret to .env.local
 # STRIPE_WEBHOOK_SECRET=whsec_...

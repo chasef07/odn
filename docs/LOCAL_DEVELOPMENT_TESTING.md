@@ -31,7 +31,7 @@ mv .env .env.production.backup
 npm run dev
 
 # 4. In another terminal, start Stripe webhook forwarding
-stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod2
+stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
 ```
 
 ## Step-by-Step Setup
@@ -120,7 +120,7 @@ This creates:
 In a separate terminal:
 
 ```bash
-stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod2
+stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
 ```
 
 Copy the webhook secret (`whsec_...`) and add it to `.env.local` as `STRIPE_WEBHOOK_SECRET`.
@@ -198,7 +198,7 @@ mv .env .env.production.backup
 ### Webhook Returns 404
 Check the webhook endpoint path. It should be:
 ```bash
-stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod2
+stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
 ```
 
 ## Cleanup

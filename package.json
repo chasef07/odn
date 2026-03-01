@@ -1,6 +1,6 @@
 {
   "name": "onlinedoctornote",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -36,7 +36,7 @@
     "@react-email/button": "^0.2.0",
     "@react-email/column": "^0.0.13",
     "@react-email/components": "^1.0.1",
-    "@react-email/hr": "^0.0.11",
+    "@react-email/hr": "^0.0.12",
     "@react-email/render": "^2.0.0",
     "@react-email/row": "^0.0.12",
     "@react-email/tailwind": "^2.0.1",
@@ -57,9 +57,14 @@
     "react-dom": "^19.2.1",
     "react-hook-form": "^7.66.0",
     "resend": "^6.4.2",
-    "stripe": "^19.3.1",
+    "stripe": "^20.4.0",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.1.12"
+  },
+  "overrides": {
+    "c12": {
+      "magicast": "^0.5.1"
+    }
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
