@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod'
+import { differenceInYears } from 'date-fns'
 
 export const page1Schema = z
   .object({
@@ -63,7 +64,11 @@ export const guardianSchema = z.object({
     })
     .refine((val) => new Date(val) >= new Date('1900-01-01'), {
       message: 'Please enter a valid date of birth',
-    }),
+    })
+    .refine(
+      (val) => differenceInYears(new Date(), new Date(val)) >= 18,
+      { message: 'Guardian must be 18 years or older' }
+    ),
 })
 
 // Common domain typos and their corrections

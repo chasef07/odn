@@ -17,6 +17,7 @@ import { getFormData, saveFormData } from '@/lib/form-storage'
 import { page2Schema, guardianSchema, page3Schema, page6Schema, page10Schema } from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
 import { validateAbsenceDates } from '@/lib/date-validators'
+import { isAgeValid } from '@/lib/age-validators'
 import { UI_TIMING } from '@/lib/validation-constants'
 
 // Step number will be dynamic based on recipient
@@ -168,6 +169,14 @@ export default function ReviewPage() {
 
   // Handler to save personal info
   const handleSavePersonal = personalForm.handleSubmit((data) => {
+    if (recipient === 'myself' && data.patientDateOfBirth) {
+      if (!isAgeValid(data.patientDateOfBirth, 18)) {
+        personalForm.setError('patientDateOfBirth', {
+          message: 'You must be 18 or older to request a note for yourself',
+        })
+        return
+      }
+    }
     saveFormData(data)
     setFormData(getFormData())
     setEditingSection(null)
