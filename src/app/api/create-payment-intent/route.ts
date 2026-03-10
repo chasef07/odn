@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
+import { isAgeValid } from '@/lib/age-validators'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -86,6 +87,24 @@ export async function POST(request: NextRequest) {
       ) {
         return NextResponse.json(
           { error: 'Guardian information is required when submitting for someone else' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // 3b. Validate age requirements
+    if (formData.recipient === 'myself' && formData.patientDateOfBirth) {
+      if (!isAgeValid(formData.patientDateOfBirth, 18)) {
+        return NextResponse.json(
+          { error: 'You must be 18 or older to request a note for yourself' },
+          { status: 400 }
+        )
+      }
+    }
+    if (formData.recipient === 'someone_else' && formData.guardianDateOfBirth) {
+      if (!isAgeValid(formData.guardianDateOfBirth, 18)) {
+        return NextResponse.json(
+          { error: 'Guardian must be 18 years or older' },
           { status: 400 }
         )
       }
