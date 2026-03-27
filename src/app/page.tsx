@@ -6,6 +6,7 @@ import Footer from '@/components/Footer'
 import HeroSection from '@/components/homepage/HeroSection'
 import HowItWorksSection from '@/components/homepage/HowItWorksSection'
 import FinalCTASection from '@/components/homepage/FinalCTASection'
+import WhyUseUsSection from '@/components/homepage/WhyUseUsSection'
 
 export const metadata: Metadata = {
   title: "Get a Doctor's Note for Work or School from the Comfort of Your Home",
@@ -44,6 +45,9 @@ export default function HomePage() {
       <main id="main-content">
         {/* Hero Section - Client Component */}
         <HeroSection />
+
+      {/* Why Use Us - Server Component */}
+      <WhyUseUsSection />
 
       {/* How It Works - Client Component */}
       <HowItWorksSection />

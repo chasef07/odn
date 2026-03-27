@@ -98,12 +98,12 @@ Key files:
 
 ### Monthly Limit Tracking
 
-- Limit: 7 days per calendar month (soft limit - warning only)
-- Identifier: Patient email (case-insensitive)
+- Limit: 7 days per 30-day rolling window (soft limit - warning only)
+- Identifier: Patient name + date of birth (case-insensitive name matching)
 - Only APPROVED submissions count
-- Can be bypassed with multiple emails (known limitation)
+- Harder to bypass than previous email-based tracking
 
-Implementation: `src/components/admin/SubmissionsList.tsx` (lines 156-196)
+Implementation: `src/lib/monthly-limit.ts`
 
 ## Form Flow
 
@@ -433,7 +433,7 @@ Run tests: `npm test`
 5. localStorage only for form data
 6. No dark mode
 7. No PDF storage (generated on-demand)
-8. Monthly limit bypass (multiple emails)
+8. ~~Monthly limit bypass (multiple emails)~~ — Fixed: now tracked by name + DOB
 9. No admin notifications for new submissions
 10. No customer testimonials
 11. No blog/content marketing
@@ -488,7 +488,7 @@ Run tests: `npm test`
 
 20. **State Licenses**: 46 states supported in `state-licenses.ts`. Graceful degradation if state not mapped.
 
-21. **Monthly Limits**: Soft limit (warning only). Tracked by email. Can be bypassed (known limitation).
+21. **Monthly Limits**: Soft limit (warning only). Tracked by patient name + DOB (case-insensitive). Harder to bypass than email-based tracking.
 
 22. **Google Ads Tracking**: Global tag in `layout.tsx` tracks all page visits. Conversion event fires on `/payment/success` after successful payment verification with transaction ID.
 
@@ -497,6 +497,20 @@ Run tests: `npm test`
 24. **Admin Search**: `/admin/search` allows searching ALL submissions by name, email, or ID. Supports editing any field and changing status. Re-approval triggers new PDF generation and email.
 
 25. **Status Transitions**: Use `changeSubmissionStatus()` for non-approval transitions. Use `approveSubmission()` or `reApproveSubmission()` for approvals. Denial after approval checks `stripeRefundId` to avoid double refunds.
+
+26. **Patient History**: `PatientHistoryPopup` component shows prior submissions for the same patient (by name+DOB or email) during review. Appears as an amber "N prior" badge next to patient name in SubmissionCard and SearchSubmissionDetail.
+
+27. **Date of Birth Input**: `DateOfBirthInput` component uses three separate text inputs (MM/DD/YYYY) with auto-advance, numeric keyboard on mobile, and inline age confirmation. Replaces native date picker on basic-info and guardian-info pages.
+
+28. **Denial Reasons**: Six options: Legal, 7+ days, Duplicate, Refund, Under 18, Other. Applied consistently across DenialReasonDialog, SearchSubmissionDetail, MaybeActionButtons, and ManualActionButtons.
+
+29. **Reddit Pixel**: Tracking pixel in `layout.tsx` alongside GTM. Pixel ID: `a2_ildu672qliq5`. Tracks PageVisit on all pages.
+
+30. **Homepage "Why Use Us"**: `WhyUseUsSection` server component renders after hero. Blue background (#009ed9), 6 benefit cards in responsive grid.
+
+31. **PDF Wording**: Date labels read "First Day Off" / "Last Day Off" (not "Start Date" / "End Date"). The word "after" in the return-to-work sentence is bold and underlined for clarity.
+
+32. **Corporate Entity**: ODN LLC (registered in Delaware) at 5740 SW 67th Avenue, Miami, FL 33143. Updated in both Terms of Service and Privacy Policy.
 
 ## Useful Commands
 
@@ -531,4 +545,4 @@ npx tsc --noEmit          # Check TypeScript
 
 ---
 
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-03-27

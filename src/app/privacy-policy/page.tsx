@@ -17,12 +17,12 @@ export default function PrivacyPolicyPage() {
 
       <div className="mx-auto max-w-4xl px-6 py-12">
         <h1 className="mb-6 text-4xl font-bold">Privacy Policy</h1>
-        <p className="mb-8 text-sm text-muted-foreground">Last updated April 11, 2025</p>
+        <p className="mb-8 text-sm text-muted-foreground">Last updated March 27, 2026</p>
 
         <div className="prose prose-gray max-w-none space-y-8">
           <section>
             <p className="leading-relaxed">
-              This Privacy Notice for Plantation Physical Medicine LLC (doing business as
+              This Privacy Notice for ODN LLC (doing business as
               OnlineDoctorNote.com) (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;), describes
               how and why we might access, collect, store, use, and/or share (&quot;process&quot;)
               your personal information when you use our services (&quot;Services&quot;), including
@@ -591,11 +591,13 @@ export default function PrivacyPolicyPage() {
               or contact us by post at:
             </p>
             <address className="not-italic">
-              Plantation Physical Medicine LLC
+              ODN LLC
               <br />
               OnlineDoctorNote.com
               <br />
-              United States
+              5740 SW 67th Avenue
+              <br />
+              Miami, FL 33143
             </address>
           </section>
 

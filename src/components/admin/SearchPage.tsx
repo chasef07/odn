@@ -193,7 +193,7 @@ export function SearchPage({
                     <p className="font-medium text-gray-900">
                       {submission.patientFirstName} {submission.patientLastName}
                     </p>
-                    <p className="truncate text-sm text-gray-500">{submission.email}</p>
+                    <a href={`mailto:${submission.email}`} className="block truncate text-sm text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>{submission.email}</a>
                   </div>
                   <StatusBadge status={submission.status} />
                 </div>
@@ -243,8 +243,8 @@ export function SearchPage({
                       </p>
                       <p className="text-xs text-gray-400">{submission.id.slice(0, 12)}...</p>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                      {submission.email}
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <a href={`mailto:${submission.email}`} className="text-blue-600 hover:underline">{submission.email}</a>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       <StatusBadge status={submission.status} />

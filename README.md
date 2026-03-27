@@ -24,7 +24,7 @@ A modern Next.js application that provides legitimate medical excuse notes for w
 - **Email**: React Email + Resend
 - **PDF**: @react-pdf/renderer
 - **Testing**: Vitest + Testing Library
-- **Analytics**: Vercel Analytics + Google Ads conversion tracking
+- **Analytics**: Vercel Analytics + Google Ads + Reddit Pixel conversion tracking
 
 ## Quick Start
 
@@ -162,7 +162,9 @@ src/
 - **Search**: Find any submission by name, email, or ID (`/admin/search`)
 - **Actions**: Approve (sends PDF via email) or Deny (refunds + email)
 - **Edit & Re-approve**: Modify any field and regenerate PDF with updated information
-- **Monthly Limits**: Visual warnings when patients exceed 7 days/month
+- **Monthly Limits**: Visual warnings when patients exceed 7 days/month (tracked by name + DOB)
+- **Patient History**: View prior submissions for repeat patients during review
+- **Denial Reasons**: Includes Under 18, Legal, 7+ days, Duplicate, Refund, Other
 - **Other Fields**: Displays custom text when users select "other" (e.g., "other - custom reason")
 
 ### Admin Search & Edit
@@ -312,10 +314,10 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
 - Strict validation in `src/lib/date-validators.ts`
 
 ### Monthly Limits
-- Soft limit of 7 approved days per calendar month
-- Tracked by patient email (case-insensitive)
+- Soft limit of 7 approved days per 30-day rolling window
+- Tracked by patient name + date of birth (case-insensitive)
 - Warning displayed in admin portal
-- Can be bypassed with multiple emails (known limitation)
+- Patient history popup shows prior submissions during review
 
 ### Payment Processing
 - Price managed via Stripe Dashboard (single source of truth)
@@ -328,7 +330,7 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
 2. No duplicate payment detection
 3. Form data stored in localStorage only (not synced to server)
 4. No PDF storage (generated on-demand)
-5. Monthly limit can be bypassed with multiple emails
+5. Monthly limit tracked by name + DOB (harder to bypass than email)
 6. No admin notifications for new submissions
 7. No dark mode support
 
