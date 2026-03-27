@@ -197,6 +197,7 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
                   <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
                   <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
                   <SelectItem value="Refund">Refund</SelectItem>
+                  <SelectItem value="Under 18">Under 18 - Patient is a minor</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>

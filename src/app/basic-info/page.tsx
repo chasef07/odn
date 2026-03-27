@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { FormLayout } from '@/components/form-layout'
 import { FormCard } from '@/components/form/FormCard'
 import { FormField } from '@/components/form/FormField'
+import { DateOfBirthInput } from '@/components/form/DateOfBirthInput'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { page2Schema } from '@/lib/validation-schemas'
@@ -30,6 +31,7 @@ export default function BasicInfoPage() {
     formState: { errors, isSubmitting },
     setError,
     setValue,
+    watch,
   } = useForm<FormData>({
     resolver: zodResolver(page2Schema),
     defaultValues: {
@@ -110,17 +112,13 @@ export default function BasicInfoPage() {
               />
             </div>
 
-            <div className="w-full sm:w-auto">
-              <div className="max-w-[240px]">
-                <FormField
-                  id="patientDateOfBirth"
-                  label="Date of Birth"
-                  type="date"
-                  register={register('patientDateOfBirth')}
-                  error={errors.patientDateOfBirth}
-                />
-              </div>
-            </div>
+            <DateOfBirthInput
+              name="patientDateOfBirth"
+              label="Date of Birth"
+              value={watch('patientDateOfBirth')}
+              onChange={(val) => setValue('patientDateOfBirth', val, { shouldValidate: false })}
+              error={errors.patientDateOfBirth?.message}
+            />
           </div>
         </FormCard>
 

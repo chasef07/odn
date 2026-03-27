@@ -17,16 +17,15 @@ export default function TermsOfServicePage() {
 
       <div className="mx-auto max-w-4xl px-6 py-12">
         <h1 className="mb-6 text-4xl font-bold">Terms of Service</h1>
-        <p className="mb-8 text-sm text-muted-foreground">Last updated April 11, 2025</p>
+        <p className="mb-8 text-sm text-muted-foreground">Last updated March 27, 2026</p>
 
         <div className="prose prose-gray max-w-none space-y-8">
           <section>
             <h2 className="mb-4 text-2xl font-bold">Agreement to Our Legal Terms</h2>
             <p className="leading-relaxed">
-              We are Plantation Physical Medicine LLC, doing business as OnlineDoctorNote.com
+              We are ODN LLC, doing business as OnlineDoctorNote.com
               (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; &quot;our&quot;), a company
-              registered in Florida, United States at 1751 N University Drive, Suite 6, Plantation,
-              FL 33322.
+              registered in Delaware, United States at 5740 SW 67th Avenue, Miami, FL 33143.
             </p>
             <p className="mt-4 leading-relaxed">
               We operate the website{' '}
@@ -52,12 +51,12 @@ export default function TermsOfServicePage() {
               <a href="mailto:hello@onlinedoctornote.com" className="text-primary hover:underline">
                 hello@onlinedoctornote.com
               </a>
-              , or by mail to 1751 N University Drive, Suite 6, Plantation, FL 33322, United States.
+              , or by mail to 5740 SW 67th Avenue, Miami, FL 33143, United States.
             </p>
             <p className="mt-4 leading-relaxed">
               These Legal Terms constitute a legally binding agreement made between you, whether
-              personally or on behalf of an entity (&quot;you&quot;), and Plantation Physical
-              Medicine LLC, concerning your access to and use of the Services. You agree that by
+              personally or on behalf of an entity (&quot;you&quot;), and ODN LLC, concerning your
+              access to and use of the Services. You agree that by
               accessing the Services, you have read, understood, and agreed to be bound by all of
               these Legal Terms. <strong>IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.</strong>
             </p>
@@ -310,7 +309,13 @@ export default function TermsOfServicePage() {
           <section id="section-6">
             <h2 className="mb-4 text-2xl font-bold">6. Refunds Policy</h2>
             <p className="leading-relaxed">
-              All sales are final and no refund will be issued.
+              We have a 100% money-back guarantee. If for any reason you are dissatisfied with our
+              service or if your note is not accepted by your employer or school, please contact us
+              via email at{' '}
+              <a href="mailto:hello@onlinedoctornote.com" className="text-primary hover:underline">
+                hello@onlinedoctornote.com
+              </a>
+              .
             </p>
           </section>
 
@@ -621,10 +626,10 @@ export default function TermsOfServicePage() {
               information regarding use of the Services, please contact us at:
             </p>
             <address className="not-italic">
-              <p className="font-semibold">Plantation Physical Medicine LLC</p>
+              <p className="font-semibold">ODN LLC</p>
               <p>OnlineDoctorNote.com</p>
-              <p>1751 N University Drive, Suite 6</p>
-              <p>Plantation, FL 33322</p>
+              <p>5740 SW 67th Avenue</p>
+              <p>Miami, FL 33143</p>
               <p>United States</p>
               <p className="mt-2">
                 Phone:{' '}

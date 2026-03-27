@@ -143,7 +143,7 @@ model Submission {
   reviewedByUser        User?     @relation("ReviewedByUser", fields: [reviewedByAdminId], references: [id])
 
   // Denial Information (only if status = DENIED)
-  denialReason          String?   @map("denial_reason") // "Legal", "7+ days", or "Other"
+  denialReason          String?   @map("denial_reason") // "Legal", "7+ days", "Duplicate", "Refund", "Under 18", or "Other"
 
 
   // Refund Tracking
@@ -163,4 +163,5 @@ model Submission {
   @@index([email])
   @@index([createdAt])
   @@index([status, createdAt])
+  @@index([patientFirstName, patientLastName, patientDateOfBirth])
 }

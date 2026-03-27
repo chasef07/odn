@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
 import type { Submission } from '@prisma/client'
 import {
   calculateAge,
@@ -70,11 +71,18 @@ export function SubmissionCard({
             Patient Information
           </h3>
           <div className="space-y-1 text-xs">
-            <div>
+            <div className="flex items-center gap-2">
               <span className="text-muted-foreground">Name: </span>
               <span>
                 {submission.patientFirstName} {submission.patientLastName}
               </span>
+              <PatientHistoryPopup
+                patientFirstName={submission.patientFirstName}
+                patientLastName={submission.patientLastName}
+                patientDateOfBirth={submission.patientDateOfBirth}
+                email={submission.email}
+                currentSubmissionId={submission.id}
+              />
             </div>
             <div>
               <span className="text-muted-foreground">DOB: </span>
@@ -82,7 +90,7 @@ export function SubmissionCard({
             </div>
             <div>
               <span className="text-muted-foreground">Email: </span>
-              <span>{submission.email}</span>
+              <a href={`mailto:${submission.email}`} className="text-blue-600 hover:underline">{submission.email}</a>
             </div>
             <div>
               <span className="text-muted-foreground">Phone: </span>

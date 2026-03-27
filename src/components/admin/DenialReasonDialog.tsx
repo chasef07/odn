@@ -47,6 +47,11 @@ const DENIAL_REASONS: { value: DenialReason; label: string; description: string 
     description: 'Process refund for customer',
   },
   {
+    value: 'Under 18',
+    label: 'Under 18',
+    description: 'Patient is under 18 years old (minor using parent/guardian info)',
+  },
+  {
     value: 'Other',
     label: 'Other Reason',
     description: 'Other reason for denial',

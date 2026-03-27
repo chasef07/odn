@@ -7,6 +7,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -93,7 +95,9 @@ export default function AdminReviewPage() {
       setIsLoadingMonthlyData(true)
 
       const result = await getMonthlyLimitData(
-        currentSubmission.email,
+        currentSubmission.patientFirstName,
+        currentSubmission.patientLastName,
+        new Date(currentSubmission.patientDateOfBirth),
         new Date(currentSubmission.firstDayOff),
         new Date(currentSubmission.lastDayOff)
       )
@@ -310,11 +314,17 @@ export default function AdminReviewPage() {
 
   return (
     <div className="flex h-[calc(100vh-120px)] flex-col space-y-3">
-      {/* Back Button */}
+      {/* Back Button & Search */}
       <div className="flex shrink-0 items-center justify-between">
         <Button variant="outline" onClick={() => router.push('/admin')} size="sm">
           ← Back
         </Button>
+        <Link href="/admin/search">
+          <Button variant="outline" size="sm" className="gap-1">
+            <Search className="h-4 w-4" />
+            Search
+          </Button>
+        </Link>
       </div>
 
       {/* Submission Card with fade transition - scrollable on mobile */}

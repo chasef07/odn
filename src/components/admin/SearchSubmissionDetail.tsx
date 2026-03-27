@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { StatusBadge } from '@/components/admin/StatusBadge'
+import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import {
   updateSubmission,
@@ -354,7 +355,16 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
       <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
         {/* Patient Information */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Patient Information</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900">Patient Information</h2>
+            <PatientHistoryPopup
+              patientFirstName={submission.patientFirstName}
+              patientLastName={submission.patientLastName}
+              patientDateOfBirth={submission.patientDateOfBirth}
+              email={submission.email}
+              currentSubmissionId={submission.id}
+            />
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label>First Name</Label>
@@ -425,7 +435,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               {isEditing ? (
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
               ) : (
-                <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{email}</p>
+                <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
+                  <a href={`mailto:${email}`} className="text-blue-600 hover:underline">{email}</a>
+                </p>
               )}
             </div>
             <div className="space-y-2">
@@ -710,6 +722,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                   <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
                   <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
                   <SelectItem value="Refund">Refund</SelectItem>
+                  <SelectItem value="Under 18">Under 18 - Patient is a minor</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
