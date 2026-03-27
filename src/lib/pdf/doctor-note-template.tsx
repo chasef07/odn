@@ -286,6 +286,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: 'bold',
   },
+  boldUnderlineText: {
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
+    textDecoration: 'underline',
+  },
   closing: {
     marginTop: 0,
     marginBottom: 15,
@@ -489,12 +494,12 @@ export function DoctorNoteTemplate({
 
                   {/* Start and End Dates */}
                   <View style={styles.dateRange}>
-                    <Text style={styles.dateRangeLabel}>Start Date: {firstDayFormatted}</Text>
-                    <Text style={styles.dateRangeLabel}>End Date: {lastDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}<Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               ) : isAppointment ? (
@@ -505,12 +510,12 @@ export function DoctorNoteTemplate({
 
                   {/* Start and End Dates */}
                   <View style={styles.dateRange}>
-                    <Text style={styles.dateRangeLabel}>Start Date: {firstDayFormatted}</Text>
-                    <Text style={styles.dateRangeLabel}>End Date: {lastDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}<Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               ) : (
@@ -521,12 +526,12 @@ export function DoctorNoteTemplate({
 
                   {/* Start and End Dates */}
                   <View style={styles.dateRange}>
-                    <Text style={styles.dateRangeLabel}>Start Date: {firstDayFormatted}</Text>
-                    <Text style={styles.dateRangeLabel}>End Date: {lastDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
+                    <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
                   </View>
 
                   <Text style={styles.returnText}>
-                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}after {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
+                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}<Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
                   </Text>
                 </>
               )}

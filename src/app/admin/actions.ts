@@ -187,24 +187,121 @@ export async function getDeniedSubmissionsForToday() {
 
 /**
  * Get monthly limit data for a patient
- * @param email - Patient email
+ * @param patientFirstName - Patient first name
+ * @param patientLastName - Patient last name
+ * @param patientDateOfBirth - Patient date of birth
  * @param firstDayOff - First day of absence request
  * @param lastDayOff - Last day of absence request
  * @returns Monthly usage data
  */
 export async function getMonthlyLimitData(
-  email: string,
+  patientFirstName: string,
+  patientLastName: string,
+  patientDateOfBirth: Date,
   firstDayOff: Date,
   lastDayOff: Date
 ) {
   try {
     // Use the existing utility function
-    const result = await wouldExceedMonthlyLimit(email, firstDayOff, lastDayOff)
+    const result = await wouldExceedMonthlyLimit(patientFirstName, patientLastName, patientDateOfBirth, firstDayOff, lastDayOff)
 
     return { success: true, data: result }
   } catch (error) {
     console.error('Error getting monthly limit data:', error)
     return { success: false, error: 'Failed to calculate monthly limit' }
+  }
+}
+
+/**
+ * Patient history entry for display in admin portal
+ */
+export type PatientHistoryEntry = {
+  id: string
+  patientFirstName: string
+  patientLastName: string
+  email: string
+  status: SubmissionStatus
+  notePurpose: string
+  firstDayOff: string
+  lastDayOff: string
+  createdAt: Date
+  reviewedAt: Date | null
+  denialReason: string | null
+}
+
+/**
+ * Get past submissions for a patient (by name + DOB or email)
+ * @param patientFirstName - Patient first name
+ * @param patientLastName - Patient last name
+ * @param patientDateOfBirth - Patient date of birth
+ * @param email - Patient email
+ * @param currentSubmissionId - Current submission ID to exclude from results
+ * @returns Array of past submissions
+ */
+export async function getPatientHistory(
+  patientFirstName: string,
+  patientLastName: string,
+  patientDateOfBirth: Date,
+  email: string,
+  currentSubmissionId: string
+): Promise<{ success: boolean; data?: PatientHistoryEntry[]; error?: string }> {
+  try {
+    const submissions = await prisma.submission.findMany({
+      where: {
+        id: { not: currentSubmissionId },
+        OR: [
+          {
+            patientFirstName: { equals: patientFirstName, mode: 'insensitive' },
+            patientLastName: { equals: patientLastName, mode: 'insensitive' },
+            patientDateOfBirth: patientDateOfBirth,
+          },
+          {
+            email: { equals: email, mode: 'insensitive' },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        patientFirstName: true,
+        patientLastName: true,
+        email: true,
+        status: true,
+        notePurpose: true,
+        firstDayOff: true,
+        lastDayOff: true,
+        createdAt: true,
+        reviewedAt: true,
+        denialReason: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    })
+
+    const formatDateUTC = (date: Date): string => {
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
+    const formatted: PatientHistoryEntry[] = submissions.map((sub) => ({
+      id: sub.id,
+      patientFirstName: sub.patientFirstName,
+      patientLastName: sub.patientLastName,
+      email: sub.email,
+      status: sub.status,
+      notePurpose: sub.notePurpose,
+      firstDayOff: formatDateUTC(sub.firstDayOff),
+      lastDayOff: formatDateUTC(sub.lastDayOff),
+      createdAt: sub.createdAt,
+      reviewedAt: sub.reviewedAt,
+      denialReason: sub.denialReason,
+    }))
+
+    return { success: true, data: formatted }
+  } catch (error) {
+    console.error('Error fetching patient history:', error)
+    return { success: false, error: 'Failed to fetch patient history' }
   }
 }
 

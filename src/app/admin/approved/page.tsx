@@ -6,6 +6,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { Search } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
@@ -77,9 +78,17 @@ export default async function ApprovedSubmissionsPage() {
                 {submissions.length} {submissions.length === 1 ? 'approval' : 'approvals'} today
               </p>
             </div>
-            <Link href="/admin">
-              <Button variant="outline">Back to Dashboard</Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link href="/admin/search">
+                <Button variant="outline" className="gap-1">
+                  <Search className="h-4 w-4" />
+                  Search
+                </Button>
+              </Link>
+              <Link href="/admin">
+                <Button variant="outline">Back to Dashboard</Button>
+              </Link>
+            </div>
           </div>
 
           {/* Table or Empty State */}
@@ -115,8 +124,8 @@ export default async function ApprovedSubmissionsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {submission.patientFirstName} {submission.patientLastName}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {submission.email}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <a href={`mailto:${submission.email}`} className="text-blue-600 hover:underline">{submission.email}</a>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
                         {submission.approvalEmailSentAt

@@ -6,6 +6,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { Search } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { Button } from '@/components/ui/button'
@@ -56,9 +57,17 @@ export default async function MaybePortalPage() {
                 {totalCount} {totalCount === 1 ? 'submission' : 'submissions'} awaiting review
               </p>
             </div>
-            <Link href="/admin">
-              <Button variant="outline">Back to Dashboard</Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link href="/admin/search">
+                <Button variant="outline" className="gap-1">
+                  <Search className="h-4 w-4" />
+                  Search
+                </Button>
+              </Link>
+              <Link href="/admin">
+                <Button variant="outline">Back to Dashboard</Button>
+              </Link>
+            </div>
           </div>
 
           {/* Error state */}

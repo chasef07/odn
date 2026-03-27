@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { FormLayout } from '@/components/form-layout'
 import { FormCard } from '@/components/form/FormCard'
 import { FormField } from '@/components/form/FormField'
+import { DateOfBirthInput } from '@/components/form/DateOfBirthInput'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { guardianSchema } from '@/lib/validation-schemas'
@@ -29,6 +30,7 @@ export default function GuardianInfoPage() {
     formState: { errors, isSubmitting },
     setError,
     setValue,
+    watch,
   } = useForm<FormData>({
     resolver: zodResolver(guardianSchema),
     defaultValues: {
@@ -97,12 +99,12 @@ export default function GuardianInfoPage() {
             />
           </div>
 
-          <FormField
-            id="guardianDateOfBirth"
+          <DateOfBirthInput
+            name="guardianDateOfBirth"
             label="Date of Birth"
-            type="date"
-            register={register('guardianDateOfBirth')}
-            error={errors.guardianDateOfBirth}
+            value={watch('guardianDateOfBirth')}
+            onChange={(val) => setValue('guardianDateOfBirth', val, { shouldValidate: false })}
+            error={errors.guardianDateOfBirth?.message}
           />
         </FormCard>
 
