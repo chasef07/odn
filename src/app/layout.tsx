@@ -105,16 +105,6 @@ export default function RootLayout({
           </Script>
         {/* End Google Tag Manager */}
 
-        {/* Reddit Pixel */}
-        <Script id="reddit-pixel" strategy="afterInteractive">
-          {`
-            !function(w,d){if(!w.rdt){var p=w.rdt=function(){p.sendEvent?p.sendEvent.apply(p,arguments):p.callQueue.push(arguments)};p.callQueue=[];var t=d.createElement("script");t.src="https://www.redditstatic.com/ads/pixel.js?pixel_id=a2_ildu672qliq5";t.async=true;var s=d.getElementsByTagName("script")[0];s.parentNode.insertBefore(t,s)}}(window,document);
-            rdt('init','a2_ildu672qliq5');
-            rdt('track', 'PageVisit');
-          `}
-        </Script>
-        {/* End Reddit Pixel */}
-
         {/* Structured Data - MedicalBusiness */}
         <script
           type="application/ld+json"
