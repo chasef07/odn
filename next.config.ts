@@ -46,10 +46,10 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com https://googleads.g.doubleclick.net https://www.googleads.g.doubleclick.net",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com https://googleads.g.doubleclick.net https://www.googleads.g.doubleclick.net https://www.redditstatic.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https:",
-              "connect-src 'self' https://onlinedoctornote.com https://*.onlinedoctornote.com https://api.stripe.com https://vitals.vercel-insights.com https://www.googletagmanager.com https://www.google-analytics.com https://google.com https://www.google.com https://google.com/ccm/collect https://www.google.com/ccm/collect https://googleads.g.doubleclick.net https://googleadservices.com https://www.googleadservices.com",
+              "img-src 'self' data: https: https://alb.reddit.com",
+              "connect-src 'self' https://onlinedoctornote.com https://*.onlinedoctornote.com https://api.stripe.com https://vitals.vercel-insights.com https://www.googletagmanager.com https://www.google-analytics.com https://google.com https://www.google.com https://google.com/ccm/collect https://www.google.com/ccm/collect https://googleads.g.doubleclick.net https://googleadservices.com https://www.googleadservices.com https://alb.reddit.com https://www.redditstatic.com",
               "frame-src https://js.stripe.com https://www.googletagmanager.com",
               "font-src 'self' data:",
               "object-src 'none'",
