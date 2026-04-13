@@ -5,10 +5,32 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   images: {
+    formats: ['image/avif', 'image/webp'],
     qualities: [75, 90],
+    minimumCacheTTL: 31536000,
   },
   async headers() {
     return [
+      {
+        // Cache static assets (images, fonts) for 1 year
+        source: '/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif|woff|woff2)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Cache Next.js static chunks for 1 year
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
       {
         // Apply security headers to all routes
         source: '/:path*',
