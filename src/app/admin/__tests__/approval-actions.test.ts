@@ -73,8 +73,8 @@ vi.mock('stripe', () => ({
   },
 }))
 
-// Now import the function under test
-import { approveSubmission } from '../actions'
+// Now import the functions under test
+import { approveSubmission, reApproveSubmission } from '../actions'
 
 describe('approveSubmission - Approval Automation', () => {
   const mockSubmissionId = 'sub_123'
@@ -518,5 +518,167 @@ describe('approveSubmission - Approval Automation', () => {
         true // withRestrictions (default)
       )
     })
+  })
+})
+
+describe('reApproveSubmission - Re-approve already approved submission', () => {
+  const mockSubmissionId = 'sub_123'
+  const mockDoctorId = 'doctor_123'
+  const mockPDFBuffer = Buffer.from('mock-pdf-content')
+  const mockPDFFilename = 'doctors-note-sub_123.pdf'
+
+  const mockApprovedSubmission = {
+    id: mockSubmissionId,
+    status: SubmissionStatus.APPROVED,
+    email: 'patient@example.com',
+    patientFirstName: 'John',
+    patientLastName: 'Doe',
+    patientDateOfBirth: new Date('1990-01-01'),
+    guardianFirstName: null,
+    guardianLastName: null,
+    guardianDateOfBirth: null,
+    recipient: 'myself',
+    firstDayOff: new Date('2024-01-15'),
+    lastDayOff: new Date('2024-01-17'),
+    notePurpose: 'work',
+    otherNotePurpose: null,
+    absenceReason: 'illness',
+    otherAbsenceReason: null,
+    symptoms: ['Fever', 'Cough'],
+    otherSymptomText: null,
+    additionalInformation: 'Flu symptoms',
+    state: 'CA',
+    createdAt: new Date('2024-01-10'),
+    updatedAt: new Date('2024-01-10'),
+    stripePaymentIntentId: 'pi_test_123',
+    stripeRefundId: null,
+    refundedAt: null,
+    denialReason: null,
+    reviewedAt: new Date('2024-01-11'),
+    reviewedByAdminId: mockDoctorId,
+    approvalEmailSentAt: new Date('2024-01-11'),
+    denialEmailSentAt: null,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({
+      user: { id: mockDoctorId },
+    })
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should regenerate PDF and resend email for APPROVED submission (wire-up regression)', async () => {
+    // This is the regression test for the bug where the admin search page
+    // "Re-Approve" button did nothing because it called approveSubmission,
+    // which short-circuits on APPROVED status. The correct action is
+    // reApproveSubmission, which does the work even for APPROVED.
+
+    mockFindUnique.mockResolvedValue(mockApprovedSubmission)
+    mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+    mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+    mockSendApprovalEmail.mockResolvedValue({ success: true })
+    mockUpdate.mockResolvedValue({})
+
+    const result = await reApproveSubmission(mockSubmissionId, '2024-01-20', 'flu', true)
+
+    expect(result).toEqual({ success: true })
+
+    // PDF should be regenerated (with the evaluation date as UTC)
+    expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
+      mockApprovedSubmission,
+      new Date(Date.UTC(2024, 0, 20)),
+      'flu',
+      true
+    )
+
+    // Email should be resent
+    expect(mockSendApprovalEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'patient@example.com',
+        patientName: 'John Doe',
+        pdfBuffer: mockPDFBuffer,
+        pdfFilename: mockPDFFilename,
+      })
+    )
+
+    // Timestamp should be refreshed
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: mockSubmissionId },
+        data: expect.objectContaining({
+          status: SubmissionStatus.APPROVED,
+          approvalEmailSentAt: expect.any(Date),
+        }),
+      })
+    )
+  })
+
+  it('should NOT short-circuit on APPROVED status (unlike approveSubmission)', async () => {
+    // Sanity check: approveSubmission refuses APPROVED…
+    mockFindUnique.mockResolvedValue(mockApprovedSubmission)
+    const approveResult = await approveSubmission(mockSubmissionId)
+    expect(approveResult).toEqual({
+      success: false,
+      error: 'Cannot approve submission with status: APPROVED',
+    })
+    expect(mockGenerateDoctorNotePDF).not.toHaveBeenCalled()
+    expect(mockSendApprovalEmail).not.toHaveBeenCalled()
+
+    // …but reApproveSubmission accepts it and does the work.
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({ user: { id: mockDoctorId } })
+    mockFindUnique.mockResolvedValue(mockApprovedSubmission)
+    mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+    mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+    mockSendApprovalEmail.mockResolvedValue({ success: true })
+    mockUpdate.mockResolvedValue({})
+
+    const reApproveResult = await reApproveSubmission(mockSubmissionId)
+    expect(reApproveResult).toEqual({ success: true })
+    expect(mockGenerateDoctorNotePDF).toHaveBeenCalledTimes(1)
+    expect(mockSendApprovalEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('should return a warning if email fails but still update DB', async () => {
+    mockFindUnique.mockResolvedValue(mockApprovedSubmission)
+    mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+    mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+    mockSendApprovalEmail.mockRejectedValue(new Error('Resend down'))
+    mockUpdate.mockResolvedValue({})
+
+    const result = await reApproveSubmission(mockSubmissionId)
+
+    expect(result.success).toBe(true)
+    expect(result.warning).toBeDefined()
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('should fail if PDF generation fails (BLOCKING)', async () => {
+    mockFindUnique.mockResolvedValue(mockApprovedSubmission)
+    mockGenerateDoctorNotePDF.mockRejectedValue(new Error('Font missing'))
+
+    const result = await reApproveSubmission(mockSubmissionId)
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Failed to generate PDF: Font missing',
+    })
+    expect(mockSendApprovalEmail).not.toHaveBeenCalled()
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('should fail if submission not found', async () => {
+    mockFindUnique.mockResolvedValue(null)
+
+    const result = await reApproveSubmission(mockSubmissionId)
+
+    expect(result).toEqual({ success: false, error: 'Submission not found' })
+    expect(mockGenerateDoctorNotePDF).not.toHaveBeenCalled()
+    expect(mockSendApprovalEmail).not.toHaveBeenCalled()
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 })

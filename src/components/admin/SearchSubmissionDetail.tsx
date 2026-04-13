@@ -34,6 +34,7 @@ import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-con
 import {
   updateSubmission,
   approveSubmission,
+  reApproveSubmission,
   denySubmission,
   changeSubmissionStatus,
   type FormattedSubmission,
@@ -151,18 +152,34 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Always pass evaluationDate, diagnosis, and withRestrictions to approveSubmission
-      // This fixes the bug where first-time approvals from search page ignored the date
-      const result = await approveSubmission(
-        submission.id,
-        evaluationDate,
-        diagnosis || undefined,
-        withRestrictions
-      )
+      // Branch on current status:
+      //   - APPROVED: call reApproveSubmission to regenerate the PDF and resend
+      //     the email. approveSubmission rejects already-approved submissions,
+      //     so wiring the button to it silently did nothing for the patient.
+      //   - Otherwise: call approveSubmission as usual.
+      const isReApproval = submission.status === SubmissionStatus.APPROVED
+      const result = isReApproval
+        ? await reApproveSubmission(
+            submission.id,
+            evaluationDate,
+            diagnosis || undefined,
+            withRestrictions
+          )
+        : await approveSubmission(
+            submission.id,
+            evaluationDate,
+            diagnosis || undefined,
+            withRestrictions
+          )
 
       if (result.success) {
         setShowApprovalDialog(false)
-        setSuccess(result.warning || 'Submission approved successfully!')
+        setSuccess(
+          result.warning ||
+            (isReApproval
+              ? 'Submission re-approved successfully!'
+              : 'Submission approved successfully!')
+        )
         router.refresh()
       } else {
         setError(result.error || 'Failed to approve')
