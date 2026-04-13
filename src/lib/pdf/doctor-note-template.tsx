@@ -400,6 +400,24 @@ function formatExcuseFrom(purpose: string, other?: string | null): string {
 }
 
 /**
+ * Map an absence reason to the condition phrase used in the PDF body.
+ *
+ * Returns both the "due to ..." form (used in the standard medical branch)
+ * and the "with ..." form (used in the caregiver branch where the patient's
+ * family member has the condition). Reasons not in the mapping fall back to
+ * the generic "medical condition" wording for backward compatibility.
+ */
+export function getConditionPhrase(absenceReason: string): { dueTo: string; with: string } {
+  if (absenceReason === 'Feeling sick' || absenceReason === 'Mental health') {
+    return { dueTo: 'due to an illness', with: 'with an illness' }
+  }
+  if (absenceReason === 'Accident or injury') {
+    return { dueTo: 'due to an injury', with: 'with an injury' }
+  }
+  return { dueTo: 'due to a medical condition', with: 'with a medical condition' }
+}
+
+/**
  * Doctor's Note PDF Template Component - Simplified
  */
 export function DoctorNoteTemplate({
@@ -433,6 +451,9 @@ export function DoctorNoteTemplate({
   // Check if this is a caregiver note or doctor's appointment
   const isCaregiver = absenceReason === 'Taking care of someone'
   const isAppointment = absenceReason === "Doctor's appointment"
+
+  // Specialize the condition phrase based on absence reason
+  const conditionPhrase = getConditionPhrase(absenceReason)
 
   const excuseFrom = formatExcuseFrom(notePurpose, otherNotePurpose)
   const dateIssuedFormatted = formatDate(issueDate)
@@ -510,7 +531,7 @@ export function DoctorNoteTemplate({
               <>
                 <Text style={styles.paragraph}>
                   This note is to confirm that the above-named caregiver was needed to attend to
-                  their family member with a medical condition.
+                  their family member {conditionPhrase.with}.
                   {diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''} Please excuse this individual
                   {notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the
                   following period, if possible.
@@ -576,7 +597,7 @@ export function DoctorNoteTemplate({
                   This note is to confirm that the above-named patient was evaluated on{' '}
                   {dateIssuedFormatted}. Based on the assessment, please excuse this individual
                   {notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the
-                  following period due to a medical condition.
+                  following period {conditionPhrase.dueTo}.
                   {diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
                 </Text>
 
