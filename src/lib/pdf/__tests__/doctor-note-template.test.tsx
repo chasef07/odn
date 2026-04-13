@@ -204,6 +204,106 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
   })
 })
 
+/**
+ * Recursively walk a React element tree and concatenate all string children.
+ * Used to assert on the text content rendered by DoctorNoteTemplate without
+ * needing to parse the binary PDF output.
+ */
+function extractText(node: unknown): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(extractText).join('')
+  if (typeof node === 'object' && 'props' in (node as Record<string, unknown>)) {
+    const element = node as { type: unknown; props: { children?: unknown } }
+    // Render function components so conditional content (e.g. notePurpose checks) executes
+    if (typeof element.type === 'function') {
+      const rendered = (element.type as (props: unknown) => unknown)(element.props)
+      return extractText(rendered)
+    }
+    return extractText(element.props.children)
+  }
+  return ''
+}
+
+describe('DoctorNoteTemplate - "may return" sentence', () => {
+  it('omits the "may return" sentence for travel notes (default patient block)', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, notePurpose: 'travel' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).not.toContain('may return')
+    expect(text).not.toContain('Furthermore')
+    // Trailing contact sentence must still appear
+    expect(text).toContain('please do not hesitate to contact our office')
+  })
+
+  it('omits the "may return" sentence for travel + caregiver notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          notePurpose: 'travel',
+          absenceReason: 'Taking care of someone',
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).not.toContain('may return')
+    expect(text).not.toContain('Furthermore')
+    expect(text).toContain('please do not hesitate to contact our office')
+  })
+
+  it('omits the "may return" sentence for travel + doctor\'s appointment notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          notePurpose: 'travel',
+          absenceReason: "Doctor's appointment",
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).not.toContain('may return')
+    expect(text).not.toContain('Furthermore')
+    expect(text).toContain('please do not hesitate to contact our office')
+  })
+
+  it('keeps "may return to work" for work notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, notePurpose: 'work' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('may return to work')
+    expect(text).toContain('Furthermore')
+  })
+
+  it('keeps "may return to school" for school notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, notePurpose: 'school' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('may return to school')
+    expect(text).toContain('Furthermore')
+  })
+})
+
 describe('DoctorNoteTemplate - State License Logic', () => {
   it('should have Texas license available', () => {
     const license = getStateLicense('Texas')

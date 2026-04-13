@@ -523,12 +523,16 @@ export function DoctorNoteTemplate({
                 </View>
 
                 <Text style={styles.returnText}>
-                  Furthermore, the above-named caregiver{' '}
-                  <Text style={styles.boldText}>
-                    may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
-                    <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
-                    {withRestrictions ? ', with no restrictions' : ''}.
-                  </Text>{' '}
+                  {notePurpose !== 'travel' && (
+                    <>
+                      Furthermore, the above-named caregiver{' '}
+                      <Text style={styles.boldText}>
+                        may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
+                        <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
+                        {withRestrictions ? ', with no restrictions' : ''}.
+                      </Text>{' '}
+                    </>
+                  )}
                   If you have any questions related to this matter or need further verification,
                   please do not hesitate to contact our office. Our email and phone number are noted
                   above.
@@ -551,12 +555,16 @@ export function DoctorNoteTemplate({
                 </View>
 
                 <Text style={styles.returnText}>
-                  Furthermore, the above-named patient{' '}
-                  <Text style={styles.boldText}>
-                    may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
-                    <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
-                    {withRestrictions ? ', with no restrictions' : ''}.
-                  </Text>{' '}
+                  {notePurpose !== 'travel' && (
+                    <>
+                      Furthermore, the above-named patient{' '}
+                      <Text style={styles.boldText}>
+                        may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
+                        <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
+                        {withRestrictions ? ', with no restrictions' : ''}.
+                      </Text>{' '}
+                    </>
+                  )}
                   If you have any questions related to this matter or need further verification,
                   please do not hesitate to contact our office. Our email and phone number are noted
                   above.
@@ -579,12 +587,16 @@ export function DoctorNoteTemplate({
                 </View>
 
                 <Text style={styles.returnText}>
-                  Furthermore, the above-named patient{' '}
-                  <Text style={styles.boldText}>
-                    may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
-                    <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
-                    {withRestrictions ? ', with no restrictions' : ''}.
-                  </Text>{' '}
+                  {notePurpose !== 'travel' && (
+                    <>
+                      Furthermore, the above-named patient{' '}
+                      <Text style={styles.boldText}>
+                        may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
+                        <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
+                        {withRestrictions ? ', with no restrictions' : ''}.
+                      </Text>{' '}
+                    </>
+                  )}
                   If you have any questions related to this matter or need further verification,
                   please do not hesitate to contact our office. Our email and phone number are noted
                   above.
