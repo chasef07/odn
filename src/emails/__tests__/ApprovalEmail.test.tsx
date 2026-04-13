@@ -17,55 +17,39 @@ describe('ApprovalEmail - Subject Lines', () => {
       />
     )
 
-    expect(html).toContain("Your Caregiver&#x27;s Note Has Arrived!")
+    expect(html).toContain('Your Caregiver&#x27;s Note Has Arrived!')
   })
 
   it('should have work-specific subject line for regular notes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
-    expect(html).toContain("Your Doctor&#x27;s Note For Work Has Arrived!")
+    expect(html).toContain('Your Doctor&#x27;s Note For Work Has Arrived!')
   })
 
   it('should have school-specific subject line', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="school"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="school" absenceReason="Feeling sick" />
     )
 
-    expect(html).toContain("Your Doctor&#x27;s Note For School Has Arrived!")
+    expect(html).toContain('Your Doctor&#x27;s Note For School Has Arrived!')
   })
 
   it('should have work and school subject line for both', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="both"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="both" absenceReason="Feeling sick" />
     )
 
-    expect(html).toContain("Your Doctor&#x27;s Note For Work and School Has Arrived!")
+    expect(html).toContain('Your Doctor&#x27;s Note For Work and School Has Arrived!')
   })
 
   it('should have generic subject line for other purpose', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="other"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="other" absenceReason="Feeling sick" />
     )
 
-    expect(html).toContain("Your Doctor&#x27;s Note Has Arrived!")
+    expect(html).toContain('Your Doctor&#x27;s Note Has Arrived!')
   })
 
   it('should have dynamic subject line for doctor appointment (work)', async () => {
@@ -77,7 +61,7 @@ describe('ApprovalEmail - Subject Lines', () => {
       />
     )
 
-    expect(html).toContain("Your Doctor&#x27;s Note For Work Has Arrived!")
+    expect(html).toContain('Your Doctor&#x27;s Note For Work Has Arrived!')
   })
 
   it('should have dynamic subject line for doctor appointment (school)', async () => {
@@ -89,18 +73,14 @@ describe('ApprovalEmail - Subject Lines', () => {
       />
     )
 
-    expect(html).toContain("Your Doctor&#x27;s Note For School Has Arrived!")
+    expect(html).toContain('Your Doctor&#x27;s Note For School Has Arrived!')
   })
 })
 
 describe('ApprovalEmail - Greeting', () => {
   it('should display "Hi [Name]" with bold formatting', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('Hi <strong>John Doe</strong>')
@@ -108,11 +88,7 @@ describe('ApprovalEmail - Greeting', () => {
 
   it('should use default name if not provided', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="Patient"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="Patient" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('Hi <strong>Patient</strong>')
@@ -122,11 +98,7 @@ describe('ApprovalEmail - Greeting', () => {
 describe('ApprovalEmail - Body Text (from work/school)', () => {
   it('should say "from work" for work notes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('medically excused absence')
@@ -135,11 +107,7 @@ describe('ApprovalEmail - Body Text (from work/school)', () => {
 
   it('should say "from school" for school notes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="school"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="school" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('medically excused absence')
@@ -148,11 +116,7 @@ describe('ApprovalEmail - Body Text (from work/school)', () => {
 
   it('should say "from work and school" for both', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="both"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="both" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('medically excused absence')
@@ -177,11 +141,7 @@ describe('ApprovalEmail - Body Text (from work/school)', () => {
 describe('ApprovalEmail - Verification Text (employer/school)', () => {
   it('should say "employer" for work notes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('employer')
@@ -190,11 +150,7 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
 
   it('should say "school" for school notes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="school"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="school" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('school')
@@ -203,11 +159,7 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
 
   it('should say "employer or school" for both', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="both"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="both" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('employer or school')
@@ -239,7 +191,9 @@ describe('ApprovalEmail - Caregiver-Specific Content', () => {
       />
     )
 
-    expect(html).toContain('just how difficult taking care of a family member with health issues can be')
+    expect(html).toContain(
+      'just how difficult taking care of a family member with health issues can be'
+    )
   })
 
   it('should not display health recovery message for caregivers', async () => {
@@ -301,24 +255,18 @@ describe('ApprovalEmail - Doctor Appointment Content', () => {
 describe('ApprovalEmail - Regular Note Content', () => {
   it('should display health recovery message for regular notes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('you are already starting to feel much better')
-    expect(html).toContain('seek in-person medical attention if your medical condition has not improved')
+    expect(html).toContain(
+      'seek in-person medical attention if your medical condition has not improved'
+    )
   })
 
   it('should display health recovery message for injury notes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Accident or injury"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Accident or injury" />
     )
 
     expect(html).toContain('you are already starting to feel much better')
@@ -326,11 +274,7 @@ describe('ApprovalEmail - Regular Note Content', () => {
 
   it('should display health recovery message for mental health notes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Mental health"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Mental health" />
     )
 
     expect(html).toContain('you are already starting to feel much better')
@@ -340,11 +284,7 @@ describe('ApprovalEmail - Regular Note Content', () => {
 describe('ApprovalEmail - Contact Information', () => {
   it('should display Platinum Health Clinic email', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('hello@platinumhealthclinic.com')
@@ -352,11 +292,7 @@ describe('ApprovalEmail - Contact Information', () => {
 
   it('should display phone number', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('786-292-3730')
@@ -364,11 +300,7 @@ describe('ApprovalEmail - Contact Information', () => {
 
   it('should display support email in help section', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('hello@onlinedoctornote.com')
@@ -376,11 +308,7 @@ describe('ApprovalEmail - Contact Information', () => {
 
   it('should contain "reply to hello@onlinedoctornote.com" in point 1 for changes', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     // Point 1 should mention replying to hello@onlinedoctornote.com for changes
@@ -392,11 +320,7 @@ describe('ApprovalEmail - Contact Information', () => {
 describe('ApprovalEmail - Static Content', () => {
   it('should display thank you message', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('thanking you for entrusting us with your health needs')
@@ -404,11 +328,7 @@ describe('ApprovalEmail - Static Content', () => {
 
   it('should display "A few important points" header', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('A few important points')
@@ -416,11 +336,7 @@ describe('ApprovalEmail - Static Content', () => {
 
   it('should display point 1 about reviewing accuracy', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('review the note to make sure that the information is accurate')
@@ -428,11 +344,7 @@ describe('ApprovalEmail - Static Content', () => {
 
   it('should display "To better health!" closing', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('To better health!')
@@ -441,11 +353,7 @@ describe('ApprovalEmail - Static Content', () => {
 
   it('should display help section', async () => {
     const html = await render(
-      <ApprovalEmail
-        patientName="John Doe"
-        notePurpose="work"
-        absenceReason="Feeling sick"
-      />
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
     expect(html).toContain('We are always here to help')

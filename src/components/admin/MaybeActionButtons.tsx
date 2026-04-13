@@ -59,7 +59,12 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
 
     try {
-      const result = await approveSubmission(submissionId, evaluationDate, diagnosis || undefined, withRestrictions)
+      const result = await approveSubmission(
+        submissionId,
+        evaluationDate,
+        diagnosis || undefined,
+        withRestrictions
+      )
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -142,20 +147,10 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
         >
           Approve
         </Button>
-        <Button
-          onClick={handleDenyClick}
-          disabled={isLoading}
-          variant="destructive"
-          size="sm"
-        >
+        <Button onClick={handleDenyClick} disabled={isLoading} variant="destructive" size="sm">
           Deny
         </Button>
-        <Button
-          onClick={handleManualClick}
-          disabled={isLoading}
-          variant="secondary"
-          size="sm"
-        >
+        <Button onClick={handleManualClick} disabled={isLoading} variant="secondary" size="sm">
           Manual Note
         </Button>
       </div>
@@ -227,13 +222,13 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
           <DialogHeader>
             <DialogTitle>Mark as Manual Note?</DialogTitle>
             <DialogDescription>
-              This will move the submission to Manual Notes where you can approve or deny without sending automated emails.
-              You will handle the note manually.
+              This will move the submission to Manual Notes where you can approve or deny without
+              sending automated emails. You will handle the note manually.
             </DialogDescription>
           </DialogHeader>
 
           {manualError && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               <strong>Error:</strong> {manualError}
             </div>
           )}
@@ -246,11 +241,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleManualConfirm}
-              disabled={isLoading}
-              variant="secondary"
-            >
+            <Button onClick={handleManualConfirm} disabled={isLoading} variant="secondary">
               {isLoading ? 'Processing...' : 'Mark as Manual'}
             </Button>
           </DialogFooter>

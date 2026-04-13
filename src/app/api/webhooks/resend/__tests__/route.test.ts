@@ -41,6 +41,11 @@ const { mockSendBounceAlertEmail } = vi.hoisted(() => ({
 
 vi.mock('@/lib/email', () => ({
   sendBounceAlertEmail: mockSendBounceAlertEmail,
+  resend: {
+    webhooks: {
+      verify: mockResendVerify,
+    },
+  },
 }))
 
 // Import after mocks

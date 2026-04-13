@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [4.5.0] - 2026-03-27
 
 ### Added
+
 - **"Why Use Us" homepage section** — Blue background marketing section after hero with 6 benefit cards (Save Money, Save Time, No Insurance, No Driving, No Waiting Rooms, Here to Help)
 - **Patient History Popup** — Admin portal shows prior submissions for the same patient (by name+DOB or email) as an amber "N prior" badge during review and in search detail
 - **"Under 18" denial reason** — New denial option across all admin views (review, search detail, maybe queue, manual queue) for minors using parent/guardian info
@@ -15,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - **Prisma composite index** — New index on (patientFirstName, patientLastName, patientDateOfBirth) for efficient name+DOB queries
 
 ### Changed
+
 - **Monthly limit tracking** — Switched from email-based to name+DOB-based identification (case-insensitive). Harder to bypass with multiple email addresses
 - **PDF wording** — "Start Date" / "End Date" changed to "First Day Off" / "Last Day Off" across all three note variants
 - **PDF "after" underline** — The word "after" in the return-to-work sentence is now bold and underlined to reduce customer confusion (was #1 customer service issue)
@@ -23,6 +25,7 @@ All notable changes to this project will be documented in this file.
 - **Denial reason comment** — Updated Prisma schema comment to reflect all 6 denial reason options
 
 ### Fixed
+
 - **Monthly limit bypass** — Patients can no longer bypass the 7-day rolling limit by using different email addresses
 - **Accessibility** — DateOfBirthInput has proper aria-required, aria-invalid, and aria-describedby on all three input fields
 - **"Under 18" consistency** — Denial reason now available in MaybeActionButtons and ManualActionButtons (was missing from those views)

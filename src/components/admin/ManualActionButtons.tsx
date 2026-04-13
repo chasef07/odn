@@ -103,12 +103,7 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
         >
           Approve
         </Button>
-        <Button
-          onClick={handleDenyClick}
-          disabled={isLoading}
-          variant="destructive"
-          size="sm"
-        >
+        <Button onClick={handleDenyClick} disabled={isLoading} variant="destructive" size="sm">
           Deny
         </Button>
       </div>
@@ -119,13 +114,13 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
           <DialogHeader>
             <DialogTitle>Approve Manual Submission</DialogTitle>
             <DialogDescription>
-              This will mark the submission as approved without sending any automated emails.
-              You will handle the note manually. This action cannot be undone.
+              This will mark the submission as approved without sending any automated emails. You
+              will handle the note manually. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
           {approvalError && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               <strong>Error:</strong> {approvalError}
             </div>
           )}

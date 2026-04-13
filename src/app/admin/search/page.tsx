@@ -60,7 +60,7 @@ export default async function AdminSearchPage({ searchParams }: PageProps) {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <Link href="/admin" className="flex items-center gap-2">
-              <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
+              <span className="bg-primary/10 text-primary rounded px-2 py-1 text-sm font-medium">
                 Admin Portal
               </span>
             </Link>

@@ -17,9 +17,5 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   // Note: Authentication check is handled in each page's Server Component
   // This layout only provides the UI structure
 
-  return (
-    <div className="min-h-screen bg-white">
-      {children}
-    </div>
-  )
+  return <div className="min-h-screen bg-white">{children}</div>
 }

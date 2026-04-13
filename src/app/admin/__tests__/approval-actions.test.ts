@@ -150,7 +150,12 @@ describe('approveSubmission - Approval Automation', () => {
       })
 
       // Verify PDF was generated with submission data (issueDate, diagnosis, withRestrictions)
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
+        mockSubmission,
+        undefined,
+        undefined,
+        true
+      )
 
       // Verify PDF filename was generated
       expect(mockGeneratePDFFilename).toHaveBeenCalledWith(mockSubmission.id)
@@ -266,7 +271,12 @@ describe('approveSubmission - Approval Automation', () => {
 
       // Assert
       expect(result).toEqual({ success: true })
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
+        mockSubmission,
+        undefined,
+        undefined,
+        true
+      )
     })
 
     it('should pass withRestrictions=true explicitly to PDF generation', async () => {
@@ -282,7 +292,12 @@ describe('approveSubmission - Approval Automation', () => {
 
       // Assert
       expect(result).toEqual({ success: true })
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, true)
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
+        mockSubmission,
+        undefined,
+        undefined,
+        true
+      )
     })
 
     it('should pass withRestrictions=false to PDF generation when specified', async () => {
@@ -298,7 +313,12 @@ describe('approveSubmission - Approval Automation', () => {
 
       // Assert
       expect(result).toEqual({ success: true })
-      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(mockSubmission, undefined, undefined, false)
+      expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
+        mockSubmission,
+        undefined,
+        undefined,
+        false
+      )
     })
   })
 

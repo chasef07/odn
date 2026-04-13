@@ -187,7 +187,11 @@ Taking a mental health day isn't a sign of weakness. It's a practical step towar
   },
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
   const { slug } = await params
   const post = posts[slug]
   if (!post) return { title: 'Blog Post Not Found' }
@@ -232,14 +236,16 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </h1>
 
           <article
-            className="space-y-5 text-base leading-relaxed text-gray-600 [&_h2]:mb-3 [&_h2]:mt-10 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:text-gray-900 [&_li]:ml-5 [&_li]:list-disc [&_li]:py-0.5 [&_strong]:font-semibold [&_strong]:text-gray-900 [&_ul]:space-y-1"
+            className="space-y-5 text-base leading-relaxed text-gray-600 [&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:text-gray-900 [&_li]:ml-5 [&_li]:list-disc [&_li]:py-0.5 [&_strong]:font-semibold [&_strong]:text-gray-900 [&_ul]:space-y-1"
             dangerouslySetInnerHTML={{ __html: formatMarkdown(post.content) }}
           />
 
           {/* CTA */}
           <div className="mt-12 rounded-2xl border border-gray-100 bg-gray-50 p-6 text-center md:p-8">
             <p className="mb-1 text-lg font-semibold text-gray-900">Need a doctor&apos;s note?</p>
-            <p className="mb-4 text-sm text-gray-600">Get one from a board-certified physician in minutes.</p>
+            <p className="mb-4 text-sm text-gray-600">
+              Get one from a board-certified physician in minutes.
+            </p>
             <Link
               href="/start"
               className="inline-flex items-center gap-2 rounded-full bg-[#009ed9] px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[#00b4f5]"

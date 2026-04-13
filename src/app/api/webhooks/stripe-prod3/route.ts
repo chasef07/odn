@@ -52,12 +52,12 @@ export async function POST(request: NextRequest) {
     // - Enables smart age validation for old events
     const existingSubmission = await prisma.submission.findUnique({
       where: { stripePaymentIntentId: paymentIntent.id },
-      select: { id: true }
+      select: { id: true },
     })
 
     // 5. Smart age validation: Reject OLD events that were ALREADY PROCESSED
     // Allows legitimate old events (abandoned checkouts, webhook retries) to process
-    const eventAge = Date.now() - (event.created * 1000)
+    const eventAge = Date.now() - event.created * 1000
     const MAX_EVENT_AGE = 10 * 60 * 1000 // 10 minutes in milliseconds
 
     if (eventAge > MAX_EVENT_AGE) {
@@ -107,144 +107,146 @@ export async function POST(request: NextRequest) {
       })
     }
 
-      // 7. Retrieve form data from TemporarySubmission
-      // Primary lookup by paymentIntentId
-      let tempSubmission = await prisma.temporarySubmission.findUnique({
-        where: { paymentIntentId: paymentIntent.id },
+    // 7. Retrieve form data from TemporarySubmission
+    // Primary lookup by paymentIntentId
+    let tempSubmission = await prisma.temporarySubmission.findUnique({
+      where: { paymentIntentId: paymentIntent.id },
+    })
+
+    // 7a. Fallback: If not found by paymentIntentId, try metadata.temporarySubmissionId
+    // This handles race conditions where webhook fires during the update step
+    if (!tempSubmission && paymentIntent.metadata?.temporarySubmissionId) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Primary lookup failed, attempting fallback by metadata.temporarySubmissionId')
+      }
+
+      const tempSubmissionById = await prisma.temporarySubmission.findUnique({
+        where: { id: paymentIntent.metadata.temporarySubmissionId },
       })
 
-      // 7a. Fallback: If not found by paymentIntentId, try metadata.temporarySubmissionId
-      // This handles race conditions where webhook fires during the update step
-      if (!tempSubmission && paymentIntent.metadata?.temporarySubmissionId) {
+      if (tempSubmissionById) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('Primary lookup failed, attempting fallback by metadata.temporarySubmissionId')
+          console.log('FALLBACK SUCCESS: Found TemporarySubmission by metadata ID')
         }
 
-        const tempSubmissionById = await prisma.temporarySubmission.findUnique({
-          where: { id: paymentIntent.metadata.temporarySubmissionId },
+        // Update with correct payment intent ID to link them properly
+        tempSubmission = await prisma.temporarySubmission.update({
+          where: { id: tempSubmissionById.id },
+          data: { paymentIntentId: paymentIntent.id },
         })
 
-        if (tempSubmissionById) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('FALLBACK SUCCESS: Found TemporarySubmission by metadata ID')
-          }
-
-          // Update with correct payment intent ID to link them properly
-          tempSubmission = await prisma.temporarySubmission.update({
-            where: { id: tempSubmissionById.id },
-            data: { paymentIntentId: paymentIntent.id },
-          })
-
-          if (process.env.NODE_ENV === 'development') {
-            console.log('TemporarySubmission updated with correct paymentIntentId:', paymentIntent.id)
-          }
+        if (process.env.NODE_ENV === 'development') {
+          console.log('TemporarySubmission updated with correct paymentIntentId:', paymentIntent.id)
         }
       }
+    }
 
-      // 7b. If still not found after fallback, return 500 for Stripe to retry
-      // This is a genuine error - no recovery submission created
-      if (!tempSubmission) {
-        console.error('TemporarySubmission not found for payment:', paymentIntent.id)
-        console.error('CRITICAL: Payment succeeded but TemporarySubmission missing', {
+    // 7b. If still not found after fallback, return 500 for Stripe to retry
+    // This is a genuine error - no recovery submission created
+    if (!tempSubmission) {
+      console.error('TemporarySubmission not found for payment:', paymentIntent.id)
+      console.error('CRITICAL: Payment succeeded but TemporarySubmission missing', {
+        eventId: event.id,
+        paymentIntentId: paymentIntent.id,
+        amount: paymentIntent.amount,
+        email: paymentIntent.metadata.email,
+        attemptedFallback: !!paymentIntent.metadata?.temporarySubmissionId,
+      })
+
+      // Return 500 so Stripe retries - do NOT create recovery submission
+      // Stripe will retry with exponential backoff, giving DB time to sync
+      return NextResponse.json({ error: 'Temporary submission not found' }, { status: 500 })
+    }
+
+    const formData = tempSubmission.formData as FormData
+
+    // 8. Validate form data before creating Submission
+    if (!formData.email || !formData.patientFirstName) {
+      console.error('Invalid form data in TemporarySubmission:', tempSubmission.id)
+      return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
+    }
+
+    // 9. Create permanent Submission record
+    let submission: Awaited<ReturnType<typeof prisma.submission.create>>
+    try {
+      submission = await prisma.submission.create({
+        data: {
+          // System fields
+          stripePaymentIntentId: paymentIntent.id,
+          status: SubmissionStatus.PENDING_REVIEW,
+
+          // Direct copy fields
+          state: formData.state!,
+          recipient: formData.recipient!,
+          patientFirstName: formData.patientFirstName!,
+          patientLastName: formData.patientLastName!,
+          guardianFirstName: formData.guardianFirstName || null,
+          guardianLastName: formData.guardianLastName || null,
+          email: formData.email!,
+          phone: formData.phone!,
+          notePurpose: formData.notePurpose!,
+          otherNotePurpose: formData.otherNotePurpose || null,
+          absenceReason: formData.absenceReason!,
+          otherAbsenceReason: formData.otherAbsenceReason || null,
+          symptoms: formData.symptoms
+            ? (formData.symptoms as unknown as Record<string, unknown>)
+            : undefined,
+          otherSymptomText: formData.otherSymptomText || null,
+          additionalInformation: formData.additionalInformation || null,
+
+          // Date conversions with error handling
+          patientDateOfBirth: new Date(formData.patientDateOfBirth!),
+          guardianDateOfBirth: formData.guardianDateOfBirth
+            ? new Date(formData.guardianDateOfBirth)
+            : null,
+          firstDayOff: new Date(formData.firstDayOff!),
+          lastDayOff: new Date(formData.lastDayOff!),
+        },
+      })
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Submission created successfully:', {
           eventId: event.id,
-          paymentIntentId: paymentIntent.id,
-          amount: paymentIntent.amount,
-          email: paymentIntent.metadata.email,
-          attemptedFallback: !!paymentIntent.metadata?.temporarySubmissionId,
-        })
-
-        // Return 500 so Stripe retries - do NOT create recovery submission
-        // Stripe will retry with exponential backoff, giving DB time to sync
-        return NextResponse.json({ error: 'Temporary submission not found' }, { status: 500 })
-      }
-
-      const formData = tempSubmission.formData as FormData
-
-      // 8. Validate form data before creating Submission
-      if (!formData.email || !formData.patientFirstName) {
-        console.error('Invalid form data in TemporarySubmission:', tempSubmission.id)
-        return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
-      }
-
-      // 9. Create permanent Submission record
-      let submission: Awaited<ReturnType<typeof prisma.submission.create>>
-      try {
-        submission = await prisma.submission.create({
-          data: {
-            // System fields
-            stripePaymentIntentId: paymentIntent.id,
-            status: SubmissionStatus.PENDING_REVIEW,
-
-            // Direct copy fields
-            state: formData.state!,
-            recipient: formData.recipient!,
-            patientFirstName: formData.patientFirstName!,
-            patientLastName: formData.patientLastName!,
-            guardianFirstName: formData.guardianFirstName || null,
-            guardianLastName: formData.guardianLastName || null,
-            email: formData.email!,
-            phone: formData.phone!,
-            notePurpose: formData.notePurpose!,
-            otherNotePurpose: formData.otherNotePurpose || null,
-            absenceReason: formData.absenceReason!,
-            otherAbsenceReason: formData.otherAbsenceReason || null,
-            symptoms: formData.symptoms
-              ? (formData.symptoms as unknown as Record<string, unknown>)
-              : undefined,
-            otherSymptomText: formData.otherSymptomText || null,
-            additionalInformation: formData.additionalInformation || null,
-
-            // Date conversions with error handling
-            patientDateOfBirth: new Date(formData.patientDateOfBirth!),
-            guardianDateOfBirth: formData.guardianDateOfBirth
-              ? new Date(formData.guardianDateOfBirth)
-              : null,
-            firstDayOff: new Date(formData.firstDayOff!),
-            lastDayOff: new Date(formData.lastDayOff!),
-          },
-        })
-
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Submission created successfully:', {
-            eventId: event.id,
-            submissionId: submission.id,
-            paymentIntentId: paymentIntent.id,
-          })
-        }
-
-        // 9a. Revalidate admin dashboard cache (immediate update)
-        revalidatePath('/admin')
-        revalidatePath('/admin/review')
-        revalidatePath('/admin/approved')
-
-        // 9b. Send payment confirmation email (NON-BLOCKING - fire and forget)
-        // Remove await to return 200 OK to Stripe immediately
-        sendPaymentConfirmationEmail({
-          to: submission.email,
-          patientName: submission.patientFirstName,
           submissionId: submission.id,
-        }).then(() => {
+          paymentIntentId: paymentIntent.id,
+        })
+      }
+
+      // 9a. Revalidate admin dashboard cache (immediate update)
+      revalidatePath('/admin')
+      revalidatePath('/admin/review')
+      revalidatePath('/admin/approved')
+
+      // 9b. Send payment confirmation email (NON-BLOCKING - fire and forget)
+      // Remove await to return 200 OK to Stripe immediately
+      sendPaymentConfirmationEmail({
+        to: submission.email,
+        patientName: submission.patientFirstName,
+        submissionId: submission.id,
+      })
+        .then(() => {
           if (process.env.NODE_ENV === 'development') {
             console.log('Payment confirmation email sent:', submission.email)
           }
-        }).catch((emailError) => {
+        })
+        .catch((emailError) => {
           // NON-BLOCKING: Log warning but don't fail webhook
           console.warn('Failed to send payment confirmation email (non-critical):', emailError)
         })
-      } catch (submissionError) {
-        console.error('Failed to create Submission:', submissionError)
+    } catch (submissionError) {
+      console.error('Failed to create Submission:', submissionError)
 
-        // CRITICAL: Payment succeeded but Submission creation failed
-        // TemporarySubmission still exists, can be recovered
-        console.error('CRITICAL: Submission creation failed', {
-          eventId: event.id,
-          paymentIntentId: paymentIntent.id,
-          tempSubmissionId: tempSubmission.id,
-        })
+      // CRITICAL: Payment succeeded but Submission creation failed
+      // TemporarySubmission still exists, can be recovered
+      console.error('CRITICAL: Submission creation failed', {
+        eventId: event.id,
+        paymentIntentId: paymentIntent.id,
+        tempSubmissionId: tempSubmission.id,
+      })
 
-        // Return 500 so Stripe retries
-        return NextResponse.json({ error: 'Failed to create submission' }, { status: 500 })
-      }
+      // Return 500 so Stripe retries
+      return NextResponse.json({ error: 'Failed to create submission' }, { status: 500 })
+    }
 
     // 10. Delete TemporarySubmission (cleanup)
     try {

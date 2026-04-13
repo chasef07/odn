@@ -17,13 +17,7 @@ interface DateOfBirthInputProps {
   error?: string
 }
 
-export function DateOfBirthInput({
-  name,
-  label,
-  value,
-  onChange,
-  error,
-}: DateOfBirthInputProps) {
+export function DateOfBirthInput({ name, label, value, onChange, error }: DateOfBirthInputProps) {
   // Parse existing YYYY-MM-DD value into parts
   const [year, month, day] = value ? value.split('-') : ['', '', '']
 
@@ -35,13 +29,18 @@ export function DateOfBirthInput({
   const dayRef = useRef<HTMLInputElement>(null)
   const yearRef = useRef<HTMLInputElement>(null)
 
-  // Sync from external value changes (e.g. loading saved form data)
+  // Sync from external value changes (e.g. loading saved form data).
+  // Intentional props→state sync; splitting an ISO date into three inputs
+  // means we can't derive during render without re-parsing every keystroke.
   useEffect(() => {
     if (value) {
       const [y, m, d] = value.split('-')
       if (y && m && d) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setYyyy(y)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMm(m)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDd(d)
       }
     }
@@ -184,7 +183,7 @@ export function DateOfBirthInput({
           />
         </div>
 
-        <span className="text-lg text-muted-foreground">/</span>
+        <span className="text-muted-foreground text-lg">/</span>
 
         <div className="flex flex-col items-center">
           <input
@@ -207,7 +206,7 @@ export function DateOfBirthInput({
           />
         </div>
 
-        <span className="text-lg text-muted-foreground">/</span>
+        <span className="text-muted-foreground text-lg">/</span>
 
         <div className="flex flex-col items-center">
           <input
@@ -233,8 +232,8 @@ export function DateOfBirthInput({
 
       {/* Age confirmation */}
       {computedAge !== null && (
-        <p className="text-sm text-muted-foreground">
-          Age: <span className="font-medium text-foreground">{computedAge} years old</span>
+        <p className="text-muted-foreground text-sm">
+          Age: <span className="text-foreground font-medium">{computedAge} years old</span>
         </p>
       )}
 

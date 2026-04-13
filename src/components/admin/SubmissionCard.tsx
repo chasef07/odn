@@ -49,7 +49,9 @@ export function SubmissionCard({
 
   // Parse symptoms from JSON
   const symptoms = submission.symptoms
-    ? (Array.isArray(submission.symptoms) ? submission.symptoms : [])
+    ? Array.isArray(submission.symptoms)
+      ? submission.symptoms
+      : []
     : []
 
   return (
@@ -58,7 +60,7 @@ export function SubmissionCard({
       <CardHeader className="border-b py-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Submission Review</CardTitle>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-muted-foreground text-xs">
             {currentIndex + 1} of {totalCount}
           </span>
         </div>
@@ -67,7 +69,7 @@ export function SubmissionCard({
       <CardContent className="space-y-2.5 py-3">
         {/* Patient Information */}
         <div className="space-y-1.5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Patient Information
           </h3>
           <div className="space-y-1 text-xs">
@@ -86,11 +88,15 @@ export function SubmissionCard({
             </div>
             <div>
               <span className="text-muted-foreground">DOB: </span>
-              <span>{formatFullDate(submission.patientDateOfBirth)} (Age {patientAge})</span>
+              <span>
+                {formatFullDate(submission.patientDateOfBirth)} (Age {patientAge})
+              </span>
             </div>
             <div>
               <span className="text-muted-foreground">Email: </span>
-              <a href={`mailto:${submission.email}`} className="text-blue-600 hover:underline">{submission.email}</a>
+              <a href={`mailto:${submission.email}`} className="text-blue-600 hover:underline">
+                {submission.email}
+              </a>
             </div>
             <div>
               <span className="text-muted-foreground">Phone: </span>
@@ -106,7 +112,7 @@ export function SubmissionCard({
         {/* Guardian Information (if applicable) */}
         {hasGuardian && submission.guardianFirstName && (
           <div className="space-y-1.5 border-t pt-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               Guardian Information
             </h3>
             <div className="space-y-1 text-xs">
@@ -131,7 +137,7 @@ export function SubmissionCard({
 
         {/* Note Request */}
         <div className="space-y-1.5 border-t pt-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Note Request
           </h3>
           <div className="space-y-1 text-xs">
@@ -177,14 +183,14 @@ export function SubmissionCard({
         {/* PDF Options */}
         {(onEvaluationDateChange || onDiagnosisChange || onWithRestrictionsChange) && (
           <div className="space-y-2 border-t pt-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               PDF Options
             </h3>
 
             {/* Evaluation Date */}
             {onEvaluationDateChange && (
               <div className="space-y-1">
-                <Label htmlFor="evaluationDate" className="text-xs text-muted-foreground">
+                <Label htmlFor="evaluationDate" className="text-muted-foreground text-xs">
                   Evaluation Date
                 </Label>
                 <Input
@@ -200,7 +206,7 @@ export function SubmissionCard({
             {/* Diagnosis */}
             {onDiagnosisChange && (
               <div className="space-y-1">
-                <Label htmlFor="diagnosis" className="text-xs text-muted-foreground">
+                <Label htmlFor="diagnosis" className="text-muted-foreground text-xs">
                   Diagnosis (optional)
                 </Label>
                 <Textarea
@@ -222,7 +228,7 @@ export function SubmissionCard({
                   checked={withRestrictions ?? true}
                   onCheckedChange={onWithRestrictionsChange}
                 />
-                <Label htmlFor="card-restrictions-toggle" className="text-xs text-muted-foreground">
+                <Label htmlFor="card-restrictions-toggle" className="text-muted-foreground text-xs">
                   Include &quot;with no restrictions&quot; in PDF
                 </Label>
               </div>
@@ -232,7 +238,7 @@ export function SubmissionCard({
 
         {/* Submitted */}
         <div className="space-y-1.5 border-t pt-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Submitted
           </h3>
           <p className="text-xs">{formatDateWithTime(submission.createdAt)}</p>

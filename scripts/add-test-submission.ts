@@ -31,7 +31,9 @@ async function addTestSubmission() {
     console.log(`  Patient: ${testSubmission.patientFirstName} ${testSubmission.patientLastName}`)
     console.log(`  Email: ${testSubmission.email}`)
     console.log(`  Status: ${testSubmission.status}`)
-    console.log(`  Dates: ${testSubmission.firstDayOff.toLocaleDateString()} - ${testSubmission.lastDayOff.toLocaleDateString()}`)
+    console.log(
+      `  Dates: ${testSubmission.firstDayOff.toLocaleDateString()} - ${testSubmission.lastDayOff.toLocaleDateString()}`
+    )
     console.log(`  Days Off: 3 days`)
     console.log(`  Payment Intent: ${testSubmission.stripePaymentIntentId}`)
     console.log(`\n📍 You can now test the admin portal at: http://localhost:3000/admin/review`)

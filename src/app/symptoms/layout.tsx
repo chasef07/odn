@@ -8,10 +8,6 @@ export const metadata: Metadata = {
   },
 }
 
-export default function SymptomsLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function SymptomsLayout({ children }: { children: React.ReactNode }) {
   return children
 }

@@ -173,11 +173,9 @@ export async function generateDoctorNotePDF(
   const now = new Date()
   const etDateString = now.toLocaleString('en-US', { timeZone: 'America/New_York' })
   const etDate = new Date(etDateString)
-  const defaultIssueDate = new Date(Date.UTC(
-    etDate.getFullYear(),
-    etDate.getMonth(),
-    etDate.getDate()
-  ))
+  const defaultIssueDate = new Date(
+    Date.UTC(etDate.getFullYear(), etDate.getMonth(), etDate.getDate())
+  )
   const finalIssueDate = issueDate || defaultIssueDate
   try {
     // Step 1: Validate environment variables

@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate
+      - name: ESLint
+        run: npm run lint
+      - name: Prettier
+        run: npm run format:check
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate
+      - name: tsc --noEmit
+        run: npx tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Vitest
+        run: npm test -- --run
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Next build
+        run: npm run build
+        env:
+          # Build-time placeholders — real values come from Vercel at deploy time.
+          # Values just need to be non-empty strings that pass env-var validation.
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          STRIPE_SECRET_KEY: sk_test_ci_placeholder
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          STRIPE_PRICE_ID: price_ci_placeholder
+          STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          PRISMA_DATABASE_URL: prisma+postgres://ci:ci@localhost:5432/ci
+          BETTER_AUTH_SECRET: ci_placeholder_secret_at_least_32_chars_long
+          BETTER_AUTH_URL: http://localhost:3000
+          RESEND_API_KEY: re_ci_placeholder
+          RESEND_FROM_EMAIL: ci@example.com
+          RESEND_WEBHOOK_SECRET: ci_placeholder_resend_webhook_secret
+          DOCTOR_NAME: Dr. CI
+          DOCTOR_CREDENTIALS: MD
+          DOCTOR_SIGNATURE_URL: /images/doctor-signature.png
+          CRON_SECRET: ci_placeholder_cron_secret

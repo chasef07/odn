@@ -49,5 +49,5 @@ export function validateEnvironment() {
 
 // Validate on module load (server-side only)
 if (typeof window === 'undefined') {
-  validateEnvironment();
+  validateEnvironment()
 }

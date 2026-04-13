@@ -127,7 +127,12 @@ export default function AdminReviewPage() {
     setApprovalError(null)
 
     // Call server action to approve with evaluation date, diagnosis, and restrictions toggle
-    const result = await approveSubmission(currentSubmission.id, evaluationDate, diagnosis || undefined, withRestrictions)
+    const result = await approveSubmission(
+      currentSubmission.id,
+      evaluationDate,
+      diagnosis || undefined,
+      withRestrictions
+    )
 
     if (result.success) {
       setShowApprovalDialog(false)
@@ -266,8 +271,8 @@ export default function AdminReviewPage() {
   if (isLoading) {
     return (
       <div className="flex h-[calc(100vh-120px)] items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+        <div className="space-y-4 text-center">
+          <div className="border-primary mx-auto h-12 w-12 animate-spin rounded-full border-b-2"></div>
           <p className="text-muted-foreground">Loading submissions...</p>
         </div>
       </div>
@@ -278,8 +283,8 @@ export default function AdminReviewPage() {
   if (error) {
     return (
       <div className="flex h-[calc(100vh-120px)] items-center justify-center">
-        <div className="text-center space-y-4 max-w-md">
-          <p className="text-red-600 font-semibold">Error loading submissions</p>
+        <div className="max-w-md space-y-4 text-center">
+          <p className="font-semibold text-red-600">Error loading submissions</p>
           <p className="text-muted-foreground">{error}</p>
           <Button onClick={() => window.location.reload()}>Retry</Button>
         </div>
@@ -291,7 +296,7 @@ export default function AdminReviewPage() {
   if (submissions.length === 0) {
     return (
       <div className="flex h-[calc(100vh-120px)] items-center justify-center">
-        <div className="text-center space-y-4">
+        <div className="space-y-4 text-center">
           <h2 className="text-2xl font-bold">No Pending Submissions</h2>
           <p className="text-muted-foreground">All submissions have been reviewed!</p>
           <Button onClick={handleReturnToDashboard}>Return to Dashboard</Button>
@@ -428,7 +433,7 @@ export default function AdminReviewPage() {
           </DialogHeader>
 
           {approvalError && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               <strong>Error:</strong> {approvalError}
             </div>
           )}

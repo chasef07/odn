@@ -26,7 +26,7 @@ export default async function MaybePortalPage() {
   // Fetch all maybe and manual submissions
   const [maybeResult, manualResult] = await Promise.all([
     getMaybeSubmissions(),
-    getManualSubmissions()
+    getManualSubmissions(),
   ])
 
   const maybeSubmissions = maybeResult.success ? maybeResult.submissions : []
@@ -40,7 +40,7 @@ export default async function MaybePortalPage() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
+              <span className="text-muted-foreground truncate text-sm">{session.user.email}</span>
             </div>
             <LogoutButton />
           </div>
@@ -52,8 +52,8 @@ export default async function MaybePortalPage() {
           {/* Header with back button */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Review Portal</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <h1 className="text-foreground text-3xl font-bold">Review Portal</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
                 {totalCount} {totalCount === 1 ? 'submission' : 'submissions'} awaiting review
               </p>
             </div>
@@ -76,7 +76,8 @@ export default async function MaybePortalPage() {
               <p className="text-sm text-red-600">
                 {!maybeResult.success && (maybeResult.error || 'Failed to load maybe submissions')}
                 {!maybeResult.success && !manualResult.success && ' | '}
-                {!manualResult.success && (manualResult.error || 'Failed to load manual submissions')}
+                {!manualResult.success &&
+                  (manualResult.error || 'Failed to load manual submissions')}
               </p>
             </div>
           )}

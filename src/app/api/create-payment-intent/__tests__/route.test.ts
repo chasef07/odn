@@ -20,13 +20,11 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 // Mock Stripe using vi.hoisted
-const { mockPaymentIntentCreate, mockPaymentIntentCancel, mockPricesRetrieve } = vi.hoisted(
-  () => ({
-    mockPaymentIntentCreate: vi.fn(),
-    mockPaymentIntentCancel: vi.fn(),
-    mockPricesRetrieve: vi.fn(),
-  })
-)
+const { mockPaymentIntentCreate, mockPaymentIntentCancel, mockPricesRetrieve } = vi.hoisted(() => ({
+  mockPaymentIntentCreate: vi.fn(),
+  mockPaymentIntentCancel: vi.fn(),
+  mockPricesRetrieve: vi.fn(),
+}))
 
 vi.mock('next/cache', () => ({
   unstable_cache: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,

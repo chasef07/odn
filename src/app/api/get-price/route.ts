@@ -12,10 +12,7 @@ export async function GET() {
 
     if (!price.unit_amount || !price.currency) {
       console.error('Invalid price object - missing unit_amount or currency:', price)
-      return NextResponse.json(
-        { error: 'Invalid pricing configuration' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Invalid pricing configuration' }, { status: 500 })
     }
 
     return NextResponse.json({
@@ -26,9 +23,6 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Failed to fetch Stripe price:', error)
-    return NextResponse.json(
-      { error: 'Unable to fetch pricing information' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Unable to fetch pricing information' }, { status: 500 })
   }
 }

@@ -46,10 +46,9 @@ export const page2Schema = z.object({
 export const guardianSchema = z.object({
   guardianFirstName: nameField('First name'),
   guardianLastName: nameField('Last name'),
-  guardianDateOfBirth: dateOfBirthField.refine(
-    (val) => isAgeValid(val, 18),
-    { message: 'Guardian must be 18 years or older' }
-  ),
+  guardianDateOfBirth: dateOfBirthField.refine((val) => isAgeValid(val, 18), {
+    message: 'Guardian must be 18 years or older',
+  }),
 })
 
 // Common domain typos and their corrections
@@ -81,10 +80,37 @@ const COMMON_TLD_TYPOS: Record<string, string> = {
 
 // Common valid TLDs (not exhaustive, but covers 95%+ of users)
 const COMMON_TLDS = [
-  '.com', '.net', '.org', '.edu', '.gov', '.mil',
-  '.co', '.uk', '.us', '.ca', '.au', '.de', '.fr', '.jp', '.cn', '.in', '.br',
-  '.io', '.ai', '.dev', '.app', '.tech', '.info', '.biz', '.me', '.tv',
-  '.co.uk', '.com.au', '.co.nz', '.co.za', '.com.br',
+  '.com',
+  '.net',
+  '.org',
+  '.edu',
+  '.gov',
+  '.mil',
+  '.co',
+  '.uk',
+  '.us',
+  '.ca',
+  '.au',
+  '.de',
+  '.fr',
+  '.jp',
+  '.cn',
+  '.in',
+  '.br',
+  '.io',
+  '.ai',
+  '.dev',
+  '.app',
+  '.tech',
+  '.info',
+  '.biz',
+  '.me',
+  '.tv',
+  '.co.uk',
+  '.com.au',
+  '.co.nz',
+  '.co.za',
+  '.com.br',
 ]
 
 export const page3Schema = z.object({
@@ -142,7 +168,9 @@ export const page3Schema = z.object({
       }
 
       // Validate TLD is in common TLDs list
-      const isValidTLD = COMMON_TLDS.some(validTld => tld === validTld || email.endsWith(validTld))
+      const isValidTLD = COMMON_TLDS.some(
+        (validTld) => tld === validTld || email.endsWith(validTld)
+      )
       if (!isValidTLD) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

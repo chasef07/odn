@@ -91,7 +91,7 @@ async function main() {
   const args = process.argv.slice(2)
 
   // Separate emails from flags
-  const emails = args.filter(arg => !arg.startsWith('--'))
+  const emails = args.filter((arg) => !arg.startsWith('--'))
   const shouldSend = args.includes('--send')
 
   if (emails.length === 0) {
@@ -99,7 +99,9 @@ async function main() {
     console.log('\nUsage:')
     console.log('  npx tsx scripts/resend-approval-by-email.ts patient@example.com')
     console.log('  npx tsx scripts/resend-approval-by-email.ts patient@example.com --send')
-    console.log('  npx tsx scripts/resend-approval-by-email.ts email1@test.com email2@test.com --send')
+    console.log(
+      '  npx tsx scripts/resend-approval-by-email.ts email1@test.com email2@test.com --send'
+    )
     process.exit(1)
   }
 
@@ -139,7 +141,7 @@ async function main() {
       })
 
       // Add to results for potential sending
-      submissions.forEach(submission => {
+      submissions.forEach((submission) => {
         allResults.push({
           email: submission.email,
           submissionId: submission.id,
@@ -161,8 +163,8 @@ async function main() {
       console.log(`   npx tsx scripts/resend-approval-by-email.ts ${emails.join(' ')} --send\n`)
 
       // Show what will happen
-      const alreadySent = allResults.filter(r => {
-        const sub = prisma.submission.findUnique({ where: { id: r.submissionId }})
+      const alreadySent = allResults.filter((r) => {
+        const sub = prisma.submission.findUnique({ where: { id: r.submissionId } })
         return false // simplified for dry run
       })
       console.log(`📊 Summary: ${allResults.length} email(s) will be sent`)
@@ -202,11 +204,13 @@ async function main() {
 
     if (failed > 0) {
       console.log('\n❌ Failed emails:')
-      allResults.filter(r => !r.success).forEach((result) => {
-        console.log(`  - ${result.patientName} (${result.email})`)
-        console.log(`    Submission ID: ${result.submissionId}`)
-        console.log(`    Error: ${result.error}`)
-      })
+      allResults
+        .filter((r) => !r.success)
+        .forEach((result) => {
+          console.log(`  - ${result.patientName} (${result.email})`)
+          console.log(`    Submission ID: ${result.submissionId}`)
+          console.log(`    Error: ${result.error}`)
+        })
     }
 
     console.log('')

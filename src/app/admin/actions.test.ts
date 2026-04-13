@@ -7,7 +7,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { SubmissionStatus } from '@prisma/client'
 
 // Hoist mocks to the top level
-const { mockRefundsCreate, mockFindUnique, mockUpdate, mockUpdateMany, mockSendDenialEmail, mockGetSession } = vi.hoisted(() => ({
+const {
+  mockRefundsCreate,
+  mockFindUnique,
+  mockUpdate,
+  mockUpdateMany,
+  mockSendDenialEmail,
+  mockGetSession,
+} = vi.hoisted(() => ({
   mockRefundsCreate: vi.fn(),
   mockFindUnique: vi.fn(),
   mockUpdate: vi.fn(),

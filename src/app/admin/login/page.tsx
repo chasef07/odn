@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Admin Portal</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold">Admin Portal</CardTitle>
           <CardDescription className="text-center">
             Sign in to access the doctor review portal
           </CardDescription>
@@ -82,11 +82,7 @@ export default function AdminLoginPage() {
               />
             </div>
 
-            {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-                {error}
-              </div>
-            )}
+            {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign In'}

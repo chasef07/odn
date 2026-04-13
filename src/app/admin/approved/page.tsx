@@ -34,7 +34,7 @@ export default async function ApprovedSubmissionsPage() {
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
+                <span className="text-muted-foreground truncate text-sm">{session.user.email}</span>
               </div>
               <LogoutButton />
             </div>
@@ -43,8 +43,10 @@ export default async function ApprovedSubmissionsPage() {
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="space-y-8">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Approved Submissions</h1>
-              <p className="text-red-600 mt-1">Failed to load approved submissions. Please try again.</p>
+              <h1 className="text-foreground text-3xl font-bold">Approved Submissions</h1>
+              <p className="mt-1 text-red-600">
+                Failed to load approved submissions. Please try again.
+              </p>
             </div>
           </div>
         </main>
@@ -61,7 +63,7 @@ export default async function ApprovedSubmissionsPage() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
+              <span className="text-muted-foreground truncate text-sm">{session.user.email}</span>
             </div>
             <LogoutButton />
           </div>
@@ -93,49 +95,56 @@ export default async function ApprovedSubmissionsPage() {
 
           {/* Table or Empty State */}
           {submissions.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
-              <div className="text-6xl mb-4">📋</div>
-              <h2 className="text-2xl font-bold mb-2">No approvals today</h2>
-              <p className="text-muted-foreground mb-6">All approved submissions will appear here</p>
+            <div className="rounded-lg border border-gray-200 bg-white py-16 text-center">
+              <div className="mb-4 text-6xl">📋</div>
+              <h2 className="mb-2 text-2xl font-bold">No approvals today</h2>
+              <p className="text-muted-foreground mb-6">
+                All approved submissions will appear here
+              </p>
               <Link href="/admin">
                 <Button>Back to Dashboard</Button>
               </Link>
             </div>
           ) : (
             <div className="-mx-4 sm:mx-0">
-              <div className="bg-white rounded-none sm:rounded-lg shadow overflow-x-auto border-y sm:border border-green-200">
+              <div className="overflow-x-auto rounded-none border-y border-green-200 bg-white shadow sm:rounded-lg sm:border">
                 <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-green-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Patient Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Approved At
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {submissions.map((submission) => (
-                    <tr key={submission.id} className="hover:bg-green-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {submission.patientFirstName} {submission.patientLastName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <a href={`mailto:${submission.email}`} className="text-blue-600 hover:underline">{submission.email}</a>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                        {submission.approvalEmailSentAt
-                          ? formatDateWithTime(submission.approvalEmailSentAt)
-                          : 'N/A'}
-                      </td>
+                  <thead className="bg-green-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                        Patient Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                        Approved At
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {submissions.map((submission) => (
+                      <tr key={submission.id} className="transition-colors hover:bg-green-50">
+                        <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
+                          {submission.patientFirstName} {submission.patientLastName}
+                        </td>
+                        <td className="px-6 py-4 text-sm whitespace-nowrap">
+                          <a
+                            href={`mailto:${submission.email}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {submission.email}
+                          </a>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-green-600">
+                          {submission.approvalEmailSentAt
+                            ? formatDateWithTime(submission.approvalEmailSentAt)
+                            : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

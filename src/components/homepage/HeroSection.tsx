@@ -15,7 +15,7 @@ export default function HeroSection() {
         <div className="grid items-center gap-6 md:grid-cols-2 md:gap-12">
           {/* Left - Text Content */}
           <div className="order-1 text-left">
-            <h1 className="font-hero animate-fade-in-up mb-3 text-4xl font-bold leading-[1.1] tracking-tight text-gray-900 md:text-5xl lg:text-6xl">
+            <h1 className="font-hero animate-fade-in-up mb-3 text-4xl leading-[1.1] font-bold tracking-tight text-gray-900 md:text-5xl lg:text-6xl">
               Get a Doctor&apos;s Note
               <span className="relative block whitespace-nowrap text-[#009ed9]">
                 {/* Invisible placeholder to reserve line height */}

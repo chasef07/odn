@@ -56,7 +56,9 @@ async function inspectDatabase() {
     })
 
     if (expiredCount > 0) {
-      console.log(`\n⚠️  Found ${expiredCount} expired temporary submissions (should be cleaned up)`)
+      console.log(
+        `\n⚠️  Found ${expiredCount} expired temporary submissions (should be cleaned up)`
+      )
     }
 
     // Check for submissions by status

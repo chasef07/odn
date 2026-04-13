@@ -104,10 +104,7 @@ export async function POST(request: NextRequest) {
     }
     if (formData.recipient === 'someone_else' && formData.guardianDateOfBirth) {
       if (!isAgeValid(formData.guardianDateOfBirth, 18)) {
-        return NextResponse.json(
-          { error: 'Guardian must be 18 years or older' },
-          { status: 400 }
-        )
+        return NextResponse.json({ error: 'Guardian must be 18 years or older' }, { status: 400 })
       }
     }
 
@@ -242,7 +239,9 @@ export async function POST(request: NextRequest) {
       if (!cancelSucceeded) {
         // Payment intent exists but couldn't be canceled - webhook might still process it
         // The metadata.temporarySubmissionId will allow webhook to find the temp submission
-        console.error('CRITICAL: PaymentIntent may still be active, webhook can use metadata fallback')
+        console.error(
+          'CRITICAL: PaymentIntent may still be active, webhook can use metadata fallback'
+        )
       }
 
       return NextResponse.json(

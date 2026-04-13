@@ -26,3 +26,9 @@ prisma/migrations
 # Environment files
 .env
 .env*.local
+
+# Claude local tooling (worktrees, sessions, memory)
+.claude
+
+# Archived / legacy docs — historical artifacts, don't reformat
+docs-legacy

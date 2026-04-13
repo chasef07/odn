@@ -53,10 +53,7 @@ async function findApprovedSubmissions(email: string) {
 /**
  * Generate PDF and save to disk
  */
-async function generateAndSavePDF(
-  submissionId: string,
-  outputDir: string
-): Promise<string> {
+async function generateAndSavePDF(submissionId: string, outputDir: string): Promise<string> {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
   })
@@ -88,7 +85,7 @@ async function main() {
   const args = process.argv.slice(2)
 
   // Parse arguments
-  const emails = args.filter(arg => !arg.startsWith('--'))
+  const emails = args.filter((arg) => !arg.startsWith('--'))
   const outputDirIndex = args.indexOf('--output')
   const outputDir =
     outputDirIndex !== -1 && args[outputDirIndex + 1]
@@ -187,8 +184,8 @@ async function main() {
     if (successful > 0) {
       console.log('\n✅ Generated PDFs:')
       allResults
-        .filter(r => r.success)
-        .forEach(result => {
+        .filter((r) => r.success)
+        .forEach((result) => {
           console.log(`  - ${result.filename} (${result.patientName})`)
         })
     }
@@ -196,8 +193,8 @@ async function main() {
     if (failed > 0) {
       console.log('\n❌ Failed PDFs:')
       allResults
-        .filter(r => !r.success)
-        .forEach(result => {
+        .filter((r) => !r.success)
+        .forEach((result) => {
           console.log(`  - ${result.patientName} (${result.email})`)
           console.log(`    Submission ID: ${result.submissionId}`)
           console.log(`    Error: ${result.error}`)
@@ -214,7 +211,7 @@ async function main() {
 }
 
 // Run the script
-main().catch(error => {
+main().catch((error) => {
   console.error('Fatal error:', error)
   process.exit(1)
 })

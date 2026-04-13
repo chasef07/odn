@@ -58,7 +58,11 @@ export function FormLayout({
           <h1 className="font-display text-foreground mb-3 text-3xl font-bold sm:text-4xl md:text-5xl">
             {personalizedTitle}
           </h1>
-          {description && <p className="text-muted-foreground mx-auto max-w-2xl text-base sm:text-lg">{description}</p>}
+          {description && (
+            <p className="text-muted-foreground mx-auto max-w-2xl text-base sm:text-lg">
+              {description}
+            </p>
+          )}
         </div>
 
         {/* Form Content */}

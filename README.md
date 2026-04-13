@@ -20,7 +20,7 @@
 ## Highlights
 
 - **12-step guided intake** — react-hook-form + Zod, conditional guardian flow, localStorage draft persistence.
-- **Stripe-first architecture** — `TemporarySubmission` is written *before* the `PaymentIntent`, with a metadata fallback so webhooks never lose a paid order.
+- **Stripe-first architecture** — `TemporarySubmission` is written _before_ the `PaymentIntent`, with a metadata fallback so webhooks never lose a paid order.
 - **Doctor review portal** — Better Auth (bcrypt), Tinder-style card review, search/edit any submission, one-click re-approval that regenerates PDF and email.
 - **Medical-grade PDFs** — `@react-pdf/renderer` with Plus Jakarta Sans, state-specific license numbers for 46 states, returned by email on approval.
 - **Production-ready** — Prisma Accelerate (40× faster queries), Resend webhook handling for bounces, HIPAA-conscious UX, 369+ tests on PGlite so CI never touches prod.
@@ -122,12 +122,12 @@ Open http://localhost:3000.
 
 This project ships with **PGlite** (via `@prisma/dev`) so you don't need a local Postgres installation. Tests spin it up automatically; for manual dev, use the `db:local:*` scripts.
 
-| Command                    | What it does                                    |
-|----------------------------|-------------------------------------------------|
-| `npm run db:local`         | Start PGlite in the foreground                  |
-| `npm run db:local:detach`  | Start PGlite in the background                  |
-| `npm run db:local:stop`    | Stop the default detached instance              |
-| `npm run db:local:ls`      | List running local databases                    |
+| Command                   | What it does                       |
+| ------------------------- | ---------------------------------- |
+| `npm run db:local`        | Start PGlite in the foreground     |
+| `npm run db:local:detach` | Start PGlite in the background     |
+| `npm run db:local:stop`   | Stop the default detached instance |
+| `npm run db:local:ls`     | List running local databases       |
 
 Tests use `vitest.global-setup.ts` to start/stop PGlite around the run, so `npm test` is self-contained. CI never sees production credentials.
 

@@ -61,16 +61,12 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
   const [state, setState] = useState(submission.state)
   const [notePurpose, setNotePurpose] = useState(submission.notePurpose)
   const [otherNotePurpose, setOtherNotePurpose] = useState(submission.otherNotePurpose || '')
-  const [firstDayOff, setFirstDayOff] = useState(
-    submission.firstDayOff as string
-  )
-  const [lastDayOff, setLastDayOff] = useState(
-    submission.lastDayOff as string
-  )
+  const [firstDayOff, setFirstDayOff] = useState(submission.firstDayOff as string)
+  const [lastDayOff, setLastDayOff] = useState(submission.lastDayOff as string)
   const [absenceReason, setAbsenceReason] = useState(submission.absenceReason)
   const [otherAbsenceReason, setOtherAbsenceReason] = useState(submission.otherAbsenceReason || '')
   const [symptoms, setSymptoms] = useState<string[]>(
-    Array.isArray(submission.symptoms) ? submission.symptoms as string[] : []
+    Array.isArray(submission.symptoms) ? (submission.symptoms as string[]) : []
   )
   const [otherSymptomText, setOtherSymptomText] = useState(submission.otherSymptomText || '')
   const [additionalInformation, setAdditionalInformation] = useState(
@@ -88,7 +84,12 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
     setSuccess(null)
 
     try {
-      const result = await approveSubmission(submission.id, evaluationDate, diagnosis || undefined, withRestrictions)
+      const result = await approveSubmission(
+        submission.id,
+        evaluationDate,
+        diagnosis || undefined,
+        withRestrictions
+      )
 
       if (result.success) {
         setSuccess('Submission approved! PDF sent to patient.')
@@ -148,7 +149,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
     }
   }
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -156,7 +156,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <Link href="/admin" className="flex items-center gap-2">
-              <span className="rounded bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
+              <span className="bg-primary/10 text-primary rounded px-2 py-1 text-sm font-medium">
                 Admin Portal
               </span>
             </Link>
@@ -169,10 +169,8 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
           {/* Page Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Edit Submission</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                ID: {submission.id}
-              </p>
+              <h1 className="text-foreground text-3xl font-bold">Edit Submission</h1>
+              <p className="text-muted-foreground mt-1 text-sm">ID: {submission.id}</p>
             </div>
             <Link href="/admin/maybe">
               <Button variant="outline">Back to List</Button>
@@ -353,7 +351,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                     onChange={(e) => setEvaluationDate(e.target.value)}
                     disabled={isLoading}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Appears as &quot;Date Issued&quot; on the PDF.
                   </p>
                 </div>
@@ -367,7 +365,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                     rows={2}
                     disabled={isLoading}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Appears after the medical condition text. Leave blank for default.
                   </p>
                 </div>
@@ -383,7 +381,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                   Include &quot;with no restrictions&quot; in PDF
                 </Label>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 These options are not stored in the database - they only affect the generated PDF.
               </p>
             </div>
@@ -454,7 +452,14 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                 <Input
                   id="symptoms"
                   value={symptoms.join(', ')}
-                  onChange={(e) => setSymptoms(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                  onChange={(e) =>
+                    setSymptoms(
+                      e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    )
+                  }
                   disabled={isLoading}
                   placeholder="e.g., Fever, Cough, Headache"
                 />

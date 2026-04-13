@@ -14,7 +14,13 @@ import { FormEditableSection } from '@/components/form/FormEditableSection'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { getFormData, saveFormData } from '@/lib/form-storage'
-import { page2Schema, guardianSchema, page3Schema, page6Schema, page10Schema } from '@/lib/validation-schemas'
+import {
+  page2Schema,
+  guardianSchema,
+  page3Schema,
+  page6Schema,
+  page10Schema,
+} from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
 import { validateAbsenceDates } from '@/lib/date-validators'
 import { isAgeValid } from '@/lib/age-validators'
@@ -128,8 +134,7 @@ export default function ReviewPage() {
 
   // Handler for patient name changes with auto-capitalization
   const handlePatientNameChange =
-    (field: 'patientFirstName' | 'patientLastName') =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (field: 'patientFirstName' | 'patientLastName') => (e: React.ChangeEvent<HTMLInputElement>) => {
       const capitalized = capitalizeName(e.target.value)
       personalForm.setValue(field, capitalized)
     }
@@ -260,7 +265,11 @@ export default function ReviewPage() {
       description="Please review all details carefully before continuing to payment."
       usePersonalization={true}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pb-8" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-4 pb-8"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {/* Patient Information */}
         <FormEditableSection
           sectionId="personal"
@@ -318,7 +327,9 @@ export default function ReviewPage() {
                   aria-required="true"
                   aria-invalid={!!personalForm.formState.errors.patientLastName}
                   aria-describedby={
-                    personalForm.formState.errors.patientLastName ? 'patientLastName-error' : undefined
+                    personalForm.formState.errors.patientLastName
+                      ? 'patientLastName-error'
+                      : undefined
                   }
                 />
                 {personalForm.formState.errors.patientLastName && (
@@ -520,7 +531,7 @@ export default function ReviewPage() {
         />
 
         {/* Terms Checkboxes - Native Checkboxes */}
-        <div className="border-border/40 space-y-3 rounded-xl border bg-white p-4 md:p-6 shadow-sm">
+        <div className="border-border/40 space-y-3 rounded-xl border bg-white p-4 shadow-sm md:p-6">
           <div className="flex items-start space-x-3">
             <input
               type="checkbox"
@@ -560,8 +571,8 @@ export default function ReviewPage() {
                 onClick={(e) => e.stopPropagation()}
               >
                 Terms of Service
-              </Link>
-              {' '}and{' '}
+              </Link>{' '}
+              and{' '}
               <Link
                 href="/privacy-policy"
                 target="_blank"
@@ -570,7 +581,8 @@ export default function ReviewPage() {
                 onClick={(e) => e.stopPropagation()}
               >
                 Privacy Policy
-              </Link>.
+              </Link>
+              .
             </label>
           </div>
           {errors.agreeTerms && <p className="text-sm text-red-500">{errors.agreeTerms.message}</p>}

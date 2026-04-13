@@ -50,10 +50,12 @@ export function SelectDenialDialog({
   const [denialReason, setDenialReason] = useState<string>('')
   const [otherReason, setOtherReason] = useState('')
 
-  // Reset state when dialog opens
+  // Reset state when dialog opens — intentional prop-driven reset
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDenialReason('')
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOtherReason('')
     }
   }, [open])
@@ -74,7 +76,7 @@ export function SelectDenialDialog({
         </DialogHeader>
 
         {error && (
-          <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+          <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
             <strong>Error:</strong> {error}
           </div>
         )}
@@ -87,7 +89,9 @@ export function SelectDenialDialog({
                 <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Legal">Legal - Cannot provide note for this situation</SelectItem>
+                <SelectItem value="Legal">
+                  Legal - Cannot provide note for this situation
+                </SelectItem>
                 <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
                 <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
                 <SelectItem value="Refund">Refund</SelectItem>
@@ -112,11 +116,7 @@ export function SelectDenialDialog({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
             Cancel
           </Button>
           <Button

@@ -24,40 +24,14 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: [
-          '/',
-          '/start',
-          '/about',
-          '/faq',
-          '/blog',
-          '/privacy-policy',
-          '/terms-of-service',
-        ],
-        disallow: [
-          '/api/',
-          '/admin/',
-          '/*?',
-          ...formPages,
-        ],
+        allow: ['/', '/start', '/about', '/faq', '/blog', '/privacy-policy', '/terms-of-service'],
+        disallow: ['/api/', '/admin/', '/*?', ...formPages],
       },
       // AI crawlers - limited to homepage + legal pages only
       {
         userAgent: ['GPTBot', 'ChatGPT-User', 'anthropic-ai', 'Claude-Web'],
-        allow: [
-          '/',
-          '/about',
-          '/faq',
-          '/blog',
-          '/privacy-policy',
-          '/terms-of-service',
-        ],
-        disallow: [
-          '/api/',
-          '/admin/',
-          '/start',
-          '/*?',
-          ...formPages,
-        ],
+        allow: ['/', '/about', '/faq', '/blog', '/privacy-policy', '/terms-of-service'],
+        disallow: ['/api/', '/admin/', '/start', '/*?', ...formPages],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

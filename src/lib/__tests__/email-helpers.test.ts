@@ -62,7 +62,7 @@ describe('Email helpers integration scenarios', () => {
     })
   })
 
-  describe('Scenario 3: Doctor\'s Appointment + Work', () => {
+  describe("Scenario 3: Doctor's Appointment + Work", () => {
     it('returns correct text for patient with work appointment', () => {
       const notePurpose = 'work'
       expect(getRecipientName(notePurpose)).toBe('employer')
@@ -70,7 +70,7 @@ describe('Email helpers integration scenarios', () => {
     })
   })
 
-  describe('Scenario 4: Doctor\'s Appointment + School', () => {
+  describe("Scenario 4: Doctor's Appointment + School", () => {
     it('returns correct text for patient with school appointment', () => {
       const notePurpose = 'school'
       expect(getRecipientName(notePurpose)).toBe('school')
