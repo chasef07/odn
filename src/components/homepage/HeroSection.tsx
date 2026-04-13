@@ -1,27 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ArrowRight, Star } from 'lucide-react'
 
-const herophrases = ['From Your Phone', 'Within Minutes', 'For Only $24.95']
+const heroPhrases = ['From Your Phone', 'Within Minutes', 'For Only $24.95']
 
 export default function HeroSection() {
   const router = useRouter()
-  const [phraseIndex, setPhraseIndex] = useState(0)
-  const [isAnimating, setIsAnimating] = useState(false)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsAnimating(true)
-      setTimeout(() => {
-        setPhraseIndex((prev) => (prev + 1) % herophrases.length)
-        setIsAnimating(false)
-      }, 300)
-    }, 4500)
-    return () => clearInterval(interval)
-  }, [])
 
   return (
     <section className="relative overflow-hidden bg-white px-5 py-10 md:px-6 md:py-16">
@@ -31,12 +17,20 @@ export default function HeroSection() {
           <div className="order-1 text-left">
             <h1 className="font-hero animate-fade-in-up mb-3 text-4xl font-bold leading-[1.1] tracking-tight text-gray-900 md:text-5xl lg:text-6xl">
               Get a Doctor&apos;s Note
-              <span
-                className={`block whitespace-nowrap text-[#009ed9] transition-all duration-300 ${
-                  isAnimating ? 'translate-y-2 opacity-0' : 'translate-y-0 opacity-100'
-                }`}
-              >
-                {herophrases[phraseIndex]}
+              <span className="relative block whitespace-nowrap text-[#009ed9]">
+                {/* Invisible placeholder to reserve line height */}
+                <span aria-hidden="true" className="invisible">
+                  {heroPhrases[0]}
+                </span>
+                {heroPhrases.map((phrase, i) => (
+                  <span
+                    key={phrase}
+                    className="animate-hero-phrase absolute inset-0"
+                    style={{ animationDelay: `${-13.5 + i * 4.5}s` }}
+                  >
+                    {phrase}
+                  </span>
+                ))}
               </span>
             </h1>
 
@@ -55,7 +49,7 @@ export default function HeroSection() {
                   </div>
                 </div>
               </div>
-              <p className="mt-1 text-sm text-gray-600">Trusted by 30,000+ patients across the US</p>
+              <p className="mt-1 text-sm text-gray-600">Trusted by 60,000+ patients nationwide</p>
             </div>
 
             {/* CTA */}

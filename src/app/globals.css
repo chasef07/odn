@@ -333,6 +333,21 @@
   }
 }
 
+@keyframes heroPhraseRotate {
+  0%, 33.33% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  35.55%, 97.78% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-heartbeat-line {
   stroke-dasharray: 1000;
   stroke-dashoffset: 1000;
@@ -365,6 +380,11 @@
   transform-style: preserve-3d;
 }
 
+.animate-hero-phrase {
+  animation: heroPhraseRotate 13.5s infinite;
+  opacity: 0;
+}
+
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
@@ -379,10 +399,15 @@
   .animate-gradient-shift,
   .animate-pulse-ring,
   .animate-glow-pulse,
-  .animate-rotate-y {
+  .animate-rotate-y,
+  .animate-hero-phrase {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+
+  .animate-hero-phrase:not(:first-child) {
+    display: none;
   }
 
   .snap-container {
