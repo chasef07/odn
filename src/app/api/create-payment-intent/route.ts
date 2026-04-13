@@ -3,7 +3,20 @@ import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
 import { isAgeValid } from '@/lib/age-validators'
+import { validateAbsenceDates } from '@/lib/date-validators'
 import { getCachedPrice } from '@/lib/stripe-price'
+
+/**
+ * Validates a date-of-birth string is within a sane historical range
+ * (1900-01-01 to today). Does NOT enforce a minimum age.
+ */
+function isDateOfBirthInSaneRange(dateOfBirth: string): boolean {
+  const dob = new Date(dateOfBirth)
+  if (Number.isNaN(dob.getTime())) return false
+  const today = new Date()
+  const minDate = new Date('1900-01-01')
+  return dob >= minDate && dob <= today
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -102,9 +115,28 @@ export async function POST(request: NextRequest) {
         )
       }
     }
-    if (formData.recipient === 'someone_else' && formData.guardianDateOfBirth) {
-      if (!isAgeValid(formData.guardianDateOfBirth, 18)) {
+    if (formData.recipient === 'someone_else') {
+      if (formData.guardianDateOfBirth && !isAgeValid(formData.guardianDateOfBirth, 18)) {
         return NextResponse.json({ error: 'Guardian must be 18 years or older' }, { status: 400 })
+      }
+      // Patient age is unbounded (could be a minor or an adult dependent),
+      // but DOB must still be within a sane historical range.
+      if (formData.patientDateOfBirth && !isDateOfBirthInSaneRange(formData.patientDateOfBirth)) {
+        return NextResponse.json(
+          { error: 'Please enter a valid patient date of birth' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // 3c. Validate absence date range (7-day limit, 7-day lookback, ordering)
+    if (formData.firstDayOff && formData.lastDayOff) {
+      const dateErrors = validateAbsenceDates({
+        firstDayOff: formData.firstDayOff,
+        lastDayOff: formData.lastDayOff,
+      })
+      if (dateErrors.length > 0) {
+        return NextResponse.json({ error: dateErrors[0].message }, { status: 400 })
       }
     }
 
