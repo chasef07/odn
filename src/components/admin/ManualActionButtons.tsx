@@ -17,15 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
+import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { approveSubmission, denySubmission } from '@/app/admin/actions'
 
 interface ManualActionButtonsProps {
@@ -42,8 +34,6 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
-  const [denialReason, setDenialReason] = useState<string>('')
-  const [otherReason, setOtherReason] = useState('')
   const [denialError, setDenialError] = useState<string | null>(null)
 
   const handleApproveClick = () => {
@@ -72,25 +62,16 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
   }
 
   const handleDenyClick = () => {
-    setDenialReason('')
-    setOtherReason('')
     setDenialError(null)
     setShowDenialDialog(true)
   }
 
-  const handleDenyConfirm = async () => {
-    const finalReason = denialReason === 'Other' ? otherReason : denialReason
-
-    if (!finalReason) {
-      setDenialError('Please select or enter a denial reason')
-      return
-    }
-
+  const handleDenyConfirm = async (reason: string) => {
     setIsLoading(true)
     setDenialError(null)
 
     try {
-      const result = await denySubmission(submissionId, finalReason)
+      const result = await denySubmission(submissionId, reason)
 
       if (result.success) {
         setShowDenialDialog(false)
@@ -169,72 +150,16 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
       </Dialog>
 
       {/* Denial Confirmation Dialog */}
-      <Dialog open={showDenialDialog} onOpenChange={setShowDenialDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deny Manual Submission</DialogTitle>
-            <DialogDescription>
-              This will mark the submission as denied without processing a refund or sending any emails.
-              You will handle this manually. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-
-          {denialError && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
-              <strong>Error:</strong> {denialError}
-            </div>
-          )}
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="denial-reason">Reason for Denial</Label>
-              <Select value={denialReason} onValueChange={setDenialReason}>
-                <SelectTrigger id="denial-reason">
-                  <SelectValue placeholder="Select a reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Legal">Legal - Cannot provide note for this situation</SelectItem>
-                  <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
-                  <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
-                  <SelectItem value="Refund">Refund</SelectItem>
-                  <SelectItem value="Under 18">Under 18 - Patient is a minor</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {denialReason === 'Other' && (
-              <div className="space-y-2">
-                <Label htmlFor="other-reason">Please specify</Label>
-                <Input
-                  id="other-reason"
-                  value={otherReason}
-                  onChange={(e) => setOtherReason(e.target.value)}
-                  placeholder="Enter reason for denial"
-                  disabled={isLoading}
-                />
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDenialDialog(false)}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDenyConfirm}
-              disabled={isLoading || !denialReason || (denialReason === 'Other' && !otherReason)}
-              variant="destructive"
-            >
-              {isLoading ? 'Processing...' : 'Deny (Skip Refund)'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SelectDenialDialog
+        open={showDenialDialog}
+        onOpenChange={setShowDenialDialog}
+        onConfirm={handleDenyConfirm}
+        isLoading={isLoading}
+        error={denialError}
+        title="Deny Manual Submission"
+        description="This will mark the submission as denied without processing a refund or sending any emails. You will handle this manually. This action cannot be undone."
+        confirmLabel="Deny (Skip Refund)"
+      />
     </>
   )
 }
