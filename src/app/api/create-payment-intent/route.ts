@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
 import { isAgeValid } from '@/lib/age-validators'
+import { getCachedPrice } from '@/lib/stripe-price'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -110,10 +111,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Fetch price from Stripe
+    // 4. Fetch price from Stripe (cached for 1 hour)
     let price: Stripe.Price
     try {
-      price = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!)
+      price = await getCachedPrice(process.env.STRIPE_PRICE_ID!)
     } catch (priceError) {
       console.error('Failed to fetch Stripe price:', priceError)
       return NextResponse.json(

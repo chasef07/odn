@@ -163,5 +163,6 @@ model Submission {
   @@index([email])
   @@index([createdAt])
   @@index([status, createdAt])
-  @@index([patientFirstName, patientLastName, patientDateOfBirth])
+  @@index([patientFirstName, patientLastName, patientDateOfBirth, status])
+  @@index([email, status])
 }
