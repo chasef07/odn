@@ -54,11 +54,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true }, { status: 200 })
     }
 
-    console.log('Processing email bounce:', {
-      to: event.data.to[0],
-      subject: event.data.subject,
-      reason: event.data.bounce_reason,
-    })
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Processing email bounce:', {
+        to: event.data.to[0],
+        subject: event.data.subject,
+        reason: event.data.bounce_reason,
+      })
+    }
 
     // 4. Extract bounce data
     const bouncedEmail = event.data.to[0]
@@ -103,7 +105,9 @@ export async function POST(request: NextRequest) {
         emailType,
         submission: submission || null,
       })
-      console.log('Bounce alert email sent successfully')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Bounce alert email sent successfully')
+      }
     } catch (emailError) {
       // Log error but still return 200 OK to prevent retries
       console.error('Failed to send bounce alert email:', emailError)

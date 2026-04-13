@@ -31,8 +31,6 @@ export default function AdminLoginPage() {
         password,
       })
 
-      console.log('Login result:', result)
-
       if (result.error) {
         console.error('Login error:', result.error)
         setError('Invalid email or password')

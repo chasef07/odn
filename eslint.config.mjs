@@ -13,6 +13,17 @@ const eslintConfig = [
       'next-env.d.ts',
     ],
   },
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx}'],
+    ignores: [
+      'src/**/__tests__/**',
+      'src/**/*.test.{ts,tsx}',
+      'src/**/*.spec.{ts,tsx}',
+    ],
+    rules: {
+      'no-console': ['warn', { allow: ['error', 'warn'] }],
+    },
+  },
 ]
 
 export default eslintConfig
