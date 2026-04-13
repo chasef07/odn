@@ -1,67 +1,150 @@
-# Online Doctor's Note
+<p align="center">
+  <h1 align="center">Online Doctor's Note</h1>
+  <p align="center">
+    Production Next.js 16 app that issues legitimate medical excuse notes for work or school — multi-step intake, Stripe payments, doctor review, PDF delivery by email.
+  </p>
+</p>
 
-A modern Next.js application that provides legitimate medical excuse notes for work or school absences. Built with Next.js 16, TypeScript, Stripe payments, and Better Auth.
+<p align="center">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs" />
+  <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
+  <img alt="Node" src="https://img.shields.io/badge/Node-22-339933?logo=nodedotjs&logoColor=white" />
+  <img alt="Prisma" src="https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white" />
+  <img alt="Stripe" src="https://img.shields.io/badge/Stripe-2026--02--25-635BFF?logo=stripe&logoColor=white" />
+  <img alt="License" src="https://img.shields.io/badge/License-Proprietary-lightgrey" />
+</p>
 
-## Features
+---
 
-- **Multi-Step Form**: 12-step guided form with conditional logic and progress tracking
-- **Stripe Integration**: Secure payment processing with dynamic pricing
-- **Admin Portal**: Doctor review dashboard with Better Auth authentication
-- **Email Notifications**: React Email templates for payment confirmations, approvals, and denials
-- **PDF Generation**: Professional doctor's notes with state-specific medical licenses
-- **Monthly Limits**: Tracks approved absences per patient (7 days/month soft limit)
-- **Responsive Design**: Mobile-first UI with Tailwind CSS and shadcn/ui
+## Highlights
+
+- **12-step guided intake** — react-hook-form + Zod, conditional guardian flow, localStorage draft persistence.
+- **Stripe-first architecture** — `TemporarySubmission` is written *before* the `PaymentIntent`, with a metadata fallback so webhooks never lose a paid order.
+- **Doctor review portal** — Better Auth (bcrypt), Tinder-style card review, search/edit any submission, one-click re-approval that regenerates PDF and email.
+- **Medical-grade PDFs** — `@react-pdf/renderer` with Plus Jakarta Sans, state-specific license numbers for 46 states, returned by email on approval.
+- **Production-ready** — Prisma Accelerate (40× faster queries), Resend webhook handling for bounces, HIPAA-conscious UX, 369+ tests on PGlite so CI never touches prod.
+
+---
 
 ## Tech Stack
 
-- **Framework**: Next.js 16.0.3 (App Router + Turbopack)
-- **Language**: TypeScript 5 (strict mode)
-- **UI**: React 19, Tailwind CSS 4, Radix UI, shadcn/ui
-- **Forms**: react-hook-form + Zod validation
-- **Payments**: Stripe (API v2026-02-25.clover)
-- **Database**: PostgreSQL + Prisma ORM + Prisma Accelerate
-- **Auth**: Better Auth (email/password with bcrypt)
-- **Email**: React Email + Resend
-- **PDF**: @react-pdf/renderer
-- **Testing**: Vitest + Testing Library
-- **Analytics**: Vercel Analytics + Google Ads + Reddit Pixel conversion tracking
+- **Framework** — Next.js 16 (App Router + Turbopack), React 19, TypeScript 5 strict
+- **UI** — Tailwind CSS 4, shadcn/ui, Radix UI, Lucide icons
+- **Forms** — react-hook-form, Zod, date-fns + date-fns-tz
+- **Database** — PostgreSQL via Prisma ORM + Prisma Accelerate; PGlite (`@prisma/dev`) for local/CI
+- **Auth** — Better Auth (email/password, bcrypt 10 rounds)
+- **Payments** — Stripe (API `2026-02-25.clover`) with webhook-driven fulfillment
+- **Email** — React Email + Resend; bounce tracking via Resend webhook
+- **PDF** — @react-pdf/renderer with @fontsource/plus-jakarta-sans
+- **Testing** — Vitest + Testing Library, PGlite per run
+- **Analytics** — Vercel Analytics, Google Ads, Reddit Pixel
+
+---
+
+## Architecture
+
+### Form flow
+
+```mermaid
+flowchart TD
+  A[/start — landing/] --> B[/get-started — state selection/]
+  B --> C[/basic-info — patient/]
+  C --> D{Recipient?}
+  D -- myself --> F[/contact-info/]
+  D -- someone_else --> E[/guardian-info/]
+  E --> F
+  F --> G[/note-purpose/]
+  G --> H[/absence-dates/]
+  H --> I[/absence-reason/]
+  I -- sick / injury / mental --> J[/symptoms/]
+  I -- appointment / other --> K[/additional-info/]
+  J --> K
+  K --> L[/review/]
+  L --> M[/payment/ — Stripe]
+  M --> N[/approved/]
+```
+
+### Payment fulfillment
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant API as create-payment-intent
+  participant DB as Postgres (Prisma)
+  participant S as Stripe
+  participant WH as webhook /stripe-prod3
+  participant Mail as Resend
+
+  U->>API: Submit form
+  API->>DB: Create TemporarySubmission<br/>(placeholder intent id)
+  API->>S: Create PaymentIntent<br/>metadata.temporarySubmissionId
+  API->>DB: Update TemporarySubmission.paymentIntentId
+  API-->>U: clientSecret
+  U->>S: Confirm payment
+  S-->>WH: payment_intent.succeeded
+  WH->>DB: Lookup by paymentIntentId<br/>(fallback: metadata)
+  WH->>DB: Create permanent Submission<br/>Delete TemporarySubmission
+  WH->>Mail: Payment confirmation email
+  Note over WH,Mail: Doctor review triggers<br/>approval PDF + email separately
+```
+
+---
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js (recommended: v18+)
-- PostgreSQL database
-- Stripe account
-- Resend account (for emails)
+- **Node.js 22** (see `.github/workflows/test.yml`)
+- Stripe account + CLI (for local webhooks)
+- Resend account (sending API key)
+- PostgreSQL for production; local dev uses PGlite (no install needed)
 
-### Installation
+### Install and run
 
 ```bash
-# Clone the repository
-git clone https://github.com/chasef07/onlinedoctornote.git
+git clone https://github.com/Data-Buddies-Solutions/onlinedoctornote.git
 cd onlinedoctornote
-
-# Install dependencies
 npm install
 
-# Set up environment variables
 cp .env.example .env.local
-# Edit .env.local with your credentials
+# fill in the values documented below
 
-# Set up the database
 npx prisma generate
-npx prisma db push
-
-# Run development server
 npm run dev
 ```
 
-Visit `http://localhost:3000` to see the application.
+Open http://localhost:3000.
+
+---
+
+## Local Development
+
+This project ships with **PGlite** (via `@prisma/dev`) so you don't need a local Postgres installation. Tests spin it up automatically; for manual dev, use the `db:local:*` scripts.
+
+| Command                    | What it does                                    |
+|----------------------------|-------------------------------------------------|
+| `npm run db:local`         | Start PGlite in the foreground                  |
+| `npm run db:local:detach`  | Start PGlite in the background                  |
+| `npm run db:local:stop`    | Stop the default detached instance              |
+| `npm run db:local:ls`      | List running local databases                    |
+
+Tests use `vitest.global-setup.ts` to start/stop PGlite around the run, so `npm test` is self-contained. CI never sees production credentials.
+
+Full walkthrough: [`docs/LOCAL_DEVELOPMENT_TESTING.md`](docs/LOCAL_DEVELOPMENT_TESTING.md).
+
+### Stripe webhooks locally
+
+```bash
+brew install stripe/stripe-cli/stripe
+stripe login
+stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
+# copy the displayed whsec_ into STRIPE_WEBHOOK_SECRET
+```
+
+---
 
 ## Environment Variables
-
-Create a `.env.local` file with the following variables:
 
 ```env
 # Site
@@ -74,8 +157,8 @@ STRIPE_PRICE_ID=price_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # Database
-DATABASE_URL=postgresql://...
-PRISMA_DATABASE_URL=prisma+postgres://...
+DATABASE_URL=postgresql://...              # direct (migrations)
+PRISMA_DATABASE_URL=prisma+postgres://...  # Accelerate (runtime)
 
 # Better Auth
 BETTER_AUTH_SECRET=...
@@ -85,267 +168,126 @@ BETTER_AUTH_URL=http://localhost:3000
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=noreply@yourdomain.com
 
-# Doctor Info (PDF)
+# Doctor (PDF)
 DOCTOR_NAME="Dr. Your Name"
 DOCTOR_CREDENTIALS="MD"
 DOCTOR_SIGNATURE_URL="/images/doctor-signature.png"
 
-# Cron Security
+# Cron
 CRON_SECRET=...
-
-# Environment
-NODE_ENV=development
 ```
+
+---
 
 ## Project Structure
 
 ```
 src/
-├── app/                    # Next.js App Router
-│   ├── admin/             # Admin portal (login, review dashboard)
-│   ├── api/               # API routes (Stripe, webhooks, auth)
-│   ├── [form-pages]/      # 12 form step pages
-│   └── layout.tsx         # Root layout
+├── app/
+│   ├── admin/              # Better Auth-protected review portal
+│   ├── api/                # Stripe, auth, webhook, cron routes
+│   └── [form-pages]/       # 12 intake steps + /approved + /payment
 ├── components/
-│   ├── admin/             # Admin-specific components
-│   ├── form/              # Reusable form components
-│   └── ui/                # shadcn/ui components
-├── emails/                # React Email templates
-├── lib/                   # Business logic & utilities
+│   ├── admin/              # Review cards, search, status badges
+│   ├── form/               # Reusable form inputs (DOB, state select, …)
+│   └── ui/                 # shadcn/ui primitives
+├── emails/                 # React Email templates
+├── lib/
 │   ├── validation-schemas.ts
 │   ├── date-validators.ts
-│   ├── form-storage.ts
-│   ├── auth.ts
-│   ├── email.ts
+│   ├── age-validators.ts
+│   ├── email-helpers.ts
 │   ├── state-licenses.ts
-│   └── pdf/               # PDF generation
+│   └── pdf/                # @react-pdf/renderer template + generator
 └── prisma/
-    └── schema.prisma      # Database schema
+    └── schema.prisma
 ```
 
-## Key Features
-
-### Form Flow
-
-1. State Selection
-2. Recipient Selection (myself/someone else)
-3. Patient Information
-4. Guardian Information (conditional)
-5. Contact Information
-6. Note Purpose (work/school/both)
-7. Absence Dates (with validation)
-8. Absence Reason
-9. Symptoms
-10. Additional Information
-11. Review & Edit
-12. Payment (Stripe)
-13. Success
-
-### Date Validation Rules
-
-- **Maximum absence**: 7 consecutive days
-- **Lookback limit**: First day off cannot be >7 days in the past
-- **Valid range**: 1900-01-01 to today
-
-### Payment Processing
-
-- Dynamic pricing from Stripe Dashboard (no code deploys needed)
-- Reversed order architecture: TemporarySubmission → PaymentIntent → Webhook
-- 2-tier fallback for webhook reliability
-- Prisma Accelerate for 40x faster database operations
-- Automatic payment confirmation emails
-
-### Admin Portal
-
-- **Login**: `/admin/login` (Better Auth protected)
-- **Dashboard**: Review submissions with filters (pending/approved/denied/maybe/manual)
-- **Search**: Find any submission by name, email, or ID (`/admin/search`)
-- **Actions**: Approve (sends PDF via email) or Deny (refunds + email)
-- **Edit & Re-approve**: Modify any field and regenerate PDF with updated information
-- **Monthly Limits**: Visual warnings when patients exceed 7 days/month (tracked by name + DOB)
-- **Patient History**: View prior submissions for repeat patients during review
-- **Denial Reasons**: Includes Under 18, Legal, 7+ days, Duplicate, Refund, Other
-- **Other Fields**: Displays custom text when users select "other" (e.g., "other - custom reason")
-
-### Admin Search & Edit
-
-- **Search by**: Patient name (partial match), email (contains), or submission ID
-- **View**: Complete submission details with all form fields
-- **Edit**: Modify any field directly from the search results
-- **Status Control**: Change status between Approved, Denied, Maybe, and Manual
-- **Re-approval**: Generate new PDF and send new email after editing approved submissions
-- **Smart Refunds**: Automatically checks if already refunded before processing
-
-### Email System
-
-Three email types:
-1. **Payment Confirmation**: Sent immediately after successful payment
-2. **Approval Email**: Includes professional PDF doctor's note
-3. **Denial Email**: Includes refund confirmation
-
-All emails use modern React Email templates with Tailwind CSS.
-
-### PDF Generation
-
-- Professional medical document template
-- State-specific medical license numbers (44 states supported)
-- Dynamic "return to work/school" text based on note purpose
-- Generated on-demand during approval process
-- Uses Plus Jakarta Sans font for modern typography
-
-## Available Scripts
-
-```bash
-# Development
-npm run dev              # Start dev server (with Turbopack)
-npm run build            # Build for production
-npm start                # Start production server
-
-# Database
-npx prisma studio        # Open database browser
-npx prisma generate      # Regenerate Prisma Client
-npx prisma db push       # Push schema changes (dev)
-npx prisma migrate dev   # Create migration
-
-# Testing
-npm test                 # Run all tests
-npm run test:ui          # Run tests with UI
-npm run test:coverage    # Run tests with coverage
-npm run test:watch       # Run tests in watch mode
-
-# Email
-npm run email            # Preview email templates
-
-# Code Quality
-npm run lint             # Check for linting errors
-npm run format           # Format code with Prettier
-npm run format:check     # Check formatting
-```
-
-## Database Management
-
-### Create Doctor Account
-
-```bash
-npx tsx scripts/create-doctor-user.ts
-```
-
-### View Database
-
-```bash
-npx prisma studio
-# Opens at http://localhost:5555
-```
-
-### Test Approval Flow
-
-```bash
-npx tsx scripts/test-approval-flow.ts
-```
-
-## Testing
-
-The project includes comprehensive test coverage:
-
-- Unit tests for validators and utilities
-- API integration tests with mocked Stripe
-- Email template rendering tests
-- PDF generation tests
-- State license mapping tests
-- Admin action tests
-
-Run tests with:
-```bash
-npm test
-```
-
-## Stripe Webhook Testing (Local Development)
-
-Use the Stripe CLI to forward webhook events to your local server:
-
-```bash
-# Install Stripe CLI
-brew install stripe/stripe-cli/stripe
-
-# Login to Stripe
-stripe login
-
-# Forward webhooks to local server
-stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
-
-# Copy the webhook signing secret to .env.local
-# STRIPE_WEBHOOK_SECRET=whsec_...
-```
-
-## Deployment
-
-### Vercel (Recommended)
-
-1. Push your code to GitHub
-2. Import project in Vercel dashboard
-3. Add all environment variables
-4. Deploy
-
-### Environment-Specific Configuration
-
-**Production**:
-- Set `NEXT_PUBLIC_SITE_URL` to your production domain
-- Set `BETTER_AUTH_URL` to your production domain
-- Use production Stripe keys
-- Configure Stripe webhook endpoint in dashboard
-
-## Security
-
-- Input validation with Zod on client and server
-- Email TLD whitelist validation (rejects invalid domains like `.clm`)
-- Stripe webhook signature verification
-- Better Auth session management (PostgreSQL)
-- bcrypt password hashing (10 rounds)
-- Timing-safe comparison for cron secrets
-- Environment variable validation on startup
-- XSS prevention via React escaping
-- CSRF protection via Next.js
+---
 
 ## Business Rules
 
-### Date Validation
-- Maximum 7 consecutive days of absence
-- Cannot request notes for dates >7 days ago
-- Strict validation in `src/lib/date-validators.ts`
+- **Absence window** — max 7 consecutive days; first day off can't be more than 7 days in the past. Enforced in `src/lib/date-validators.ts`.
+- **Age** — requester or guardian must be 18+ (`src/lib/age-validators.ts`).
+- **Monthly soft limit** — 7 approved days per rolling 30-day window, tracked by `patientName + DOB` (case-insensitive). Warning-only; the doctor decides.
+- **Pricing** — fetched live from Stripe via `STRIPE_PRICE_ID`. Change it in the dashboard, no deploy needed.
+- **State support** — 46 US states have mapped medical licenses in `src/lib/state-licenses.ts`; others fall back gracefully.
+- **Scope** — no FMLA, workers' comp, disability, insurance, or legal/court documentation. Requests for these are denied.
 
-### Monthly Limits
-- Soft limit of 7 approved days per 30-day rolling window
-- Tracked by patient name + date of birth (case-insensitive)
-- Warning displayed in admin portal
-- Patient history popup shows prior submissions during review
+---
 
-### Payment Processing
-- Price managed via Stripe Dashboard (single source of truth)
-- Refunds issued automatically on denial
-- Payment confirmation sent via webhook
+## Scripts
 
-## Known Limitations
+```bash
+# Dev
+npm run dev                # Next dev (Turbopack)
+npm run email              # Preview email templates
+npm run build              # Production build
+npm start                  # Run the build
 
-1. No rate limiting on API endpoints
-2. No duplicate payment detection
-3. Form data stored in localStorage only (not synced to server)
-4. No PDF storage (generated on-demand)
-5. Monthly limit tracked by name + DOB (harder to bypass than email)
-6. No admin notifications for new submissions
-7. No dark mode support
+# Database
+npx prisma studio          # GUI
+npx prisma generate        # Regenerate client
+npx prisma db push         # Push schema (dev)
+npx prisma migrate dev     # Create migration
+npx tsx scripts/create-doctor-user.ts   # Seed an admin
 
-## Contributing
+# Testing
+npm test                   # Full suite (auto-starts PGlite)
+npm run test:ui            # Vitest UI
+npm run test:coverage      # Coverage report
+npm run test:watch         # Watch mode
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+# Quality
+npm run lint
+npm run format
+npm run format:check
+npx tsc --noEmit
+```
+
+---
+
+## Admin Portal
+
+- **`/admin/login`** — Better Auth sign-in
+- **`/admin`** — dashboard + stats
+- **`/admin/review`** — card-style queue for pending submissions
+- **`/admin/search`** — search by name/email/ID; view + edit any submission
+- **`/admin/maybe` · `/approved` · `/denied`** — today's queues by status
+
+Approval generates a PDF (blocking) then sends an email (non-blocking). Denial automatically refunds via Stripe and emails the patient. Re-approval of an already-approved submission regenerates a new PDF and sends a fresh email.
+
+---
+
+## Security
+
+- Zod input validation on client and server (TLD whitelist rejects e.g. `.clm`)
+- Stripe webhook signature verification
+- Better Auth sessions in Postgres, bcrypt 10-round password hashes
+- Timing-safe cron secret comparison
+- Env var validation on boot
+- CSRF (Next.js) and XSS (React escaping) out of the box
+
+---
+
+## Deployment
+
+Deploys to Vercel. Required before going live:
+
+- [ ] Set `NEXT_PUBLIC_SITE_URL` and `BETTER_AUTH_URL` to the production domain
+- [ ] Swap to live Stripe keys and configure the webhook endpoint in the Stripe dashboard
+- [ ] Confirm `PRISMA_DATABASE_URL` points at the production Accelerate connection string
+- [ ] Set `CRON_SECRET` and verify Vercel cron jobs are registered
+- [ ] Verify `RESEND_FROM_EMAIL` domain is verified with Resend
+
+---
+
+## Releases
+
+See the [GitHub Releases](https://github.com/Data-Buddies-Solutions/onlinedoctornote/releases) page for version history and changelog.
+
+---
 
 ## License
 
-Private - All Rights Reserved
-
-## Support
-
-For issues or questions, please open a GitHub issue.
+Proprietary — All Rights Reserved. Private repository, not accepting external contributions.
