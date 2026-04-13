@@ -45,8 +45,7 @@ export default function NotePurposePage() {
   const router = useRouter()
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
-  // Use guardian's first name if available (someone_else), otherwise use patient's first name
-  const firstName = savedData.guardianFirstName || savedData.patientFirstName || ''
+  const patientFirstName = savedData.patientFirstName || ''
   const currentStep = recipient === 'someone_else' ? 6 : 5
 
   const {
@@ -70,8 +69,8 @@ export default function NotePurposePage() {
     router.push('/absence-dates')
   }
 
-  const title = firstName
-    ? `Please tell us what you need a doctors note for, ${firstName}`
+  const title = patientFirstName
+    ? `Please tell us what ${patientFirstName} needs a doctor's note for?`
     : 'What do you need this note for?'
 
   return (

@@ -533,7 +533,7 @@ export default function ReviewPage() {
               className="text-foreground flex-1 cursor-pointer text-sm leading-relaxed font-normal"
             >
               I certify that all information provided is accurate and truthful to the best of my
-              knowledge.
+              knowledge. I am 18 or older.
             </Label>
           </div>
           {errors.certifyAccurate && (

@@ -93,7 +93,7 @@ export default function Home() {
               ))}
             </div>
             <p className="text-muted-foreground text-sm">
-              Join 30,000+ people who got their note in minutes
+              Trusted by 60,000+ patients nationwide.
             </p>
           </div>
         </form>

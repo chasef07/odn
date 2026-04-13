@@ -22,8 +22,7 @@ export default function AbsenceReasonPage() {
   const router = useRouter()
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
-  // Use guardian's first name if available (someone_else), otherwise use patient's first name
-  const firstName = savedData.guardianFirstName || savedData.patientFirstName || ''
+  const patientFirstName = savedData.patientFirstName || ''
   const currentStep = recipient === 'someone_else' ? 8 : 7
 
   const {
@@ -58,8 +57,8 @@ export default function AbsenceReasonPage() {
     }
   }
 
-  const title = firstName
-    ? `What's the reason for your absence, ${firstName}?`
+  const title = patientFirstName
+    ? `What's the reason for ${patientFirstName}'s absence?`
     : 'What is your reason for absence?'
 
   return (

@@ -102,7 +102,8 @@ export const SYMPTOMS_BY_REASON: Record<string, string[]> = {
     'Diarrhea or constipation',
     'Body or muscle aches',
     'Skin rash or burn',
-    'COVID-19 or Flu',
+    'I tested positive for COVID',
+    'I tested positive for the FLU',
     'Other',
   ],
   'Accident or injury': [
