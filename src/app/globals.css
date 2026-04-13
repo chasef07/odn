@@ -350,19 +350,26 @@
 }
 
 @keyframes heroPhraseRotate {
-  0%,
-  33.33% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  35.55%,
-  97.78% {
+  0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
-  100% {
+  4% {
     opacity: 1;
     transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  34% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  34.01%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }
 
@@ -401,7 +408,7 @@
 }
 
 .animate-hero-phrase {
-  animation: heroPhraseRotate 13.5s infinite;
+  animation: heroPhraseRotate 13.5s ease-in-out infinite;
   opacity: 0;
 }
 
