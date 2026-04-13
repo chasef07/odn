@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import prisma from '@/lib/prisma'
-import { sendBounceAlertEmail } from '@/lib/email'
-
-// Initialize Resend for webhook verification
-const resend = new Resend(process.env.RESEND_API_KEY!)
+import { sendBounceAlertEmail, resend } from '@/lib/email'
 
 interface ResendBounceEvent {
   type: 'email.bounced'

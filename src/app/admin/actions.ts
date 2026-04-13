@@ -15,6 +15,7 @@ import Stripe from 'stripe'
 import { sendDenialEmail, sendApprovalEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { getBusinessDayStart } from '@/lib/admin-utils'
+import { formatDateUTC } from '@/lib/utils'
 
 // Export shared submission types for components
 export type MaybeSubmission = Awaited<ReturnType<typeof getMaybeSubmissions>>['submissions'][number]
@@ -276,13 +277,6 @@ export async function getPatientHistory(
       orderBy: { createdAt: 'desc' },
       take: 20,
     })
-
-    const formatDateUTC = (date: Date): string => {
-      const year = date.getUTCFullYear()
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(date.getUTCDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
 
     const formatted: PatientHistoryEntry[] = submissions.map((sub) => ({
       id: sub.id,
@@ -781,24 +775,15 @@ export async function getMaybeSubmissions() {
     })
 
     // Format dates consistently using UTC components to avoid timezone shifts
-    const formattedSubmissions = submissions.map((sub) => {
-      const formatDateUTC = (date: Date) => {
-        const year = date.getUTCFullYear()
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-        const day = String(date.getUTCDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
-      }
-
-      return {
-        id: sub.id,
-        patientFirstName: sub.patientFirstName,
-        patientLastName: sub.patientLastName,
-        email: sub.email,
-        firstDayOff: formatDateUTC(sub.firstDayOff),
-        lastDayOff: formatDateUTC(sub.lastDayOff),
-        reviewedAt: sub.reviewedAt,
-      }
-    })
+    const formattedSubmissions = submissions.map((sub) => ({
+      id: sub.id,
+      patientFirstName: sub.patientFirstName,
+      patientLastName: sub.patientLastName,
+      email: sub.email,
+      firstDayOff: formatDateUTC(sub.firstDayOff),
+      lastDayOff: formatDateUTC(sub.lastDayOff),
+      reviewedAt: sub.reviewedAt,
+    }))
 
     return { success: true, submissions: formattedSubmissions }
   } catch (error) {
@@ -834,24 +819,15 @@ export async function getManualSubmissions() {
     })
 
     // Format dates consistently using UTC components to avoid timezone shifts
-    const formattedSubmissions = submissions.map((sub) => {
-      const formatDateUTC = (date: Date) => {
-        const year = date.getUTCFullYear()
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-        const day = String(date.getUTCDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
-      }
-
-      return {
-        id: sub.id,
-        patientFirstName: sub.patientFirstName,
-        patientLastName: sub.patientLastName,
-        email: sub.email,
-        firstDayOff: formatDateUTC(sub.firstDayOff),
-        lastDayOff: formatDateUTC(sub.lastDayOff),
-        reviewedAt: sub.reviewedAt,
-      }
-    })
+    const formattedSubmissions = submissions.map((sub) => ({
+      id: sub.id,
+      patientFirstName: sub.patientFirstName,
+      patientLastName: sub.patientLastName,
+      email: sub.email,
+      firstDayOff: formatDateUTC(sub.firstDayOff),
+      lastDayOff: formatDateUTC(sub.lastDayOff),
+      reviewedAt: sub.reviewedAt,
+    }))
 
     return { success: true, submissions: formattedSubmissions }
   } catch (error) {
@@ -988,14 +964,6 @@ export async function searchSubmissions({
       prisma.submission.count({ where: whereClause }),
     ])
 
-    // Format dates consistently using UTC components
-    const formatDateUTC = (date: Date): string => {
-      const year = date.getUTCFullYear()
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(date.getUTCDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-
     const formattedSubmissions: SearchSubmission[] = submissions.map((sub) => ({
       id: sub.id,
       patientFirstName: sub.patientFirstName,
@@ -1044,14 +1012,6 @@ export async function getSubmissionById(submissionId: string): Promise<
 
     if (!submission) {
       return { success: false, error: 'Submission not found' }
-    }
-
-    // Format dates consistently using UTC components to avoid timezone shifts
-    const formatDateUTC = (date: Date): string => {
-      const year = date.getUTCFullYear()
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(date.getUTCDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
     }
 
     // Return submission with formatted date fields

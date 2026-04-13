@@ -6,6 +6,28 @@
 import { z } from 'zod'
 import { isAgeValid } from '@/lib/age-validators'
 
+const NAME_REGEX = /^[a-zA-Z\s'-]+$/
+
+function nameField(label: string) {
+  return z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(50, `${label} must be less than 50 characters`)
+    .regex(NAME_REGEX, 'Only letters, spaces, hyphens, and apostrophes are allowed')
+    .refine((val) => val.trim().length > 0, `${label} cannot be only spaces`)
+}
+
+const dateOfBirthField = z
+  .string()
+  .min(1, 'Date of birth is required')
+  .refine((val) => new Date(val) <= new Date(), {
+    message: 'Date of birth cannot be in the future',
+  })
+  .refine((val) => new Date(val) >= new Date('1900-01-01'), {
+    message: 'Please enter a valid date of birth',
+  })
+
 export const page1Schema = z
   .object({
     recipient: z.enum(['myself', 'someone_else']).nullable(),
@@ -16,59 +38,18 @@ export const page1Schema = z
   })
 
 export const page2Schema = z.object({
-  patientFirstName: z
-    .string()
-    .trim()
-    .min(1, 'First name is required')
-    .max(50, 'First name must be less than 50 characters')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
-    .refine((val) => val.trim().length > 0, 'First name cannot be only spaces'),
-  patientLastName: z
-    .string()
-    .trim()
-    .min(1, 'Last name is required')
-    .max(50, 'Last name must be less than 50 characters')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
-    .refine((val) => val.trim().length > 0, 'Last name cannot be only spaces'),
-  patientDateOfBirth: z
-    .string()
-    .min(1, 'Date of birth is required')
-    .refine((val) => new Date(val) <= new Date(), {
-      message: 'Date of birth cannot be in the future',
-    })
-    .refine((val) => new Date(val) >= new Date('1900-01-01'), {
-      message: 'Please enter a valid date of birth',
-    }),
+  patientFirstName: nameField('First name'),
+  patientLastName: nameField('Last name'),
+  patientDateOfBirth: dateOfBirthField,
 })
 
 export const guardianSchema = z.object({
-  guardianFirstName: z
-    .string()
-    .trim()
-    .min(1, 'First name is required')
-    .max(50, 'First name must be less than 50 characters')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
-    .refine((val) => val.trim().length > 0, 'First name cannot be only spaces'),
-  guardianLastName: z
-    .string()
-    .trim()
-    .min(1, 'Last name is required')
-    .max(50, 'Last name must be less than 50 characters')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
-    .refine((val) => val.trim().length > 0, 'Last name cannot be only spaces'),
-  guardianDateOfBirth: z
-    .string()
-    .min(1, 'Date of birth is required')
-    .refine((val) => new Date(val) <= new Date(), {
-      message: 'Date of birth cannot be in the future',
-    })
-    .refine((val) => new Date(val) >= new Date('1900-01-01'), {
-      message: 'Please enter a valid date of birth',
-    })
-    .refine(
-      (val) => isAgeValid(val, 18),
-      { message: 'Guardian must be 18 years or older' }
-    ),
+  guardianFirstName: nameField('First name'),
+  guardianLastName: nameField('Last name'),
+  guardianDateOfBirth: dateOfBirthField.refine(
+    (val) => isAgeValid(val, 18),
+    { message: 'Guardian must be 18 years or older' }
+  ),
 })
 
 // Common domain typos and their corrections
