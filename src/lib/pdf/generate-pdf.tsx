@@ -32,10 +32,15 @@ export function formatReferenceId(submissionId: string, uppercase = false): stri
   return uppercase ? shortId.toUpperCase() : shortId.toLowerCase()
 }
 
+let cachedDoctorInfo: DoctorInfo | null = null
+
 /**
- * Validate that all required environment variables are present
+ * Validate that all required environment variables are present.
+ * Cached after first successful validation since env vars don't change at runtime.
  */
 function validateDoctorEnvVars(): DoctorInfo {
+  if (cachedDoctorInfo) return cachedDoctorInfo
+
   const name = process.env.DOCTOR_NAME
   const credentials = process.env.DOCTOR_CREDENTIALS
   const signatureUrl = process.env.DOCTOR_SIGNATURE_URL
@@ -46,11 +51,8 @@ function validateDoctorEnvVars(): DoctorInfo {
     )
   }
 
-  return {
-    name,
-    credentials,
-    signatureUrl,
-  }
+  cachedDoctorInfo = { name, credentials, signatureUrl }
+  return cachedDoctorInfo
 }
 
 /**

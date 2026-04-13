@@ -205,7 +205,7 @@ export const page5Schema = z
   .refine(
     (data) => {
       if (data.notePurpose === 'other') {
-        return !!data.otherNotePurpose?.trim() && data.otherNotePurpose.trim().length > 0
+        return !!data.otherNotePurpose?.trim()
       }
       return true
     },
@@ -232,7 +232,7 @@ export const page7Schema = z
   .refine(
     (data) => {
       if (data.absenceReason === 'Other') {
-        return !!data.otherAbsenceReason?.trim() && data.otherAbsenceReason.trim().length > 0
+        return !!data.otherAbsenceReason?.trim()
       }
       return true
     },
@@ -266,7 +266,7 @@ export const page8Schema = z
     (data) => {
       // If "other" is selected in symptoms, require otherSymptomText
       if (data.symptoms && data.symptoms.includes('other')) {
-        return !!data.otherSymptomText?.trim() && data.otherSymptomText.trim().length > 0
+        return !!data.otherSymptomText?.trim()
       }
       return true
     },
