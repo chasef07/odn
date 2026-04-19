@@ -108,7 +108,12 @@ export function validatePaidSubmissionData(formData: FormData): PaidSubmissionVa
     }
   }
 
-  if (parsedDates.firstDayOff && parsedDates.lastDayOff && formData.firstDayOff && formData.lastDayOff) {
+  if (
+    parsedDates.firstDayOff &&
+    parsedDates.lastDayOff &&
+    formData.firstDayOff &&
+    formData.lastDayOff
+  ) {
     const dateErrors = validateAbsenceDates({
       firstDayOff: formData.firstDayOff,
       lastDayOff: formData.lastDayOff,

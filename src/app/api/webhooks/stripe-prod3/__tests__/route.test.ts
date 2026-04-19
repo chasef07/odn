@@ -282,7 +282,9 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       'PAID SUBMISSION CANNOT BE PERSISTED - leaving webhook retryable',
       expect.objectContaining({
         tempSubmissionId: 'temp_missing_required',
-        reasons: expect.arrayContaining([expect.stringMatching(/Missing required fields: patientLastName/)]),
+        reasons: expect.arrayContaining([
+          expect.stringMatching(/Missing required fields: patientLastName/),
+        ]),
       })
     )
 

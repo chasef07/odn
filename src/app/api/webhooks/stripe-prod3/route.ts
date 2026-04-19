@@ -188,7 +188,10 @@ export async function POST(request: NextRequest) {
         reasons: validationReasons,
       })
 
-      return NextResponse.json({ error: 'Paid submission requires manual recovery' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Paid submission requires manual recovery' },
+        { status: 500 }
+      )
     }
 
     if (hasValidationFailure) {
