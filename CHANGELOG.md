@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.0.0] - 2026-04-19
+
+### Added
+
+- **Shared paid-submission validation layer** — Centralized server-side validation for payment creation and Stripe webhook processing to keep required-field, DOB, guardian, and absence-date rules aligned
+- **Date-only validation utilities** — Added deterministic helpers for ISO calendar-date parsing and age checks, plus targeted regression coverage for timezone-sensitive DOB boundaries
+
+### Changed
+
+- **Stripe webhook recovery behavior** — Non-persistable paid submissions now remain retryable for manual recovery instead of being silently acknowledged and orphaned
+- **Approval cleanup** — Approve and re-approve flows now clear stale auto-flag denial notes when a doctor moves a submission back to APPROVED
+
+### Fixed
+
+- **DOB timezone bypass** — Server-side age and sane-range checks no longer rely on timestamp parsing that could age patients up early or let future DOBs slip through near timezone boundaries
+- **Validation consistency** — Payment intent creation, webhook ingestion, and client-side DOB schema validation now agree on date-only rules and error handling
+
 ## [4.5.0] - 2026-03-27
 
 ### Added

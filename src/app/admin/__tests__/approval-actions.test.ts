@@ -255,6 +255,56 @@ describe('approveSubmission - Approval Automation', () => {
         true // withRestrictions (default)
       )
     })
+
+    it('clears stale denialReason when approving an auto-flagged MAYBE submission', async () => {
+      mockFindUnique.mockResolvedValue({
+        ...mockSubmission,
+        status: SubmissionStatus.MAYBE,
+        denialReason: 'Auto-flagged: You must be 18 or older to request a note for yourself',
+      })
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+
+      const result = await approveSubmission(mockSubmissionId)
+
+      expect(result).toEqual({ success: true })
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: mockSubmissionId },
+          data: expect.objectContaining({
+            status: SubmissionStatus.APPROVED,
+            denialReason: null,
+          }),
+        })
+      )
+    })
+
+    it('clears stale denialReason when manually approving a MANUAL submission', async () => {
+      mockFindUnique.mockResolvedValue({
+        ...mockSubmission,
+        status: SubmissionStatus.MANUAL,
+        denialReason: 'Auto-flagged: Missing required fields: patientLastName',
+      })
+      mockUpdate.mockResolvedValue({})
+
+      const result = await approveSubmission(mockSubmissionId)
+
+      expect(result).toEqual({ success: true })
+      expect(mockGenerateDoctorNotePDF).not.toHaveBeenCalled()
+      expect(mockSendApprovalEmail).not.toHaveBeenCalled()
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: mockSubmissionId },
+          data: expect.objectContaining({
+            status: SubmissionStatus.APPROVED,
+            denialReason: null,
+            approvalEmailSentAt: null,
+          }),
+        })
+      )
+    })
   })
 
   describe('withRestrictions parameter', () => {
@@ -611,6 +661,7 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
         where: { id: mockSubmissionId },
         data: expect.objectContaining({
           status: SubmissionStatus.APPROVED,
+          denialReason: null,
           approvalEmailSentAt: expect.any(Date),
         }),
       })
@@ -655,6 +706,37 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
     expect(result.success).toBe(true)
     expect(result.warning).toBeDefined()
     expect(mockUpdate).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          denialReason: null,
+        }),
+      })
+    )
+  })
+
+  it('clears a stale denialReason when re-approving an already approved submission', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...mockApprovedSubmission,
+      denialReason: 'Auto-flagged: Guardian must be 18 years or older',
+    })
+    mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+    mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+    mockSendApprovalEmail.mockResolvedValue({ success: true })
+    mockUpdate.mockResolvedValue({})
+
+    const result = await reApproveSubmission(mockSubmissionId)
+
+    expect(result).toEqual({ success: true })
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: mockSubmissionId },
+        data: expect.objectContaining({
+          status: SubmissionStatus.APPROVED,
+          denialReason: null,
+        }),
+      })
+    )
   })
 
   it('should fail if PDF generation fails (BLOCKING)', async () => {

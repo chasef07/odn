@@ -356,6 +356,7 @@ export async function approveSubmission(
           status: SubmissionStatus.APPROVED,
           reviewedByAdminId: doctorId,
           reviewedAt: now,
+          denialReason: null,
           approvalEmailSentAt: null, // No email sent for manual approvals
         },
       })
@@ -433,6 +434,7 @@ export async function approveSubmission(
         status: SubmissionStatus.APPROVED,
         reviewedByAdminId: doctorId,
         reviewedAt: now,
+        denialReason: null,
         approvalEmailSentAt: emailSentAt, // Only set if email succeeded
       },
     })
@@ -1187,6 +1189,7 @@ export async function reApproveSubmission(
         status: SubmissionStatus.APPROVED,
         reviewedByAdminId: doctorId,
         reviewedAt: now,
+        denialReason: null,
         approvalEmailSentAt: emailSentAt,
         updatedAt: now,
       },

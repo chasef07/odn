@@ -4,58 +4,8 @@ import { SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
 import { sendPaymentConfirmationEmail } from '@/lib/email'
-import { isAgeValid } from '@/lib/age-validators'
-import { validateAbsenceDates } from '@/lib/date-validators'
+import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { revalidatePath } from 'next/cache'
-
-/**
- * Validates a date-of-birth string is within a sane historical range
- * (1900-01-01 to today). Does NOT enforce a minimum age.
- */
-function isDateOfBirthInSaneRange(dateOfBirth: string): boolean {
-  const dob = new Date(dateOfBirth)
-  if (Number.isNaN(dob.getTime())) return false
-  const today = new Date()
-  const minDate = new Date('1900-01-01')
-  return dob >= minDate && dob <= today
-}
-
-/**
- * Re-validate form data server-side before creating a permanent Submission.
- * Returns an array of human-readable reasons; empty array means data is valid.
- */
-function validatePaidSubmissionData(formData: FormData): string[] {
-  const reasons: string[] = []
-
-  // Absence date rules (7-day limit, 7-day lookback, ordering)
-  if (formData.firstDayOff && formData.lastDayOff) {
-    const dateErrors = validateAbsenceDates({
-      firstDayOff: formData.firstDayOff,
-      lastDayOff: formData.lastDayOff,
-    })
-    for (const err of dateErrors) {
-      reasons.push(err.message)
-    }
-  } else {
-    reasons.push('Missing absence dates')
-  }
-
-  // Age / DOB sanity
-  if (formData.recipient === 'myself') {
-    if (!formData.patientDateOfBirth || !isAgeValid(formData.patientDateOfBirth, 18)) {
-      reasons.push('Patient must be 18 or older when submitting for themselves')
-    }
-  } else if (formData.recipient === 'someone_else') {
-    if (!formData.guardianDateOfBirth || !isAgeValid(formData.guardianDateOfBirth, 18)) {
-      reasons.push('Guardian must be 18 or older')
-    }
-    if (!formData.patientDateOfBirth || !isDateOfBirthInSaneRange(formData.patientDateOfBirth)) {
-      reasons.push('Patient date of birth is outside the valid range')
-    }
-  }
-
-  return reasons
-}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -211,25 +161,36 @@ export async function POST(request: NextRequest) {
 
     const formData = tempSubmission.formData as FormData
 
-    // 8. Validate form data before creating Submission
-    if (!formData.email || !formData.patientFirstName) {
-      console.error('Invalid form data in TemporarySubmission:', tempSubmission.id)
-      return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
-    }
-
-    // 8a. Re-validate paid submission data server-side. This is the last gate
+    // 8. Re-validate paid submission data server-side. This is the last gate
     // before we write a permanent record: even if the payment-intent API was
     // bypassed (e.g., an old unpaid TemporarySubmission with stale data was
     // paired with a successful PaymentIntent), we refuse to create an
     // auto-processable record with invalid data.
     //
-    // Decision: if validation fails we STILL create the Submission (because
-    // the customer already paid and we must not lose the record), but we force
-    // status=MAYBE so a doctor reviews it manually, and we stash the reasons
-    // in `denialReason` as an ad-hoc admin note. We log a clear error with the
-    // submission identifiers so the doctor can find it in the Maybe queue.
-    const validationReasons = validatePaidSubmissionData(formData)
+    // Decision:
+    // - If the payload is complete enough to persist, we still create the
+    //   Submission but force status=MAYBE so a doctor reviews it manually.
+    // - If required persisted fields are missing or unparseable, we fail the
+    //   webhook so Stripe retries and the TemporarySubmission is retained for
+    //   manual recovery instead of silently orphaning the paid record.
+    const validation = validatePaidSubmissionData(formData)
+    const validationReasons = validation.errors
     const hasValidationFailure = validationReasons.length > 0
+
+    if (!validation.canPersistSubmission) {
+      console.error('PAID SUBMISSION CANNOT BE PERSISTED - leaving webhook retryable', {
+        eventId: event.id,
+        paymentIntentId: paymentIntent.id,
+        tempSubmissionId: tempSubmission.id,
+        email: formData.email,
+        patientFirstName: formData.patientFirstName,
+        patientLastName: formData.patientLastName,
+        reasons: validationReasons,
+      })
+
+      return NextResponse.json({ error: 'Paid submission requires manual recovery' }, { status: 500 })
+    }
+
     if (hasValidationFailure) {
       console.error('PAID SUBMISSION FAILED SERVER-SIDE VALIDATION - routing to MAYBE queue', {
         eventId: event.id,
@@ -276,13 +237,11 @@ export async function POST(request: NextRequest) {
           otherSymptomText: formData.otherSymptomText || null,
           additionalInformation: formData.additionalInformation || null,
 
-          // Date conversions with error handling
-          patientDateOfBirth: new Date(formData.patientDateOfBirth!),
-          guardianDateOfBirth: formData.guardianDateOfBirth
-            ? new Date(formData.guardianDateOfBirth)
-            : null,
-          firstDayOff: new Date(formData.firstDayOff!),
-          lastDayOff: new Date(formData.lastDayOff!),
+          // Date conversions are validated before we write the permanent record.
+          patientDateOfBirth: validation.parsedDates.patientDateOfBirth!,
+          guardianDateOfBirth: validation.parsedDates.guardianDateOfBirth,
+          firstDayOff: validation.parsedDates.firstDayOff!,
+          lastDayOff: validation.parsedDates.lastDayOff!,
         },
       })
 

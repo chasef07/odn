@@ -2,21 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
-import { isAgeValid } from '@/lib/age-validators'
-import { validateAbsenceDates } from '@/lib/date-validators'
+import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { getCachedPrice } from '@/lib/stripe-price'
-
-/**
- * Validates a date-of-birth string is within a sane historical range
- * (1900-01-01 to today). Does NOT enforce a minimum age.
- */
-function isDateOfBirthInSaneRange(dateOfBirth: string): boolean {
-  const dob = new Date(dateOfBirth)
-  if (Number.isNaN(dob.getTime())) return false
-  const today = new Date()
-  const minDate = new Date('1900-01-01')
-  return dob >= minDate && dob <= today
-}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -68,76 +55,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 })
     }
 
-    // 2. Validate required fields
-    const requiredFields = [
-      'state',
-      'recipient',
-      'patientFirstName',
-      'patientLastName',
-      'patientDateOfBirth',
-      'email',
-      'phone',
-      'notePurpose',
-      'firstDayOff',
-      'lastDayOff',
-      'absenceReason',
-    ]
-
-    const missingFields = requiredFields.filter((field) => !formData[field as keyof FormData])
-
-    if (missingFields.length > 0) {
-      return NextResponse.json(
-        { error: `Missing required fields: ${missingFields.join(', ')}` },
-        { status: 400 }
-      )
-    }
-
-    // 3. Validate conditional fields
-    if (formData.recipient === 'someone_else') {
-      if (
-        !formData.guardianFirstName ||
-        !formData.guardianLastName ||
-        !formData.guardianDateOfBirth
-      ) {
-        return NextResponse.json(
-          { error: 'Guardian information is required when submitting for someone else' },
-          { status: 400 }
-        )
-      }
-    }
-
-    // 3b. Validate age requirements
-    if (formData.recipient === 'myself' && formData.patientDateOfBirth) {
-      if (!isAgeValid(formData.patientDateOfBirth, 18)) {
-        return NextResponse.json(
-          { error: 'You must be 18 or older to request a note for yourself' },
-          { status: 400 }
-        )
-      }
-    }
-    if (formData.recipient === 'someone_else') {
-      if (formData.guardianDateOfBirth && !isAgeValid(formData.guardianDateOfBirth, 18)) {
-        return NextResponse.json({ error: 'Guardian must be 18 years or older' }, { status: 400 })
-      }
-      // Patient age is unbounded (could be a minor or an adult dependent),
-      // but DOB must still be within a sane historical range.
-      if (formData.patientDateOfBirth && !isDateOfBirthInSaneRange(formData.patientDateOfBirth)) {
-        return NextResponse.json(
-          { error: 'Please enter a valid patient date of birth' },
-          { status: 400 }
-        )
-      }
-    }
-
-    // 3c. Validate absence date range (7-day limit, 7-day lookback, ordering)
-    if (formData.firstDayOff && formData.lastDayOff) {
-      const dateErrors = validateAbsenceDates({
-        firstDayOff: formData.firstDayOff,
-        lastDayOff: formData.lastDayOff,
-      })
-      if (dateErrors.length > 0) {
-        return NextResponse.json({ error: dateErrors[0].message }, { status: 400 })
-      }
+    const validation = validatePaidSubmissionData(formData)
+    if (validation.errors.length > 0) {
+      return NextResponse.json({ error: validation.errors[0] }, { status: 400 })
     }
 
     // 4. Fetch price from Stripe (cached for 1 hour)

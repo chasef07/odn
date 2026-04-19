@@ -255,6 +255,37 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
     const createArg = mockSubmissionCreate.mock.calls[0][0]
     expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.denialReason).toMatch(/outside the valid range/i)
+    expect(createArg.data.denialReason).toMatch(/valid patient date of birth/i)
+  })
+
+  it('keeps malformed paid submissions retryable when required persisted fields are missing', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_missing_required',
+      paymentIntentId: 'pi_test_123',
+      formData: {
+        ...validFormData,
+        patientLastName: '',
+      },
+    })
+
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const response = await POST(buildRequest())
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data).toEqual({ error: 'Paid submission requires manual recovery' })
+    expect(mockSubmissionCreate).not.toHaveBeenCalled()
+    expect(mockTempDelete).not.toHaveBeenCalled()
+    expect(consoleError).toHaveBeenCalledWith(
+      'PAID SUBMISSION CANNOT BE PERSISTED - leaving webhook retryable',
+      expect.objectContaining({
+        tempSubmissionId: 'temp_missing_required',
+        reasons: expect.arrayContaining([expect.stringMatching(/Missing required fields: patientLastName/)]),
+      })
+    )
+
+    consoleError.mockRestore()
   })
 })

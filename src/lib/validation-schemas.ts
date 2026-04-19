@@ -5,6 +5,7 @@
 
 import { z } from 'zod'
 import { isAgeValid } from '@/lib/age-validators'
+import { compareDateOnly, getUTCDateOnlyParts, parseIsoDateOnly } from '@/lib/date-only'
 
 const NAME_REGEX = /^[a-zA-Z\s'-]+$/
 
@@ -21,11 +22,31 @@ function nameField(label: string) {
 const dateOfBirthField = z
   .string()
   .min(1, 'Date of birth is required')
-  .refine((val) => new Date(val) <= new Date(), {
-    message: 'Date of birth cannot be in the future',
-  })
-  .refine((val) => new Date(val) >= new Date('1900-01-01'), {
-    message: 'Please enter a valid date of birth',
+  .superRefine((val, ctx) => {
+    const parsed = parseIsoDateOnly(val)
+    if (!parsed) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please enter a valid date of birth',
+      })
+      return
+    }
+
+    const today = getUTCDateOnlyParts(new Date())
+    if (compareDateOnly(parsed, today) > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Date of birth cannot be in the future',
+      })
+      return
+    }
+
+    if (compareDateOnly(parsed, { year: 1900, month: 1, day: 1 }) < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please enter a valid date of birth',
+      })
+    }
   })
 
 export const page1Schema = z

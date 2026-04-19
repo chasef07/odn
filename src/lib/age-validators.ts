@@ -5,6 +5,7 @@
 
 import { z } from 'zod'
 import { differenceInYears } from 'date-fns'
+import { isAtLeastAge, parseIsoDateOnly } from './date-only'
 
 /**
  * Validates if a date string represents someone who is at least minAge years old
@@ -13,7 +14,14 @@ import { differenceInYears } from 'date-fns'
  * @returns true if age requirement is met
  */
 export const isAgeValid = (dateOfBirth: string, minAge: number = 18): boolean => {
-  return differenceInYears(new Date(), new Date(dateOfBirth)) >= minAge
+  if (parseIsoDateOnly(dateOfBirth)) {
+    return isAtLeastAge(dateOfBirth, minAge)
+  }
+
+  const parsedDate = new Date(dateOfBirth)
+  if (Number.isNaN(parsedDate.getTime())) return false
+
+  return differenceInYears(new Date(), parsedDate) >= minAge
 }
 
 /**
