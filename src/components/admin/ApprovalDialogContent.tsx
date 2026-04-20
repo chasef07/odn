@@ -28,7 +28,7 @@ export function ApprovalDialogContent({
 }: ApprovalDialogContentProps) {
   return (
     <div className="space-y-4 py-2">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         {isReApproval
           ? "This will generate a NEW doctor's note PDF and send a NEW email to the patient."
           : "This will generate a doctor's note PDF and send it to the patient via email."}
@@ -42,7 +42,7 @@ export function ApprovalDialogContent({
           value={evaluationDate}
           onChange={(e) => onDateChange(e.target.value)}
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           This date appears as &quot;Date Issued&quot; on the PDF. Not stored in database.
         </p>
       </div>
@@ -57,14 +57,15 @@ export function ApprovalDialogContent({
             placeholder=""
             rows={2}
           />
-          <p className="text-xs text-muted-foreground">
-            Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for default text.
+          <p className="text-muted-foreground text-xs">
+            Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for default
+            text.
           </p>
         </div>
       )}
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           <strong>Error:</strong> {error}
         </div>
       )}

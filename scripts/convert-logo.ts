@@ -25,9 +25,10 @@ async function convertLogo() {
 
     console.log('🔄 Converting SVG to PNG...')
     await sharp(svgBuffer)
-      .resize(200, 200, { // Higher resolution for better quality in PDF
+      .resize(200, 200, {
+        // Higher resolution for better quality in PDF
         fit: 'contain',
-        background: { r: 255, g: 255, b: 255, alpha: 0 } // Transparent background
+        background: { r: 255, g: 255, b: 255, alpha: 0 }, // Transparent background
       })
       .png()
       .toFile(outputPath)

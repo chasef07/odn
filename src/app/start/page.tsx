@@ -54,9 +54,10 @@ export default function LandingPage() {
         {/* Disclaimer */}
         <div className="mx-auto mt-6 max-w-xl">
           <p className="text-muted-foreground text-sm leading-relaxed">
-            <span className="font-medium">Please note:</span> This service is not meant to be used
-            for legal issues, FMLA, workman&apos;s compensation, or disability and insurance claims.
-            You must be 18+ or a parent / guardian requesting for a minor.
+            <span className="font-medium">Please note:</span> We do not provide documentation for
+            legal matters including probation / court appearances, FMLA, workers&apos; compensation,
+            disability, or insurance claims under any circumstances. Requests for these purposes
+            will be denied. Users must be 18+ or a parent/guardian requesting on behalf of a minor.
           </p>
         </div>
       </main>

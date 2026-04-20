@@ -6,7 +6,7 @@ import PaymentConfirmationEmail from '@/emails/PaymentConfirmationEmail'
 import BounceAlertEmail from '@/emails/BounceAlertEmail'
 
 // Initialize Resend client with API key from environment
-const resend = new Resend(process.env.RESEND_API_KEY)
+export const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Email configuration
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@onlinedoctornote.com'
@@ -224,4 +224,3 @@ export async function sendBounceAlertEmail({
     )
   }
 }
-

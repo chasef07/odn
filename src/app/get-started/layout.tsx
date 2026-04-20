@@ -8,10 +8,6 @@ export const metadata: Metadata = {
   },
 }
 
-export default function GetStartedLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function GetStartedLayout({ children }: { children: React.ReactNode }) {
   return children
 }

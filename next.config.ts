@@ -5,10 +5,32 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   images: {
+    formats: ['image/avif', 'image/webp'],
     qualities: [75, 90],
+    minimumCacheTTL: 31536000,
   },
   async headers() {
     return [
+      {
+        // Cache static assets (images, fonts) for 1 year
+        source: '/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif|woff|woff2)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Cache Next.js static chunks for 1 year
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
       {
         // Apply security headers to all routes
         source: '/:path*',
@@ -39,8 +61,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value:
-              'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
           },
           {
             key: 'Content-Security-Policy',
@@ -49,15 +70,14 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com https://googleads.g.doubleclick.net https://www.googleads.g.doubleclick.net https://www.redditstatic.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: https://alb.reddit.com",
-              "connect-src 'self' https://onlinedoctornote.com https://*.onlinedoctornote.com https://api.stripe.com https://vitals.vercel-insights.com https://www.googletagmanager.com https://www.google-analytics.com https://google.com https://www.google.com https://google.com/ccm/collect https://www.google.com/ccm/collect https://googleads.g.doubleclick.net https://googleadservices.com https://www.googleadservices.com https://alb.reddit.com https://www.redditstatic.com",
-              "frame-src https://js.stripe.com https://www.googletagmanager.com",
+              "connect-src 'self' https://onlinedoctornote.com https://*.onlinedoctornote.com https://api.stripe.com https://vitals.vercel-insights.com https://www.googletagmanager.com https://www.google-analytics.com https://google.com https://www.google.com https://google.com/ccm/collect https://www.google.com/ccm/collect https://googleads.g.doubleclick.net https://googleadservices.com https://www.googleadservices.com https://alb.reddit.com https://pixel-config.reddit.com https://www.redditstatic.com",
+              'frame-src https://js.stripe.com https://www.googletagmanager.com',
               "font-src 'self' data:",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
             ].join('; '),
-          }
-,
+          },
         ],
       },
     ]

@@ -179,7 +179,8 @@
 }
 
 @keyframes pulse-soft {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -212,11 +213,21 @@
 }
 
 /* Stagger Delays */
-.stagger-1 { animation-delay: 0.1s; }
-.stagger-2 { animation-delay: 0.2s; }
-.stagger-3 { animation-delay: 0.3s; }
-.stagger-4 { animation-delay: 0.4s; }
-.stagger-5 { animation-delay: 0.5s; }
+.stagger-1 {
+  animation-delay: 0.1s;
+}
+.stagger-2 {
+  animation-delay: 0.2s;
+}
+.stagger-3 {
+  animation-delay: 0.3s;
+}
+.stagger-4 {
+  animation-delay: 0.4s;
+}
+.stagger-5 {
+  animation-delay: 0.5s;
+}
 
 /* Scroll-snap Carousel Utilities */
 .snap-container {
@@ -260,7 +271,8 @@
 }
 
 @keyframes heartbeat-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.4;
   }
   50% {
@@ -269,7 +281,8 @@
 }
 
 @keyframes float-slow {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) rotateX(0deg) rotateY(0deg);
   }
   25% {
@@ -296,7 +309,8 @@
 }
 
 @keyframes float-slower {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) rotate(0deg);
   }
   50% {
@@ -305,7 +319,8 @@
 }
 
 @keyframes gradient-shift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -325,7 +340,8 @@
 }
 
 @keyframes glow-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(0, 158, 217, 0.3);
   }
   50% {
@@ -333,10 +349,36 @@
   }
 }
 
+@keyframes heroPhraseRotate {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  4% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  34% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  34.01%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 .animate-heartbeat-line {
   stroke-dasharray: 1000;
   stroke-dashoffset: 1000;
-  animation: heartbeat-line 3s ease-out forwards, heartbeat-pulse 2s ease-in-out infinite 3s;
+  animation:
+    heartbeat-line 3s ease-out forwards,
+    heartbeat-pulse 2s ease-in-out infinite 3s;
 }
 
 .animate-float-slow {
@@ -365,6 +407,11 @@
   transform-style: preserve-3d;
 }
 
+.animate-hero-phrase {
+  animation: heroPhraseRotate 13.5s ease-in-out infinite;
+  opacity: 0;
+}
+
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
@@ -379,10 +426,15 @@
   .animate-gradient-shift,
   .animate-pulse-ring,
   .animate-glow-pulse,
-  .animate-rotate-y {
+  .animate-rotate-y,
+  .animate-hero-phrase {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+
+  .animate-hero-phrase:not(:first-child) {
+    display: none;
   }
 
   .snap-container {

@@ -1,0 +1,78 @@
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: America/New_York
+    target-branch: dev
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # Group all dev-only deps together — reviewable in one shot
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      # Group type packages together
+      types:
+        patterns:
+          - '@types/*'
+      # Group Radix UI packages
+      radix:
+        patterns:
+          - '@radix-ui/*'
+          - 'radix-ui'
+      # Group React Email packages
+      react-email:
+        patterns:
+          - '@react-email/*'
+          - 'react-email'
+      # Group testing libraries
+      testing:
+        patterns:
+          - '@testing-library/*'
+          - 'vitest'
+          - '@vitest/*'
+          - 'jsdom'
+    # Keep major bumps as individual PRs so we review breaking changes one at a time.
+    ignore:
+      # Pin Next.js, React, Prisma major versions — upgrade intentionally, not automatically.
+      - dependency-name: next
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react-dom
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@prisma/client'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: prisma
+        update-types:
+          - version-update:semver-major
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: America/New_York
+    target-branch: dev
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: ci

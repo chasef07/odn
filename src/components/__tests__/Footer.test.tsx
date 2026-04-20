@@ -3,24 +3,13 @@ import { render, screen } from '@testing-library/react'
 import Footer from '../Footer'
 
 describe('Footer', () => {
-  it('should render footer links', () => {
+  it('should render privacy and terms links', () => {
     render(<Footer />)
 
-    expect(screen.getByRole('link', { name: /privacy policy/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /terms of service/i })).toBeInTheDocument()
-  })
-
-  it('should have correct href for privacy policy link', () => {
-    render(<Footer />)
-
-    const privacyLink = screen.getByRole('link', { name: /privacy policy/i })
+    const privacyLink = screen.getByRole('link', { name: /^privacy$/i })
     expect(privacyLink).toHaveAttribute('href', '/privacy-policy')
-  })
 
-  it('should have correct href for terms of service link', () => {
-    render(<Footer />)
-
-    const termsLink = screen.getByRole('link', { name: /terms of service/i })
+    const termsLink = screen.getByRole('link', { name: /^terms$/i })
     expect(termsLink).toHaveAttribute('href', '/terms-of-service')
   })
 
@@ -41,32 +30,23 @@ describe('Footer', () => {
   it('should display phone hours', () => {
     render(<Footer />)
 
-    expect(screen.getByText(/8am–8pm EST everyday/i)).toBeInTheDocument()
+    expect(screen.getByText(/8am–8pm EST/i)).toBeInTheDocument()
   })
 
-  it('should render HIPAA compliance badge image', () => {
+  it('should display copyright text with current year and HIPAA note', () => {
     render(<Footer />)
 
-    const hipaaImage = screen.getByAltText(/HIPAA Compliant - Health Insurance Portability and Accountability Act certified medical documentation service/i)
-    expect(hipaaImage).toBeInTheDocument()
-    expect(hipaaImage).toHaveAttribute('src', expect.stringContaining('Hipaa-Compliant-Spanish-medical-translator.png'))
+    const currentYear = new Date().getFullYear()
+    expect(
+      screen.getByText(new RegExp(`© ${currentYear} OnlineDoctorNote.com · HIPAA Compliant`, 'i'))
+    ).toBeInTheDocument()
   })
 
-  it('should display copyright text with current year', () => {
-    render(<Footer />)
-
-    expect(screen.getByText(/© 2025 OnlineDoctorNote.com/i)).toBeInTheDocument()
-  })
-
-  it('should have proper accessibility with white text on dark background', () => {
+  it('should render on a white background for readability', () => {
     const { container } = render(<Footer />)
 
     const footer = container.querySelector('footer')
-    expect(footer).toHaveClass('bg-[#001830]')
-
-    // Check that parent containers have white text for proper contrast
-    const textContainers = container.querySelectorAll('[class*="text-white"]')
-    expect(textContainers.length).toBeGreaterThan(0)
+    expect(footer).toHaveClass('bg-white')
   })
 
   it('should render Mail and Phone icons', () => {
@@ -75,5 +55,13 @@ describe('Footer', () => {
     // Mail and Phone icons from lucide-react render as SVG elements
     const svgs = container.querySelectorAll('svg')
     expect(svgs.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('should render FAQ, Blog, and About nav links', () => {
+    render(<Footer />)
+
+    expect(screen.getByRole('link', { name: /^faq$/i })).toHaveAttribute('href', '/faq')
+    expect(screen.getByRole('link', { name: /^blog$/i })).toHaveAttribute('href', '/blog')
+    expect(screen.getByRole('link', { name: /^about$/i })).toHaveAttribute('href', '/about')
   })
 })

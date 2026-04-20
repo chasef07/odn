@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
-import { isAgeValid } from '@/lib/age-validators'
+import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
+import { getCachedPrice } from '@/lib/stripe-price'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -54,66 +55,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 })
     }
 
-    // 2. Validate required fields
-    const requiredFields = [
-      'state',
-      'recipient',
-      'patientFirstName',
-      'patientLastName',
-      'patientDateOfBirth',
-      'email',
-      'phone',
-      'notePurpose',
-      'firstDayOff',
-      'lastDayOff',
-      'absenceReason',
-    ]
-
-    const missingFields = requiredFields.filter((field) => !formData[field as keyof FormData])
-
-    if (missingFields.length > 0) {
-      return NextResponse.json(
-        { error: `Missing required fields: ${missingFields.join(', ')}` },
-        { status: 400 }
-      )
+    const validation = validatePaidSubmissionData(formData)
+    if (validation.errors.length > 0) {
+      return NextResponse.json({ error: validation.errors[0] }, { status: 400 })
     }
 
-    // 3. Validate conditional fields
-    if (formData.recipient === 'someone_else') {
-      if (
-        !formData.guardianFirstName ||
-        !formData.guardianLastName ||
-        !formData.guardianDateOfBirth
-      ) {
-        return NextResponse.json(
-          { error: 'Guardian information is required when submitting for someone else' },
-          { status: 400 }
-        )
-      }
-    }
-
-    // 3b. Validate age requirements
-    if (formData.recipient === 'myself' && formData.patientDateOfBirth) {
-      if (!isAgeValid(formData.patientDateOfBirth, 18)) {
-        return NextResponse.json(
-          { error: 'You must be 18 or older to request a note for yourself' },
-          { status: 400 }
-        )
-      }
-    }
-    if (formData.recipient === 'someone_else' && formData.guardianDateOfBirth) {
-      if (!isAgeValid(formData.guardianDateOfBirth, 18)) {
-        return NextResponse.json(
-          { error: 'Guardian must be 18 years or older' },
-          { status: 400 }
-        )
-      }
-    }
-
-    // 4. Fetch price from Stripe
+    // 4. Fetch price from Stripe (cached for 1 hour)
     let price: Stripe.Price
     try {
-      price = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!)
+      price = await getCachedPrice(process.env.STRIPE_PRICE_ID!)
     } catch (priceError) {
       console.error('Failed to fetch Stripe price:', priceError)
       return NextResponse.json(
@@ -241,7 +191,9 @@ export async function POST(request: NextRequest) {
       if (!cancelSucceeded) {
         // Payment intent exists but couldn't be canceled - webhook might still process it
         // The metadata.temporarySubmissionId will allow webhook to find the temp submission
-        console.error('CRITICAL: PaymentIntent may still be active, webhook can use metadata fallback')
+        console.error(
+          'CRITICAL: PaymentIntent may still be active, webhook can use metadata fallback'
+        )
       }
 
       return NextResponse.json(

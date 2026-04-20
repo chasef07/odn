@@ -15,7 +15,9 @@ export async function setup() {
   process.env.PRISMA_DATABASE_URL = server.database.connectionString
 
   console.log('\n🗄️  Prisma Dev server started for testing')
-  console.log(`   Connection: ${server.database.connectionString.split('@')[1]?.split('/')[0] ?? 'localhost'}`)
+  console.log(
+    `   Connection: ${server.database.connectionString.split('@')[1]?.split('/')[0] ?? 'localhost'}`
+  )
 }
 
 export async function teardown() {

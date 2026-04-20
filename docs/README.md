@@ -4,8 +4,8 @@ This folder contains current, actively maintained documentation for the Online D
 
 ## Available Guides
 
-| Document | Description |
-|----------|-------------|
+| Document                                                       | Description                                                             |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | [LOCAL_DEVELOPMENT_TESTING.md](./LOCAL_DEVELOPMENT_TESTING.md) | Complete guide for setting up local development and testing environment |
 
 ## Legacy Documentation

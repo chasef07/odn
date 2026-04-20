@@ -8,10 +8,6 @@ export const metadata: Metadata = {
   },
 }
 
-export default function ApprovedLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function ApprovedLayout({ children }: { children: React.ReactNode }) {
   return children
 }

@@ -78,11 +78,7 @@ async function main() {
 
   // Check environment variables
   console.log('📋 Checking environment variables...')
-  const requiredEnvVars = [
-    'DOCTOR_NAME',
-    'DOCTOR_CREDENTIALS',
-    'DOCTOR_SIGNATURE_URL',
-  ]
+  const requiredEnvVars = ['DOCTOR_NAME', 'DOCTOR_CREDENTIALS', 'DOCTOR_SIGNATURE_URL']
 
   const missingVars = requiredEnvVars.filter((varName) => !process.env[varName])
 
@@ -122,7 +118,7 @@ async function main() {
     console.log(`✅ PDF generated successfully: ${outputPath2}\n`)
 
     // Summary
-    console.log('=' .repeat(60))
+    console.log('='.repeat(60))
     console.log('✅ All tests passed!\n')
     console.log('Generated PDFs:')
     console.log(`   1. ${outputPath1}`)
@@ -133,7 +129,7 @@ async function main() {
     console.log(`   Credentials: ${process.env.DOCTOR_CREDENTIALS}`)
     console.log(`   Signature: ${process.env.DOCTOR_SIGNATURE_URL}`)
     console.log(`   License: State-specific (from state-licenses.ts)`)
-    console.log('=' .repeat(60))
+    console.log('='.repeat(60))
   } catch (error) {
     console.error('\n❌ Error generating PDF:')
     if (error instanceof Error) {

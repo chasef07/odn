@@ -42,7 +42,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
       it('should return zero days when no prior submissions', async () => {
         mockFindMany.mockResolvedValue([])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(0)
         expect(result.submissions).toHaveLength(0)
@@ -60,7 +65,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(3) // 3 days: day -10, -9, -8
         expect(result.submissions).toHaveLength(1)
@@ -83,7 +93,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(5) // 2 + 3 days
         expect(result.submissions).toHaveLength(2)
@@ -110,7 +125,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
       it('should query with correct 30-day window boundaries', async () => {
         mockFindMany.mockResolvedValue([])
 
-        await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         // Window should be [referenceDate - 30] to [referenceDate - 1]
         // Query finds overlapping submissions: firstDayOff <= windowEnd AND lastDayOff >= windowStart
@@ -140,7 +160,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(8) // ALL days, not just days in window
       })
@@ -159,7 +184,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(6)
       })
@@ -176,7 +206,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(40)
       })
@@ -195,7 +230,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(3)
       })
@@ -212,7 +252,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(2)
       })
@@ -229,7 +274,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(9)
         expect(result.exceedsLimit).toBe(true)
@@ -246,7 +296,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           },
         ])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(result.totalDays).toBe(7)
         expect(result.exceedsLimit).toBe(false)
@@ -258,7 +313,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
       it('should only query for APPROVED status', async () => {
         mockFindMany.mockResolvedValue([])
 
-        await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, referenceDate)
+        await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          referenceDate
+        )
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -349,7 +409,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
         const yesterday = subDays(referenceDate, 1)
         mockFindMany.mockResolvedValue([])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, yesterday)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          yesterday
+        )
 
         expect(result.totalDays).toBe(0)
         // Verify window was calculated from yesterday, not today
@@ -367,7 +432,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
         const sevenDaysAgo = subDays(referenceDate, 7)
         mockFindMany.mockResolvedValue([])
 
-        await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, sevenDaysAgo)
+        await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          sevenDaysAgo
+        )
 
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -386,7 +456,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
         vi.setSystemTime(marchDate)
         mockFindMany.mockResolvedValue([])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, marchDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          marchDate
+        )
 
         // Verify function executed successfully and query was made
         expect(result.totalDays).toBe(0)
@@ -407,7 +482,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
         vi.setSystemTime(janDate)
         mockFindMany.mockResolvedValue([])
 
-        const result = await getMonthlyDaysUsed(testPatient.firstName, testPatient.lastName, testPatient.dob, janDate)
+        const result = await getMonthlyDaysUsed(
+          testPatient.firstName,
+          testPatient.lastName,
+          testPatient.dob,
+          janDate
+        )
 
         // Verify function executed successfully
         expect(result.totalDays).toBe(0)

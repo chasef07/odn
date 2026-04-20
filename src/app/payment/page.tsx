@@ -94,7 +94,7 @@ function CheckoutForm() {
             ) : priceInfo ? (
               `$${priceInfo.formattedAmount}`
             ) : (
-              <span className="text-red-600 text-base">Price unavailable</span>
+              <span className="text-base text-red-600">Price unavailable</span>
             )}
           </span>
         </div>

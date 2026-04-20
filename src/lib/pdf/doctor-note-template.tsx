@@ -6,16 +6,7 @@
  */
 
 import React from 'react'
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-  Image,
-  Link,
-  Font,
-} from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image, Link, Font } from '@react-pdf/renderer'
 import { getStateLicense } from '../state-licenses'
 import { getPdfActivitiesText } from '../email-helpers'
 import { join } from 'path'
@@ -27,15 +18,29 @@ import { existsSync } from 'fs'
  */
 function validateFontFiles(): void {
   const fontPaths = [
-    join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-400-normal.woff'),
-    join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-700-normal.woff'),
+    join(
+      process.cwd(),
+      'node_modules',
+      '@fontsource',
+      'plus-jakarta-sans',
+      'files',
+      'plus-jakarta-sans-latin-400-normal.woff'
+    ),
+    join(
+      process.cwd(),
+      'node_modules',
+      '@fontsource',
+      'plus-jakarta-sans',
+      'files',
+      'plus-jakarta-sans-latin-700-normal.woff'
+    ),
   ]
 
   for (const fontPath of fontPaths) {
     if (!existsSync(fontPath)) {
       throw new Error(
         `Font file not found: ${fontPath}\n` +
-        'Please run "npm install" to install font dependencies (@fontsource/plus-jakarta-sans).'
+          'Please run "npm install" to install font dependencies (@fontsource/plus-jakarta-sans).'
       )
     }
   }
@@ -59,11 +64,25 @@ try {
     family: 'Plus Jakarta Sans',
     fonts: [
       {
-        src: join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-400-normal.woff'),
+        src: join(
+          process.cwd(),
+          'node_modules',
+          '@fontsource',
+          'plus-jakarta-sans',
+          'files',
+          'plus-jakarta-sans-latin-400-normal.woff'
+        ),
         fontWeight: 'normal',
       },
       {
-        src: join(process.cwd(), 'node_modules', '@fontsource', 'plus-jakarta-sans', 'files', 'plus-jakarta-sans-latin-700-normal.woff'),
+        src: join(
+          process.cwd(),
+          'node_modules',
+          '@fontsource',
+          'plus-jakarta-sans',
+          'files',
+          'plus-jakarta-sans-latin-700-normal.woff'
+        ),
         fontWeight: 'bold',
       },
     ],
@@ -331,8 +350,18 @@ const styles = StyleSheet.create({
 function formatDate(date: Date): string {
   const d = new Date(date)
   const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ]
   const month = monthNames[d.getUTCMonth()]
   const day = d.getUTCDate()
@@ -371,6 +400,24 @@ function formatExcuseFrom(purpose: string, other?: string | null): string {
 }
 
 /**
+ * Map an absence reason to the condition phrase used in the PDF body.
+ *
+ * Returns both the "due to ..." form (used in the standard medical branch)
+ * and the "with ..." form (used in the caregiver branch where the patient's
+ * family member has the condition). Reasons not in the mapping fall back to
+ * the generic "medical condition" wording for backward compatibility.
+ */
+export function getConditionPhrase(absenceReason: string): { dueTo: string; with: string } {
+  if (absenceReason === 'Feeling sick' || absenceReason === 'Mental health') {
+    return { dueTo: 'due to an illness', with: 'with an illness' }
+  }
+  if (absenceReason === 'Accident or injury') {
+    return { dueTo: 'due to an injury', with: 'with an injury' }
+  }
+  return { dueTo: 'due to a medical condition', with: 'with a medical condition' }
+}
+
+/**
  * Doctor's Note PDF Template Component - Simplified
  */
 export function DoctorNoteTemplate({
@@ -396,13 +443,17 @@ export function DoctorNoteTemplate({
 
   const patientFullName = `${patientFirstName} ${patientLastName}`
   const isMinor = recipient === 'someone_else'
-  const guardianFullName = isMinor && guardianFirstName && guardianLastName
-    ? `${guardianFirstName} ${guardianLastName}`
-    : null
+  const guardianFullName =
+    isMinor && guardianFirstName && guardianLastName
+      ? `${guardianFirstName} ${guardianLastName}`
+      : null
 
   // Check if this is a caregiver note or doctor's appointment
   const isCaregiver = absenceReason === 'Taking care of someone'
   const isAppointment = absenceReason === "Doctor's appointment"
+
+  // Specialize the condition phrase based on absence reason
+  const conditionPhrase = getConditionPhrase(absenceReason)
 
   const excuseFrom = formatExcuseFrom(notePurpose, otherNotePurpose)
   const dateIssuedFormatted = formatDate(issueDate)
@@ -425,10 +476,7 @@ export function DoctorNoteTemplate({
       <Page size="LETTER" style={styles.page}>
         {/* Watermark in bottom right */}
         <View style={styles.watermarkContainer}>
-          <Image
-            src={watermarkPath}
-            style={styles.watermarkImage}
-          />
+          <Image src={watermarkPath} style={styles.watermarkImage} />
         </View>
 
         {/* Header Section - Light blue background matching Doe John note */}
@@ -437,7 +485,10 @@ export function DoctorNoteTemplate({
           <View style={styles.headerLeft}>
             <Text style={styles.tagline}>Proudly Serving Patients in Over 40 States</Text>
             <Text style={styles.headerLine}>
-              Email: <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>hello@platinumhealthclinic.com</Link>
+              Email:{' '}
+              <Link src="mailto:hello@platinumhealthclinic.com" style={styles.emailLink}>
+                hello@platinumhealthclinic.com
+              </Link>
             </Text>
             <Text style={styles.headerLine}>Phone: 786-292-3730</Text>
             <Text style={styles.headerLine}>Fax: 786-289-9316</Text>
@@ -445,121 +496,154 @@ export function DoctorNoteTemplate({
 
           {/* Logo and Clinic Name (RIGHT) */}
           <View style={styles.headerRight}>
-            <Image
-              src={logoPath}
-              style={styles.logo}
-            />
+            <Image src={logoPath} style={styles.logo} />
             <Text style={styles.clinicName}>Platinum Health</Text>
           </View>
         </View>
 
         {/* Content Section */}
         <View style={styles.contentSection}>
-            {/* Date Issued and Medical Record Number */}
-            <View style={styles.headerInfoRow}>
-              <Text style={styles.dateIssued}>
-                Date Issued: {dateIssuedFormatted}
-              </Text>
-              <Text style={styles.medicalRecordNumber}>
-                Medical Record #: {medicalRecordNumber}
-              </Text>
-            </View>
+          {/* Date Issued and Medical Record Number */}
+          <View style={styles.headerInfoRow}>
+            <Text style={styles.dateIssued}>Date Issued: {dateIssuedFormatted}</Text>
+            <Text style={styles.medicalRecordNumber}>Medical Record #: {medicalRecordNumber}</Text>
+          </View>
 
-            {/* Patient/Caregiver Information */}
-            <View style={styles.patientSection}>
-              <Text style={styles.patientField}>
-                {isCaregiver ? 'Caregiver Name: ' : 'Patient Name: '}{patientFullName}
-              </Text>
-              <Text style={styles.patientField}>
-                Date of Birth: {dobFormatted}
-              </Text>
-              {guardianFullName && (
-                <Text style={styles.patientField}>
-                  Parent / Guardian: {guardianFullName}
+          {/* Patient/Caregiver Information */}
+          <View style={styles.patientSection}>
+            <Text style={styles.patientField}>
+              {isCaregiver ? 'Caregiver Name: ' : 'Patient Name: '}
+              {patientFullName}
+            </Text>
+            <Text style={styles.patientField}>Date of Birth: {dobFormatted}</Text>
+            {guardianFullName && (
+              <Text style={styles.patientField}>Parent / Guardian: {guardianFullName}</Text>
+            )}
+          </View>
+
+          {/* Letter Body */}
+          <View style={styles.letterBody}>
+            <Text style={styles.concernHeader}>
+              <Text style={styles.fieldLabel}>To Whom It May Concern:</Text>
+            </Text>
+
+            {isCaregiver ? (
+              <>
+                <Text style={styles.paragraph}>
+                  This note is to confirm that the above-named caregiver was needed to attend to
+                  their family member {conditionPhrase.with}.
+                  {diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''} Please excuse this individual
+                  {notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the
+                  following period, if possible.
                 </Text>
-              )}
-            </View>
 
-            {/* Letter Body */}
-            <View style={styles.letterBody}>
-              <Text style={styles.concernHeader}>
-                <Text style={styles.fieldLabel}>To Whom It May Concern:</Text>
-              </Text>
+                {/* Start and End Dates */}
+                <View style={styles.dateRange}>
+                  <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
+                  <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
+                </View>
 
-              {isCaregiver ? (
-                <>
-                  <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named caregiver was needed to attend to their family member with a medical condition.{diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''} Please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period, if possible.
-                  </Text>
-
-                  {/* Start and End Dates */}
-                  <View style={styles.dateRange}>
-                    <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
-                    <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
-                  </View>
-
-                  <Text style={styles.returnText}>
-                    Furthermore, the above-named caregiver <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}<Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
-                  </Text>
-                </>
-              ) : isAppointment ? (
-                <>
-                  <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period for a doctor&apos;s appointment.{diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
-                  </Text>
-
-                  {/* Start and End Dates */}
-                  <View style={styles.dateRange}>
-                    <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
-                    <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
-                  </View>
-
-                  <Text style={styles.returnText}>
-                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}<Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.paragraph}>
-                    This note is to confirm that the above-named patient was evaluated on {dateIssuedFormatted}. Based on the assessment, please excuse this individual{notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the following period due to a medical condition.{diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
-                  </Text>
-
-                  {/* Start and End Dates */}
-                  <View style={styles.dateRange}>
-                    <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
-                    <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
-                  </View>
-
-                  <Text style={styles.returnText}>
-                    Furthermore, the above-named patient <Text style={styles.boldText}>may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}<Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}{withRestrictions ? ', with no restrictions' : ''}.</Text> If you have any questions related to this matter or need further verification, please do not hesitate to contact our office. Our email and phone number are noted above.
-                  </Text>
-                </>
-              )}
-
-              <Text style={styles.thankYou}>Thank you,</Text>
-            </View>
-
-            {/* Signature Section */}
-            <View style={styles.closing}>
-              <View style={styles.signatureRow}>
-                <Text style={styles.signatureLabel}>Signature:</Text>
-                {doctorInfo.signatureUrl && (
-                  <Image
-                    src={doctorInfo.signatureUrl}
-                    style={styles.signatureImage}
-                  />
-                )}
-              </View>
-
-              <Text style={styles.physicianName}>
-                Physician Name: Jason Buchwald, MD FACEP
-              </Text>
-              {stateLicense && (
-                <Text style={styles.npiNumber}>
-                  {stateLicense.stateName} Medical License #{stateLicense.licenseNumber}
+                <Text style={styles.returnText}>
+                  {notePurpose !== 'travel' && (
+                    <>
+                      Furthermore, the above-named caregiver{' '}
+                      <Text style={styles.boldText}>
+                        may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
+                        <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
+                        {withRestrictions ? ', with no restrictions' : ''}.
+                      </Text>{' '}
+                    </>
+                  )}
+                  If you have any questions related to this matter or need further verification,
+                  please do not hesitate to contact our office. Our email and phone number are noted
+                  above.
                 </Text>
+              </>
+            ) : isAppointment ? (
+              <>
+                <Text style={styles.paragraph}>
+                  This note is to confirm that the above-named patient was evaluated on{' '}
+                  {dateIssuedFormatted}. Based on the assessment, please excuse this individual
+                  {notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the
+                  following period for a doctor&apos;s appointment.
+                  {diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
+                </Text>
+
+                {/* Start and End Dates */}
+                <View style={styles.dateRange}>
+                  <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
+                  <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
+                </View>
+
+                <Text style={styles.returnText}>
+                  {notePurpose !== 'travel' && (
+                    <>
+                      Furthermore, the above-named patient{' '}
+                      <Text style={styles.boldText}>
+                        may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
+                        <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
+                        {withRestrictions ? ', with no restrictions' : ''}.
+                      </Text>{' '}
+                    </>
+                  )}
+                  If you have any questions related to this matter or need further verification,
+                  please do not hesitate to contact our office. Our email and phone number are noted
+                  above.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.paragraph}>
+                  This note is to confirm that the above-named patient was evaluated on{' '}
+                  {dateIssuedFormatted}. Based on the assessment, please excuse this individual
+                  {notePurpose === 'other' ? '' : ` ${getPdfActivitiesText(notePurpose)}`} for the
+                  following period {conditionPhrase.dueTo}.
+                  {diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
+                </Text>
+
+                {/* Start and End Dates */}
+                <View style={styles.dateRange}>
+                  <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
+                  <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
+                </View>
+
+                <Text style={styles.returnText}>
+                  {notePurpose !== 'travel' && (
+                    <>
+                      Furthermore, the above-named patient{' '}
+                      <Text style={styles.boldText}>
+                        may return {notePurpose === 'other' ? '' : `to ${excuseFrom} `}
+                        <Text style={styles.boldUnderlineText}>after</Text> {lastDayFormatted}
+                        {withRestrictions ? ', with no restrictions' : ''}.
+                      </Text>{' '}
+                    </>
+                  )}
+                  If you have any questions related to this matter or need further verification,
+                  please do not hesitate to contact our office. Our email and phone number are noted
+                  above.
+                </Text>
+              </>
+            )}
+
+            <Text style={styles.thankYou}>Thank you,</Text>
+          </View>
+
+          {/* Signature Section */}
+          <View style={styles.closing}>
+            <View style={styles.signatureRow}>
+              <Text style={styles.signatureLabel}>Signature:</Text>
+              {doctorInfo.signatureUrl && (
+                <Image src={doctorInfo.signatureUrl} style={styles.signatureImage} />
               )}
             </View>
+
+            <Text style={styles.physicianName}>Physician Name: Jason Buchwald, MD FACEP</Text>
+            {stateLicense && (
+              <Text style={styles.npiNumber}>
+                {stateLicense.stateName} Medical License #{stateLicense.licenseNumber}
+              </Text>
+            )}
+          </View>
         </View>
       </Page>
     </Document>

@@ -15,16 +15,18 @@ import Stripe from 'stripe'
 import { sendDenialEmail, sendApprovalEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { getBusinessDayStart } from '@/lib/admin-utils'
+import { formatDateUTC } from '@/lib/utils'
 
 // Export shared submission types for components
 export type MaybeSubmission = Awaited<ReturnType<typeof getMaybeSubmissions>>['submissions'][number]
-export type ManualSubmission = Awaited<ReturnType<typeof getManualSubmissions>>['submissions'][number]
+export type ManualSubmission = Awaited<
+  ReturnType<typeof getManualSubmissions>
+>['submissions'][number]
 
 // Initialize Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
 })
-
 
 /**
  * Get current logged-in doctor's session
@@ -203,7 +205,13 @@ export async function getMonthlyLimitData(
 ) {
   try {
     // Use the existing utility function
-    const result = await wouldExceedMonthlyLimit(patientFirstName, patientLastName, patientDateOfBirth, firstDayOff, lastDayOff)
+    const result = await wouldExceedMonthlyLimit(
+      patientFirstName,
+      patientLastName,
+      patientDateOfBirth,
+      firstDayOff,
+      lastDayOff
+    )
 
     return { success: true, data: result }
   } catch (error) {
@@ -277,13 +285,6 @@ export async function getPatientHistory(
       take: 20,
     })
 
-    const formatDateUTC = (date: Date): string => {
-      const year = date.getUTCFullYear()
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(date.getUTCDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-
     const formatted: PatientHistoryEntry[] = submissions.map((sub) => ({
       id: sub.id,
       patientFirstName: sub.patientFirstName,
@@ -313,7 +314,12 @@ export async function getPatientHistory(
  * @param withRestrictions - Whether to include ", with no restrictions" text in PDF (defaults to true)
  * @returns Success status with detailed error messages
  */
-export async function approveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string, withRestrictions: boolean = true) {
+export async function approveSubmission(
+  submissionId: string,
+  evaluationDate?: string,
+  diagnosis?: string,
+  withRestrictions: boolean = true
+) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -334,7 +340,7 @@ export async function approveSubmission(submissionId: string, evaluationDate?: s
     ) {
       return {
         success: false,
-        error: `Cannot approve submission with status: ${submission.status}`
+        error: `Cannot approve submission with status: ${submission.status}`,
       }
     }
 
@@ -350,6 +356,7 @@ export async function approveSubmission(submissionId: string, evaluationDate?: s
           status: SubmissionStatus.APPROVED,
           reviewedByAdminId: doctorId,
           reviewedAt: now,
+          denialReason: null,
           approvalEmailSentAt: null, // No email sent for manual approvals
         },
       })
@@ -390,7 +397,7 @@ export async function approveSubmission(submissionId: string, evaluationDate?: s
       console.error('PDF generation failed:', pdfError)
       return {
         success: false,
-        error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`
+        error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`,
       }
     }
 
@@ -427,6 +434,7 @@ export async function approveSubmission(submissionId: string, evaluationDate?: s
         status: SubmissionStatus.APPROVED,
         reviewedByAdminId: doctorId,
         reviewedAt: now,
+        denialReason: null,
         approvalEmailSentAt: emailSentAt, // Only set if email succeeded
       },
     })
@@ -446,7 +454,7 @@ export async function approveSubmission(submissionId: string, evaluationDate?: s
     console.error('Error approving submission:', error)
     return {
       success: false,
-      error: `Failed to approve submission: ${error instanceof Error ? error.message : 'Unknown error'}`
+      error: `Failed to approve submission: ${error instanceof Error ? error.message : 'Unknown error'}`,
     }
   }
 }
@@ -487,7 +495,7 @@ export async function denySubmission(submissionId: string, reason: string) {
     ) {
       return {
         success: false,
-        error: `Cannot deny submission with status: ${submission.status}`
+        error: `Cannot deny submission with status: ${submission.status}`,
       }
     }
 
@@ -527,7 +535,7 @@ export async function denySubmission(submissionId: string, reason: string) {
     if (!submission.stripePaymentIntentId) {
       return {
         success: false,
-        error: 'No payment intent ID found for this submission'
+        error: 'No payment intent ID found for this submission',
       }
     }
 
@@ -535,7 +543,7 @@ export async function denySubmission(submissionId: string, reason: string) {
     if (submission.stripeRefundId) {
       return {
         success: false,
-        error: 'Refund already processed for this submission'
+        error: 'Refund already processed for this submission',
       }
     }
 
@@ -610,7 +618,7 @@ export async function denySubmission(submissionId: string, reason: string) {
 
       return {
         success: false,
-        error: `Failed to process refund: ${stripeError instanceof Error ? stripeError.message : 'Unknown error'}`
+        error: `Failed to process refund: ${stripeError instanceof Error ? stripeError.message : 'Unknown error'}`,
       }
     }
 
@@ -672,7 +680,7 @@ export async function denySubmission(submissionId: string, reason: string) {
     console.error('Error denying submission:', error)
     return {
       success: false,
-      error: `Failed to deny submission: ${error instanceof Error ? error.message : 'Unknown error'}`
+      error: `Failed to deny submission: ${error instanceof Error ? error.message : 'Unknown error'}`,
     }
   }
 }
@@ -729,7 +737,7 @@ export async function markAsManual(submissionId: string) {
     if (submission.status !== SubmissionStatus.MAYBE) {
       return {
         success: false,
-        error: `Can only mark MAYBE submissions as manual, current status: ${submission.status}`
+        error: `Can only mark MAYBE submissions as manual, current status: ${submission.status}`,
       }
     }
 
@@ -781,24 +789,15 @@ export async function getMaybeSubmissions() {
     })
 
     // Format dates consistently using UTC components to avoid timezone shifts
-    const formattedSubmissions = submissions.map((sub) => {
-      const formatDateUTC = (date: Date) => {
-        const year = date.getUTCFullYear()
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-        const day = String(date.getUTCDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
-      }
-
-      return {
-        id: sub.id,
-        patientFirstName: sub.patientFirstName,
-        patientLastName: sub.patientLastName,
-        email: sub.email,
-        firstDayOff: formatDateUTC(sub.firstDayOff),
-        lastDayOff: formatDateUTC(sub.lastDayOff),
-        reviewedAt: sub.reviewedAt,
-      }
-    })
+    const formattedSubmissions = submissions.map((sub) => ({
+      id: sub.id,
+      patientFirstName: sub.patientFirstName,
+      patientLastName: sub.patientLastName,
+      email: sub.email,
+      firstDayOff: formatDateUTC(sub.firstDayOff),
+      lastDayOff: formatDateUTC(sub.lastDayOff),
+      reviewedAt: sub.reviewedAt,
+    }))
 
     return { success: true, submissions: formattedSubmissions }
   } catch (error) {
@@ -834,24 +833,15 @@ export async function getManualSubmissions() {
     })
 
     // Format dates consistently using UTC components to avoid timezone shifts
-    const formattedSubmissions = submissions.map((sub) => {
-      const formatDateUTC = (date: Date) => {
-        const year = date.getUTCFullYear()
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-        const day = String(date.getUTCDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
-      }
-
-      return {
-        id: sub.id,
-        patientFirstName: sub.patientFirstName,
-        patientLastName: sub.patientLastName,
-        email: sub.email,
-        firstDayOff: formatDateUTC(sub.firstDayOff),
-        lastDayOff: formatDateUTC(sub.lastDayOff),
-        reviewedAt: sub.reviewedAt,
-      }
-    })
+    const formattedSubmissions = submissions.map((sub) => ({
+      id: sub.id,
+      patientFirstName: sub.patientFirstName,
+      patientLastName: sub.patientLastName,
+      email: sub.email,
+      firstDayOff: formatDateUTC(sub.firstDayOff),
+      lastDayOff: formatDateUTC(sub.lastDayOff),
+      reviewedAt: sub.reviewedAt,
+    }))
 
     return { success: true, submissions: formattedSubmissions }
   } catch (error) {
@@ -927,7 +917,9 @@ export async function searchSubmissions({
           whereClause = {
             AND: [
               { patientFirstName: { contains: nameParts[0], mode: 'insensitive' } },
-              { patientLastName: { contains: nameParts[nameParts.length - 1], mode: 'insensitive' } },
+              {
+                patientLastName: { contains: nameParts[nameParts.length - 1], mode: 'insensitive' },
+              },
             ],
           }
         }
@@ -988,14 +980,6 @@ export async function searchSubmissions({
       prisma.submission.count({ where: whereClause }),
     ])
 
-    // Format dates consistently using UTC components
-    const formatDateUTC = (date: Date): string => {
-      const year = date.getUTCFullYear()
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(date.getUTCDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-
     const formattedSubmissions: SearchSubmission[] = submissions.map((sub) => ({
       id: sub.id,
       patientFirstName: sub.patientFirstName,
@@ -1031,10 +1015,9 @@ export type FormattedSubmission = Omit<
  * @param submissionId - Submission ID to fetch
  * @returns Full submission data with dates formatted consistently
  */
-export async function getSubmissionById(submissionId: string): Promise<
-  | { success: true; submission: FormattedSubmission }
-  | { success: false; error: string }
-> {
+export async function getSubmissionById(
+  submissionId: string
+): Promise<{ success: true; submission: FormattedSubmission } | { success: false; error: string }> {
   try {
     await getCurrentDoctor() // Verify authentication
 
@@ -1046,19 +1029,13 @@ export async function getSubmissionById(submissionId: string): Promise<
       return { success: false, error: 'Submission not found' }
     }
 
-    // Format dates consistently using UTC components to avoid timezone shifts
-    const formatDateUTC = (date: Date): string => {
-      const year = date.getUTCFullYear()
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(date.getUTCDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-
     // Return submission with formatted date fields
     const formattedSubmission: FormattedSubmission = {
       ...submission,
       patientDateOfBirth: formatDateUTC(submission.patientDateOfBirth),
-      guardianDateOfBirth: submission.guardianDateOfBirth ? formatDateUTC(submission.guardianDateOfBirth) : null,
+      guardianDateOfBirth: submission.guardianDateOfBirth
+        ? formatDateUTC(submission.guardianDateOfBirth)
+        : null,
       firstDayOff: formatDateUTC(submission.firstDayOff),
       lastDayOff: formatDateUTC(submission.lastDayOff),
     }
@@ -1136,7 +1113,12 @@ export async function updateSubmission(
  * @param withRestrictions - Whether to include ", with no restrictions" text in PDF (defaults to true)
  * @returns Success status with optional warning
  */
-export async function reApproveSubmission(submissionId: string, evaluationDate?: string, diagnosis?: string, withRestrictions: boolean = true) {
+export async function reApproveSubmission(
+  submissionId: string,
+  evaluationDate?: string,
+  diagnosis?: string,
+  withRestrictions: boolean = true
+) {
   try {
     const doctorId = await getCurrentDoctor()
 
@@ -1207,6 +1189,7 @@ export async function reApproveSubmission(submissionId: string, evaluationDate?:
         status: SubmissionStatus.APPROVED,
         reviewedByAdminId: doctorId,
         reviewedAt: now,
+        denialReason: null,
         approvalEmailSentAt: emailSentAt,
         updatedAt: now,
       },
@@ -1265,7 +1248,10 @@ export async function changeSubmissionStatus(
       case SubmissionStatus.APPROVED: {
         // For approval, use the regular approveSubmission or reApproveSubmission
         // This function handles simpler status changes
-        return { success: false, error: 'Use approveSubmission or reApproveSubmission for approvals' }
+        return {
+          success: false,
+          error: 'Use approveSubmission or reApproveSubmission for approvals',
+        }
       }
 
       case SubmissionStatus.DENIED: {
@@ -1316,7 +1302,8 @@ export async function changeSubmissionStatus(
 
           return {
             success: true,
-            warning: emailWarning || 'Submission denied. Note: Refund was already processed previously.',
+            warning:
+              emailWarning || 'Submission denied. Note: Refund was already processed previously.',
           }
         }
 

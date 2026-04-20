@@ -50,9 +50,10 @@ export function PatientHistoryPopup({
   useEffect(() => {
     async function fetchHistory() {
       setIsLoading(true)
-      const dob = typeof patientDateOfBirth === 'string'
-        ? new Date(patientDateOfBirth + 'T12:00:00Z')
-        : patientDateOfBirth
+      const dob =
+        typeof patientDateOfBirth === 'string'
+          ? new Date(patientDateOfBirth + 'T12:00:00Z')
+          : patientDateOfBirth
 
       const result = await getPatientHistory(
         patientFirstName,
@@ -90,7 +91,7 @@ export function PatientHistoryPopup({
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-200 transition-colors"
+        className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200"
       >
         {count} prior
       </button>
@@ -100,16 +101,14 @@ export function PatientHistoryPopup({
           <DialogHeader>
             <DialogTitle>Patient History</DialogTitle>
             <DialogDescription>
-              {count} previous {count === 1 ? 'submission' : 'submissions'} found for {patientFirstName} {patientLastName}
+              {count} previous {count === 1 ? 'submission' : 'submissions'} found for{' '}
+              {patientFirstName} {patientLastName}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
             {history?.map((entry) => (
-              <div
-                key={entry.id}
-                className="rounded-lg border border-gray-200 p-3 text-sm"
-              >
+              <div key={entry.id} className="rounded-lg border border-gray-200 p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <StatusBadge status={entry.status} />

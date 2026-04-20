@@ -5,6 +5,49 @@
 
 import { z } from 'zod'
 import { isAgeValid } from '@/lib/age-validators'
+import { compareDateOnly, getUTCDateOnlyParts, parseIsoDateOnly } from '@/lib/date-only'
+
+const NAME_REGEX = /^[a-zA-Z\s'-]+$/
+
+function nameField(label: string) {
+  return z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(50, `${label} must be less than 50 characters`)
+    .regex(NAME_REGEX, 'Only letters, spaces, hyphens, and apostrophes are allowed')
+    .refine((val) => val.trim().length > 0, `${label} cannot be only spaces`)
+}
+
+const dateOfBirthField = z
+  .string()
+  .min(1, 'Date of birth is required')
+  .superRefine((val, ctx) => {
+    const parsed = parseIsoDateOnly(val)
+    if (!parsed) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please enter a valid date of birth',
+      })
+      return
+    }
+
+    const today = getUTCDateOnlyParts(new Date())
+    if (compareDateOnly(parsed, today) > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Date of birth cannot be in the future',
+      })
+      return
+    }
+
+    if (compareDateOnly(parsed, { year: 1900, month: 1, day: 1 }) < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please enter a valid date of birth',
+      })
+    }
+  })
 
 export const page1Schema = z
   .object({
@@ -16,59 +59,17 @@ export const page1Schema = z
   })
 
 export const page2Schema = z.object({
-  patientFirstName: z
-    .string()
-    .trim()
-    .min(1, 'First name is required')
-    .max(50, 'First name must be less than 50 characters')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
-    .refine((val) => val.trim().length > 0, 'First name cannot be only spaces'),
-  patientLastName: z
-    .string()
-    .trim()
-    .min(1, 'Last name is required')
-    .max(50, 'Last name must be less than 50 characters')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
-    .refine((val) => val.trim().length > 0, 'Last name cannot be only spaces'),
-  patientDateOfBirth: z
-    .string()
-    .min(1, 'Date of birth is required')
-    .refine((val) => new Date(val) <= new Date(), {
-      message: 'Date of birth cannot be in the future',
-    })
-    .refine((val) => new Date(val) >= new Date('1900-01-01'), {
-      message: 'Please enter a valid date of birth',
-    }),
+  patientFirstName: nameField('First name'),
+  patientLastName: nameField('Last name'),
+  patientDateOfBirth: dateOfBirthField,
 })
 
 export const guardianSchema = z.object({
-  guardianFirstName: z
-    .string()
-    .trim()
-    .min(1, 'First name is required')
-    .max(50, 'First name must be less than 50 characters')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
-    .refine((val) => val.trim().length > 0, 'First name cannot be only spaces'),
-  guardianLastName: z
-    .string()
-    .trim()
-    .min(1, 'Last name is required')
-    .max(50, 'Last name must be less than 50 characters')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Only letters, spaces, hyphens, and apostrophes are allowed')
-    .refine((val) => val.trim().length > 0, 'Last name cannot be only spaces'),
-  guardianDateOfBirth: z
-    .string()
-    .min(1, 'Date of birth is required')
-    .refine((val) => new Date(val) <= new Date(), {
-      message: 'Date of birth cannot be in the future',
-    })
-    .refine((val) => new Date(val) >= new Date('1900-01-01'), {
-      message: 'Please enter a valid date of birth',
-    })
-    .refine(
-      (val) => isAgeValid(val, 18),
-      { message: 'Guardian must be 18 years or older' }
-    ),
+  guardianFirstName: nameField('First name'),
+  guardianLastName: nameField('Last name'),
+  guardianDateOfBirth: dateOfBirthField.refine((val) => isAgeValid(val, 18), {
+    message: 'Guardian must be 18 years or older',
+  }),
 })
 
 // Common domain typos and their corrections
@@ -100,10 +101,37 @@ const COMMON_TLD_TYPOS: Record<string, string> = {
 
 // Common valid TLDs (not exhaustive, but covers 95%+ of users)
 const COMMON_TLDS = [
-  '.com', '.net', '.org', '.edu', '.gov', '.mil',
-  '.co', '.uk', '.us', '.ca', '.au', '.de', '.fr', '.jp', '.cn', '.in', '.br',
-  '.io', '.ai', '.dev', '.app', '.tech', '.info', '.biz', '.me', '.tv',
-  '.co.uk', '.com.au', '.co.nz', '.co.za', '.com.br',
+  '.com',
+  '.net',
+  '.org',
+  '.edu',
+  '.gov',
+  '.mil',
+  '.co',
+  '.uk',
+  '.us',
+  '.ca',
+  '.au',
+  '.de',
+  '.fr',
+  '.jp',
+  '.cn',
+  '.in',
+  '.br',
+  '.io',
+  '.ai',
+  '.dev',
+  '.app',
+  '.tech',
+  '.info',
+  '.biz',
+  '.me',
+  '.tv',
+  '.co.uk',
+  '.com.au',
+  '.co.nz',
+  '.co.za',
+  '.com.br',
 ]
 
 export const page3Schema = z.object({
@@ -161,7 +189,9 @@ export const page3Schema = z.object({
       }
 
       // Validate TLD is in common TLDs list
-      const isValidTLD = COMMON_TLDS.some(validTld => tld === validTld || email.endsWith(validTld))
+      const isValidTLD = COMMON_TLDS.some(
+        (validTld) => tld === validTld || email.endsWith(validTld)
+      )
       if (!isValidTLD) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -205,7 +235,7 @@ export const page5Schema = z
   .refine(
     (data) => {
       if (data.notePurpose === 'other') {
-        return !!data.otherNotePurpose?.trim() && data.otherNotePurpose.trim().length > 0
+        return !!data.otherNotePurpose?.trim()
       }
       return true
     },
@@ -232,7 +262,7 @@ export const page7Schema = z
   .refine(
     (data) => {
       if (data.absenceReason === 'Other') {
-        return !!data.otherAbsenceReason?.trim() && data.otherAbsenceReason.trim().length > 0
+        return !!data.otherAbsenceReason?.trim()
       }
       return true
     },
@@ -266,7 +296,7 @@ export const page8Schema = z
     (data) => {
       // If "other" is selected in symptoms, require otherSymptomText
       if (data.symptoms && data.symptoms.includes('other')) {
-        return !!data.otherSymptomText?.trim() && data.otherSymptomText.trim().length > 0
+        return !!data.otherSymptomText?.trim()
       }
       return true
     },

@@ -61,33 +61,31 @@ export const BounceAlertEmail = ({
         <Body className="bg-gray-50 font-sans">
           <Container className="mx-auto my-8 max-w-2xl">
             {/* Header */}
-            <Section className="bg-white px-8 py-4 rounded-t-2xl border-b-2 border-red-600">
-              <Text className="text-2xl font-bold m-0" style={{ color: '#dc2626' }}>
+            <Section className="rounded-t-2xl border-b-2 border-red-600 bg-white px-8 py-4">
+              <Text className="m-0 text-2xl font-bold" style={{ color: '#dc2626' }}>
                 OnlineDoctorNote
               </Text>
             </Section>
 
             {/* Main Content */}
             <Section className="bg-white px-8 py-8">
-              <Text className="text-gray-900 text-base leading-relaxed mb-6">
-                Hi Jason,
-              </Text>
+              <Text className="mb-6 text-base leading-relaxed text-gray-900">Hi Jason,</Text>
 
-              <Text className="text-gray-900 text-base leading-relaxed mb-6">
+              <Text className="mb-6 text-base leading-relaxed text-gray-900">
                 An email has just bounced for{' '}
                 <strong>{hasSubmission ? patientName : 'a patient'}</strong>.
               </Text>
 
               {hasSubmission ? (
                 <>
-                  <Text className="text-gray-900 text-base leading-relaxed mb-2">
+                  <Text className="mb-2 text-base leading-relaxed text-gray-900">
                     <strong>Bounced Email:</strong>{' '}
                     <span className="font-mono" style={{ color: '#dc2626' }}>
                       {bouncedEmail}
                     </span>
                   </Text>
 
-                  <Text className="text-gray-900 text-base leading-relaxed mb-6">
+                  <Text className="mb-6 text-base leading-relaxed text-gray-900">
                     This email is wrong. Please reach out to{' '}
                     <Link
                       href={`tel:${patientPhone}`}
@@ -99,21 +97,21 @@ export const BounceAlertEmail = ({
                     to get the correct email address.
                   </Text>
 
-                  <Text className="text-gray-900 text-base leading-relaxed mb-6">
-                    Please put this person on the maybe portal and update their information when
-                    it comes in.
+                  <Text className="mb-6 text-base leading-relaxed text-gray-900">
+                    Please put this person on the maybe portal and update their information when it
+                    comes in.
                   </Text>
 
-                  <Hr className="border-gray-200 my-6" />
+                  <Hr className="my-6 border-gray-200" />
 
                   {/* Admin Portal Link */}
-                  <Section className="bg-gray-50 rounded-xl p-6">
-                    <Text className="text-gray-700 text-sm m-0 mb-3">
+                  <Section className="rounded-xl bg-gray-50 p-6">
+                    <Text className="m-0 mb-3 text-sm text-gray-700">
                       <strong>View in Admin Portal:</strong>
                     </Text>
                     <Link
                       href={adminLink}
-                      className="inline-block px-6 py-3 text-white text-sm font-semibold rounded-lg no-underline"
+                      className="inline-block rounded-lg px-6 py-3 text-sm font-semibold text-white no-underline"
                       style={{ backgroundColor: '#009ed9' }}
                     >
                       View Submission Details
@@ -122,14 +120,14 @@ export const BounceAlertEmail = ({
                 </>
               ) : (
                 <>
-                  <Text className="text-gray-900 text-base leading-relaxed mb-2">
+                  <Text className="mb-2 text-base leading-relaxed text-gray-900">
                     <strong>Bounced Email:</strong>{' '}
                     <span className="font-mono" style={{ color: '#dc2626' }}>
                       {bouncedEmail}
                     </span>
                   </Text>
 
-                  <Text className="text-gray-900 text-base leading-relaxed mb-6">
+                  <Text className="mb-6 text-base leading-relaxed text-gray-900">
                     No submission was found in the database for this email address. This may be a
                     test email or the submission was deleted.
                   </Text>
@@ -138,8 +136,8 @@ export const BounceAlertEmail = ({
             </Section>
 
             {/* Footer */}
-            <Section className="bg-gray-100 px-8 py-6 rounded-b-2xl">
-              <Text className="text-gray-600 text-xs text-center leading-relaxed m-0">
+            <Section className="rounded-b-2xl bg-gray-100 px-8 py-6">
+              <Text className="m-0 text-center text-xs leading-relaxed text-gray-600">
                 © {currentYear} Online Doctor&apos;s Note
                 <br />
                 Automated alert from the email bounce system

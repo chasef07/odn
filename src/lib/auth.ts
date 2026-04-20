@@ -3,14 +3,14 @@
  * Handles authentication for admin portal
  */
 
-import { betterAuth } from "better-auth"
-import { prismaAdapter } from "better-auth/adapters/prisma"
-import bcrypt from "bcryptjs"
-import prisma from "./prisma"
+import { betterAuth } from 'better-auth'
+import { prismaAdapter } from 'better-auth/adapters/prisma'
+import bcrypt from 'bcryptjs'
+import prisma from './prisma'
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
-    provider: "postgresql",
+    provider: 'postgresql',
   }),
 
   emailAndPassword: {
@@ -40,14 +40,11 @@ export const auth = betterAuth({
 
   // Security configuration
   secret: process.env.BETTER_AUTH_SECRET!,
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
-  basePath: "/api/auth",
+  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  basePath: '/api/auth',
 
   // CSRF protection - trust localhost and production domain only
-  trustedOrigins: [
-    "http://localhost:3000",
-    process.env.BETTER_AUTH_URL || "",
-  ].filter(Boolean),
+  trustedOrigins: ['http://localhost:3000', process.env.BETTER_AUTH_URL || ''].filter(Boolean),
 })
 
 // Export type-safe client inference

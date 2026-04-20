@@ -17,18 +17,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
+import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
 
 interface MaybeActionButtonsProps {
@@ -48,8 +40,6 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
 
   // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
-  const [denialReason, setDenialReason] = useState<string>('')
-  const [otherReason, setOtherReason] = useState('')
   const [denialError, setDenialError] = useState<string | null>(null)
 
   // Manual note modal state
@@ -69,7 +59,12 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
     setApprovalError(null)
 
     try {
-      const result = await approveSubmission(submissionId, evaluationDate, diagnosis || undefined, withRestrictions)
+      const result = await approveSubmission(
+        submissionId,
+        evaluationDate,
+        diagnosis || undefined,
+        withRestrictions
+      )
 
       if (result.success) {
         setShowApprovalDialog(false)
@@ -86,25 +81,16 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   }
 
   const handleDenyClick = () => {
-    setDenialReason('')
-    setOtherReason('')
     setDenialError(null)
     setShowDenialDialog(true)
   }
 
-  const handleDenyConfirm = async () => {
-    const finalReason = denialReason === 'Other' ? otherReason : denialReason
-
-    if (!finalReason) {
-      setDenialError('Please select or enter a denial reason')
-      return
-    }
-
+  const handleDenyConfirm = async (reason: string) => {
     setIsLoading(true)
     setDenialError(null)
 
     try {
-      const result = await denySubmission(submissionId, finalReason)
+      const result = await denySubmission(submissionId, reason)
 
       if (result.success) {
         setShowDenialDialog(false)
@@ -161,20 +147,10 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
         >
           Approve
         </Button>
-        <Button
-          onClick={handleDenyClick}
-          disabled={isLoading}
-          variant="destructive"
-          size="sm"
-        >
+        <Button onClick={handleDenyClick} disabled={isLoading} variant="destructive" size="sm">
           Deny
         </Button>
-        <Button
-          onClick={handleManualClick}
-          disabled={isLoading}
-          variant="secondary"
-          size="sm"
-        >
+        <Button onClick={handleManualClick} disabled={isLoading} variant="secondary" size="sm">
           Manual Note
         </Button>
       </div>
@@ -229,72 +205,16 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
       </Dialog>
 
       {/* Denial Confirmation Dialog */}
-      <Dialog open={showDenialDialog} onOpenChange={setShowDenialDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deny Submission</DialogTitle>
-            <DialogDescription>
-              This will process a full refund and send a denial notification to the patient.
-              This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-
-          {denialError && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
-              <strong>Error:</strong> {denialError}
-            </div>
-          )}
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="denial-reason">Reason for Denial</Label>
-              <Select value={denialReason} onValueChange={setDenialReason}>
-                <SelectTrigger id="denial-reason">
-                  <SelectValue placeholder="Select a reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Legal">Legal - Cannot provide note for this situation</SelectItem>
-                  <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
-                  <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
-                  <SelectItem value="Refund">Refund</SelectItem>
-                  <SelectItem value="Under 18">Under 18 - Patient is a minor</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {denialReason === 'Other' && (
-              <div className="space-y-2">
-                <Label htmlFor="other-reason">Please specify</Label>
-                <Input
-                  id="other-reason"
-                  value={otherReason}
-                  onChange={(e) => setOtherReason(e.target.value)}
-                  placeholder="Enter reason for denial"
-                  disabled={isLoading}
-                />
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDenialDialog(false)}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDenyConfirm}
-              disabled={isLoading || !denialReason || (denialReason === 'Other' && !otherReason)}
-              variant="destructive"
-            >
-              {isLoading ? 'Processing...' : 'Deny & Refund'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SelectDenialDialog
+        open={showDenialDialog}
+        onOpenChange={setShowDenialDialog}
+        onConfirm={handleDenyConfirm}
+        isLoading={isLoading}
+        error={denialError}
+        title="Deny Submission"
+        description="This will process a full refund and send a denial notification to the patient. This action cannot be undone."
+        confirmLabel="Deny & Refund"
+      />
 
       {/* Manual Note Confirmation Dialog */}
       <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
@@ -302,13 +222,13 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
           <DialogHeader>
             <DialogTitle>Mark as Manual Note?</DialogTitle>
             <DialogDescription>
-              This will move the submission to Manual Notes where you can approve or deny without sending automated emails.
-              You will handle the note manually.
+              This will move the submission to Manual Notes where you can approve or deny without
+              sending automated emails. You will handle the note manually.
             </DialogDescription>
           </DialogHeader>
 
           {manualError && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               <strong>Error:</strong> {manualError}
             </div>
           )}
@@ -321,11 +241,7 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleManualConfirm}
-              disabled={isLoading}
-              variant="secondary"
-            >
+            <Button onClick={handleManualConfirm} disabled={isLoading} variant="secondary">
               {isLoading ? 'Processing...' : 'Mark as Manual'}
             </Button>
           </DialogFooter>

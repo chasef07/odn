@@ -45,11 +45,17 @@ export default function AdditionalInfoPage() {
     router.push('/review')
   }
 
+  const isAppointment = absenceReason === "Doctor's appointment"
+  const title = isAppointment ? 'Additional information needed.' : 'Any additional information?'
+  const description = isAppointment
+    ? 'Please let us know what type of appointment you have. If more than 1 day has been requested, do you have multiple appointments or a planned medical procedure. Also, please share any other helpful details.'
+    : "Share any other details that might be helpful for your doctor's note (optional)."
+
   return (
     <FormLayout
       currentStep={currentStep}
-      title="Any additional information?"
-      description="Share any other details that might be helpful for your doctor's note (optional)."
+      title={title}
+      description={description}
       usePersonalization={true}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -68,6 +74,9 @@ export default function AdditionalInfoPage() {
               {errors.additionalInformation.message}
             </p>
           )}
+          <p className="text-muted-foreground text-sm">
+            Please note: Your information is always confidential and protected by HIPAA.
+          </p>
         </div>
 
         <FormNavigation backRoute={backRoute} isSubmitting={isSubmitting} />

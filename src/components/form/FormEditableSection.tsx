@@ -44,7 +44,7 @@ export function FormEditableSection({
   const isEditing = editingSection === sectionId
 
   return (
-    <div className="border-border/40 rounded-xl border bg-white p-4 md:p-6 shadow-sm">
+    <div className="border-border/40 rounded-xl border bg-white p-4 shadow-sm md:p-6">
       {isEditing ? (
         // Edit Mode
         <div className="space-y-3">

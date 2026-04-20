@@ -141,7 +141,9 @@ async function addMultipleTestSubmissions() {
       })
 
       count++
-      console.log(`✅ ${count}. Created: ${submission.patientFirstName} ${submission.patientLastName}`)
+      console.log(
+        `✅ ${count}. Created: ${submission.patientFirstName} ${submission.patientLastName}`
+      )
     }
 
     console.log(`\n✅ Successfully added ${count} test submissions!`)

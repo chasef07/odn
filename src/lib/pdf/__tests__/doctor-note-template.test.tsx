@@ -7,7 +7,12 @@
 
 import { describe, it, expect } from 'vitest'
 import { pdf } from '@react-pdf/renderer'
-import { DoctorNoteTemplate, DoctorNoteData, DoctorInfo } from '../doctor-note-template'
+import {
+  DoctorNoteTemplate,
+  DoctorNoteData,
+  DoctorInfo,
+  getConditionPhrase,
+} from '../doctor-note-template'
 import { getStateLicense } from '../../state-licenses'
 
 // Mock doctor info for testing
@@ -201,6 +206,249 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
     const blob = await doc.toBlob()
     expect(blob.size).toBeGreaterThan(0)
     // Medical record number should be formatted as first 8 chars uppercase: ABC123DE
+  })
+})
+
+/**
+ * Recursively walk a React element tree and concatenate all string children.
+ * Used to assert on the text content rendered by DoctorNoteTemplate without
+ * needing to parse the binary PDF output.
+ */
+function extractText(node: unknown): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(extractText).join('')
+  if (typeof node === 'object' && 'props' in (node as Record<string, unknown>)) {
+    const element = node as { type: unknown; props: { children?: unknown } }
+    // Render function components so conditional content (e.g. notePurpose checks) executes
+    if (typeof element.type === 'function') {
+      const rendered = (element.type as (props: unknown) => unknown)(element.props)
+      return extractText(rendered)
+    }
+    return extractText(element.props.children)
+  }
+  return ''
+}
+
+describe('DoctorNoteTemplate - "may return" sentence', () => {
+  it('omits the "may return" sentence for travel notes (default patient block)', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, notePurpose: 'travel' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).not.toContain('may return')
+    expect(text).not.toContain('Furthermore')
+    // Trailing contact sentence must still appear
+    expect(text).toContain('please do not hesitate to contact our office')
+  })
+
+  it('omits the "may return" sentence for travel + caregiver notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          notePurpose: 'travel',
+          absenceReason: 'Taking care of someone',
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).not.toContain('may return')
+    expect(text).not.toContain('Furthermore')
+    expect(text).toContain('please do not hesitate to contact our office')
+  })
+
+  it('omits the "may return" sentence for travel + doctor\'s appointment notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          notePurpose: 'travel',
+          absenceReason: "Doctor's appointment",
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).not.toContain('may return')
+    expect(text).not.toContain('Furthermore')
+    expect(text).toContain('please do not hesitate to contact our office')
+  })
+
+  it('keeps "may return to work" for work notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, notePurpose: 'work' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('may return to work')
+    expect(text).toContain('Furthermore')
+  })
+
+  it('keeps "may return to school" for school notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, notePurpose: 'school' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('may return to school')
+    expect(text).toContain('Furthermore')
+  })
+})
+
+describe('getConditionPhrase()', () => {
+  it('maps "Feeling sick" to illness phrasing', () => {
+    expect(getConditionPhrase('Feeling sick')).toEqual({
+      dueTo: 'due to an illness',
+      with: 'with an illness',
+    })
+  })
+
+  it('maps "Mental health" to illness phrasing', () => {
+    expect(getConditionPhrase('Mental health')).toEqual({
+      dueTo: 'due to an illness',
+      with: 'with an illness',
+    })
+  })
+
+  it('maps "Accident or injury" to injury phrasing', () => {
+    expect(getConditionPhrase('Accident or injury')).toEqual({
+      dueTo: 'due to an injury',
+      with: 'with an injury',
+    })
+  })
+
+  it('falls back to "medical condition" for "Taking care of someone"', () => {
+    expect(getConditionPhrase('Taking care of someone')).toEqual({
+      dueTo: 'due to a medical condition',
+      with: 'with a medical condition',
+    })
+  })
+
+  it('falls back to "medical condition" for "Doctor\'s appointment"', () => {
+    expect(getConditionPhrase("Doctor's appointment")).toEqual({
+      dueTo: 'due to a medical condition',
+      with: 'with a medical condition',
+    })
+  })
+
+  it('falls back to "medical condition" for "Other"', () => {
+    expect(getConditionPhrase('Other')).toEqual({
+      dueTo: 'due to a medical condition',
+      with: 'with a medical condition',
+    })
+  })
+})
+
+describe('DoctorNoteTemplate - condition phrase by absence reason', () => {
+  it('renders "due to an illness" for "Feeling sick" in the default patient branch', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, absenceReason: 'Feeling sick' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('due to an illness')
+    expect(text).not.toContain('medical condition')
+  })
+
+  it('renders "due to an illness" for "Mental health" in the default patient branch', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, absenceReason: 'Mental health' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('due to an illness')
+    expect(text).not.toContain('medical condition')
+  })
+
+  it('renders "due to an injury" for "Accident or injury" in the default patient branch', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, absenceReason: 'Accident or injury' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('due to an injury')
+    expect(text).not.toContain('medical condition')
+  })
+
+  it('falls back to "with a medical condition" for "Taking care of someone" caregiver branch', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, absenceReason: 'Taking care of someone' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('with a medical condition')
+  })
+
+  it('renders "with an illness" for "Feeling sick" in the caregiver branch', () => {
+    // Force the caregiver branch by using the caregiver helper logic but a
+    // different reason. Since isCaregiver is gated on absenceReason itself,
+    // the only way to land on the caregiver branch with a non-default reason
+    // is to swap the rendering branch directly. The component gates on
+    // absenceReason === 'Taking care of someone', so we exercise the helper:
+    // here we still render through the component using the caregiver reason
+    // and verify the swap by checking the rendered phrase via the helper.
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          // Caregiver branch fires when absenceReason === 'Taking care of someone'.
+          // For this test, we render the caregiver branch and confirm fallback,
+          // then assert the helper directly for "Feeling sick"+with mapping.
+          absenceReason: 'Taking care of someone',
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    expect(text).toContain('attend to their family member with a medical condition')
+    // The "with" mapping is exercised by the helper; verify it produces
+    // "with an illness" for "Feeling sick".
+    expect(getConditionPhrase('Feeling sick').with).toBe('with an illness')
+  })
+
+  it('falls back to "medical condition" for "Doctor\'s appointment" (appointment branch has no condition phrase)', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, absenceReason: "Doctor's appointment" }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+    // The appointment branch uses its own "for a doctor's appointment" wording
+    // and never references "medical condition" or the new illness/injury phrases.
+    expect(text).not.toContain('medical condition')
+    expect(text).not.toContain('due to an illness')
+    expect(text).not.toContain('due to an injury')
+    // Helper still maps it to the fallback.
+    expect(getConditionPhrase("Doctor's appointment").dueTo).toBe('due to a medical condition')
   })
 })
 

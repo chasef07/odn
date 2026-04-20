@@ -8,10 +8,6 @@ export const metadata: Metadata = {
   },
 }
 
-export default function NotePurposeLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function NotePurposeLayout({ children }: { children: React.ReactNode }) {
   return children
 }

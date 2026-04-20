@@ -10,8 +10,7 @@ const benefits = [
   {
     icon: Clock,
     title: 'Save Time',
-    description:
-      'Get your note in minutes, not hours. No scheduling and no commute required.',
+    description: 'Get your note in minutes, not hours. No scheduling and no commute required.',
   },
   {
     icon: Shield,
@@ -22,8 +21,7 @@ const benefits = [
   {
     icon: Home,
     title: 'No Driving Required',
-    description:
-      'Complete everything from your couch, your bed, or wherever you are. 100% online.',
+    description: 'Complete everything from your couch, your bed, or wherever you are. 100% online.',
   },
   {
     icon: Users,

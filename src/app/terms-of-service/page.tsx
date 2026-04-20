@@ -4,7 +4,8 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
-  description: 'OnlineDoctorNote terms of service. Read our terms and conditions for using our online medical documentation service.',
+  description:
+    'OnlineDoctorNote terms of service. Read our terms and conditions for using our online medical documentation service.',
   alternates: {
     canonical: '/terms-of-service',
   },
@@ -17,15 +18,15 @@ export default function TermsOfServicePage() {
 
       <div className="mx-auto max-w-4xl px-6 py-12">
         <h1 className="mb-6 text-4xl font-bold">Terms of Service</h1>
-        <p className="mb-8 text-sm text-muted-foreground">Last updated March 27, 2026</p>
+        <p className="text-muted-foreground mb-8 text-sm">Last updated March 27, 2026</p>
 
         <div className="prose prose-gray max-w-none space-y-8">
           <section>
             <h2 className="mb-4 text-2xl font-bold">Agreement to Our Legal Terms</h2>
             <p className="leading-relaxed">
-              We are ODN LLC, doing business as OnlineDoctorNote.com
-              (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; &quot;our&quot;), a company
-              registered in Delaware, United States at 5740 SW 67th Avenue, Miami, FL 33143.
+              We are ODN LLC, doing business as OnlineDoctorNote.com (&quot;Company,&quot;
+              &quot;we,&quot; &quot;us,&quot; &quot;our&quot;), a company registered in Delaware,
+              United States at 5740 SW 67th Avenue, Miami, FL 33143.
             </p>
             <p className="mt-4 leading-relaxed">
               We operate the website{' '}
@@ -56,9 +57,12 @@ export default function TermsOfServicePage() {
             <p className="mt-4 leading-relaxed">
               These Legal Terms constitute a legally binding agreement made between you, whether
               personally or on behalf of an entity (&quot;you&quot;), and ODN LLC, concerning your
-              access to and use of the Services. You agree that by
-              accessing the Services, you have read, understood, and agreed to be bound by all of
-              these Legal Terms. <strong>IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.</strong>
+              access to and use of the Services. You agree that by accessing the Services, you have
+              read, understood, and agreed to be bound by all of these Legal Terms.{' '}
+              <strong>
+                IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED
+                FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.
+              </strong>
             </p>
             <p className="mt-4 leading-relaxed">
               The Services are intended for users who are at least 18 years old. Persons under the
@@ -239,7 +243,7 @@ export default function TermsOfServicePage() {
               your personal, non-commercial use only.
             </p>
 
-            <h3 className="mb-3 mt-6 text-xl font-semibold">Your use of our Services</h3>
+            <h3 className="mt-6 mb-3 text-xl font-semibold">Your use of our Services</h3>
             <p className="mb-2 leading-relaxed">
               Subject to your compliance with these Legal Terms, we grant you a non-exclusive,
               non-transferable, revocable license to:
@@ -251,14 +255,14 @@ export default function TermsOfServicePage() {
                 gained access
               </li>
             </ul>
-            <p className="mt-4 leading-relaxed">
-              solely for your personal, non-commercial use.
-            </p>
+            <p className="mt-4 leading-relaxed">solely for your personal, non-commercial use.</p>
           </section>
 
           <section id="section-3">
             <h2 className="mb-4 text-2xl font-bold">3. User Representations</h2>
-            <p className="mb-4 leading-relaxed">By using the Services, you represent and warrant that:</p>
+            <p className="mb-4 leading-relaxed">
+              By using the Services, you represent and warrant that:
+            </p>
             <ol className="ml-6 list-decimal space-y-2">
               <li>you have the legal capacity and you agree to comply with these Legal Terms;</li>
               <li>you are not a minor in the jurisdiction in which you reside;</li>
@@ -326,9 +330,7 @@ export default function TermsOfServicePage() {
               make the Services available. The Services may not be used in connection with any
               commercial endeavors except those that are specifically endorsed or approved by us.
             </p>
-            <p className="mb-2 leading-relaxed">
-              As a user of the Services, you agree not to:
-            </p>
+            <p className="mb-2 leading-relaxed">As a user of the Services, you agree not to:</p>
             <ul className="ml-6 list-disc space-y-2 text-sm">
               <li>
                 Systematically retrieve data or other content from the Services to create or
@@ -343,12 +345,16 @@ export default function TermsOfServicePage() {
                 Circumvent, disable, or otherwise interfere with security-related features of the
                 Services.
               </li>
-              <li>Disparage, tarnish, or otherwise harm, in our opinion, us and/or the Services.</li>
+              <li>
+                Disparage, tarnish, or otherwise harm, in our opinion, us and/or the Services.
+              </li>
               <li>
                 Use any information obtained from the Services in order to harass, abuse, or harm
                 another person.
               </li>
-              <li>Use the Services in a manner inconsistent with any applicable laws or regulations.</li>
+              <li>
+                Use the Services in a manner inconsistent with any applicable laws or regulations.
+              </li>
               <li>Engage in unauthorized framing of or linking to the Services.</li>
               <li>
                 Upload or transmit viruses, Trojan horses, or other material that interferes with
@@ -512,7 +518,7 @@ export default function TermsOfServicePage() {
               appropriate, the AAA&apos;s Supplementary Procedures for Consumer Related Disputes.
             </p>
 
-            <h3 className="mb-3 mt-6 text-xl font-semibold">Restrictions</h3>
+            <h3 className="mt-6 mb-3 text-xl font-semibold">Restrictions</h3>
             <p className="leading-relaxed">
               The Parties agree that any arbitration shall be limited to the Dispute between the
               Parties individually. To the full extent permitted by law, (a) no arbitration shall be
@@ -639,7 +645,10 @@ export default function TermsOfServicePage() {
               </p>
               <p>
                 Email:{' '}
-                <a href="mailto:hello@onlinedoctornote.com" className="text-primary hover:underline">
+                <a
+                  href="mailto:hello@onlinedoctornote.com"
+                  className="text-primary hover:underline"
+                >
                   hello@onlinedoctornote.com
                 </a>
               </p>

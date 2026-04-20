@@ -82,16 +82,19 @@ export function DenialReasonDialog({ open, onOpenChange, onConfirm }: DenialReas
         </DialogHeader>
 
         <div className="py-4">
-          <RadioGroup value={selectedReason} onValueChange={(value) => setSelectedReason(value as DenialReason)}>
+          <RadioGroup
+            value={selectedReason}
+            onValueChange={(value) => setSelectedReason(value as DenialReason)}
+          >
             <div className="space-y-4">
               {DENIAL_REASONS.map((reason) => (
                 <div key={reason.value} className="flex items-start space-x-3">
                   <RadioGroupItem value={reason.value} id={reason.value} className="mt-1" />
                   <div className="flex-1">
-                    <Label htmlFor={reason.value} className="font-medium cursor-pointer">
+                    <Label htmlFor={reason.value} className="cursor-pointer font-medium">
                       {reason.label}
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1">{reason.description}</p>
+                    <p className="text-muted-foreground mt-1 text-sm">{reason.description}</p>
                   </div>
                 </div>
               ))}

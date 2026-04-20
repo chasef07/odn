@@ -8,29 +8,32 @@ import '@/lib/env' // Validate environment variables on startup
 const sans = Manrope({
   variable: '--font-geist-sans',
   subsets: ['latin'],
+  display: 'swap',
 })
 
 const dmSans = DM_Sans({
   variable: '--font-dm-sans',
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
+  display: 'swap',
 })
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://onlinedoctornote.com'
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: 'Get a Doctor\'s Note in Minutes | OnlineDoctorNote',
-  description: 'Get a doctor\'s note online in minutes, not days. Board-certified physicians, 100% online, HIPAA compliant. For work or school absences. Only $24.95 with money-back guarantee.',
+  title: "Get a Doctor's Note in Minutes | OnlineDoctorNote",
+  description:
+    "Get a doctor's note online in minutes, not days. Board-certified physicians, 100% online, HIPAA compliant. For work or school absences. Only $24.95 with money-back guarantee.",
   keywords: [
-    'online doctor\'s note',
-    'doctor\'s note online',
+    "online doctor's note",
+    "doctor's note online",
     'get doctor note fast',
     'medical excuse note',
     'work absence note',
     'school absence note',
     'telemedicine doctor note',
-    'official doctor\'s note',
+    "official doctor's note",
     'board certified physician note',
     'HIPAA compliant medical note',
     'online medical excuse',
@@ -49,14 +52,15 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: siteUrl,
     siteName: 'OnlineDoctorNote',
-    title: 'Get a Doctor\'s Note in Minutes | OnlineDoctorNote',
-    description: 'Get an official doctor\'s note online in minutes. Board-certified physicians, 100% online, HIPAA compliant. Only $24.95.',
+    title: "Get a Doctor's Note in Minutes | OnlineDoctorNote",
+    description:
+      "Get an official doctor's note online in minutes. Board-certified physicians, 100% online, HIPAA compliant. Only $24.95.",
     images: [
       {
         url: '/images/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'OnlineDoctorNote - Get Your Doctor\'s Note Online',
+        alt: "OnlineDoctorNote - Get Your Doctor's Note Online",
       },
     ],
   },
@@ -87,7 +91,7 @@ export default function RootLayout({
       <head>
         {/* Google Tag Manager */}
         <Script id="gtm" strategy="afterInteractive">
-            {`
+          {`
               (function (w, d, s, l, i) {
                 w[l] = w[l] || [];
                 w[l].push({
@@ -102,7 +106,7 @@ export default function RootLayout({
                 f.parentNode.insertBefore(j, f);
               })(window, document, 'script', 'dataLayer', 'GTM-PJPQQ5V4');
             `}
-          </Script>
+        </Script>
         {/* End Google Tag Manager */}
 
         {/* Structured Data - MedicalBusiness */}
@@ -115,7 +119,8 @@ export default function RootLayout({
               '@id': siteUrl,
               name: 'OnlineDoctorNote',
               url: siteUrl,
-              description: 'Professional online doctor\'s notes for work and school absences, signed by board-certified physicians.',
+              description:
+                "Professional online doctor's notes for work and school absences, signed by board-certified physicians.",
               address: {
                 '@type': 'PostalAddress',
                 addressCountry: 'US',
@@ -144,7 +149,7 @@ export default function RootLayout({
             src="https://www.googletagmanager.com/ns.html?id=GTM-PJPQQ5V4"
             height="0"
             width="0"
-            style={{ display: "none", visibility: "hidden" }}
+            style={{ display: 'none', visibility: 'hidden' }}
           ></iframe>
         </noscript>
         {/* End Google Tag Manager (noscript) */}

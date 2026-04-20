@@ -4,7 +4,8 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
-  description: 'OnlineDoctorNote privacy policy. Learn how we protect your personal health information and comply with HIPAA regulations.',
+  description:
+    'OnlineDoctorNote privacy policy. Learn how we protect your personal health information and comply with HIPAA regulations.',
   alternates: {
     canonical: '/privacy-policy',
   },
@@ -17,24 +18,20 @@ export default function PrivacyPolicyPage() {
 
       <div className="mx-auto max-w-4xl px-6 py-12">
         <h1 className="mb-6 text-4xl font-bold">Privacy Policy</h1>
-        <p className="mb-8 text-sm text-muted-foreground">Last updated March 27, 2026</p>
+        <p className="text-muted-foreground mb-8 text-sm">Last updated March 27, 2026</p>
 
         <div className="prose prose-gray max-w-none space-y-8">
           <section>
             <p className="leading-relaxed">
-              This Privacy Notice for ODN LLC (doing business as
-              OnlineDoctorNote.com) (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;), describes
-              how and why we might access, collect, store, use, and/or share (&quot;process&quot;)
-              your personal information when you use our services (&quot;Services&quot;), including
-              when you:
+              This Privacy Notice for ODN LLC (doing business as OnlineDoctorNote.com)
+              (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;), describes how and why we might
+              access, collect, store, use, and/or share (&quot;process&quot;) your personal
+              information when you use our services (&quot;Services&quot;), including when you:
             </p>
             <ul className="ml-6 list-disc space-y-2">
               <li>
                 Visit our website at{' '}
-                <a
-                  href="http://www.onlinedoctornote.com"
-                  className="text-primary hover:underline"
-                >
+                <a href="http://www.onlinedoctornote.com" className="text-primary hover:underline">
                   http://www.onlinedoctornote.com
                 </a>
                 , or any website of ours that links to this Privacy Notice
@@ -73,9 +70,9 @@ export default function PrivacyPolicyPage() {
               <div>
                 <p className="font-semibold">What personal information do we process?</p>
                 <p>
-                  When you visit, use, or navigate our Services, we may process personal
-                  information depending on how you interact with us and the Services, the choices
-                  you make, and the products and features you use.
+                  When you visit, use, or navigate our Services, we may process personal information
+                  depending on how you interact with us and the Services, the choices you make, and
+                  the products and features you use.
                 </p>
               </div>
 
@@ -107,7 +104,9 @@ export default function PrivacyPolicyPage() {
                 <p className="font-semibold">
                   In what situations and with which parties do we share personal information?
                 </p>
-                <p>We may share information in specific situations and with specific third parties.</p>
+                <p>
+                  We may share information in specific situations and with specific third parties.
+                </p>
               </div>
 
               <div>
@@ -250,7 +249,7 @@ export default function PrivacyPolicyPage() {
               <li>debit/credit card numbers</li>
             </ul>
 
-            <p className="mb-2 mt-4 font-semibold">Sensitive Information.</p>
+            <p className="mt-4 mb-2 font-semibold">Sensitive Information.</p>
             <p className="mb-2">
               When necessary, with your consent or as otherwise permitted by applicable law, we
               process the following categories of sensitive information:
@@ -260,7 +259,7 @@ export default function PrivacyPolicyPage() {
               <li>financial data</li>
             </ul>
 
-            <p className="mb-2 mt-4 font-semibold">Payment Data.</p>
+            <p className="mt-4 mb-2 font-semibold">Payment Data.</p>
             <p className="mb-4">
               We may collect data necessary to process your payment if you choose to make purchases,
               such as your payment instrument number, and the security code associated with your
@@ -277,7 +276,7 @@ export default function PrivacyPolicyPage() {
               and you must notify us of any changes to such personal information.
             </p>
 
-            <h3 className="mb-3 mt-6 text-xl font-semibold">Information automatically collected</h3>
+            <h3 className="mt-6 mb-3 text-xl font-semibold">Information automatically collected</h3>
             <p className="mb-3 italic">
               <strong>In Short:</strong> Some information — such as your Internet Protocol (IP)
               address and/or browser and device characteristics — is collected automatically when
@@ -414,7 +413,7 @@ export default function PrivacyPolicyPage() {
               <li>AI automation</li>
             </ul>
 
-            <p className="mb-2 mt-4 font-semibold">How We Process Your Data Using AI</p>
+            <p className="mt-4 mb-2 font-semibold">How We Process Your Data Using AI</p>
             <p className="mb-4">
               All personal information processed using our AI Products is handled in line with our
               Privacy Notice and our agreement with third parties.
@@ -451,9 +450,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section id="section-8">
-            <h2 className="mb-4 text-2xl font-bold">
-              8. Do We Collect Information From Minors?
-            </h2>
+            <h2 className="mb-4 text-2xl font-bold">8. Do We Collect Information From Minors?</h2>
             <p className="mb-3 italic">
               <strong>In Short:</strong> We do not knowingly collect data from or market to children
               under 18 years of age.
@@ -494,9 +491,8 @@ export default function PrivacyPolicyPage() {
             </h3>
             <p className="mb-4">
               You can unsubscribe from our marketing and promotional communications at any time by
-              clicking on the unsubscribe link in the emails that we send, replying
-              &quot;STOP&quot; or &quot;UNSUBSCRIBE&quot; to the SMS messages that we send, or by
-              contacting us.
+              clicking on the unsubscribe link in the emails that we send, replying &quot;STOP&quot;
+              or &quot;UNSUBSCRIBE&quot; to the SMS messages that we send, or by contacting us.
             </p>
 
             <h3 className="mb-3 text-lg font-semibold">Account Information</h3>
@@ -551,7 +547,7 @@ export default function PrivacyPolicyPage() {
               </li>
             </ul>
 
-            <h3 className="mb-3 mt-4 text-lg font-semibold">How to Exercise Your Rights</h3>
+            <h3 className="mt-4 mb-3 text-lg font-semibold">How to Exercise Your Rights</h3>
             <p className="mb-4">
               To exercise these rights, you can contact us at{' '}
               <a href="mailto:hello@onlinedoctornote.com" className="text-primary hover:underline">

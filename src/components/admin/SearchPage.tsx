@@ -123,7 +123,7 @@ export function SearchPage({
       {/* Search Form */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             type="text"
             placeholder={
@@ -193,7 +193,13 @@ export function SearchPage({
                     <p className="font-medium text-gray-900">
                       {submission.patientFirstName} {submission.patientLastName}
                     </p>
-                    <a href={`mailto:${submission.email}`} className="block truncate text-sm text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>{submission.email}</a>
+                    <a
+                      href={`mailto:${submission.email}`}
+                      className="block truncate text-sm text-blue-600 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {submission.email}
+                    </a>
                   </div>
                   <StatusBadge status={submission.status} />
                 </div>
@@ -214,22 +220,22 @@ export function SearchPage({
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
                     Patient
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
                     Dates
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
                     Type
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase">
                     Actions
                   </th>
                 </tr>
@@ -237,25 +243,30 @@ export function SearchPage({
               <tbody className="divide-y divide-gray-200 bg-white">
                 {results.map((submission) => (
                   <tr key={submission.id} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <p className="font-medium text-gray-900">
                         {submission.patientFirstName} {submission.patientLastName}
                       </p>
                       <p className="text-xs text-gray-400">{submission.id.slice(0, 12)}...</p>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm">
-                      <a href={`mailto:${submission.email}`} className="text-blue-600 hover:underline">{submission.email}</a>
+                    <td className="px-4 py-3 text-sm whitespace-nowrap">
+                      <a
+                        href={`mailto:${submission.email}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {submission.email}
+                      </a>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <StatusBadge status={submission.status} />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-500">
                       {formatDateRange(submission.firstDayOff, submission.lastDayOff)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-500">
                       {NOTE_PURPOSE_LABELS[submission.notePurpose] || submission.notePurpose}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <Link href={`/admin/search/${submission.id}`}>
                         <Button variant="outline" size="sm">
                           View

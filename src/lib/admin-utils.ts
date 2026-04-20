@@ -69,7 +69,10 @@ export function formatDateRange(start: string | Date, end: string | Date): strin
     }
 
     // Same month
-    if (formatInTimeZone(startDate, 'UTC', 'MMM yyyy') === formatInTimeZone(endDate, 'UTC', 'MMM yyyy')) {
+    if (
+      formatInTimeZone(startDate, 'UTC', 'MMM yyyy') ===
+      formatInTimeZone(endDate, 'UTC', 'MMM yyyy')
+    ) {
       return `${startMonth} ${startDay}-${endDay}, ${year}`
     }
 

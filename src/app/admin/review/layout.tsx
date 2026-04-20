@@ -27,7 +27,7 @@ export default async function AdminReviewLayout({ children }: { children: ReactN
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground truncate">{session.user.email}</span>
+              <span className="text-muted-foreground truncate text-sm">{session.user.email}</span>
             </div>
             <LogoutButton />
           </div>

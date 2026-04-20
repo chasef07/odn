@@ -19,29 +19,29 @@ export default function ApprovedPage() {
         <div className="mx-auto mb-10 max-w-xl space-y-5 text-left">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-500" />
-            <p className="text-foreground text-lg">You&apos;ve been approved</p>
+            <p className="text-foreground text-lg">You&apos;ve been approved.</p>
           </div>
 
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-500" />
             <p className="text-foreground text-lg">
-              The doctor will review your chart and contact you if needed
+              The doctor will review your chart and contact you if needed.
             </p>
           </div>
 
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-500" />
-            <p className="text-foreground text-lg">Your note will be emailed to you</p>
+            <p className="text-foreground text-lg">Your note will be emailed to you.</p>
           </div>
 
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-500" />
-            <p className="text-foreground text-lg">We&apos;ll verify the note if necessary</p>
+            <p className="text-foreground text-lg">We&apos;ll verify the note if necessary.</p>
           </div>
 
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-500" />
-            <p className="text-foreground text-lg">100% money-back guarantee</p>
+            <p className="text-foreground text-lg">100% money-back guarantee.</p>
           </div>
         </div>
 

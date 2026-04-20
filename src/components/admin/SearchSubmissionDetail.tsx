@@ -34,6 +34,7 @@ import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-con
 import {
   updateSubmission,
   approveSubmission,
+  reApproveSubmission,
   denySubmission,
   changeSubmissionStatus,
   type FormattedSubmission,
@@ -68,10 +69,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   // Form state
   const [patientFirstName, setPatientFirstName] = useState(submission.patientFirstName)
   const [patientLastName, setPatientLastName] = useState(submission.patientLastName)
-  const [patientDateOfBirth, setPatientDateOfBirth] = useState(submission.patientDateOfBirth as string)
+  const [patientDateOfBirth, setPatientDateOfBirth] = useState(
+    submission.patientDateOfBirth as string
+  )
   const [guardianFirstName, setGuardianFirstName] = useState(submission.guardianFirstName || '')
   const [guardianLastName, setGuardianLastName] = useState(submission.guardianLastName || '')
-  const [guardianDateOfBirth, setGuardianDateOfBirth] = useState((submission.guardianDateOfBirth as string | null) || '')
+  const [guardianDateOfBirth, setGuardianDateOfBirth] = useState(
+    (submission.guardianDateOfBirth as string | null) || ''
+  )
   const [email, setEmail] = useState(submission.email)
   const [phone, setPhone] = useState(submission.phone)
   const [state, setState] = useState(submission.state)
@@ -85,7 +90,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     Array.isArray(submission.symptoms) ? (submission.symptoms as string[]) : []
   )
   const [otherSymptomText, setOtherSymptomText] = useState(submission.otherSymptomText || '')
-  const [additionalInformation, setAdditionalInformation] = useState(submission.additionalInformation || '')
+  const [additionalInformation, setAdditionalInformation] = useState(
+    submission.additionalInformation || ''
+  )
 
   // Evaluation date for PDF (ephemeral - not stored in database)
   // Use toLocaleDateString('en-CA') to get YYYY-MM-DD in local time (not UTC)
@@ -145,13 +152,34 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Always pass evaluationDate, diagnosis, and withRestrictions to approveSubmission
-      // This fixes the bug where first-time approvals from search page ignored the date
-      const result = await approveSubmission(submission.id, evaluationDate, diagnosis || undefined, withRestrictions)
+      // Branch on current status:
+      //   - APPROVED: call reApproveSubmission to regenerate the PDF and resend
+      //     the email. approveSubmission rejects already-approved submissions,
+      //     so wiring the button to it silently did nothing for the patient.
+      //   - Otherwise: call approveSubmission as usual.
+      const isReApproval = submission.status === SubmissionStatus.APPROVED
+      const result = isReApproval
+        ? await reApproveSubmission(
+            submission.id,
+            evaluationDate,
+            diagnosis || undefined,
+            withRestrictions
+          )
+        : await approveSubmission(
+            submission.id,
+            evaluationDate,
+            diagnosis || undefined,
+            withRestrictions
+          )
 
       if (result.success) {
         setShowApprovalDialog(false)
-        setSuccess(result.warning || 'Submission approved successfully!')
+        setSuccess(
+          result.warning ||
+            (isReApproval
+              ? 'Submission re-approved successfully!'
+              : 'Submission approved successfully!')
+        )
         router.refresh()
       } else {
         setError(result.error || 'Failed to approve')
@@ -176,9 +204,10 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
     try {
       // Use changeSubmissionStatus for already approved submissions
-      const result = submission.status === SubmissionStatus.APPROVED
-        ? await changeSubmissionStatus(submission.id, SubmissionStatus.DENIED, finalReason)
-        : await denySubmission(submission.id, finalReason)
+      const result =
+        submission.status === SubmissionStatus.APPROVED
+          ? await changeSubmissionStatus(submission.id, SubmissionStatus.DENIED, finalReason)
+          : await denySubmission(submission.id, finalReason)
 
       if (result.success) {
         setShowDenialDialog(false)
@@ -253,13 +282,16 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const showMaybeButton = submission.status !== SubmissionStatus.MAYBE
   const showManualButton = submission.status !== SubmissionStatus.MANUAL
 
-  const approveButtonText = submission.status === SubmissionStatus.APPROVED ? 'Re-Approve' : 'Approve'
-  const approveDialogTitle = submission.status === SubmissionStatus.APPROVED
-    ? 'Re-Approve Submission?'
-    : 'Approve Submission?'
-  const approveDialogDescription = submission.status === SubmissionStatus.APPROVED
-    ? 'This will generate a NEW doctor\'s note PDF and send a NEW email to the patient. Use this if you made edits that need to be reflected in the note.'
-    : 'This will generate a doctor\'s note PDF and send it to the patient via email.'
+  const approveButtonText =
+    submission.status === SubmissionStatus.APPROVED ? 'Re-Approve' : 'Approve'
+  const approveDialogTitle =
+    submission.status === SubmissionStatus.APPROVED
+      ? 'Re-Approve Submission?'
+      : 'Approve Submission?'
+  const approveDialogDescription =
+    submission.status === SubmissionStatus.APPROVED
+      ? "This will generate a NEW doctor's note PDF and send a NEW email to the patient. Use this if you made edits that need to be reflected in the note."
+      : "This will generate a doctor's note PDF and send it to the patient via email."
 
   return (
     <div className="space-y-6">
@@ -369,7 +401,11 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <div className="space-y-2">
               <Label>First Name</Label>
               {isEditing ? (
-                <Input value={patientFirstName} onChange={(e) => setPatientFirstName(e.target.value)} disabled={isLoading} />
+                <Input
+                  value={patientFirstName}
+                  onChange={(e) => setPatientFirstName(e.target.value)}
+                  disabled={isLoading}
+                />
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{patientFirstName}</p>
               )}
@@ -377,7 +413,11 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <div className="space-y-2">
               <Label>Last Name</Label>
               {isEditing ? (
-                <Input value={patientLastName} onChange={(e) => setPatientLastName(e.target.value)} disabled={isLoading} />
+                <Input
+                  value={patientLastName}
+                  onChange={(e) => setPatientLastName(e.target.value)}
+                  disabled={isLoading}
+                />
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{patientLastName}</p>
               )}
@@ -385,7 +425,12 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <div className="space-y-2">
               <Label>Date of Birth</Label>
               {isEditing ? (
-                <Input type="date" value={patientDateOfBirth} onChange={(e) => setPatientDateOfBirth(e.target.value)} disabled={isLoading} />
+                <Input
+                  type="date"
+                  value={patientDateOfBirth}
+                  onChange={(e) => setPatientDateOfBirth(e.target.value)}
+                  disabled={isLoading}
+                />
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{patientDateOfBirth}</p>
               )}
@@ -401,25 +446,44 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               <div className="space-y-2">
                 <Label>First Name</Label>
                 {isEditing ? (
-                  <Input value={guardianFirstName} onChange={(e) => setGuardianFirstName(e.target.value)} disabled={isLoading} />
+                  <Input
+                    value={guardianFirstName}
+                    onChange={(e) => setGuardianFirstName(e.target.value)}
+                    disabled={isLoading}
+                  />
                 ) : (
-                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{guardianFirstName || 'N/A'}</p>
+                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
+                    {guardianFirstName || 'N/A'}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label>Last Name</Label>
                 {isEditing ? (
-                  <Input value={guardianLastName} onChange={(e) => setGuardianLastName(e.target.value)} disabled={isLoading} />
+                  <Input
+                    value={guardianLastName}
+                    onChange={(e) => setGuardianLastName(e.target.value)}
+                    disabled={isLoading}
+                  />
                 ) : (
-                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{guardianLastName || 'N/A'}</p>
+                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
+                    {guardianLastName || 'N/A'}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label>Date of Birth</Label>
                 {isEditing ? (
-                  <Input type="date" value={guardianDateOfBirth} onChange={(e) => setGuardianDateOfBirth(e.target.value)} disabled={isLoading} />
+                  <Input
+                    type="date"
+                    value={guardianDateOfBirth}
+                    onChange={(e) => setGuardianDateOfBirth(e.target.value)}
+                    disabled={isLoading}
+                  />
                 ) : (
-                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{guardianDateOfBirth || 'N/A'}</p>
+                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
+                    {guardianDateOfBirth || 'N/A'}
+                  </p>
                 )}
               </div>
             </div>
@@ -433,17 +497,29 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <div className="space-y-2">
               <Label>Email</Label>
               {isEditing ? (
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                />
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
-                  <a href={`mailto:${email}`} className="text-blue-600 hover:underline">{email}</a>
+                  <a href={`mailto:${email}`} className="text-blue-600 hover:underline">
+                    {email}
+                  </a>
                 </p>
               )}
             </div>
             <div className="space-y-2">
               <Label>Phone</Label>
               {isEditing ? (
-                <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isLoading} />
+                <Input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={isLoading}
+                />
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{phone}</p>
               )}
@@ -459,10 +535,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               <Label>State</Label>
               {isEditing ? (
                 <Select value={state} onValueChange={setState} disabled={isLoading}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {AVAILABLE_STATES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -474,10 +554,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               <Label>Note Purpose</Label>
               {isEditing ? (
                 <Select value={notePurpose} onValueChange={setNotePurpose} disabled={isLoading}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {Object.entries(NOTE_PURPOSES).map(([value, { label }]) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -488,10 +572,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 </p>
               )}
             </div>
-            {(isEditing && notePurpose === 'other') && (
+            {isEditing && notePurpose === 'other' && (
               <div className="space-y-2 sm:col-span-2">
                 <Label>Other Purpose</Label>
-                <Input value={otherNotePurpose} onChange={(e) => setOtherNotePurpose(e.target.value)} disabled={isLoading} />
+                <Input
+                  value={otherNotePurpose}
+                  onChange={(e) => setOtherNotePurpose(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             )}
             <div className="space-y-2 sm:col-span-2">
@@ -502,7 +590,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 onChange={(e) => setEvaluationDate(e.target.value)}
                 disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 This date appears as &quot;Date Issued&quot; on the PDF. Not stored in database.
               </p>
             </div>
@@ -515,8 +603,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 rows={2}
                 disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground">
-                Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for default text. Not stored in database.
+              <p className="text-muted-foreground text-xs">
+                Appears after &quot;due to a medical condition&quot; on the PDF. Leave blank for
+                default text. Not stored in database.
               </p>
             </div>
             <div className="flex items-center gap-2 sm:col-span-2">
@@ -540,7 +629,12 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <div className="space-y-2">
               <Label>First Day Off</Label>
               {isEditing ? (
-                <Input type="date" value={firstDayOff} onChange={(e) => setFirstDayOff(e.target.value)} disabled={isLoading} />
+                <Input
+                  type="date"
+                  value={firstDayOff}
+                  onChange={(e) => setFirstDayOff(e.target.value)}
+                  disabled={isLoading}
+                />
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{firstDayOff}</p>
               )}
@@ -548,7 +642,12 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <div className="space-y-2">
               <Label>Last Day Off</Label>
               {isEditing ? (
-                <Input type="date" value={lastDayOff} onChange={(e) => setLastDayOff(e.target.value)} disabled={isLoading} />
+                <Input
+                  type="date"
+                  value={lastDayOff}
+                  onChange={(e) => setLastDayOff(e.target.value)}
+                  disabled={isLoading}
+                />
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">{lastDayOff}</p>
               )}
@@ -563,10 +662,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <Label>Reason</Label>
             {isEditing ? (
               <Select value={absenceReason} onValueChange={setAbsenceReason} disabled={isLoading}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {ABSENCE_REASONS.map((reason) => (
-                    <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                    <SelectItem key={reason} value={reason}>
+                      {reason}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -577,10 +680,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               </p>
             )}
           </div>
-          {(isEditing && absenceReason === 'Other') && (
+          {isEditing && absenceReason === 'Other' && (
             <div className="space-y-2">
               <Label>Other Reason</Label>
-              <Input value={otherAbsenceReason} onChange={(e) => setOtherAbsenceReason(e.target.value)} disabled={isLoading} />
+              <Input
+                value={otherAbsenceReason}
+                onChange={(e) => setOtherAbsenceReason(e.target.value)}
+                disabled={isLoading}
+              />
             </div>
           )}
         </div>
@@ -593,7 +700,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             {isEditing ? (
               <Input
                 value={symptoms.join(', ')}
-                onChange={(e) => setSymptoms(e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+                onChange={(e) =>
+                  setSymptoms(
+                    e.target.value
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  )
+                }
                 disabled={isLoading}
                 placeholder="e.g., Fever, Cough, Headache"
               />
@@ -604,10 +718,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               </p>
             )}
           </div>
-          {(isEditing && symptoms.includes('Other')) && (
+          {isEditing && symptoms.includes('Other') && (
             <div className="space-y-2">
               <Label>Other Symptom</Label>
-              <Input value={otherSymptomText} onChange={(e) => setOtherSymptomText(e.target.value)} disabled={isLoading} />
+              <Input
+                value={otherSymptomText}
+                onChange={(e) => setOtherSymptomText(e.target.value)}
+                disabled={isLoading}
+              />
             </div>
           )}
         </div>
@@ -625,7 +743,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 placeholder="Any additional information..."
               />
             ) : (
-              <p className="rounded-md bg-gray-50 px-3 py-2 text-sm min-h-[60px] whitespace-pre-wrap">
+              <p className="min-h-[60px] rounded-md bg-gray-50 px-3 py-2 text-sm whitespace-pre-wrap">
                 {additionalInformation || 'None'}
               </p>
             )}
@@ -643,7 +761,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </div>
           <div>
             <dt className="font-medium text-gray-500">Payment ID</dt>
-            <dd className="mt-1 font-mono text-gray-900">{submission.stripePaymentIntentId || 'N/A'}</dd>
+            <dd className="mt-1 font-mono text-gray-900">
+              {submission.stripePaymentIntentId || 'N/A'}
+            </dd>
           </div>
           <div>
             <dt className="font-medium text-gray-500">Created</dt>
@@ -681,15 +801,23 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <DialogDescription>{approveDialogDescription}</DialogDescription>
           </DialogHeader>
           {error && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               <strong>Error:</strong> {error}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApprovalDialog(false)} disabled={isLoading}>
+            <Button
+              variant="outline"
+              onClick={() => setShowApprovalDialog(false)}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
-            <Button onClick={handleApprove} disabled={isLoading} className="bg-green-600 hover:bg-green-700">
+            <Button
+              onClick={handleApprove}
+              disabled={isLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
               {isLoading ? 'Processing...' : `${approveButtonText} & Send PDF`}
             </Button>
           </DialogFooter>
@@ -708,7 +836,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             </DialogDescription>
           </DialogHeader>
           {error && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               <strong>Error:</strong> {error}
             </div>
           )}
@@ -716,9 +844,13 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <div className="space-y-2">
               <Label>Reason for Denial</Label>
               <Select value={denialReason} onValueChange={setDenialReason}>
-                <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Legal">Legal - Cannot provide note for this situation</SelectItem>
+                  <SelectItem value="Legal">
+                    Legal - Cannot provide note for this situation
+                  </SelectItem>
                   <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
                   <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
                   <SelectItem value="Refund">Refund</SelectItem>
@@ -740,12 +872,18 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDenialDialog(false)} disabled={isLoading}>
+            <Button
+              variant="outline"
+              onClick={() => setShowDenialDialog(false)}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleDeny}
-              disabled={isLoading || !denialReason || (denialReason === 'Other' && !otherDenialReason)}
+              disabled={
+                isLoading || !denialReason || (denialReason === 'Other' && !otherDenialReason)
+              }
               variant="destructive"
             >
               {isLoading ? 'Processing...' : 'Deny & Refund'}
@@ -760,11 +898,16 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           <DialogHeader>
             <DialogTitle>Mark as Maybe?</DialogTitle>
             <DialogDescription>
-              This will move the submission to the Maybe queue for further review. No emails will be sent.
+              This will move the submission to the Maybe queue for further review. No emails will be
+              sent.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMaybeDialog(false)} disabled={isLoading}>
+            <Button
+              variant="outline"
+              onClick={() => setShowMaybeDialog(false)}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button
@@ -784,11 +927,16 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           <DialogHeader>
             <DialogTitle>Mark as Manual?</DialogTitle>
             <DialogDescription>
-              This will move the submission to Manual handling. When approved or denied from Manual status, no automated emails or refunds will be processed.
+              This will move the submission to Manual handling. When approved or denied from Manual
+              status, no automated emails or refunds will be processed.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowManualDialog(false)} disabled={isLoading}>
+            <Button
+              variant="outline"
+              onClick={() => setShowManualDialog(false)}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button

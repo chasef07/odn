@@ -42,21 +42,20 @@ export default function BasicInfoPage() {
   })
 
   // Auto-capitalize name fields
-  const handleNameChange = (field: 'patientFirstName' | 'patientLastName') => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const capitalized = e.target.value
-      .split(/(\s+|-|')/)
-      .map((part) => {
-        if (part.match(/^\s+$/) || part === '-' || part === "'") return part
-        if (part.length > 0) {
-          return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-        }
-        return part
-      })
-      .join('')
-    setValue(field, capitalized)
-  }
+  const handleNameChange =
+    (field: 'patientFirstName' | 'patientLastName') => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const capitalized = e.target.value
+        .split(/(\s+|-|')/)
+        .map((part) => {
+          if (part.match(/^\s+$/) || part === '-' || part === "'") return part
+          if (part.length > 0) {
+            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+          }
+          return part
+        })
+        .join('')
+      setValue(field, capitalized)
+    }
 
   const onSubmit = (data: FormData) => {
     // Check age validation - only for "myself" option

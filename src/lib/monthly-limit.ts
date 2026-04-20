@@ -117,7 +117,12 @@ export async function wouldExceedMonthlyLimit(
   newTotal: number
   wouldExceed: boolean
 }> {
-  const currentUsage = await getMonthlyDaysUsed(patientFirstName, patientLastName, patientDateOfBirth, firstDayOff)
+  const currentUsage = await getMonthlyDaysUsed(
+    patientFirstName,
+    patientLastName,
+    patientDateOfBirth,
+    firstDayOff
+  )
   const requestedDays = differenceInDays(lastDayOff, firstDayOff) + 1
   const newTotal = currentUsage.totalDays + requestedDays
 

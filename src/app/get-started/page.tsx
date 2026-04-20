@@ -92,9 +92,7 @@ export default function Home() {
                 <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
               ))}
             </div>
-            <p className="text-muted-foreground text-sm">
-              Join 30,000+ people who got their note in minutes
-            </p>
+            <p className="text-muted-foreground text-sm">Trusted by 60,000+ patients nationwide.</p>
           </div>
         </form>
       </main>

@@ -31,10 +31,7 @@ export async function GET(request: NextRequest) {
       console.error('❌ CRON_SECRET not configured', {
         timestamp: new Date().toISOString(),
       })
-      return NextResponse.json(
-        { error: 'Server misconfiguration' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
     }
 
     const expectedAuth = `Bearer ${cronSecret}`
@@ -43,10 +40,7 @@ export async function GET(request: NextRequest) {
     const isValid =
       authHeader &&
       authHeader.length === expectedAuth.length &&
-      timingSafeEqual(
-        Buffer.from(authHeader),
-        Buffer.from(expectedAuth)
-      )
+      timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedAuth))
 
     if (!isValid) {
       console.error('❌ Unauthorized cron job attempt', {
@@ -55,10 +49,7 @@ export async function GET(request: NextRequest) {
         ip: request.headers.get('x-forwarded-for'),
       })
 
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // ✅ Authorized - proceed with cleanup
@@ -86,7 +77,7 @@ export async function GET(request: NextRequest) {
         if (i < retries - 1) {
           // Wait before retry with exponential backoff: 1s, 2s, 4s
           const waitTime = 1000 * Math.pow(2, i)
-          await new Promise(resolve => setTimeout(resolve, waitTime))
+          await new Promise((resolve) => setTimeout(resolve, waitTime))
         }
       }
     }
@@ -99,18 +90,24 @@ export async function GET(request: NextRequest) {
         timestamp: new Date().toISOString(),
       })
 
-      return NextResponse.json({
-        success: false,
-        error: 'Cleanup failed after retries',
-        timestamp: new Date().toISOString(),
-      }, { status: 500 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Cleanup failed after retries',
+          timestamp: new Date().toISOString(),
+        },
+        { status: 500 }
+      )
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ Cron job completed: Cleaned up ${result.count} expired TemporarySubmissions`, {
-        deleted: result.count,
-        timestamp: new Date().toISOString(),
-      })
+      console.log(
+        `✅ Cron job completed: Cleaned up ${result.count} expired TemporarySubmissions`,
+        {
+          deleted: result.count,
+          timestamp: new Date().toISOString(),
+        }
+      )
     }
 
     return NextResponse.json({

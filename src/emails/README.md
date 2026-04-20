@@ -7,6 +7,7 @@ This directory contains React Email components for sending **modern, beautiful t
 We use [React Email](https://react.email/) with **Tailwind CSS** to build responsive, production-ready email templates using React components. This provides better maintainability, type safety, and a live preview environment.
 
 ### Design Philosophy
+
 - **Modern & Clean**: 2025 design standards with gradients, rounded corners, and generous spacing
 - **Mobile-First**: Responsive design that looks great on all devices
 - **Empathetic**: Warm colors and friendly tone, especially for sensitive communications
@@ -19,6 +20,7 @@ We use [React Email](https://react.email/) with **Tailwind CSS** to build respon
 A modern, empathetic email sent when a doctor denies a submission and issues a refund.
 
 **Design Features:**
+
 - 🎨 Indigo-to-purple gradient hero section
 - 💚 Prominent emerald-green refund card with checkmark icon
 - 📋 Step-by-step "What's Next" timeline
@@ -26,11 +28,13 @@ A modern, empathetic email sent when a doctor denies a submission and issues a r
 - 📱 Fully responsive mobile design
 
 **Props:**
+
 - `patientName` (string): Patient's full name
 - `denialReason` (string): Reason for denial - "Legal", "7+ days", or "Other"
 - `refundAmount` (number): Refund amount in dollars (e.g., 24.95)
 
 **Example:**
+
 ```tsx
 import { DenialEmail } from '@/emails/DenialEmail'
 
@@ -99,6 +103,7 @@ const emailHtml = await render(WelcomeEmail({ name: 'John' }))
 ## Testing
 
 Email templates are tested in `src/lib/__tests__/email.test.ts`. The tests verify:
+
 - React Email render is called correctly
 - Email parameters are passed to Resend
 - Error handling works as expected

@@ -20,13 +20,15 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 // Mock Stripe using vi.hoisted
-const { mockPaymentIntentCreate, mockPaymentIntentCancel, mockPricesRetrieve } = vi.hoisted(
-  () => ({
-    mockPaymentIntentCreate: vi.fn(),
-    mockPaymentIntentCancel: vi.fn(),
-    mockPricesRetrieve: vi.fn(),
-  })
-)
+const { mockPaymentIntentCreate, mockPaymentIntentCancel, mockPricesRetrieve } = vi.hoisted(() => ({
+  mockPaymentIntentCreate: vi.fn(),
+  mockPaymentIntentCancel: vi.fn(),
+  mockPricesRetrieve: vi.fn(),
+}))
+
+vi.mock('next/cache', () => ({
+  unstable_cache: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
+}))
 
 vi.mock('stripe', () => {
   return {
@@ -56,6 +58,18 @@ import { POST } from '../route'
 
 describe('POST /api/create-payment-intent', () => {
   let originalEnv: NodeJS.ProcessEnv
+
+  // Use dynamic dates so the absence-date validator (enforced in the route)
+  // always sees dates within the allowed 7-day window regardless of when
+  // tests run.
+  const _now = new Date()
+  const _toISODate = (d: Date) => d.toISOString().split('T')[0]
+  const _daysFromToday = (n: number) => {
+    const d = new Date(_now)
+    d.setUTCDate(d.getUTCDate() + n)
+    return _toISODate(d)
+  }
+
   const mockFormData: FormData = {
     state: 'CA',
     recipient: 'myself',
@@ -65,8 +79,8 @@ describe('POST /api/create-payment-intent', () => {
     email: 'john@example.com',
     phone: '5551234567',
     notePurpose: 'work',
-    firstDayOff: '2025-01-20',
-    lastDayOff: '2025-01-22',
+    firstDayOff: _daysFromToday(-1),
+    lastDayOff: _daysFromToday(1),
     absenceReason: 'illness',
   }
 
@@ -590,6 +604,183 @@ describe('POST /api/create-payment-intent', () => {
     const response = await POST(request)
 
     expect(response.headers.get('content-type')).toContain('application/json')
+  })
+
+  describe('server-side validation hardening', () => {
+    // These tests cover the bypass gaps reported by a doctor: users could
+    // navigate back and edit localStorage to push invalid data through payment.
+    // See src/app/api/create-payment-intent/route.ts for the validators.
+
+    const today = new Date()
+    const toISODate = (d: Date) => d.toISOString().split('T')[0]
+    const daysFromToday = (n: number) => {
+      const d = new Date(today)
+      d.setUTCDate(d.getUTCDate() + n)
+      return toISODate(d)
+    }
+
+    it('should reject absences longer than 7 days', async () => {
+      const badData = {
+        ...mockFormData,
+        firstDayOff: daysFromToday(0),
+        lastDayOff: daysFromToday(10), // 11 inclusive days
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({ formData: badData }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toMatch(/7 consecutive days/i)
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('should reject firstDayOff more than 7 days in the past', async () => {
+      const badData = {
+        ...mockFormData,
+        firstDayOff: daysFromToday(-30),
+        lastDayOff: daysFromToday(-30),
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({ formData: badData }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toMatch(/7 days in the past/i)
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('should reject lastDayOff before firstDayOff', async () => {
+      const badData = {
+        ...mockFormData,
+        firstDayOff: daysFromToday(2),
+        lastDayOff: daysFromToday(1),
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({ formData: badData }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toMatch(/on or after first day off/i)
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('should reject a patient DOB in the future (recipient=someone_else)', async () => {
+      const badData = {
+        ...mockFormData,
+        recipient: 'someone_else',
+        patientDateOfBirth: daysFromToday(30), // 30 days in the future
+        guardianFirstName: 'Jane',
+        guardianLastName: 'Doe',
+        guardianDateOfBirth: '1980-01-01',
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({ formData: badData }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toMatch(/valid patient date of birth/i)
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('should reject a patient DOB before 1900 (recipient=someone_else)', async () => {
+      const badData = {
+        ...mockFormData,
+        recipient: 'someone_else',
+        patientDateOfBirth: '1850-01-01',
+        guardianFirstName: 'Jane',
+        guardianLastName: 'Doe',
+        guardianDateOfBirth: '1980-01-01',
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({ formData: badData }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toMatch(/valid patient date of birth/i)
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('should reject under-18 patient when recipient=myself', async () => {
+      // DOB is 5 years ago -> clearly under 18
+      const dob = new Date(today)
+      dob.setUTCFullYear(dob.getUTCFullYear() - 5)
+
+      const badData = {
+        ...mockFormData,
+        recipient: 'myself',
+        patientDateOfBirth: toISODate(dob),
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({ formData: badData }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toMatch(/18 or older/i)
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('should accept valid dates within limits', async () => {
+      mockPrismaCreate.mockResolvedValue({ id: 'temp_valid' })
+      mockPaymentIntentCreate.mockResolvedValue({
+        id: 'pi_valid',
+        client_secret: 'pi_valid_secret',
+        amount: 2495,
+        currency: 'usd',
+      })
+      mockPrismaUpdate.mockResolvedValue({})
+
+      const goodData = {
+        ...mockFormData,
+        firstDayOff: daysFromToday(-2),
+        lastDayOff: daysFromToday(2), // 5 inclusive days
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({ formData: goodData }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request)
+      expect(response.status).toBe(200)
+      expect(mockPaymentIntentCreate).toHaveBeenCalled()
+    })
   })
 
   it('should handle database connection errors gracefully', async () => {

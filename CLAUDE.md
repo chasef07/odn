@@ -92,6 +92,7 @@ Implementation: `src/lib/validation-schemas.ts`
 - **Performance**: Prisma Accelerate for 40x faster DB operations
 
 Key files:
+
 - `src/app/api/create-payment-intent/route.ts`
 - `src/app/api/webhooks/stripe-prod3/route.ts`
 - `src/app/api/verify-payment/route.ts`
@@ -226,6 +227,7 @@ npx tsx scripts/delete-all-users.ts
 **Auth**: Better Auth with email/password (bcrypt, 10 rounds)
 
 **Admin Routes**:
+
 - `/admin` - Dashboard with stats and "Search All Submissions" button
 - `/admin/review` - Tinder-style card review for pending submissions
 - `/admin/search` - Search submissions by name, email, or ID
@@ -235,6 +237,7 @@ npx tsx scripts/delete-all-users.ts
 - `/admin/denied` - Today's denied submissions
 
 **Submission Status Flow**:
+
 1. `PENDING_REVIEW` - Initial state
 2. `APPROVED` - Doctor approves
 3. `DENIED` - Doctor denies
@@ -242,6 +245,7 @@ npx tsx scripts/delete-all-users.ts
 5. `MANUAL` - Doctor-handled offline
 
 **Search & Edit Feature** (`/admin/search`):
+
 - Search by name (partial match on first/last), email (contains), or ID (prefix)
 - View all form fields for any submission regardless of status
 - Edit any field and save changes
@@ -250,6 +254,7 @@ npx tsx scripts/delete-all-users.ts
 - Smart refund handling: checks `stripeRefundId` before processing
 
 **Key Server Actions** (`src/app/admin/actions.ts`):
+
 - `searchSubmissions()` - Paginated search with type selector
 - `reApproveSubmission(id, evaluationDate?, diagnosis?)` - Regenerate PDF and resend email
 - `changeSubmissionStatus()` - Handle complex status transitions
@@ -257,6 +262,7 @@ npx tsx scripts/delete-all-users.ts
 - `updateSubmission()` - Save field edits
 
 **Database Models**:
+
 - `User` - Admin/doctor accounts
 - `Account` - Auth credentials (bcrypt passwords)
 - `Session` - Login sessions
@@ -321,6 +327,7 @@ Helper functions in `src/lib/email-helpers.ts`:
 **Key Rule**: The `notePurpose` determines email text, NOT `absenceReason`.
 
 Examples:
+
 - Caregiver + Work → "from work" / "employer"
 - Caregiver + School → "from school" / "school"
 - Appointment + Work → "from work" / "employer"
@@ -333,6 +340,7 @@ Preview emails: `npm run email`
 Uses @react-pdf/renderer with Plus Jakarta Sans font.
 
 **Features**:
+
 - Professional medical document template
 - State-specific medical licenses (46 states in `state-licenses.ts`)
 - Dynamic "return to work/school" text based on `notePurpose`
@@ -360,6 +368,7 @@ The project uses **PGlite** (via `@prisma/dev`) for local development and testin
   - `npm run db:local:ls` - List running local databases
 
 **Environment Variables**:
+
 - `DATABASE_URL` - Set automatically by PGlite during tests
 - `PRISMA_DATABASE_URL` - Also set automatically (required by Prisma schema)
 

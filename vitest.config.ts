@@ -18,31 +18,31 @@ export default defineConfig(({ mode }) => {
         // Load test environment variables from .env.test
         ...env,
       },
-    include: ['**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['node_modules', '.next', 'out'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        '.next/',
-        'out/',
-        '**/*.config.{ts,js}',
-        '**/*.d.ts',
-        '**/types.ts',
-        'vitest.setup.ts',
-        'scripts/**', // Utility scripts
-        'src/app/layout.tsx', // Next.js specific files
-        'src/app/not-found.tsx'
-      ],
-      thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 80,
-        statements: 80,
+      include: ['**/*.{test,spec}.{ts,tsx}'],
+      exclude: ['node_modules', '.next', 'out', '.claude/**', 'docs-legacy/**'],
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'json', 'html'],
+        exclude: [
+          'node_modules/',
+          '.next/',
+          'out/',
+          '**/*.config.{ts,js}',
+          '**/*.d.ts',
+          '**/types.ts',
+          'vitest.setup.ts',
+          'scripts/**', // Utility scripts
+          'src/app/layout.tsx', // Next.js specific files
+          'src/app/not-found.tsx',
+        ],
+        thresholds: {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
       },
     },
-  },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
