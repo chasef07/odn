@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,8 +8,17 @@ import { FormLayout } from '@/components/form-layout'
 import { FormRadioGroup } from '@/components/form/FormRadioGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { page5Schema } from '@/lib/validation-schemas'
+import { LEGAL_NOTE_PURPOSE_ERROR, page5Schema } from '@/lib/validation-schemas'
 import { NOTE_PURPOSES } from '@/lib/form-constants'
 
 // Step number will be dynamic based on recipient
@@ -31,13 +41,19 @@ const NOTE_PURPOSE_OPTIONS = [
     label: NOTE_PURPOSES.travel.label,
   },
   {
+    value: 'legal' as const,
+    label: 'Legal Matters (Court, Jury Duty, Probation)',
+  },
+  {
     value: 'other' as const,
     label: NOTE_PURPOSES.other.label,
   },
 ]
 
+type NotePurpose = 'work' | 'school' | 'both' | 'travel' | 'legal' | 'other'
+
 type FormData = {
-  notePurpose: 'work' | 'school' | 'both' | 'travel' | 'other' | null
+  notePurpose: NotePurpose | null
   otherNotePurpose?: string
 }
 
@@ -47,11 +63,16 @@ export default function NotePurposePage() {
   const recipient = savedData.recipient || 'myself'
   const patientFirstName = savedData.patientFirstName || ''
   const currentStep = recipient === 'someone_else' ? 6 : 5
+  const [showLegalMatterDialog, setShowLegalMatterDialog] = useState(
+    savedData.notePurpose === 'legal'
+  )
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(page5Schema),
@@ -62,8 +83,35 @@ export default function NotePurposePage() {
   })
 
   const selectedPurpose = watch('notePurpose')
+  const notePurposeRegister = register('notePurpose', {
+    onChange: (event) => {
+      if (event.target.value === 'legal') {
+        setShowLegalMatterDialog(true)
+      }
+    },
+  })
+
+  const dismissLegalMatterDialog = () => {
+    setShowLegalMatterDialog(false)
+    setValue('notePurpose', null, { shouldDirty: true })
+    clearErrors('notePurpose')
+  }
+
+  const handleLegalMatterDialogChange = (open: boolean) => {
+    if (open) {
+      setShowLegalMatterDialog(true)
+      return
+    }
+
+    dismissLegalMatterDialog()
+  }
 
   const onSubmit = (data: FormData) => {
+    if (data.notePurpose === 'legal') {
+      setShowLegalMatterDialog(true)
+      return
+    }
+
     saveFormData(data)
 
     router.push('/absence-dates')
@@ -80,7 +128,7 @@ export default function NotePurposePage() {
           fieldName="notePurpose"
           legend="What do you need this note for?"
           options={NOTE_PURPOSE_OPTIONS}
-          register={register('notePurpose')}
+          register={notePurposeRegister}
           error={errors.notePurpose}
           selectedValue={selectedPurpose ?? undefined}
           variant="large-buttons"
@@ -108,6 +156,22 @@ export default function NotePurposePage() {
 
         <FormNavigation backRoute="/contact-info" isSubmitting={isSubmitting} />
       </form>
+
+      <Dialog open={showLegalMatterDialog} onOpenChange={handleLegalMatterDialogChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Legal matters are not eligible</DialogTitle>
+            <DialogDescription className="text-base leading-6">
+              {LEGAL_NOTE_PURPOSE_ERROR}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" onClick={dismissLegalMatterDialog}>
+              Choose another reason
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </FormLayout>
   )
 }

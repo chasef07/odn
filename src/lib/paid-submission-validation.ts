@@ -2,6 +2,7 @@ import { isAgeValid } from '@/lib/age-validators'
 import { validateAbsenceDates } from '@/lib/date-validators'
 import { isIsoDateOnlyInSaneRange, parseIsoDateOnlyAsUTCDate } from '@/lib/date-only'
 import { FormData } from '@/lib/form-storage'
+import { LEGAL_NOTE_PURPOSE_ERROR } from '@/lib/validation-schemas'
 
 const REQUIRED_SUBMISSION_FIELDS: Array<keyof FormData> = [
   'state',
@@ -43,6 +44,7 @@ function pushUnique(errors: string[], message: string) {
 
 export function validatePaidSubmissionData(formData: FormData): PaidSubmissionValidationResult {
   const errors: string[] = []
+  const hasBlockedNotePurpose = formData.notePurpose === 'legal'
 
   const parsedDates: PersistedDateFields = {
     patientDateOfBirth: formData.patientDateOfBirth
@@ -62,6 +64,10 @@ export function validatePaidSubmissionData(formData: FormData): PaidSubmissionVa
 
   if (formData.recipient !== 'myself' && formData.recipient !== 'someone_else') {
     pushUnique(errors, 'Recipient must be either "myself" or "someone_else"')
+  }
+
+  if (hasBlockedNotePurpose) {
+    pushUnique(errors, LEGAL_NOTE_PURPOSE_ERROR)
   }
 
   if (formData.recipient === 'someone_else') {
@@ -124,6 +130,7 @@ export function validatePaidSubmissionData(formData: FormData): PaidSubmissionVa
   }
 
   const canPersistSubmission =
+    !hasBlockedNotePurpose &&
     missingFields.length === 0 &&
     (formData.recipient === 'myself' || formData.recipient === 'someone_else') &&
     parsedDates.patientDateOfBirth !== null &&
