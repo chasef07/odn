@@ -12,16 +12,22 @@ import { revalidatePath } from 'next/cache'
 import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
 import prisma from '@/lib/prisma'
 import Stripe from 'stripe'
-import { sendDenialEmail, sendApprovalEmail } from '@/lib/email'
+import { sendDenialEmail, sendApprovalEmail, sendMaybeEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { getBusinessDayStart } from '@/lib/admin-utils'
 import { formatDateUTC } from '@/lib/utils'
+import { getMaybeReasonConfig, type MaybeReason } from '@/lib/maybe-reasons'
 
 // Export shared submission types for components
 export type MaybeSubmission = Awaited<ReturnType<typeof getMaybeSubmissions>>['submissions'][number]
 export type ManualSubmission = Awaited<
   ReturnType<typeof getManualSubmissions>
 >['submissions'][number]
+
+export type MaybeSubmissionInput = {
+  reason: MaybeReason | string
+  internalNote?: string
+}
 
 // Initialize Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -688,31 +694,115 @@ export async function denySubmission(submissionId: string, reason: string) {
 /**
  * Mark a submission as maybe (needs further review)
  * @param submissionId - Submission ID to mark as maybe
+ * @param input - Maybe reason and optional internal note
  * @returns Success status
  */
-export async function maybeSubmission(submissionId: string) {
+export async function maybeSubmission(submissionId: string, input: MaybeSubmissionInput) {
   try {
     const doctorId = await getCurrentDoctor()
 
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: {
-        status: SubmissionStatus.MAYBE,
-        reviewedByAdminId: doctorId,
-        reviewedAt: new Date(),
-      },
+    return await moveSubmissionToMaybe({
+      submissionId,
+      doctorId,
+      input,
+      revalidatePaths: ['/admin', '/admin/review', '/admin/maybe'],
     })
-
-    // Revalidate admin pages
-    revalidatePath('/admin')
-    revalidatePath('/admin/review')
-    revalidatePath('/admin/maybe')
-
-    return { success: true }
   } catch (error) {
     console.error('Error marking submission as maybe:', error)
     return { success: false, error: 'Failed to mark submission as maybe' }
   }
+}
+
+async function moveSubmissionToMaybe({
+  submissionId,
+  doctorId,
+  input,
+  revalidatePaths,
+}: {
+  submissionId: string
+  doctorId: string
+  input: MaybeSubmissionInput | undefined
+  revalidatePaths: string[]
+}): Promise<{ success: boolean; error?: string; warning?: string }> {
+  if (!input?.reason) {
+    return { success: false, error: 'Maybe reason is required' }
+  }
+
+  const reasonConfig = getMaybeReasonConfig(input.reason)
+  if (!reasonConfig) {
+    return { success: false, error: 'Invalid maybe reason' }
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+  })
+
+  if (!submission) {
+    return { success: false, error: 'Submission not found' }
+  }
+
+  const now = new Date()
+  const shouldSendEmail =
+    submission.status === SubmissionStatus.PENDING_REVIEW && reasonConfig.sendsEmail
+  const internalNote = input.internalNote?.trim() || null
+  const maybeUpdateData = {
+    status: SubmissionStatus.MAYBE,
+    maybeReason: reasonConfig.value,
+    maybeInternalNote: internalNote,
+    maybeEmailSentAt: null,
+    reviewedByAdminId: doctorId,
+    reviewedAt: now,
+    updatedAt: now,
+  }
+
+  if (submission.status === SubmissionStatus.PENDING_REVIEW) {
+    const updateResult = await prisma.submission.updateMany({
+      where: {
+        id: submissionId,
+        status: SubmissionStatus.PENDING_REVIEW,
+      },
+      data: maybeUpdateData,
+    })
+
+    if (updateResult.count === 0) {
+      return {
+        success: false,
+        error: 'This submission has already been reviewed by another doctor',
+      }
+    }
+  } else {
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: maybeUpdateData,
+    })
+  }
+
+  let emailWarning: string | undefined
+  if (shouldSendEmail) {
+    try {
+      await sendMaybeEmail({
+        to: submission.email,
+        patientName: `${submission.patientFirstName} ${submission.patientLastName}`,
+        reason: reasonConfig.value,
+      })
+
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          maybeEmailSentAt: new Date(),
+        },
+      })
+    } catch (emailError) {
+      console.error('Failed to send maybe email:', emailError)
+      emailWarning = 'Submission moved to Maybe, but email notification failed to send'
+    }
+  }
+
+  for (const path of revalidatePaths) {
+    revalidatePath(path)
+  }
+
+  return { success: true, warning: emailWarning }
 }
 
 /**
@@ -781,6 +871,8 @@ export async function getMaybeSubmissions() {
         email: true,
         firstDayOff: true,
         lastDayOff: true,
+        maybeReason: true,
+        maybeEmailSentAt: true,
         reviewedAt: true,
       },
       orderBy: {
@@ -796,6 +888,8 @@ export async function getMaybeSubmissions() {
       email: sub.email,
       firstDayOff: formatDateUTC(sub.firstDayOff),
       lastDayOff: formatDateUTC(sub.lastDayOff),
+      maybeReason: sub.maybeReason,
+      maybeEmailSentAt: sub.maybeEmailSentAt,
       reviewedAt: sub.reviewedAt,
     }))
 
@@ -1226,7 +1320,8 @@ export async function reApproveSubmission(
 export async function changeSubmissionStatus(
   submissionId: string,
   newStatus: SubmissionStatus,
-  denialReason?: string
+  denialReason?: string,
+  maybeInput?: MaybeSubmissionInput
 ): Promise<{ success: boolean; error?: string; warning?: string }> {
   try {
     const doctorId = await getCurrentDoctor()
@@ -1375,23 +1470,17 @@ export async function changeSubmissionStatus(
       }
 
       case SubmissionStatus.MAYBE: {
-        // Simple status change to MAYBE
-        await prisma.submission.update({
-          where: { id: submissionId },
-          data: {
-            status: SubmissionStatus.MAYBE,
-            reviewedByAdminId: doctorId,
-            reviewedAt: now,
-            updatedAt: now,
-          },
+        return await moveSubmissionToMaybe({
+          submissionId,
+          doctorId,
+          input: maybeInput,
+          revalidatePaths: [
+            '/admin',
+            '/admin/search',
+            `/admin/search/${submissionId}`,
+            '/admin/maybe',
+          ],
         })
-
-        revalidatePath('/admin')
-        revalidatePath('/admin/search')
-        revalidatePath(`/admin/search/${submissionId}`)
-        revalidatePath('/admin/maybe')
-
-        return { success: true }
       }
 
       case SubmissionStatus.MANUAL: {

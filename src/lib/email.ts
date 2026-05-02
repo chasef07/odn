@@ -4,6 +4,8 @@ import DenialEmail from '@/emails/DenialEmail'
 import ApprovalEmail from '@/emails/ApprovalEmail'
 import PaymentConfirmationEmail from '@/emails/PaymentConfirmationEmail'
 import BounceAlertEmail from '@/emails/BounceAlertEmail'
+import MaybeEmail from '@/emails/MaybeEmail'
+import type { MaybeReason } from '@/lib/maybe-reasons'
 
 // Initialize Resend client with API key from environment
 export const resend = new Resend(process.env.RESEND_API_KEY)
@@ -159,6 +161,49 @@ export async function sendPaymentConfirmationEmail({
     console.error('Failed to send payment confirmation email:', error)
     throw new Error(
       `Failed to send payment confirmation email: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+/**
+ * Sends a maybe review update email to the patient
+ *
+ * @param to - Recipient email address
+ * @param patientName - Patient's full name
+ * @param reason - Maybe reason that drives the email body
+ * @returns Promise that resolves to the email send result
+ * @throws Error if email sending fails
+ */
+export async function sendMaybeEmail({
+  to,
+  patientName,
+  reason,
+}: {
+  to: string
+  patientName: string
+  reason: MaybeReason
+}) {
+  try {
+    const emailHtml = await render(
+      MaybeEmail({
+        patientName,
+        reason,
+      })
+    )
+
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      replyTo: 'hello@onlinedoctornote.com',
+      to,
+      subject: "Update on your doctor's note request",
+      html: emailHtml,
+    })
+
+    return result
+  } catch (error) {
+    console.error('Failed to send maybe email:', error)
+    throw new Error(
+      `Failed to send maybe email: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
   }
 }

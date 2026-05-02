@@ -23,9 +23,11 @@ import {
 import { SubmissionCard } from '@/components/admin/SubmissionCard'
 import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
+import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
 import { getTodayLocal } from '@/components/admin/ApprovalDialogContent'
-import type { DenialReason } from '@/lib/admin-utils'
+import { calculateDaysDifference, type DenialReason } from '@/lib/admin-utils'
+import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import type { Submission } from '@prisma/client'
 import {
   getSubmissionsForReview,
@@ -33,6 +35,7 @@ import {
   denySubmission,
   maybeSubmission,
   getMonthlyLimitData,
+  type MaybeSubmissionInput,
 } from '../actions'
 
 export default function AdminReviewPage() {
@@ -53,16 +56,24 @@ export default function AdminReviewPage() {
 
   const [showCompletion, setShowCompletion] = useState(false)
   const [showDenialDialog, setShowDenialDialog] = useState(false)
+  const [showMaybeDialog, setShowMaybeDialog] = useState(false)
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
   const [diagnosis, setDiagnosis] = useState('')
   const [approvalError, setApprovalError] = useState<string | null>(null)
+  const [maybeError, setMaybeError] = useState<string | null>(null)
+  const [reviewWarning, setReviewWarning] = useState<string | null>(null)
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
   const [withRestrictions, setWithRestrictions] = useState(true)
 
   const currentSubmission = submissions[currentIndex]
   const isLastSubmission = currentIndex === submissions.length - 1
+  const suggestedMaybeReason =
+    currentSubmission &&
+    calculateDaysDifference(currentSubmission.firstDayOff, currentSubmission.lastDayOff) > 7
+      ? DATES_EXCEED_ALLOWED_RANGE_REASON
+      : undefined
 
   // Fetch submissions on mount
   useEffect(() => {
@@ -116,6 +127,7 @@ export default function AdminReviewPage() {
   const handleApprove = () => {
     if (!currentSubmission || isTransitioning) return
     setApprovalError(null)
+    setReviewWarning(null)
     setShowApprovalDialog(true)
   }
 
@@ -137,6 +149,7 @@ export default function AdminReviewPage() {
     if (result.success) {
       setShowApprovalDialog(false)
       setDiagnosis('')
+      setReviewWarning(result.warning ?? null)
 
       // Add to approved list
       setReviewedSubmissions((prev) => ({
@@ -161,6 +174,7 @@ export default function AdminReviewPage() {
       }, 150)
     } else {
       setIsTransitioning(false)
+      setReviewWarning(null)
       setApprovalError(result.error || 'Failed to approve submission')
     }
   }
@@ -168,6 +182,7 @@ export default function AdminReviewPage() {
   // Handle denial - show dialog first
   const handleDeny = () => {
     if (!currentSubmission || isTransitioning) return
+    setReviewWarning(null)
     setShowDenialDialog(true)
   }
 
@@ -181,6 +196,8 @@ export default function AdminReviewPage() {
     const result = await denySubmission(currentSubmission.id, reason)
 
     if (result.success) {
+      setReviewWarning(result.warning ?? null)
+
       // Add to denied list
       setReviewedSubmissions((prev) => ({
         ...prev,
@@ -201,20 +218,34 @@ export default function AdminReviewPage() {
       }, 150)
     } else {
       setIsTransitioning(false)
+      setReviewWarning(null)
       setError(result.error || 'Failed to deny submission')
     }
   }
 
-  // Handle maybe
-  const handleMaybe = async () => {
+  // Handle maybe - show dialog first
+  const handleMaybe = () => {
+    if (!currentSubmission || isTransitioning) return
+
+    setMaybeError(null)
+    setReviewWarning(null)
+    setShowMaybeDialog(true)
+  }
+
+  // Handle maybe confirmation with reason
+  const handleMaybeConfirm = async (input: MaybeSubmissionInput) => {
     if (!currentSubmission || isTransitioning) return
 
     setIsTransitioning(true)
+    setMaybeError(null)
 
     // Call server action to mark as maybe
-    const result = await maybeSubmission(currentSubmission.id)
+    const result = await maybeSubmission(currentSubmission.id, input)
 
     if (result.success) {
+      setShowMaybeDialog(false)
+      setReviewWarning(result.warning ?? null)
+
       // Add to maybe list
       setReviewedSubmissions((prev) => ({
         ...prev,
@@ -235,7 +266,8 @@ export default function AdminReviewPage() {
       }, 150)
     } else {
       setIsTransitioning(false)
-      setError(result.error || 'Failed to mark submission as maybe')
+      setReviewWarning(null)
+      setMaybeError(result.error || 'Failed to mark submission as maybe')
     }
   }
 
@@ -243,7 +275,15 @@ export default function AdminReviewPage() {
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Prevent if transitioning, on completion screen, or dialog is open
-      if (isTransitioning || showCompletion || showDenialDialog) return
+      if (
+        isTransitioning ||
+        showCompletion ||
+        showDenialDialog ||
+        showMaybeDialog ||
+        showApprovalDialog
+      ) {
+        return
+      }
 
       if (e.key === 'ArrowLeft') {
         e.preventDefault() // Prevent scroll
@@ -260,7 +300,15 @@ export default function AdminReviewPage() {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, isTransitioning, showCompletion, showDenialDialog, currentSubmission])
+  }, [
+    currentIndex,
+    isTransitioning,
+    showCompletion,
+    showDenialDialog,
+    showMaybeDialog,
+    showApprovalDialog,
+    currentSubmission,
+  ])
 
   // Handle return to dashboard
   const handleReturnToDashboard = () => {
@@ -312,6 +360,7 @@ export default function AdminReviewPage() {
         approvedCount={reviewedSubmissions.approved.length}
         deniedCount={reviewedSubmissions.denied.length}
         maybeCount={reviewedSubmissions.maybe.length}
+        warning={reviewWarning}
         onReturnToDashboard={handleReturnToDashboard}
       />
     )
@@ -331,6 +380,15 @@ export default function AdminReviewPage() {
           </Button>
         </Link>
       </div>
+
+      {reviewWarning && (
+        <div
+          role="alert"
+          className="mx-auto w-full max-w-2xl rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900"
+        >
+          <strong>Warning:</strong> {reviewWarning}
+        </div>
+      )}
 
       {/* Submission Card with fade transition - scrollable on mobile */}
       <div
@@ -420,6 +478,16 @@ export default function AdminReviewPage() {
         open={showDenialDialog}
         onOpenChange={setShowDenialDialog}
         onConfirm={handleDenyConfirm}
+      />
+
+      {/* Maybe Reason Dialog */}
+      <MaybeReasonDialog
+        open={showMaybeDialog}
+        onOpenChange={setShowMaybeDialog}
+        onConfirm={handleMaybeConfirm}
+        isLoading={isTransitioning}
+        error={maybeError}
+        defaultReason={suggestedMaybeReason}
       />
 
       {/* Approval Dialog */}

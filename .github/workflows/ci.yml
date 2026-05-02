@@ -14,7 +14,28 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Prisma schema validation/generation needs both URLs because schema.prisma
+  # references a runtime Accelerate URL and a direct migration URL.
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  PRISMA_DATABASE_URL: prisma+postgres://localhost:51213/?api_key=ci_placeholder
+
 jobs:
+  prisma:
+    name: Prisma
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Generate Prisma client
+        run: npx prisma generate
+
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
@@ -25,6 +46,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
       - run: npx prisma generate
       - name: ESLint
         run: npm run lint
@@ -41,9 +64,11 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
       - run: npx prisma generate
       - name: tsc --noEmit
-        run: npx tsc --noEmit
+        run: npx tsc --noEmit --incremental false
 
   test:
     name: Test
@@ -55,6 +80,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
       - run: npx prisma generate
       - name: Vitest
         run: npm test -- --run
@@ -76,10 +103,13 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
       - run: npx prisma generate
-      - name: Next build
-        run: npm run build
+      - name: Vercel build wrapper
+        run: npm run vercel-build
         env:
+          VERCEL_ENV: preview
           # Build-time placeholders — real values come from Vercel at deploy time.
           # Values just need to be non-empty strings that pass env-var validation.
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
@@ -87,8 +117,6 @@ jobs:
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder
           STRIPE_PRICE_ID: price_ci_placeholder
           STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-          PRISMA_DATABASE_URL: prisma+postgres://ci:ci@localhost:5432/ci
           BETTER_AUTH_SECRET: ci_placeholder_secret_at_least_32_chars_long
           BETTER_AUTH_URL: http://localhost:3000
           RESEND_API_KEY: re_ci_placeholder

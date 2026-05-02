@@ -13,6 +13,7 @@ const {
   mockUpdate,
   mockUpdateMany,
   mockSendDenialEmail,
+  mockSendMaybeEmail,
   mockGetSession,
 } = vi.hoisted(() => ({
   mockRefundsCreate: vi.fn(),
@@ -20,6 +21,7 @@ const {
   mockUpdate: vi.fn(),
   mockUpdateMany: vi.fn(),
   mockSendDenialEmail: vi.fn(),
+  mockSendMaybeEmail: vi.fn(),
   mockGetSession: vi.fn(),
 }))
 
@@ -48,6 +50,7 @@ vi.mock('@/lib/prisma', () => ({
 // Mock email utility
 vi.mock('@/lib/email', () => ({
   sendDenialEmail: mockSendDenialEmail,
+  sendMaybeEmail: mockSendMaybeEmail,
 }))
 
 // Mock Better Auth
@@ -69,8 +72,8 @@ vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }))
 
-// Now import the function under test
-import { denySubmission } from './actions'
+// Now import the functions under test
+import { changeSubmissionStatus, denySubmission, maybeSubmission } from './actions'
 
 describe('denySubmission - Denial Automation', () => {
   const mockSubmissionId = 'sub_123'
@@ -447,5 +450,167 @@ describe('denySubmission - Denial Automation', () => {
         })
       )
     })
+  })
+})
+
+describe('maybeSubmission - Maybe Review Workflow', () => {
+  const mockSubmissionId = 'sub_123'
+  const mockDoctorId = 'doctor_123'
+
+  const mockSubmission = {
+    id: mockSubmissionId,
+    stripePaymentIntentId: 'pi_test_123',
+    stripeRefundId: null,
+    email: 'patient@example.com',
+    patientFirstName: 'John',
+    patientLastName: 'Doe',
+    status: SubmissionStatus.PENDING_REVIEW,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({
+      user: { id: mockDoctorId },
+    })
+    mockUpdate.mockResolvedValue({})
+    mockUpdateMany.mockResolvedValue({ count: 1 })
+    mockSendMaybeEmail.mockResolvedValue({ id: 'email_123' })
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('moves a pending submission to maybe, sends email, and stores the email timestamp', async () => {
+    mockFindUnique.mockResolvedValue(mockSubmission)
+
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'DATES_EXCEED_ALLOWED_RANGE',
+      internalNote: 'Review date range',
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: mockSubmissionId,
+          status: SubmissionStatus.PENDING_REVIEW,
+        },
+        data: expect.objectContaining({
+          status: SubmissionStatus.MAYBE,
+          maybeReason: 'DATES_EXCEED_ALLOWED_RANGE',
+          maybeInternalNote: 'Review date range',
+          maybeEmailSentAt: null,
+          reviewedByAdminId: mockDoctorId,
+          reviewedAt: expect.any(Date),
+        }),
+      })
+    )
+    expect(mockSendMaybeEmail).toHaveBeenCalledWith({
+      to: 'patient@example.com',
+      patientName: 'John Doe',
+      reason: 'DATES_EXCEED_ALLOWED_RANGE',
+    })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: mockSubmissionId },
+      data: { maybeEmailSentAt: expect.any(Date) },
+    })
+  })
+
+  it('moves a pending submission to maybe without email for the internal-only reason', async () => {
+    mockFindUnique.mockResolvedValue(mockSubmission)
+
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'INTERNAL_ONLY',
+      internalNote: 'Fix note reason',
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockSendMaybeEmail).not.toHaveBeenCalled()
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: mockSubmissionId,
+          status: SubmissionStatus.PENDING_REVIEW,
+        },
+        data: expect.objectContaining({
+          status: SubmissionStatus.MAYBE,
+          maybeReason: 'INTERNAL_ONLY',
+          maybeInternalNote: 'Fix note reason',
+          maybeEmailSentAt: null,
+        }),
+      })
+    )
+  })
+
+  it('does not send maybe email when a non-pending submission is moved to maybe', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...mockSubmission,
+      status: SubmissionStatus.APPROVED,
+    })
+
+    const result = await changeSubmissionStatus(
+      mockSubmissionId,
+      SubmissionStatus.MAYBE,
+      undefined,
+      { reason: 'OTHER_REVIEW' }
+    )
+
+    expect(result).toEqual({ success: true })
+    expect(mockSendMaybeEmail).not.toHaveBeenCalled()
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: SubmissionStatus.MAYBE,
+          maybeReason: 'OTHER_REVIEW',
+          maybeEmailSentAt: null,
+        }),
+      })
+    )
+  })
+
+  it('rejects invalid maybe reasons', async () => {
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'NOT_A_REAL_REASON',
+    })
+
+    expect(result).toEqual({ success: false, error: 'Invalid maybe reason' })
+    expect(mockFindUnique).not.toHaveBeenCalled()
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockSendMaybeEmail).not.toHaveBeenCalled()
+  })
+
+  it('still moves to maybe when email sending fails', async () => {
+    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockSendMaybeEmail.mockRejectedValue(new Error('Email unavailable'))
+
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'OTHER_REVIEW',
+    })
+
+    expect(result).toEqual({
+      success: true,
+      warning: 'Submission moved to Maybe, but email notification failed to send',
+    })
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockSendMaybeEmail).toHaveBeenCalled()
+  })
+
+  it('does not send duplicate email if another doctor already moved the pending submission', async () => {
+    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockUpdateMany.mockResolvedValue({ count: 0 })
+
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'OTHER_REVIEW',
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: 'This submission has already been reviewed by another doctor',
+    })
+    expect(mockSendMaybeEmail).not.toHaveBeenCalled()
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 })

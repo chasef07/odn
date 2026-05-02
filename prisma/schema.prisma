@@ -145,6 +145,11 @@ model Submission {
   // Denial Information (only if status = DENIED)
   denialReason          String?   @map("denial_reason") // "Legal", "7+ days", "Duplicate", "Refund", "Under 18", or "Other"
 
+  // Maybe Review Information (only if status = MAYBE)
+  maybeReason       String?   @map("maybe_reason")
+  maybeInternalNote String?   @map("maybe_internal_note") @db.Text
+  maybeEmailSentAt  DateTime? @map("maybe_email_sent_at")
+
 
   // Refund Tracking
   stripeRefundId  String?   @map("stripe_refund_id")  // "re_1ABC123..."
