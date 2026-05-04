@@ -17,11 +17,11 @@ const run = (command, args) => {
   }
 }
 
-if (process.env.VERCEL_ENV === 'production') {
+if (process.env.RUN_PRISMA_MIGRATE_DEPLOY === 'true') {
   run('npx', ['prisma', 'migrate', 'deploy'])
 } else {
   process.stdout.write(
-    `Skipping prisma migrate deploy for VERCEL_ENV=${process.env.VERCEL_ENV ?? 'unset'}.\n`
+    'Skipping prisma migrate deploy. Database schema changes are applied separately for this project.\n'
   )
 }
 
