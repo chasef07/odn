@@ -81,6 +81,10 @@ describe('STATE_LICENSES', () => {
     it('should have correct Florida license number', () => {
       expect(STATE_LICENSES['Florida']).toBe('ME90639')
     })
+
+    it('should have correct Virginia license number', () => {
+      expect(STATE_LICENSES['Virginia']).toBe('0101285993')
+    })
   })
 })
 

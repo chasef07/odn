@@ -37,6 +37,7 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/email', () => ({
   sendDenialEmail: vi.fn(), // Keep for other tests
   sendApprovalEmail: mockSendApprovalEmail,
+  sendMaybeEmail: vi.fn(),
 }))
 
 // Mock PDF generation utilities

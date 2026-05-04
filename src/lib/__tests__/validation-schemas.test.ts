@@ -11,6 +11,7 @@ import {
   page8Schema,
   page9Schema,
   page10Schema,
+  LEGAL_NOTE_PURPOSE_ERROR,
 } from '../validation-schemas'
 
 describe('Validation Schemas', () => {
@@ -502,6 +503,16 @@ describe('Validation Schemas', () => {
         otherNotePurpose: 'Personal reasons',
       })
       expect(result.success).toBe(true)
+    })
+
+    it('should reject legal matters as note purpose', () => {
+      const result = page5Schema.safeParse({ notePurpose: 'legal' })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(
+          result.error.issues.some((issue) => issue.message === LEGAL_NOTE_PURPOSE_ERROR)
+        ).toBe(true)
+      }
     })
 
     it('should reject null note purpose', () => {

@@ -30,7 +30,10 @@ import {
 } from '@/components/ui/dialog'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
+import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
+import { calculateDaysDifference } from '@/lib/admin-utils'
+import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import {
   updateSubmission,
   approveSubmission,
@@ -38,6 +41,7 @@ import {
   denySubmission,
   changeSubmissionStatus,
   type FormattedSubmission,
+  type MaybeSubmissionInput,
 } from '@/app/admin/actions'
 import { SubmissionStatus } from '@prisma/client'
 
@@ -65,6 +69,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const [showManualDialog, setShowManualDialog] = useState(false)
   const [denialReason, setDenialReason] = useState('')
   const [otherDenialReason, setOtherDenialReason] = useState('')
+  const [maybeError, setMaybeError] = useState<string | null>(null)
 
   // Form state
   const [patientFirstName, setPatientFirstName] = useState(submission.patientFirstName)
@@ -105,6 +110,10 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
   // Restrictions toggle for PDF (ephemeral - not stored in database)
   const [withRestrictions, setWithRestrictions] = useState(true)
+  const suggestedMaybeReason =
+    calculateDaysDifference(firstDayOff, lastDayOff) > 7
+      ? DATES_EXCEED_ALLOWED_RANGE_REASON
+      : undefined
 
   const handleSave = async () => {
     setIsLoading(true)
@@ -223,22 +232,27 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     }
   }
 
-  const handleMaybe = async () => {
+  const handleMaybe = async (input: MaybeSubmissionInput) => {
     setIsLoading(true)
-    setError(null)
+    setMaybeError(null)
 
     try {
-      const result = await changeSubmissionStatus(submission.id, SubmissionStatus.MAYBE)
+      const result = await changeSubmissionStatus(
+        submission.id,
+        SubmissionStatus.MAYBE,
+        undefined,
+        input
+      )
 
       if (result.success) {
         setShowMaybeDialog(false)
-        setSuccess('Submission marked as Maybe!')
+        setSuccess(result.warning || 'Submission marked as Maybe!')
         router.refresh()
       } else {
-        setError(result.error || 'Failed to mark as maybe')
+        setMaybeError(result.error || 'Failed to mark as maybe')
       }
     } catch {
-      setError('An unexpected error occurred')
+      setMaybeError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
     }
@@ -329,7 +343,10 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             )}
             {showMaybeButton && (
               <Button
-                onClick={() => setShowMaybeDialog(true)}
+                onClick={() => {
+                  setMaybeError(null)
+                  setShowMaybeDialog(true)
+                }}
                 disabled={isLoading}
                 variant="outline"
                 size="sm"
@@ -893,33 +910,15 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
       </Dialog>
 
       {/* Maybe Dialog */}
-      <Dialog open={showMaybeDialog} onOpenChange={setShowMaybeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Mark as Maybe?</DialogTitle>
-            <DialogDescription>
-              This will move the submission to the Maybe queue for further review. No emails will be
-              sent.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowMaybeDialog(false)}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleMaybe}
-              disabled={isLoading}
-              className="border-yellow-500 bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
-            >
-              {isLoading ? 'Processing...' : 'Mark as Maybe'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <MaybeReasonDialog
+        open={showMaybeDialog}
+        onOpenChange={setShowMaybeDialog}
+        onConfirm={handleMaybe}
+        isLoading={isLoading}
+        error={maybeError}
+        defaultReason={suggestedMaybeReason}
+        canSendEmail={submission.status === SubmissionStatus.PENDING_REVIEW}
+      />
 
       {/* Manual Dialog */}
       <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>

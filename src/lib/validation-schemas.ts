@@ -220,9 +220,12 @@ export const page4Schema = z.object({
   state: z.string().min(1, 'Please select your state'),
 })
 
+export const LEGAL_NOTE_PURPOSE_ERROR =
+  'Thank you for your interest in our services. Unfortunately, our notes cannot be used for legal matters, including jury duty, court, probation, or similar obligations. We apologize for any inconvenience.'
+
 export const page5Schema = z
   .object({
-    notePurpose: z.enum(['work', 'school', 'both', 'travel', 'other']).nullable(),
+    notePurpose: z.enum(['work', 'school', 'both', 'travel', 'legal', 'other']).nullable(),
     otherNotePurpose: z
       .string()
       .max(500, 'Purpose description must be less than 500 characters')
@@ -230,6 +233,10 @@ export const page5Schema = z
   })
   .refine((data) => data.notePurpose !== null, {
     message: 'Please select the purpose of this note',
+    path: ['notePurpose'],
+  })
+  .refine((data) => data.notePurpose !== 'legal', {
+    message: LEGAL_NOTE_PURPOSE_ERROR,
     path: ['notePurpose'],
   })
   .refine(

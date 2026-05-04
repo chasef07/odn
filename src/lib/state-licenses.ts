@@ -45,7 +45,7 @@ export const STATE_LICENSES: Record<string, string> = {
   Texas: 'V6158',
   Utah: '14202942-1235',
   Vermont: '42.0018404',
-  Virginia: '101285993',
+  Virginia: '0101285993',
   Washington: 'MD61657419',
   'West Virginia': '36273',
   Wisconsin: '13136-320',

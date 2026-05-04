@@ -71,7 +71,7 @@ export const NOTE_PURPOSES = {
   },
   other: {
     label: 'Other',
-    description: 'Select this if the note is for court, volunteer work, or another reason.',
+    description: 'Select this if the note is for volunteer work or another non-legal reason.',
   },
 } as const
 

@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
 import { sendPaymentConfirmationEmail } from '@/lib/email'
 import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
+import { INTERNAL_ONLY_MAYBE_REASON } from '@/lib/maybe-reasons'
 import { revalidatePath } from 'next/cache'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -214,12 +215,12 @@ export async function POST(request: NextRequest) {
           // System fields
           stripePaymentIntentId: paymentIntent.id,
           status: hasValidationFailure ? SubmissionStatus.MAYBE : SubmissionStatus.PENDING_REVIEW,
-          // If validation failed, stash reasons in denialReason as an admin note.
-          // (denialReason is the closest free-text admin field on the Submission
-          // model; see prisma/schema.prisma.)
-          denialReason: hasValidationFailure
+          denialReason: null,
+          maybeReason: hasValidationFailure ? INTERNAL_ONLY_MAYBE_REASON : null,
+          maybeInternalNote: hasValidationFailure
             ? `Auto-flagged: ${validationReasons.join('; ')}`
             : null,
+          maybeEmailSentAt: null,
 
           // Direct copy fields
           state: formData.state!,

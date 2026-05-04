@@ -10,6 +10,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { MaybeActionButtons } from './MaybeActionButtons'
 import { ManualActionButtons } from './ManualActionButtons'
 import { formatDateWithTime } from '@/lib/admin-utils'
+import { getMaybeReasonLabel } from '@/lib/maybe-reasons'
 import type { MaybeSubmission, ManualSubmission } from '@/app/admin/actions'
 
 // Helper to format calendar dates consistently in UTC
@@ -134,6 +135,22 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                   >
                     Absence Dates
                   </th>
+                  {activeTab === 'maybe' && (
+                    <>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                      >
+                        Reason
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                      >
+                        Email
+                      </th>
+                    </>
+                  )}
                   <th
                     scope="col"
                     className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
@@ -146,34 +163,50 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {submissions.map((submission) => (
-                  <tr key={submission.id} className="transition-colors hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
-                      {submission.patientFirstName} {submission.patientLastName}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      <a
-                        href={`mailto:${submission.email}`}
-                        className="text-blue-600 hover:underline"
-                      >
-                        {submission.email}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-600">
-                      {formatDateRange(submission.firstDayOff, submission.lastDayOff)}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-                      {submission.reviewedAt ? formatDateWithTime(submission.reviewedAt) : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-                      {activeTab === 'maybe' ? (
-                        <MaybeActionButtons submissionId={submission.id} />
-                      ) : (
-                        <ManualActionButtons submissionId={submission.id} />
+                {submissions.map((submission) => {
+                  const maybeSubmission =
+                    activeTab === 'maybe' ? (submission as MaybeSubmission) : null
+                  const maybeEmailSentAt = maybeSubmission?.maybeEmailSentAt ?? null
+
+                  return (
+                    <tr key={submission.id} className="transition-colors hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
+                        {submission.patientFirstName} {submission.patientLastName}
+                      </td>
+                      <td className="px-6 py-4 text-sm whitespace-nowrap">
+                        <a
+                          href={`mailto:${submission.email}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {submission.email}
+                        </a>
+                      </td>
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-600">
+                        {formatDateRange(submission.firstDayOff, submission.lastDayOff)}
+                      </td>
+                      {maybeSubmission && (
+                        <>
+                          <td className="max-w-[220px] px-6 py-4 text-sm text-gray-600">
+                            {getMaybeReasonLabel(maybeSubmission.maybeReason)}
+                          </td>
+                          <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
+                            {maybeEmailSentAt ? formatDateWithTime(maybeEmailSentAt) : 'Not sent'}
+                          </td>
+                        </>
                       )}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
+                        {submission.reviewedAt ? formatDateWithTime(submission.reviewedAt) : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
+                        {activeTab === 'maybe' ? (
+                          <MaybeActionButtons submissionId={submission.id} />
+                        ) : (
+                          <ManualActionButtons submissionId={submission.id} />
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

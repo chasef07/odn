@@ -162,7 +162,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(createArg.data.denialReason).toBeNull()
   })
 
-  it('routes to MAYBE with denialReason note when absence exceeds 7 days', async () => {
+  it('routes to MAYBE with an internal maybe reason note when absence exceeds 7 days', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
     const badFormData = {
       ...validFormData,
@@ -188,8 +188,11 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(mockSubmissionCreate).toHaveBeenCalledTimes(1)
     const createArg = mockSubmissionCreate.mock.calls[0][0]
     expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.denialReason).toMatch(/Auto-flagged/)
-    expect(createArg.data.denialReason).toMatch(/7 consecutive days/i)
+    expect(createArg.data.denialReason).toBeNull()
+    expect(createArg.data.maybeReason).toBe('INTERNAL_ONLY')
+    expect(createArg.data.maybeInternalNote).toMatch(/Auto-flagged/)
+    expect(createArg.data.maybeInternalNote).toMatch(/7 consecutive days/i)
+    expect(createArg.data.maybeEmailSentAt).toBeNull()
 
     // Clear admin-facing log so doctor can find the submission
     expect(consoleError).toHaveBeenCalled()
@@ -224,7 +227,9 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
     const createArg = mockSubmissionCreate.mock.calls[0][0]
     expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.denialReason).toMatch(/18 or older/i)
+    expect(createArg.data.denialReason).toBeNull()
+    expect(createArg.data.maybeReason).toBe('INTERNAL_ONLY')
+    expect(createArg.data.maybeInternalNote).toMatch(/18 or older/i)
   })
 
   it('routes to MAYBE when recipient=someone_else and patient DOB is in the future', async () => {
@@ -255,7 +260,9 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
     const createArg = mockSubmissionCreate.mock.calls[0][0]
     expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.denialReason).toMatch(/valid patient date of birth/i)
+    expect(createArg.data.denialReason).toBeNull()
+    expect(createArg.data.maybeReason).toBe('INTERNAL_ONLY')
+    expect(createArg.data.maybeInternalNote).toMatch(/valid patient date of birth/i)
   })
 
   it('keeps malformed paid submissions retryable when required persisted fields are missing', async () => {

@@ -22,7 +22,7 @@ vi.mock('@react-email/render', () => ({
   render: mockRender,
 }))
 
-import { sendDenialEmail, sendPaymentConfirmationEmail } from '../email'
+import { sendDenialEmail, sendMaybeEmail, sendPaymentConfirmationEmail } from '../email'
 
 describe('sendDenialEmail', () => {
   beforeEach(() => {
@@ -165,6 +165,44 @@ describe('sendDenialEmail', () => {
         })
       ).rejects.toThrow('Failed to send denial email: Email service unavailable')
     })
+  })
+})
+
+describe('sendMaybeEmail', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockRender.mockResolvedValue('<html>Maybe email</html>')
+  })
+
+  it('should send a maybe update email with correct parameters', async () => {
+    mockEmailSend.mockResolvedValue({ id: 'email_789' })
+
+    await sendMaybeEmail({
+      to: 'patient@example.com',
+      patientName: 'John Doe',
+      reason: 'DATES_EXCEED_ALLOWED_RANGE',
+    })
+
+    expect(mockRender).toHaveBeenCalledTimes(1)
+    expect(mockEmailSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'patient@example.com',
+        subject: "Update on your doctor's note request",
+        html: '<html>Maybe email</html>',
+      })
+    )
+  })
+
+  it('should throw error if maybe email sending fails', async () => {
+    mockEmailSend.mockRejectedValue(new Error('Email service unavailable'))
+
+    await expect(
+      sendMaybeEmail({
+        to: 'patient@example.com',
+        patientName: 'John Doe',
+        reason: 'OTHER_REVIEW',
+      })
+    ).rejects.toThrow('Failed to send maybe email: Email service unavailable')
   })
 })
 

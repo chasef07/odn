@@ -10,6 +10,7 @@ interface CompletionScreenProps {
   approvedCount: number
   deniedCount: number
   maybeCount?: number
+  warning?: string | null
   onReturnToDashboard: () => void
 }
 
@@ -17,6 +18,7 @@ export function CompletionScreen({
   approvedCount,
   deniedCount,
   maybeCount = 0,
+  warning,
   onReturnToDashboard,
 }: CompletionScreenProps) {
   return (
@@ -28,6 +30,15 @@ export function CompletionScreen({
             <h1 className="text-3xl font-bold">All caught up!</h1>
             <p className="text-muted-foreground">You reviewed all pending submissions</p>
           </div>
+
+          {warning && (
+            <div
+              role="alert"
+              className="rounded-md border border-yellow-200 bg-yellow-50 p-4 text-left text-sm text-yellow-900"
+            >
+              <strong>Warning:</strong> {warning}
+            </div>
+          )}
 
           {/* Stats Summary */}
           <div className="space-y-3 border-y py-6">
