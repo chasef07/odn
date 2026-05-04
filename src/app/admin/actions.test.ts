@@ -486,6 +486,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
 
     const result = await maybeSubmission(mockSubmissionId, {
       reason: 'DATES_EXCEED_ALLOWED_RANGE',
+      approvedDays: 3,
       internalNote: 'Review date range',
     })
 
@@ -500,6 +501,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
           status: SubmissionStatus.MAYBE,
           maybeReason: 'DATES_EXCEED_ALLOWED_RANGE',
           maybeInternalNote: 'Review date range',
+          maybeApprovedDays: 3,
           maybeEmailSentAt: null,
           reviewedByAdminId: mockDoctorId,
           reviewedAt: expect.any(Date),
@@ -510,6 +512,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
       to: 'patient@example.com',
       patientName: 'John Doe',
       reason: 'DATES_EXCEED_ALLOWED_RANGE',
+      approvedDays: 3,
     })
     expect(mockUpdate).toHaveBeenCalledWith({
       where: { id: mockSubmissionId },
@@ -538,6 +541,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
           status: SubmissionStatus.MAYBE,
           maybeReason: 'INTERNAL_ONLY',
           maybeInternalNote: 'Fix note reason',
+          maybeApprovedDays: null,
           maybeEmailSentAt: null,
         }),
       })
@@ -564,10 +568,40 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
         data: expect.objectContaining({
           status: SubmissionStatus.MAYBE,
           maybeReason: 'OTHER_REVIEW',
+          maybeApprovedDays: null,
           maybeEmailSentAt: null,
         }),
       })
     )
+  })
+
+  it('requires approved day selection for dates-exceed maybe reason', async () => {
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'DATES_EXCEED_ALLOWED_RANGE',
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Select how many days can be approved',
+    })
+    expect(mockFindUnique).not.toHaveBeenCalled()
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+    expect(mockSendMaybeEmail).not.toHaveBeenCalled()
+  })
+
+  it('rejects approved day selections outside 1 through 5', async () => {
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'DATES_EXCEED_ALLOWED_RANGE',
+      approvedDays: 6,
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Select how many days can be approved',
+    })
+    expect(mockFindUnique).not.toHaveBeenCalled()
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+    expect(mockSendMaybeEmail).not.toHaveBeenCalled()
   })
 
   it('rejects invalid maybe reasons', async () => {

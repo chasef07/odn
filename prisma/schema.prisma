@@ -148,6 +148,7 @@ model Submission {
   // Maybe Review Information (only if status = MAYBE)
   maybeReason       String?   @map("maybe_reason")
   maybeInternalNote String?   @map("maybe_internal_note") @db.Text
+  maybeApprovedDays Int?      @map("maybe_approved_days")
   maybeEmailSentAt  DateTime? @map("maybe_email_sent_at")
 
 

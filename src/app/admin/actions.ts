@@ -16,7 +16,13 @@ import { sendDenialEmail, sendApprovalEmail, sendMaybeEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { getBusinessDayStart } from '@/lib/admin-utils'
 import { formatDateUTC } from '@/lib/utils'
-import { getMaybeReasonConfig, type MaybeReason } from '@/lib/maybe-reasons'
+import {
+  getMaybeReasonConfig,
+  isMaybeApprovedDays,
+  maybeReasonRequiresApprovedDays,
+  type MaybeApprovedDays,
+  type MaybeReason,
+} from '@/lib/maybe-reasons'
 
 // Export shared submission types for components
 export type MaybeSubmission = Awaited<ReturnType<typeof getMaybeSubmissions>>['submissions'][number]
@@ -27,6 +33,7 @@ export type ManualSubmission = Awaited<
 export type MaybeSubmissionInput = {
   reason: MaybeReason | string
   internalNote?: string
+  approvedDays?: MaybeApprovedDays | number
 }
 
 // Initialize Stripe client
@@ -733,6 +740,19 @@ async function moveSubmissionToMaybe({
     return { success: false, error: 'Invalid maybe reason' }
   }
 
+  const requiresApprovedDays = maybeReasonRequiresApprovedDays(reasonConfig.value)
+  const approvedDays = input.approvedDays
+
+  if (requiresApprovedDays) {
+    if (typeof approvedDays !== 'number' || !isMaybeApprovedDays(approvedDays)) {
+      return {
+        success: false,
+        error: 'Select how many days can be approved',
+      }
+    }
+  }
+  const maybeApprovedDays = requiresApprovedDays ? (approvedDays as MaybeApprovedDays) : null
+
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
   })
@@ -749,6 +769,7 @@ async function moveSubmissionToMaybe({
     status: SubmissionStatus.MAYBE,
     maybeReason: reasonConfig.value,
     maybeInternalNote: internalNote,
+    maybeApprovedDays,
     maybeEmailSentAt: null,
     reviewedByAdminId: doctorId,
     reviewedAt: now,
@@ -784,6 +805,7 @@ async function moveSubmissionToMaybe({
         to: submission.email,
         patientName: `${submission.patientFirstName} ${submission.patientLastName}`,
         reason: reasonConfig.value,
+        approvedDays: maybeApprovedDays,
       })
 
       await prisma.submission.update({
@@ -872,6 +894,7 @@ export async function getMaybeSubmissions() {
         firstDayOff: true,
         lastDayOff: true,
         maybeReason: true,
+        maybeApprovedDays: true,
         maybeEmailSentAt: true,
         reviewedAt: true,
       },
@@ -889,6 +912,7 @@ export async function getMaybeSubmissions() {
       firstDayOff: formatDateUTC(sub.firstDayOff),
       lastDayOff: formatDateUTC(sub.lastDayOff),
       maybeReason: sub.maybeReason,
+      maybeApprovedDays: sub.maybeApprovedDays,
       maybeEmailSentAt: sub.maybeEmailSentAt,
       reviewedAt: sub.reviewedAt,
     }))
