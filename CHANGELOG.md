@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.5.0] - 2026-05-04
+
+### Added
+
+- **Maybe review email workflow** — Added structured maybe reasons, internal notes, optional patient emails, sent timestamps, admin dialogs, queue badges, and completion-screen warning surfacing
+- **Legal request blocking** — Blocked jury duty, court, probation, lawsuit, attorney, and other legal-matter note requests before checkout and in paid-submission server validation
+- **CI Prisma checks** — Added CI coverage for Prisma schema validation and client generation
+
+### Changed
+
+- **Production build safety** — Vercel builds now skip `prisma migrate deploy` by default; deploy-time migrations require `RUN_PRISMA_MIGRATE_DEPLOY=true`
+- **Virginia NPI license data** — Updated the Virginia license number to `0101285993`
+- **GitHub automation cleanup** — Removed Claude reviewer workflows and Dependabot config after closing legacy Dependabot pull requests
+- **PDF wording** — Removed the travel-note return sentence and tightened absence-reason-specific condition language
+
+### Fixed
+
+- **Maybe metadata schema** — Added nullable `maybe_reason`, `maybe_internal_note`, and `maybe_email_sent_at` fields for production review state
+- **Re-approval wiring** — Fixed the re-approve action path so admin approvals behave consistently
+- **Tracking CSP** — Allowed the Reddit Pixel endpoint needed by the production content security policy
+- **Hero mobile overlap** — Fixed the overlapping hero phrase layout on narrow viewports
+
 ## [5.0.0] - 2026-04-19
 
 ### Added
