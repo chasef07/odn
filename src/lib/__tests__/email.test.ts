@@ -181,6 +181,7 @@ describe('sendMaybeEmail', () => {
       to: 'patient@example.com',
       patientName: 'John Doe',
       reason: 'DATES_EXCEED_ALLOWED_RANGE',
+      approvedDays: 3,
     })
 
     expect(mockRender).toHaveBeenCalledTimes(1)

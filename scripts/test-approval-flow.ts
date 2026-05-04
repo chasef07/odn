@@ -52,6 +52,7 @@ const mockSubmission: Submission = {
   denialReason: null,
   maybeReason: null,
   maybeInternalNote: null,
+  maybeApprovedDays: null,
   maybeEmailSentAt: null,
   stripeRefundId: null,
   refundedAt: null,

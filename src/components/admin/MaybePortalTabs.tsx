@@ -188,6 +188,12 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                         <>
                           <td className="max-w-[220px] px-6 py-4 text-sm text-gray-600">
                             {getMaybeReasonLabel(maybeSubmission.maybeReason)}
+                            {maybeSubmission.maybeApprovedDays && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                Can approve {maybeSubmission.maybeApprovedDays}{' '}
+                                {maybeSubmission.maybeApprovedDays === 1 ? 'day' : 'days'}
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
                             {maybeEmailSentAt ? formatDateWithTime(maybeEmailSentAt) : 'Not sent'}

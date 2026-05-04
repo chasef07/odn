@@ -12,20 +12,28 @@ import {
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
 import * as React from 'react'
-import { DEFAULT_MAYBE_REASON, getMaybeReasonConfig, type MaybeReason } from '@/lib/maybe-reasons'
+import {
+  DATES_EXCEED_ALLOWED_RANGE_REASON,
+  DEFAULT_MAYBE_REASON,
+  getMaybeEmailMessage,
+  type MaybeApprovedDays,
+  type MaybeReason,
+} from '@/lib/maybe-reasons'
 
 interface MaybeEmailProps {
   patientName: string
   reason: MaybeReason
+  approvedDays?: MaybeApprovedDays | null
 }
 
 export const MaybeEmail = ({
   patientName = 'Patient',
   reason = DEFAULT_MAYBE_REASON,
+  approvedDays = null,
 }: MaybeEmailProps) => {
-  const reasonConfig = getMaybeReasonConfig(reason) ?? getMaybeReasonConfig(DEFAULT_MAYBE_REASON)
   const currentYear = new Date().getFullYear()
-  const messageParagraphs = reasonConfig?.emailMessage.split('\n\n') ?? []
+  const isDatesExceedAllowedRange = reason === DATES_EXCEED_ALLOWED_RANGE_REASON
+  const messageParagraphs = getMaybeEmailMessage({ reason, approvedDays })
 
   return (
     <Html>
@@ -42,7 +50,13 @@ export const MaybeEmail = ({
 
             <Section className="bg-white px-8 py-8">
               <Text className="mb-6 text-base leading-relaxed text-gray-900">
-                Hi <strong>{patientName}</strong>,
+                {isDatesExceedAllowedRange ? (
+                  'Hello,'
+                ) : (
+                  <>
+                    Hi <strong>{patientName}</strong>,
+                  </>
+                )}
               </Text>
 
               <Section
@@ -69,8 +83,12 @@ export const MaybeEmail = ({
 
               <Text className="mb-6 text-base leading-relaxed text-gray-700">
                 Thank you,
-                <br />
-                Platinum Health
+                {!isDatesExceedAllowedRange && (
+                  <>
+                    <br />
+                    Platinum Health
+                  </>
+                )}
               </Text>
 
               <Hr className="my-8 border-gray-200" />

@@ -5,7 +5,7 @@ import ApprovalEmail from '@/emails/ApprovalEmail'
 import PaymentConfirmationEmail from '@/emails/PaymentConfirmationEmail'
 import BounceAlertEmail from '@/emails/BounceAlertEmail'
 import MaybeEmail from '@/emails/MaybeEmail'
-import type { MaybeReason } from '@/lib/maybe-reasons'
+import type { MaybeApprovedDays, MaybeReason } from '@/lib/maybe-reasons'
 
 // Initialize Resend client with API key from environment
 export const resend = new Resend(process.env.RESEND_API_KEY)
@@ -171,6 +171,7 @@ export async function sendPaymentConfirmationEmail({
  * @param to - Recipient email address
  * @param patientName - Patient's full name
  * @param reason - Maybe reason that drives the email body
+ * @param approvedDays - Number of days approved for date-range maybe emails
  * @returns Promise that resolves to the email send result
  * @throws Error if email sending fails
  */
@@ -178,16 +179,19 @@ export async function sendMaybeEmail({
   to,
   patientName,
   reason,
+  approvedDays,
 }: {
   to: string
   patientName: string
   reason: MaybeReason
+  approvedDays?: MaybeApprovedDays | null
 }) {
   try {
     const emailHtml = await render(
       MaybeEmail({
         patientName,
         reason,
+        approvedDays,
       })
     )
 
