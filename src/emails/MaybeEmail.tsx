@@ -86,7 +86,7 @@ export const MaybeEmail = ({
                 {!isDatesExceedAllowedRange && (
                   <>
                     <br />
-                    Platinum Health
+                    OnlineDoctorNote
                   </>
                 )}
               </Text>

@@ -14,6 +14,8 @@ describe('MaybeEmail', () => {
 
       expect(html).toContain('Hi <strong>John Doe</strong>')
       expect(html).toContain('Additional review needed')
+      expect(html).toContain('OnlineDoctorNote')
+      expect(html).not.toContain('Platinum Health')
       for (const paragraph of reason.emailMessage.split('\n\n')) {
         expect(html).toContain(paragraph.replaceAll("'", '&#x27;'))
       }
