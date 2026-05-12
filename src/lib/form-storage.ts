@@ -46,6 +46,9 @@ export interface FormData {
   // Page 10 - Review & Terms
   certifyAccurate?: boolean
   agreeTerms?: boolean
+
+  // Offer links
+  offerCode?: string
 }
 
 const FORM_STORAGE_KEY = 'doctor-note-form-draft'

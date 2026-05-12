@@ -94,6 +94,9 @@ model Submission {
   // Primary Keys & IDs
   id                    String   @id @default(uuid())
   stripePaymentIntentId String   @unique @map("stripe_payment_intent_id")
+  paymentAmount         Int?     @map("payment_amount")
+  offerCode             String?  @map("offer_code")
+  offerPriceId          String?  @map("offer_price_id")
 
 
   // Status Tracking
@@ -171,4 +174,5 @@ model Submission {
   @@index([status, createdAt])
   @@index([patientFirstName, patientLastName, patientDateOfBirth, status])
   @@index([email, status])
+  @@index([offerCode])
 }

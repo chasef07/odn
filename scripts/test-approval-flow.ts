@@ -26,6 +26,9 @@ config({ path: '.env.local', override: true })
 const mockSubmission: Submission = {
   id: 'test_submission_123',
   stripePaymentIntentId: 'pi_test_123',
+  paymentAmount: 2495,
+  offerCode: null,
+  offerPriceId: null,
   status: SubmissionStatus.PENDING_REVIEW,
   state: 'California',
   recipient: 'myself',

@@ -4,6 +4,12 @@ import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
 import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { getCachedPrice } from '@/lib/stripe-price'
+import {
+  FRIENDS_FAMILY_OFFER_CODE,
+  isFriendsFamilyOfferCode,
+  normalizeOfferCode,
+  type PriceType,
+} from '@/lib/offer-codes'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Parse request body
     const body = await request.json()
-    const { formData } = body as { formData: FormData }
+    const { formData, offerCode } = body as { formData: FormData; offerCode?: string }
 
     if (!formData) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 })
@@ -60,10 +66,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validation.errors[0] }, { status: 400 })
     }
 
+    const normalizedOfferCode = normalizeOfferCode(offerCode ?? formData.offerCode)
+    const friendsFamilyPriceId = process.env.STRIPE_FRIENDS_FAMILY_PRICE_ID?.trim()
+    const requestedFriendsFamilyOffer = isFriendsFamilyOfferCode(normalizedOfferCode)
+
+    if (requestedFriendsFamilyOffer && !friendsFamilyPriceId) {
+      console.error(
+        'Friends and family offer requested but STRIPE_FRIENDS_FAMILY_PRICE_ID is unset'
+      )
+      return NextResponse.json(
+        { error: 'Friends and family offer is not configured. Please contact support.' },
+        { status: 500 }
+      )
+    }
+
+    const offerApplied = requestedFriendsFamilyOffer
+    const selectedPriceId = offerApplied ? friendsFamilyPriceId! : process.env.STRIPE_PRICE_ID!
+    const priceType: PriceType = offerApplied ? 'friends_family' : 'standard'
+
     // 4. Fetch price from Stripe (cached for 1 hour)
     let price: Stripe.Price
     try {
-      price = await getCachedPrice(process.env.STRIPE_PRICE_ID!)
+      price = await getCachedPrice(selectedPriceId)
     } catch (priceError) {
       console.error('Failed to fetch Stripe price:', priceError)
       return NextResponse.json(
@@ -122,6 +146,9 @@ export async function POST(request: NextRequest) {
           service: 'online-doctors-note',
           email: formData.email || '',
           price_id: price.id,
+          price_type: priceType,
+          offer_code: offerApplied ? FRIENDS_FAMILY_OFFER_CODE : '',
+          offer_price_id: offerApplied ? price.id : '',
           temporarySubmissionId: tempSubmissionId, // Add reference for webhook fallback
         },
       })
@@ -205,6 +232,12 @@ export async function POST(request: NextRequest) {
     // 8. Success - return client secret
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
+      amount: price.unit_amount,
+      currency: price.currency,
+      priceId: price.id,
+      formattedAmount: (price.unit_amount / 100).toFixed(2),
+      offerApplied,
+      offerCode: offerApplied ? FRIENDS_FAMILY_OFFER_CODE : null,
     })
   } catch (error) {
     console.error('Unexpected error in create-payment-intent:', error)

@@ -160,6 +160,48 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const createArg = mockSubmissionCreate.mock.calls[0][0]
     expect(createArg.data.status).toBe('PENDING_REVIEW')
     expect(createArg.data.denialReason).toBeNull()
+    expect(createArg.data.paymentAmount).toBe(2495)
+    expect(createArg.data.offerCode).toBeNull()
+    expect(createArg.data.offerPriceId).toBeNull()
+  })
+
+  it('stores friends and family offer metadata on the submission', async () => {
+    mockWebhookConstructEvent.mockReturnValue(
+      buildEvent({
+        data: {
+          object: {
+            id: 'pi_test_123',
+            amount: 2000,
+            currency: 'usd',
+            metadata: {
+              email: 'john@example.com',
+              price_id: 'price_friends_family_mock',
+              price_type: 'friends_family',
+              offer_code: 'friends20',
+              offer_price_id: 'price_friends_family_mock',
+            },
+          },
+        },
+      } as Partial<Stripe.Event>)
+    )
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_offer',
+      paymentIntentId: 'pi_test_123',
+      formData: validFormData,
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_offer',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    const createArg = mockSubmissionCreate.mock.calls[0][0]
+    expect(createArg.data.paymentAmount).toBe(2000)
+    expect(createArg.data.offerCode).toBe('friends20')
+    expect(createArg.data.offerPriceId).toBe('price_friends_family_mock')
   })
 
   it('routes to MAYBE with an internal maybe reason note when absence exceeds 7 days', async () => {
