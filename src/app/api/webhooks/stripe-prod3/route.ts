@@ -214,6 +214,9 @@ export async function POST(request: NextRequest) {
         data: {
           // System fields
           stripePaymentIntentId: paymentIntent.id,
+          paymentAmount: paymentIntent.amount,
+          offerCode: paymentIntent.metadata?.offer_code || null,
+          offerPriceId: paymentIntent.metadata?.offer_price_id || null,
           status: hasValidationFailure ? SubmissionStatus.MAYBE : SubmissionStatus.PENDING_REVIEW,
           denialReason: null,
           maybeReason: hasValidationFailure ? INTERNAL_ONLY_MAYBE_REASON : null,

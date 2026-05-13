@@ -37,6 +37,11 @@ export function validateEnvironment() {
     throw new Error('STRIPE_PRICE_ID must start with "price_"')
   }
 
+  const friendsFamilyPriceId = process.env.STRIPE_FRIENDS_FAMILY_PRICE_ID
+  if (friendsFamilyPriceId && !friendsFamilyPriceId.startsWith('price_')) {
+    throw new Error('STRIPE_FRIENDS_FAMILY_PRICE_ID must start with "price_"')
+  }
+
   // Warn about optional but recommended variables
   if (!process.env.RESEND_FROM_EMAIL && process.env.NODE_ENV === 'development') {
     console.warn('⚠️  RESEND_FROM_EMAIL not set, using default: noreply@onlinedoctornote.com')

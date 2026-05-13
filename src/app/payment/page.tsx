@@ -13,40 +13,21 @@ const CURRENT_STEP = 10
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
-function CheckoutForm() {
+type PriceInfo = {
+  amount: number
+  currency: string
+  priceId: string
+  formattedAmount: string
+  offerApplied: boolean
+  offerCode: string | null
+}
+
+function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
   const stripe = useStripe()
   const elements = useElements()
   const router = useRouter()
   const [message, setMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [priceInfo, setPriceInfo] = useState<{ amount: number; formattedAmount: string } | null>(
-    null
-  )
-  const [priceLoading, setPriceLoading] = useState(true)
-
-  // Fetch price on component mount
-  useEffect(() => {
-    const fetchPrice = async () => {
-      try {
-        const response = await fetch('/api/get-price')
-        if (!response.ok) {
-          throw new Error('Failed to fetch price')
-        }
-        const data = await response.json()
-        setPriceInfo({
-          amount: data.amount,
-          formattedAmount: data.formattedAmount,
-        })
-      } catch (error) {
-        console.error('Failed to fetch price:', error)
-        // Fallback to error state - user can still see the form
-      } finally {
-        setPriceLoading(false)
-      }
-    }
-
-    fetchPrice()
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,14 +65,19 @@ function CheckoutForm() {
       {/* Order Summary */}
       <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
         <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
-        <div className="flex items-center justify-between">
-          <p className="text-foreground text-base font-medium">
-            Doctor&apos;s Note - Online Medical Documentation
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-foreground text-base font-medium">
+              Doctor&apos;s Note - Online Medical Documentation
+            </p>
+            {priceInfo?.offerApplied && (
+              <p className="mt-1 text-sm font-medium text-green-700">
+                Friends &amp; family offer applied
+              </p>
+            )}
+          </div>
           <span className="text-primary text-xl font-bold">
-            {priceLoading ? (
-              <span className="text-muted-foreground text-base">Loading...</span>
-            ) : priceInfo ? (
+            {priceInfo ? (
               `$${priceInfo.formattedAmount}`
             ) : (
               <span className="text-base text-red-600">Price unavailable</span>
@@ -134,6 +120,7 @@ function CheckoutForm() {
 
 export default function PaymentPage() {
   const [clientSecret, setClientSecret] = useState<string>('')
+  const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -155,7 +142,7 @@ export default function PaymentPage() {
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ formData }),
+          body: JSON.stringify({ formData, offerCode: formData.offerCode }),
         })
 
         if (!response.ok) {
@@ -167,6 +154,14 @@ export default function PaymentPage() {
 
         if (data.clientSecret) {
           setClientSecret(data.clientSecret)
+          setPriceInfo({
+            amount: data.amount,
+            currency: data.currency,
+            priceId: data.priceId,
+            formattedAmount: data.formattedAmount,
+            offerApplied: data.offerApplied,
+            offerCode: data.offerCode,
+          })
         } else {
           setError('Failed to initialize payment')
         }
@@ -239,7 +234,7 @@ export default function PaymentPage() {
     >
       {clientSecret && (
         <Elements options={options} stripe={stripePromise}>
-          <CheckoutForm />
+          <CheckoutForm priceInfo={priceInfo} />
         </Elements>
       )}
     </FormLayout>

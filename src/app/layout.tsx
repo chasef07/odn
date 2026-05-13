@@ -4,6 +4,7 @@ import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import '@/lib/env' // Validate environment variables on startup
+import OfferCodeCapture from '@/components/OfferCodeCapture'
 
 const sans = Manrope({
   variable: '--font-geist-sans',
@@ -153,6 +154,7 @@ export default function RootLayout({
           ></iframe>
         </noscript>
         {/* End Google Tag Manager (noscript) */}
+        <OfferCodeCapture />
         {children}
         <Analytics />
       </body>

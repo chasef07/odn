@@ -88,13 +88,16 @@ describe('POST /api/create-payment-intent', () => {
     originalEnv = { ...process.env }
     process.env.STRIPE_SECRET_KEY = 'sk_test_mock_key'
     process.env.STRIPE_PRICE_ID = 'price_test_mock'
+    process.env.STRIPE_FRIENDS_FAMILY_PRICE_ID = 'price_friends_family_mock'
     vi.clearAllMocks()
 
     // Default mock for price retrieval
-    mockPricesRetrieve.mockResolvedValue({
-      id: 'price_test_mock',
-      unit_amount: 2495,
-      currency: 'usd',
+    mockPricesRetrieve.mockImplementation(async (priceId: string) => {
+      return {
+        id: priceId,
+        unit_amount: priceId === 'price_friends_family_mock' ? 2000 : 2495,
+        currency: 'usd',
+      }
     })
   })
 
@@ -144,9 +147,17 @@ describe('POST /api/create-payment-intent', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data).toEqual({
-      clientSecret: mockClientSecret,
-    })
+    expect(data).toEqual(
+      expect.objectContaining({
+        clientSecret: mockClientSecret,
+        amount: 2495,
+        currency: 'usd',
+        priceId: 'price_test_mock',
+        formattedAmount: '24.95',
+        offerApplied: false,
+        offerCode: null,
+      })
+    )
 
     // Verify TemporarySubmission was created FIRST with placeholder
     expect(mockPrismaCreate).toHaveBeenCalledWith({
@@ -266,9 +277,131 @@ describe('POST /api/create-payment-intent', () => {
         service: 'online-doctors-note',
         email: mockFormData.email,
         price_id: 'price_test_mock',
+        price_type: 'standard',
+        offer_code: '',
+        offer_price_id: '',
         temporarySubmissionId: mockTempSubmissionId, // NEW: fallback reference
       },
     })
+  })
+
+  it('should use friends and family price when friends20 offer is supplied', async () => {
+    const mockTempSubmissionId = 'temp_friends'
+
+    mockPrismaCreate.mockResolvedValue({
+      id: mockTempSubmissionId,
+    })
+
+    mockPaymentIntentCreate.mockResolvedValue({
+      id: 'pi_friends',
+      client_secret: 'pi_friends_secret',
+      amount: 2000,
+      currency: 'usd',
+    })
+
+    mockPrismaUpdate.mockResolvedValue({})
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: { ...mockFormData, offerCode: 'friends20' } }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockPricesRetrieve).toHaveBeenCalledWith('price_friends_family_mock')
+    expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 2000,
+        metadata: expect.objectContaining({
+          price_id: 'price_friends_family_mock',
+          price_type: 'friends_family',
+          offer_code: 'friends20',
+          offer_price_id: 'price_friends_family_mock',
+          temporarySubmissionId: mockTempSubmissionId,
+        }),
+      })
+    )
+    expect(data).toEqual(
+      expect.objectContaining({
+        amount: 2000,
+        formattedAmount: '20.00',
+        priceId: 'price_friends_family_mock',
+        offerApplied: true,
+        offerCode: 'friends20',
+      })
+    )
+  })
+
+  it('should fall back to standard price when offer is invalid', async () => {
+    mockPrismaCreate.mockResolvedValue({ id: 'temp_invalid_offer' })
+
+    mockPaymentIntentCreate.mockResolvedValue({
+      id: 'pi_standard',
+      client_secret: 'pi_standard_secret',
+      amount: 2495,
+      currency: 'usd',
+    })
+
+    mockPrismaUpdate.mockResolvedValue({})
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: mockFormData, offerCode: 'not-real' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockPricesRetrieve).toHaveBeenCalledWith('price_test_mock')
+    expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 2495,
+        metadata: expect.objectContaining({
+          price_id: 'price_test_mock',
+          price_type: 'standard',
+          offer_code: '',
+          offer_price_id: '',
+        }),
+      })
+    )
+    expect(data).toEqual(
+      expect.objectContaining({
+        amount: 2495,
+        priceId: 'price_test_mock',
+        offerApplied: false,
+        offerCode: null,
+      })
+    )
+  })
+
+  it('should return an error when friends and family price is not configured', async () => {
+    delete process.env.STRIPE_FRIENDS_FAMILY_PRICE_ID
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: mockFormData, offerCode: 'friends20' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Friends and family offer is not configured. Please contact support.')
+    expect(mockPricesRetrieve).not.toHaveBeenCalled()
+    expect(mockPrismaCreate).not.toHaveBeenCalled()
+    expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    expect(consoleError).toHaveBeenCalledWith(
+      'Friends and family offer requested but STRIPE_FRIENDS_FAMILY_PRICE_ID is unset'
+    )
+
+    consoleError.mockRestore()
   })
 
   it('should fetch price from Stripe before creating payment intent', async () => {
@@ -408,12 +541,15 @@ describe('POST /api/create-payment-intent', () => {
 
     expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        metadata: {
+        metadata: expect.objectContaining({
           product: 'doctors-note',
           service: 'online-doctors-note',
           email: mockFormData.email,
           price_id: 'price_test_mock',
-        },
+          price_type: 'standard',
+          offer_code: '',
+          offer_price_id: '',
+        }),
       })
     )
   })
