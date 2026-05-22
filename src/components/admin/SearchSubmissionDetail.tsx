@@ -114,6 +114,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     calculateDaysDifference(firstDayOff, lastDayOff) > 7
       ? DATES_EXCEED_ALLOWED_RANGE_REASON
       : undefined
+  const latestNoteVerification = submission.noteVerifications[0]
 
   const handleSave = async () => {
     setIsLoading(true)
@@ -277,6 +278,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleCopyVerificationUrl = async () => {
+    if (!latestNoteVerification) return
+
+    const url = `${window.location.origin}/verify/${latestNoteVerification.verificationSlug}`
+    await navigator.clipboard.writeText(url)
+    setSuccess('Verification URL copied.')
   }
 
   const formatDateTime = (date: Date | null) => {
@@ -767,6 +776,35 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </div>
         </div>
       </div>
+
+      {latestNoteVerification && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Note Verification</h2>
+            <Button onClick={handleCopyVerificationUrl} variant="outline" size="sm">
+              Copy URL
+            </Button>
+          </div>
+          <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <dt className="font-medium text-gray-500">Medical Record #</dt>
+              <dd className="mt-1 font-mono text-gray-900">
+                {latestNoteVerification.medicalRecordNumber}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-gray-500">Verification Status</dt>
+              <dd className="mt-1 text-gray-900">{latestNoteVerification.status}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-gray-500">Verification URL</dt>
+              <dd className="mt-1 font-mono break-all text-gray-900">
+                /verify/{latestNoteVerification.verificationSlug}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
 
       {/* Submission Metadata */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-6">

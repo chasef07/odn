@@ -131,6 +131,13 @@ export interface DoctorInfo {
   name: string
   credentials: string
   signatureUrl: string
+  npi?: string | null
+}
+
+export interface DoctorNoteVerificationInfo {
+  medicalRecordNumber: string
+  verificationUrl: string
+  qrCodeDataUrl: string
 }
 
 interface DoctorNoteTemplateProps {
@@ -139,6 +146,7 @@ interface DoctorNoteTemplateProps {
   issueDate: Date
   diagnosis?: string
   withRestrictions?: boolean
+  verificationInfo?: DoctorNoteVerificationInfo
 }
 
 // Create styles - Plus Jakarta Sans font
@@ -160,12 +168,27 @@ const styles = StyleSheet.create({
     bottom: -40,
     right: -40,
     opacity: 1,
-    zIndex: 1,
+    zIndex: 0,
+  },
+  watermarkContainerWithVerification: {
+    bottom: 118,
+    right: -22,
+    width: 350,
+    height: 274,
+    opacity: 1,
+    overflow: 'hidden',
   },
   watermarkImage: {
     width: 350,
     height: 350,
     objectFit: 'contain',
+  },
+  watermarkImageWithVerification: {
+    width: 350,
+    height: 350,
+    position: 'absolute',
+    right: 0,
+    bottom: -76,
   },
   // Header with light blue diagonal background
   headerSection: {
@@ -225,6 +248,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     position: 'relative',
     zIndex: 1,
+  },
+  contentSectionWithVerification: {
+    paddingBottom: 128,
   },
   // Field styling with bold labels
   fieldLine: {
@@ -337,9 +363,49 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 0,
   },
-  npiNumber: {
+  physicianCredentialLine: {
     fontSize: 7,
     marginTop: 0,
+    marginBottom: 10,
+  },
+  verificationBox: {
+    position: 'absolute',
+    left: 72,
+    right: 72,
+    bottom: 24,
+    height: 94,
+    padding: 7,
+    border: '1 solid #d1d5db',
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  verificationQr: {
+    width: 72,
+    height: 72,
+  },
+  verificationContent: {
+    flex: 1,
+  },
+  verificationTitle: {
+    fontSize: 7,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
+    marginBottom: 3,
+  },
+  verificationText: {
+    fontSize: 6,
+    marginBottom: 2,
+    lineHeight: 1.25,
+  },
+  verificationUrl: {
+    fontSize: 6,
+    color: '#0066cc',
+    textDecoration: 'underline',
+    marginBottom: 2,
+    lineHeight: 1.25,
   },
 })
 
@@ -399,6 +465,14 @@ function formatExcuseFrom(purpose: string, other?: string | null): string {
   return purposeMap[purpose] || 'work and school'
 }
 
+function formatPhysicianDisplayName(name: string, credentials?: string | null): string {
+  const cleanName = name.trim()
+  const cleanCredentials = credentials?.trim()
+  if (!cleanCredentials) return cleanName
+  if (cleanName.toLowerCase().includes(cleanCredentials.toLowerCase())) return cleanName
+  return `${cleanName}, ${cleanCredentials}`
+}
+
 /**
  * Map an absence reason to the condition phrase used in the PDF body.
  *
@@ -426,6 +500,7 @@ export function DoctorNoteTemplate({
   issueDate,
   diagnosis,
   withRestrictions = true,
+  verificationInfo,
 }: DoctorNoteTemplateProps): React.ReactElement {
   const {
     patientFirstName,
@@ -462,7 +537,9 @@ export function DoctorNoteTemplate({
   const dobFormatted = formatDateOfBirth(patientDateOfBirth)
 
   // Format medical record number from submission ID (first 8 chars, uppercase)
-  const medicalRecordNumber = submissionData.submissionId.toUpperCase().substring(0, 8)
+  const medicalRecordNumber =
+    verificationInfo?.medicalRecordNumber ||
+    submissionData.submissionId.toUpperCase().substring(0, 8)
 
   // Get state-specific medical license
   const stateLicense = getStateLicense(submissionData.state)
@@ -475,8 +552,21 @@ export function DoctorNoteTemplate({
     <Document>
       <Page size="LETTER" style={styles.page}>
         {/* Watermark in bottom right */}
-        <View style={styles.watermarkContainer}>
-          <Image src={watermarkPath} style={styles.watermarkImage} />
+        <View
+          style={
+            verificationInfo
+              ? [styles.watermarkContainer, styles.watermarkContainerWithVerification]
+              : styles.watermarkContainer
+          }
+        >
+          <Image
+            src={watermarkPath}
+            style={
+              verificationInfo
+                ? [styles.watermarkImage, styles.watermarkImageWithVerification]
+                : styles.watermarkImage
+            }
+          />
         </View>
 
         {/* Header Section - Light blue background matching Doe John note */}
@@ -502,7 +592,13 @@ export function DoctorNoteTemplate({
         </View>
 
         {/* Content Section */}
-        <View style={styles.contentSection}>
+        <View
+          style={
+            verificationInfo
+              ? [styles.contentSection, styles.contentSectionWithVerification]
+              : styles.contentSection
+          }
+        >
           {/* Date Issued and Medical Record Number */}
           <View style={styles.headerInfoRow}>
             <Text style={styles.dateIssued}>Date Issued: {dateIssuedFormatted}</Text>
@@ -637,14 +733,44 @@ export function DoctorNoteTemplate({
               )}
             </View>
 
-            <Text style={styles.physicianName}>Physician Name: Jason Buchwald, MD FACEP</Text>
+            <Text style={styles.physicianName}>
+              Physician Name: {formatPhysicianDisplayName(doctorInfo.name, doctorInfo.credentials)}
+            </Text>
             {stateLicense && (
-              <Text style={styles.npiNumber}>
+              <Text style={styles.physicianCredentialLine}>
                 {stateLicense.stateName} Medical License #{stateLicense.licenseNumber}
+              </Text>
+            )}
+            {doctorInfo.npi && (
+              <Text style={styles.physicianCredentialLine}>
+                National Provider Identifier: {doctorInfo.npi}
               </Text>
             )}
           </View>
         </View>
+
+        {verificationInfo && (
+          <View style={styles.verificationBox}>
+            <Image src={verificationInfo.qrCodeDataUrl} style={styles.verificationQr} />
+            <View style={styles.verificationContent}>
+              <Text style={styles.verificationTitle}>Document Verification</Text>
+              <Text style={styles.verificationText}>
+                Scan the QR code or visit the secure URL to verify this note:
+              </Text>
+              <Link src={verificationInfo.verificationUrl} style={styles.verificationUrl}>
+                {verificationInfo.verificationUrl}
+              </Link>
+              <Text style={styles.verificationText}>
+                Medical Record #: {verificationInfo.medicalRecordNumber}
+              </Text>
+              <Text style={styles.verificationText}>
+                CONFIDENTIAL · This document contains protected health information and is intended
+                solely for the recipient identified above. Unauthorized access, use, disclosure, or
+                distribution is prohibited under 45 CFR § 164 (HIPAA Privacy Rule).
+              </Text>
+            </View>
+          </View>
+        )}
       </Page>
     </Document>
   )

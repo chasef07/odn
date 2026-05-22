@@ -146,6 +146,7 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
 
     expect(html).toContain('employer')
     expect(html).toContain('needs further verification')
+    expect(html).toContain('https://onlinedoctornote.com/verify')
   })
 
   it('should say "school" for school notes', async () => {
@@ -178,6 +179,21 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
     // Caregiver + school = student taking care of family member
     expect(html).toContain('school')
     expect(html).toContain('needs further verification')
+  })
+
+  it('should include the exact verification URL and Medical Record # when provided', async () => {
+    const html = await render(
+      <ApprovalEmail
+        patientName="John Doe"
+        notePurpose="work"
+        absenceReason="Feeling sick"
+        medicalRecordNumber="A7B3C9D2"
+        verificationUrl="https://onlinedoctornote.com/verify/v_test"
+      />
+    )
+
+    expect(html).toContain('https://onlinedoctornote.com/verify/v_test')
+    expect(html).toContain('A7B3C9D2')
   })
 })
 
@@ -282,20 +298,21 @@ describe('ApprovalEmail - Regular Note Content', () => {
 })
 
 describe('ApprovalEmail - Contact Information', () => {
-  it('should display Platinum Health Clinic email', async () => {
+  it('should direct verifiers to the verification page', async () => {
     const html = await render(
       <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
-    expect(html).toContain('hello@platinumhealthclinic.com')
+    expect(html).toContain('https://onlinedoctornote.com/verify')
   })
 
-  it('should display phone number', async () => {
+  it('should not offer phone verification', async () => {
     const html = await render(
       <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
-    expect(html).toContain('786-292-3730')
+    expect(html).not.toContain('786-292-3730')
+    expect(html).not.toContain('tel:')
   })
 
   it('should display support email in help section', async () => {

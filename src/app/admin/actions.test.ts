@@ -14,6 +14,7 @@ const {
   mockUpdateMany,
   mockSendDenialEmail,
   mockSendMaybeEmail,
+  mockRevokeNoteVerificationForSubmission,
   mockGetSession,
 } = vi.hoisted(() => ({
   mockRefundsCreate: vi.fn(),
@@ -22,6 +23,7 @@ const {
   mockUpdateMany: vi.fn(),
   mockSendDenialEmail: vi.fn(),
   mockSendMaybeEmail: vi.fn(),
+  mockRevokeNoteVerificationForSubmission: vi.fn(),
   mockGetSession: vi.fn(),
 }))
 
@@ -51,6 +53,15 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/email', () => ({
   sendDenialEmail: mockSendDenialEmail,
   sendMaybeEmail: mockSendMaybeEmail,
+}))
+
+vi.mock('@/lib/note-verification', () => ({
+  createNoteVerification: vi.fn(),
+  getVerificationUrl: vi.fn(),
+  parseIssueDateInput: vi.fn(),
+  revokeNoteVerificationById: vi.fn(),
+  revokeOtherNoteVerificationsForSubmission: vi.fn(),
+  revokeNoteVerificationForSubmission: mockRevokeNoteVerificationForSubmission,
 }))
 
 // Mock Better Auth

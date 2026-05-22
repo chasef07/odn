@@ -19,6 +19,11 @@ enum SubmissionStatus {
   MANUAL
 }
 
+enum NoteVerificationStatus {
+  ACTIVE
+  REVOKED
+}
+
 // Better Auth - User table (admin/doctor accounts)
 model User {
   id            String    @id @default(uuid())
@@ -163,6 +168,9 @@ model Submission {
   approvalEmailSentAt   DateTime? @map("approval_email_sent_at")
   denialEmailSentAt     DateTime? @map("denial_email_sent_at")
 
+  // Public note verification snapshot
+  noteVerifications NoteVerification[]
+
   // Timestamps
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
@@ -175,4 +183,35 @@ model Submission {
   @@index([patientFirstName, patientLastName, patientDateOfBirth, status])
   @@index([email, status])
   @@index([offerCode])
+}
+
+model NoteVerification {
+  id           String     @id @default(uuid())
+  submissionId String     @map("submission_id")
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  medicalRecordNumber String                 @unique @map("medical_record_number")
+  verificationSlug    String                 @unique @map("verification_slug")
+  status              NoteVerificationStatus @default(ACTIVE)
+
+  issueDate       DateTime @map("issue_date") @db.Date
+  patientInitials String   @map("patient_initials")
+  firstDayOff     DateTime @map("first_day_off") @db.Date
+  lastDayOff      DateTime @map("last_day_off") @db.Date
+  returnGuidance  String   @map("return_guidance")
+
+  physicianName        String  @map("physician_name")
+  physicianCredentials String  @map("physician_credentials")
+  physicianNpi         String? @map("physician_npi")
+  licenseState         String? @map("license_state")
+  licenseNumber        String? @map("license_number")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  @@index([submissionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("note_verifications")
 }

@@ -6,7 +6,12 @@
 import React from 'react'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { Submission } from '@prisma/client'
-import { DoctorNoteTemplate, DoctorNoteData, DoctorInfo } from './doctor-note-template'
+import {
+  DoctorNoteTemplate,
+  DoctorNoteData,
+  DoctorInfo,
+  DoctorNoteVerificationInfo,
+} from './doctor-note-template'
 import path from 'path'
 import fs from 'fs'
 
@@ -20,6 +25,7 @@ import fs from 'fs'
  * Collision probability: ~1 in 16 trillion
  */
 export const REFERENCE_ID_LENGTH = 12
+const DEFAULT_DOCTOR_NPI = '1558307702'
 
 /**
  * Format submission ID as short reference code
@@ -44,6 +50,7 @@ function validateDoctorEnvVars(): DoctorInfo {
   const name = process.env.DOCTOR_NAME
   const credentials = process.env.DOCTOR_CREDENTIALS
   const signatureUrl = process.env.DOCTOR_SIGNATURE_URL
+  const npi = process.env.DOCTOR_NPI?.trim() || DEFAULT_DOCTOR_NPI
 
   if (!name || !credentials || !signatureUrl) {
     throw new Error(
@@ -51,7 +58,7 @@ function validateDoctorEnvVars(): DoctorInfo {
     )
   }
 
-  cachedDoctorInfo = { name, credentials, signatureUrl }
+  cachedDoctorInfo = { name, credentials, signatureUrl, npi }
   return cachedDoctorInfo
 }
 
@@ -166,7 +173,8 @@ export async function generateDoctorNotePDF(
   submission: Submission,
   issueDate?: Date,
   diagnosis?: string,
-  withRestrictions: boolean = true
+  withRestrictions: boolean = true,
+  verificationInfo?: DoctorNoteVerificationInfo
 ): Promise<Buffer> {
   // Default to today's date in Eastern Time (America/New_York)
   // This ensures the PDF shows the correct calendar date for the doctor
@@ -201,6 +209,7 @@ export async function generateDoctorNotePDF(
         issueDate={finalIssueDate}
         diagnosis={diagnosis}
         withRestrictions={withRestrictions}
+        verificationInfo={verificationInfo}
       />
     )
 
