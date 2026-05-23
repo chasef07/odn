@@ -353,6 +353,34 @@ describe('getConditionPhrase()', () => {
   })
 })
 
+describe('DoctorNoteTemplate - verification block', () => {
+  it('renders QR verification copy when verification info is provided', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={baseSubmissionData}
+        doctorInfo={{ ...mockDoctorInfo, npi: '1234567890' }}
+        issueDate={new Date('2024-11-08')}
+        verificationInfo={{
+          medicalRecordNumber: 'A7B3C9D2',
+          verificationUrl: 'https://onlinedoctornote.com/verify/v_test',
+          qrCodeDataUrl:
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+        }}
+      />
+    )
+
+    const text = extractText(tree)
+    expect(text).toContain('Document Verification')
+    expect(text).toContain('Scan the QR code or visit the secure URL to verify this note:')
+    expect(text).toContain('https://onlinedoctornote.com/verify/v_test')
+    expect(text).toContain('Medical Record #: A7B3C9D2')
+    expect(text).toContain('Texas Medical License #V6158')
+    expect(text).toContain('National Provider Identifier: 1234567890')
+    expect(text).toContain('CONFIDENTIAL')
+    expect(text).toContain('Unauthorized access, use, disclosure, or distribution is prohibited')
+  })
+})
+
 describe('DoctorNoteTemplate - condition phrase by absence reason', () => {
   it('renders "due to an illness" for "Feeling sick" in the default patient branch', () => {
     const tree = (

@@ -21,12 +21,16 @@ interface ApprovalEmailProps {
   patientName: string
   notePurpose: string
   absenceReason: string
+  medicalRecordNumber?: string
+  verificationUrl?: string
 }
 
 export const ApprovalEmail = ({
   patientName = 'Patient',
   notePurpose = 'work or school',
   absenceReason = 'Feeling sick',
+  medicalRecordNumber,
+  verificationUrl,
 }: ApprovalEmailProps) => {
   // Check if this is a caregiver note or doctor's appointment
   const isCaregiver = absenceReason === 'Taking care of someone'
@@ -112,24 +116,41 @@ export const ApprovalEmail = ({
                 <Column>
                   <Text className="m-0 text-base leading-relaxed text-gray-700">
                     If your {getRecipientName(notePurpose)} needs further verification, please ask
-                    them to email our medical office at{' '}
+                    them to scan the QR code on the note
+                    {verificationUrl ? (
+                      <>
+                        {' '}
+                        or visit{' '}
+                        <Link
+                          href={verificationUrl}
+                          className="font-medium no-underline"
+                          style={{ color: '#009ed9' }}
+                        >
+                          {verificationUrl}
+                        </Link>
+                        . This opens the verification page directly.
+                      </>
+                    ) : (
+                      <>.</>
+                    )}{' '}
+                    They can also visit{' '}
                     <Link
-                      href="mailto:hello@platinumhealthclinic.com"
+                      href="https://onlinedoctornote.com/verify"
                       className="font-medium no-underline"
                       style={{ color: '#009ed9' }}
                     >
-                      hello@platinumhealthclinic.com
+                      https://onlinedoctornote.com/verify
                     </Link>{' '}
-                    or call us at{' '}
-                    <Link
-                      href="tel:786-292-3730"
-                      className="font-medium no-underline"
-                      style={{ color: '#009ed9' }}
-                    >
-                      786-292-3730
-                    </Link>{' '}
-                    and our team will gladly assist. Please note that we will never provide any
-                    personal health information without your written request.
+                    and enter{' '}
+                    {medicalRecordNumber ? (
+                      <>
+                        Medical Record #: <strong>{medicalRecordNumber}</strong>.
+                      </>
+                    ) : (
+                      <>the Medical Record # shown on the attached note.</>
+                    )}{' '}
+                    Please note that we will never provide any personal health information without
+                    your written request.
                   </Text>
                 </Column>
               </Row>

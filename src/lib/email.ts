@@ -77,6 +77,8 @@ export async function sendApprovalEmail({
   patientName,
   notePurpose,
   absenceReason,
+  medicalRecordNumber,
+  verificationUrl,
   pdfBuffer,
   pdfFilename,
 }: {
@@ -84,6 +86,8 @@ export async function sendApprovalEmail({
   patientName: string
   notePurpose: string
   absenceReason: string
+  medicalRecordNumber?: string
+  verificationUrl?: string
   pdfBuffer: Buffer
   pdfFilename: string
 }) {
@@ -94,6 +98,8 @@ export async function sendApprovalEmail({
         patientName,
         notePurpose,
         absenceReason,
+        medicalRecordNumber,
+        verificationUrl,
       })
     )
 

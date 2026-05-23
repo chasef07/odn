@@ -5,7 +5,7 @@
 
 'use server'
 
-import { Prisma, SubmissionStatus } from '@prisma/client'
+import { NoteVerificationStatus, Prisma, SubmissionStatus } from '@prisma/client'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
@@ -16,6 +16,15 @@ import { sendDenialEmail, sendApprovalEmail, sendMaybeEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { getBusinessDayStart } from '@/lib/admin-utils'
 import { formatDateUTC } from '@/lib/utils'
+import { generateQrCodeDataUrl } from '@/lib/qr-code'
+import {
+  createNoteVerification,
+  getVerificationUrl,
+  parseIssueDateInput,
+  revokeNoteVerificationById,
+  revokeOtherNoteVerificationsForSubmission,
+  revokeNoteVerificationForSubmission,
+} from '@/lib/note-verification'
 import {
   getMaybeReasonConfig,
   isMaybeApprovedDays,
@@ -386,26 +395,28 @@ export async function approveSubmission(
       return { success: true }
     }
 
-    // Standard approval: Generate PDF and send email
-    // Parse evaluation date if provided (for custom "Date Issued" on PDF)
-    let issueDate: Date | undefined = undefined
-    if (evaluationDate) {
-      const [year, month, day] = evaluationDate.split('-').map(Number)
-      // Create UTC date to match PDF template's formatDate() which uses getUTCMonth/getUTCDate
-      issueDate = new Date(Date.UTC(year, month - 1, day))
-    }
+    // Standard approval: create a verifier for this issued PDF, generate PDF, approve, then email
+    const issueDate = parseIssueDateInput(evaluationDate)
+    const noteVerification = await createNoteVerification(submission, issueDate)
+    const verificationUrl = getVerificationUrl(noteVerification.verificationSlug)
 
-    // Step 2: Generate PDF (BLOCKING - must succeed)
+    // Step 2: Generate QR + PDF (BLOCKING - must succeed before status changes)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions)
+      const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions, {
+        medicalRecordNumber: noteVerification.medicalRecordNumber,
+        verificationUrl,
+        qrCodeDataUrl,
+      })
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {
         console.log(`PDF generated: ${pdfFilename} for submission ${submissionId}`)
       }
     } catch (pdfError) {
+      await revokeNoteVerificationById(noteVerification.id)
       // PDF generation failed - DO NOT approve submission
       console.error('PDF generation failed:', pdfError)
       return {
@@ -414,9 +425,34 @@ export async function approveSubmission(
       }
     }
 
-    // Step 3: Send approval email with PDF attachment (NON-BLOCKING - log warning if fails)
+    // Step 3: Mark approved before the email leaves. This prevents patients from receiving
+    // a QR-linked PDF whose verifier record is not active yet.
+    const now = new Date()
+    const approvalUpdate = await prisma.submission.updateMany({
+      where: {
+        id: submissionId,
+        status: {
+          in: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
+        },
+      },
+      data: {
+        status: SubmissionStatus.APPROVED,
+        reviewedByAdminId: doctorId,
+        reviewedAt: now,
+        denialReason: null,
+      },
+    })
+    if (approvalUpdate.count !== 1) {
+      await revokeNoteVerificationById(noteVerification.id, now)
+      return {
+        success: false,
+        error: 'Submission was already updated. Please refresh and try again.',
+      }
+    }
+    await revokeOtherNoteVerificationsForSubmission(submissionId, noteVerification.id, now)
+
+    // Step 4: Send approval email with PDF attachment (NON-BLOCKING - log warning if fails)
     const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
-    let emailSentAt: Date | undefined
     let emailWarning: string | undefined
 
     try {
@@ -425,32 +461,25 @@ export async function approveSubmission(
         patientName,
         notePurpose: submission.notePurpose,
         absenceReason: submission.absenceReason,
+        medicalRecordNumber: noteVerification.medicalRecordNumber,
+        verificationUrl,
         pdfBuffer,
         pdfFilename,
       })
-      emailSentAt = new Date()
+
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: { approvalEmailSentAt: new Date() },
+      })
 
       if (process.env.NODE_ENV === 'development') {
         console.log(`Approval email sent to ${submission.email} for submission ${submissionId}`)
       }
     } catch (emailError) {
-      // Email failed but PDF generated successfully - log error but continue
+      // Email failed but PDF generated successfully and the verifier exists.
       console.error('Failed to send approval email:', emailError)
       emailWarning = 'Submission approved, but email notification failed to send'
     }
-
-    // Step 4: Single atomic database update with all fields
-    const now = new Date()
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: {
-        status: SubmissionStatus.APPROVED,
-        reviewedByAdminId: doctorId,
-        reviewedAt: now,
-        denialReason: null,
-        approvalEmailSentAt: emailSentAt, // Only set if email succeeded
-      },
-    })
 
     // Revalidate admin pages
     revalidatePath('/admin')
@@ -529,6 +558,7 @@ export async function denySubmission(submissionId: string, reason: string) {
           // No refund fields set (stripeRefundId, refundedAt remain null)
         },
       })
+      await revokeNoteVerificationForSubmission(submissionId, now)
 
       // Revalidate admin pages
       revalidatePath('/admin')
@@ -642,6 +672,7 @@ export async function denySubmission(submissionId: string, reason: string) {
         stripeRefundId: refund.id, // Replace placeholder with real Stripe refund ID
       },
     })
+    await revokeNoteVerificationForSubmission(submissionId, now)
 
     // Step 5: Send denial email (NON-BLOCKING - log error but don't fail)
     const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
@@ -1119,7 +1150,7 @@ export async function searchSubmissions({
 
 // Type for submission with formatted date strings (for client components)
 export type FormattedSubmission = Omit<
-  Prisma.SubmissionGetPayload<object>,
+  Prisma.SubmissionGetPayload<{ include: { noteVerifications: true } }>,
   'patientDateOfBirth' | 'guardianDateOfBirth' | 'firstDayOff' | 'lastDayOff'
 > & {
   patientDateOfBirth: string
@@ -1141,6 +1172,16 @@ export async function getSubmissionById(
 
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
+      include: {
+        noteVerifications: {
+          where: {
+            status: NoteVerificationStatus.ACTIVE,
+            revokedAt: null,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
     })
 
     if (!submission) {
@@ -1249,25 +1290,27 @@ export async function reApproveSubmission(
       return { success: false, error: 'Submission not found' }
     }
 
-    // Parse evaluation date if provided (for custom "Date Issued" on PDF)
-    let issueDate: Date | undefined = undefined
-    if (evaluationDate) {
-      const [year, month, day] = evaluationDate.split('-').map(Number)
-      // Create UTC date to match PDF template's formatDate() which uses getUTCMonth/getUTCDate
-      issueDate = new Date(Date.UTC(year, month - 1, day))
-    }
+    const issueDate = parseIssueDateInput(evaluationDate)
+    const noteVerification = await createNoteVerification(submission, issueDate)
+    const verificationUrl = getVerificationUrl(noteVerification.verificationSlug)
 
-    // Generate new PDF (BLOCKING - must succeed)
+    // Generate QR + new PDF (BLOCKING - must succeed)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
-      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions)
+      const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
+      pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions, {
+        medicalRecordNumber: noteVerification.medicalRecordNumber,
+        verificationUrl,
+        qrCodeDataUrl,
+      })
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {
         console.log(`Re-approval: PDF generated: ${pdfFilename} for submission ${submissionId}`)
       }
     } catch (pdfError) {
+      await revokeNoteVerificationById(noteVerification.id)
       console.error('Re-approval PDF generation failed:', pdfError)
       return {
         success: false,
@@ -1275,9 +1318,33 @@ export async function reApproveSubmission(
       }
     }
 
+    // Update database before sending the QR-linked PDF.
+    const now = new Date()
+    const approvalUpdate = await prisma.submission.updateMany({
+      where: {
+        id: submissionId,
+        status: SubmissionStatus.APPROVED,
+        updatedAt: submission.updatedAt,
+      },
+      data: {
+        status: SubmissionStatus.APPROVED,
+        reviewedByAdminId: doctorId,
+        reviewedAt: now,
+        denialReason: null,
+        updatedAt: now,
+      },
+    })
+    if (approvalUpdate.count !== 1) {
+      await revokeNoteVerificationById(noteVerification.id, now)
+      return {
+        success: false,
+        error: 'Submission was already updated. Please refresh and try again.',
+      }
+    }
+    await revokeOtherNoteVerificationsForSubmission(submissionId, noteVerification.id, now)
+
     // Send new approval email (NON-BLOCKING)
     const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
-    let emailSentAt: Date | undefined
     let emailWarning: string | undefined
 
     try {
@@ -1286,10 +1353,16 @@ export async function reApproveSubmission(
         patientName,
         notePurpose: submission.notePurpose,
         absenceReason: submission.absenceReason,
+        medicalRecordNumber: noteVerification.medicalRecordNumber,
+        verificationUrl,
         pdfBuffer,
         pdfFilename,
       })
-      emailSentAt = new Date()
+
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: { approvalEmailSentAt: new Date() },
+      })
 
       if (process.env.NODE_ENV === 'development') {
         console.log(`Re-approval email sent to ${submission.email} for submission ${submissionId}`)
@@ -1298,20 +1371,6 @@ export async function reApproveSubmission(
       console.error('Re-approval email failed:', emailError)
       emailWarning = 'Re-approval processed, but email notification failed to send'
     }
-
-    // Update database
-    const now = new Date()
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: {
-        status: SubmissionStatus.APPROVED,
-        reviewedByAdminId: doctorId,
-        reviewedAt: now,
-        denialReason: null,
-        approvalEmailSentAt: emailSentAt,
-        updatedAt: now,
-      },
-    })
 
     // Revalidate pages
     revalidatePath('/admin')
@@ -1398,6 +1457,7 @@ export async function changeSubmissionStatus(
               updatedAt: now,
             },
           })
+          await revokeNoteVerificationForSubmission(submissionId, now)
 
           // Try to send denial email (NON-BLOCKING)
           let emailWarning: string | undefined
@@ -1469,6 +1529,7 @@ export async function changeSubmissionStatus(
             updatedAt: now,
           },
         })
+        await revokeNoteVerificationForSubmission(submissionId, now)
 
         // Send denial email (NON-BLOCKING)
         let emailWarning: string | undefined
@@ -1494,7 +1555,7 @@ export async function changeSubmissionStatus(
       }
 
       case SubmissionStatus.MAYBE: {
-        return await moveSubmissionToMaybe({
+        const result = await moveSubmissionToMaybe({
           submissionId,
           doctorId,
           input: maybeInput,
@@ -1505,6 +1566,10 @@ export async function changeSubmissionStatus(
             '/admin/maybe',
           ],
         })
+        if (result.success) {
+          await revokeNoteVerificationForSubmission(submissionId, now)
+        }
+        return result
       }
 
       case SubmissionStatus.MANUAL: {
@@ -1518,6 +1583,7 @@ export async function changeSubmissionStatus(
             updatedAt: now,
           },
         })
+        await revokeNoteVerificationForSubmission(submissionId, now)
 
         revalidatePath('/admin')
         revalidatePath('/admin/search')
@@ -1538,6 +1604,7 @@ export async function changeSubmissionStatus(
             updatedAt: now,
           },
         })
+        await revokeNoteVerificationForSubmission(submissionId, now)
 
         revalidatePath('/admin')
         revalidatePath('/admin/search')
