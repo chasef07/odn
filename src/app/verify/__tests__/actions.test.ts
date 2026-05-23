@@ -62,7 +62,6 @@ describe('lookupMedicalRecord', () => {
     )
   })
 
-
   it('does not globally throttle when requester IP headers are unavailable', async () => {
     mockHeaders.mockResolvedValue(new Headers())
     mockFindUnique.mockResolvedValue(null)
@@ -99,9 +98,7 @@ describe('lookupMedicalRecord', () => {
       },
     })
 
-    await expect(
-      lookupMedicalRecord({}, buildFormData('A7B3C9D2'))
-    ).resolves.toMatchObject({
+    await expect(lookupMedicalRecord({}, buildFormData('A7B3C9D2'))).resolves.toMatchObject({
       error: 'We could not verify this document. Please check the Medical Record # and try again.',
     })
 
@@ -115,9 +112,7 @@ describe('lookupMedicalRecord', () => {
       },
     })
 
-    await expect(
-      lookupMedicalRecord({}, buildFormData('A7B3C9D2'))
-    ).resolves.toMatchObject({
+    await expect(lookupMedicalRecord({}, buildFormData('A7B3C9D2'))).resolves.toMatchObject({
       error: 'We could not verify this document. Please check the Medical Record # and try again.',
     })
 
@@ -135,9 +130,7 @@ describe('lookupMedicalRecord', () => {
       },
     })
 
-    await expect(
-      lookupMedicalRecord({}, buildFormData('A7B3C9D2'))
-    ).resolves.toMatchObject({
+    await expect(lookupMedicalRecord({}, buildFormData('A7B3C9D2'))).resolves.toMatchObject({
       error: 'We could not verify this document. Please check the Medical Record # and try again.',
     })
 

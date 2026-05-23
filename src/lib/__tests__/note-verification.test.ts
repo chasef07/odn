@@ -52,7 +52,6 @@ describe('note verification helpers', () => {
 })
 
 describe('verification lookup rate limit', () => {
-
   it('returns null when no requester IP is available', () => {
     expect(getRateLimitKey(null)).toBeNull()
     expect(getRateLimitKey('   ')).toBeNull()
