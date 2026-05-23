@@ -399,12 +399,12 @@ export async function approveSubmission(
     const issueDate = parseIssueDateInput(evaluationDate)
     const noteVerification = await createNoteVerification(submission, issueDate)
     const verificationUrl = getVerificationUrl(noteVerification.verificationSlug)
-    const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
 
-    // Step 2: Generate PDF (BLOCKING - must succeed before status changes)
+    // Step 2: Generate QR + PDF (BLOCKING - must succeed before status changes)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
+      const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
       pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions, {
         medicalRecordNumber: noteVerification.medicalRecordNumber,
         verificationUrl,
@@ -1293,12 +1293,12 @@ export async function reApproveSubmission(
     const issueDate = parseIssueDateInput(evaluationDate)
     const noteVerification = await createNoteVerification(submission, issueDate)
     const verificationUrl = getVerificationUrl(noteVerification.verificationSlug)
-    const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
 
-    // Generate new PDF (BLOCKING - must succeed)
+    // Generate QR + new PDF (BLOCKING - must succeed)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
+      const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
       pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions, {
         medicalRecordNumber: noteVerification.medicalRecordNumber,
         verificationUrl,

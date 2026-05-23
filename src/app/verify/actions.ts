@@ -25,7 +25,7 @@ export async function lookupMedicalRecord(
   const headerList = await headers()
   const rateLimitKey = getRateLimitKey(getRequesterIp(headerList))
 
-  if (!checkVerificationLookupLimit(rateLimitKey)) {
+  if (rateLimitKey && !checkVerificationLookupLimit(rateLimitKey)) {
     return {
       error: 'Too many verification attempts. Please wait a few minutes and try again.',
     }

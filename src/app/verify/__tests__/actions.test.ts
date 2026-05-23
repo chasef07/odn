@@ -62,6 +62,21 @@ describe('lookupMedicalRecord', () => {
     )
   })
 
+
+  it('does not globally throttle when requester IP headers are unavailable', async () => {
+    mockHeaders.mockResolvedValue(new Headers())
+    mockFindUnique.mockResolvedValue(null)
+
+    for (let i = 0; i < 13; i++) {
+      const result = await lookupMedicalRecord({}, buildFormData('NOTREAL0'))
+      expect(result.error).toBe(
+        'We could not verify this document. Please check the Medical Record # and try again.'
+      )
+    }
+
+    expect(mockFindUnique).toHaveBeenCalledTimes(13)
+  })
+
   it('returns the same generic error for unknown records', async () => {
     mockFindUnique.mockResolvedValue(null)
 

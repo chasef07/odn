@@ -8,7 +8,7 @@ import {
   getReturnGuidance,
   normalizeMedicalRecordNumber,
 } from '@/lib/note-verification'
-import { checkVerificationLookupLimit } from '@/lib/verification-rate-limit'
+import { checkVerificationLookupLimit, getRateLimitKey } from '@/lib/verification-rate-limit'
 
 describe('note verification helpers', () => {
   afterEach(() => {
@@ -52,6 +52,11 @@ describe('note verification helpers', () => {
 })
 
 describe('verification lookup rate limit', () => {
+
+  it('returns null when no requester IP is available', () => {
+    expect(getRateLimitKey(null)).toBeNull()
+    expect(getRateLimitKey('   ')).toBeNull()
+  })
   it('blocks repeated manual lookup attempts within the window', () => {
     const now = Date.UTC(2026, 4, 22)
     const key = `test-${now}`

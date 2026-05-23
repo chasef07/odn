@@ -24,6 +24,7 @@ export function checkVerificationLookupLimit(key: string, now = Date.now()): boo
   return true
 }
 
-export function getRateLimitKey(ipAddress: string | null): string {
-  return ipAddress?.trim() || 'unknown'
+export function getRateLimitKey(ipAddress: string | null): string | null {
+  const normalizedIp = ipAddress?.trim()
+  return normalizedIp || null
 }
