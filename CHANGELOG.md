@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.0.0] - 2026-05-26
+
+### Added
+
+- **Note verification QR flow** - Approved doctor's notes now include QR-backed verification so employers and schools can confirm issued notes from the public verification pages.
+- **Manual verification lookup** - Added public lookup by Medical Record # with rate limiting and safe verification details.
+- **Friends and family offer link** - Added support for the `friends20` offer code checkout flow.
+
+### Changed
+
+- **Review terms copy** - Updated the review-page authorization entity from Platinum Health to ODN LLC.
+- **Maybe approval emails** - Added approved-day selection support for maybe approvals.
+
 ## [5.5.0] - 2026-05-04
 
 ### Added
