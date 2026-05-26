@@ -582,7 +582,7 @@ export default function ReviewPage() {
               >
                 Privacy Policy
               </Link>
-              . I authorize Platinum Health to provide limited note verification details to anyone I
+              . I authorize ODN LLC to provide limited note verification details to anyone I
               share my note with, including the Medical Record #, patient initials, issue date,
               absence dates, return guidance, and certifying physician credentials.
             </label>
