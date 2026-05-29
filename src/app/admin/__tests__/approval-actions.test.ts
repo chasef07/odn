@@ -105,7 +105,11 @@ vi.mock('stripe', () => ({
 }))
 
 // Now import the functions under test
-import { approveSubmission, removeGuardianFromAdultSubmission, reApproveSubmission } from '../actions'
+import {
+  approveSubmission,
+  removeGuardianFromAdultSubmission,
+  reApproveSubmission,
+} from '../actions'
 
 const mockDefaultIssueDate = new Date(Date.UTC(2026, 3, 6))
 const mockVerificationRecord = {

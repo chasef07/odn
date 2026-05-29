@@ -273,7 +273,9 @@ export async function removeGuardianFromAdultSubmission(submissionId: string) {
     const hasGuardianMode =
       submission.recipient === 'someone_else' ||
       Boolean(
-        submission.guardianFirstName || submission.guardianLastName || submission.guardianDateOfBirth
+        submission.guardianFirstName ||
+        submission.guardianLastName ||
+        submission.guardianDateOfBirth
       )
 
     if (!hasGuardianMode) {

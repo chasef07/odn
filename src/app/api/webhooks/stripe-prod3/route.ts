@@ -138,7 +138,10 @@ export async function POST(request: NextRequest) {
         })
 
         if (process.env.NODE_ENV === 'development') {
-          console.info('TemporarySubmission updated with correct paymentIntentId:', paymentIntent.id)
+          console.info(
+            'TemporarySubmission updated with correct paymentIntentId:',
+            paymentIntent.id
+          )
         }
       }
     }
