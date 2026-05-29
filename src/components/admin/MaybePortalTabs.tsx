@@ -204,8 +204,8 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                         {submission.reviewedAt ? formatDateWithTime(submission.reviewedAt) : 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-                        {activeTab === 'maybe' ? (
-                          <MaybeActionButtons submissionId={submission.id} />
+                        {maybeSubmission ? (
+                          <MaybeActionButtons submission={maybeSubmission} />
                         ) : (
                           <ManualActionButtons submissionId={submission.id} />
                         )}

@@ -105,7 +105,7 @@ vi.mock('stripe', () => ({
 }))
 
 // Now import the functions under test
-import { approveSubmission, reApproveSubmission } from '../actions'
+import { approveSubmission, removeGuardianFromAdultSubmission, reApproveSubmission } from '../actions'
 
 const mockDefaultIssueDate = new Date(Date.UTC(2026, 3, 6))
 const mockVerificationRecord = {
@@ -115,7 +115,6 @@ const mockVerificationRecord = {
 }
 const mockVerificationPdfInfo = {
   medicalRecordNumber: 'A7B3C9D2',
-  verificationUrl: 'https://onlinedoctornote.com/verify/v_testslug',
   qrCodeDataUrl: 'data:image/png;base64,qr',
 }
 
@@ -662,6 +661,67 @@ describe('approveSubmission - Approval Automation', () => {
         mockVerificationPdfInfo
       )
     })
+  })
+})
+
+describe('removeGuardianFromAdultSubmission', () => {
+  const mockSubmissionId = 'sub_guardian'
+  const mockDoctorId = 'doctor_123'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({
+      user: { id: mockDoctorId },
+    })
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('clears guardian mode for adult patients', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: mockSubmissionId,
+      patientDateOfBirth: new Date('1990-01-01'),
+      recipient: 'someone_else',
+      guardianFirstName: 'Jane',
+      guardianLastName: 'Doe',
+      guardianDateOfBirth: new Date('1970-01-01'),
+    })
+    mockUpdate.mockResolvedValue({})
+
+    const result = await removeGuardianFromAdultSubmission(mockSubmissionId)
+
+    expect(result).toEqual({ success: true })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: mockSubmissionId },
+      data: {
+        recipient: 'myself',
+        guardianFirstName: null,
+        guardianLastName: null,
+        guardianDateOfBirth: null,
+        updatedAt: expect.any(Date),
+      },
+    })
+  })
+
+  it('blocks guardian removal for minor patients', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: mockSubmissionId,
+      patientDateOfBirth: new Date('2020-01-01'),
+      recipient: 'someone_else',
+      guardianFirstName: 'Jane',
+      guardianLastName: 'Doe',
+      guardianDateOfBirth: new Date('1970-01-01'),
+    })
+
+    const result = await removeGuardianFromAdultSubmission(mockSubmissionId)
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Guardian information is required for patients under 18.',
+    })
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 })
 

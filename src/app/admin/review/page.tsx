@@ -66,14 +66,34 @@ export default function AdminReviewPage() {
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
   const [withRestrictions, setWithRestrictions] = useState(true)
+  const [isGuardianRemovalPending, setIsGuardianRemovalPending] = useState(false)
 
   const currentSubmission = submissions[currentIndex]
   const isLastSubmission = currentIndex === submissions.length - 1
+  const isReviewActionDisabled = isTransitioning || isGuardianRemovalPending
   const suggestedMaybeReason =
     currentSubmission &&
     calculateDaysDifference(currentSubmission.firstDayOff, currentSubmission.lastDayOff) > 7
       ? DATES_EXCEED_ALLOWED_RANGE_REASON
       : undefined
+
+  const handleGuardianRemoved = () => {
+    if (!currentSubmission) return
+
+    setSubmissions((prev) =>
+      prev.map((submission) =>
+        submission.id === currentSubmission.id
+          ? {
+              ...submission,
+              recipient: 'myself',
+              guardianFirstName: null,
+              guardianLastName: null,
+              guardianDateOfBirth: null,
+            }
+          : submission
+      )
+    )
+  }
 
   // Fetch submissions on mount
   useEffect(() => {
@@ -125,7 +145,7 @@ export default function AdminReviewPage() {
 
   // Handle approval - show dialog first
   const handleApprove = () => {
-    if (!currentSubmission || isTransitioning) return
+    if (!currentSubmission || isReviewActionDisabled) return
     setApprovalError(null)
     setReviewWarning(null)
     setShowApprovalDialog(true)
@@ -133,7 +153,7 @@ export default function AdminReviewPage() {
 
   // Handle approval confirmation with evaluation date and diagnosis
   const handleApproveConfirm = async () => {
-    if (!currentSubmission || isTransitioning) return
+    if (!currentSubmission || isReviewActionDisabled) return
 
     setIsTransitioning(true)
     setApprovalError(null)
@@ -181,14 +201,14 @@ export default function AdminReviewPage() {
 
   // Handle denial - show dialog first
   const handleDeny = () => {
-    if (!currentSubmission || isTransitioning) return
+    if (!currentSubmission || isReviewActionDisabled) return
     setReviewWarning(null)
     setShowDenialDialog(true)
   }
 
   // Handle denial confirmation with reason
   const handleDenyConfirm = async (reason: DenialReason) => {
-    if (!currentSubmission || isTransitioning) return
+    if (!currentSubmission || isReviewActionDisabled) return
 
     setIsTransitioning(true)
 
@@ -225,7 +245,7 @@ export default function AdminReviewPage() {
 
   // Handle maybe - show dialog first
   const handleMaybe = () => {
-    if (!currentSubmission || isTransitioning) return
+    if (!currentSubmission || isReviewActionDisabled) return
 
     setMaybeError(null)
     setReviewWarning(null)
@@ -234,7 +254,7 @@ export default function AdminReviewPage() {
 
   // Handle maybe confirmation with reason
   const handleMaybeConfirm = async (input: MaybeSubmissionInput) => {
-    if (!currentSubmission || isTransitioning) return
+    if (!currentSubmission || isReviewActionDisabled) return
 
     setIsTransitioning(true)
     setMaybeError(null)
@@ -277,6 +297,7 @@ export default function AdminReviewPage() {
       // Prevent if transitioning, on completion screen, or dialog is open
       if (
         isTransitioning ||
+        isGuardianRemovalPending ||
         showCompletion ||
         showDenialDialog ||
         showMaybeDialog ||
@@ -303,6 +324,7 @@ export default function AdminReviewPage() {
   }, [
     currentIndex,
     isTransitioning,
+    isGuardianRemovalPending,
     showCompletion,
     showDenialDialog,
     showMaybeDialog,
@@ -414,6 +436,8 @@ export default function AdminReviewPage() {
             onDiagnosisChange={setDiagnosis}
             withRestrictions={withRestrictions}
             onWithRestrictionsChange={setWithRestrictions}
+            onGuardianRemovalPendingChange={setIsGuardianRemovalPending}
+            onGuardianRemoved={handleGuardianRemoved}
           />
         </div>
       </div>
@@ -424,7 +448,7 @@ export default function AdminReviewPage() {
           {/* Deny Button */}
           <button
             onClick={handleDeny}
-            disabled={isTransitioning}
+            disabled={isReviewActionDisabled}
             className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-gray-200 bg-white shadow-lg transition-all hover:scale-110 hover:shadow-xl disabled:opacity-50 disabled:hover:scale-100"
           >
             <svg
@@ -445,7 +469,7 @@ export default function AdminReviewPage() {
           {/* Maybe Button */}
           <button
             onClick={handleMaybe}
-            disabled={isTransitioning}
+            disabled={isReviewActionDisabled}
             className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-gray-200 bg-white shadow-lg transition-all hover:scale-110 hover:shadow-xl disabled:opacity-50 disabled:hover:scale-100"
           >
             <span className="text-4xl font-bold text-yellow-500">?</span>
@@ -454,7 +478,7 @@ export default function AdminReviewPage() {
           {/* Approve Button */}
           <button
             onClick={handleApprove}
-            disabled={isTransitioning}
+            disabled={isReviewActionDisabled}
             className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-gray-200 bg-white shadow-lg transition-all hover:scale-110 hover:shadow-xl disabled:opacity-50 disabled:hover:scale-100"
           >
             <svg
@@ -510,13 +534,13 @@ export default function AdminReviewPage() {
             <Button
               variant="outline"
               onClick={() => setShowApprovalDialog(false)}
-              disabled={isTransitioning}
+              disabled={isReviewActionDisabled}
             >
               Cancel
             </Button>
             <Button
               onClick={handleApproveConfirm}
-              disabled={isTransitioning}
+              disabled={isReviewActionDisabled}
               className="bg-green-600 hover:bg-green-700"
             >
               {isTransitioning ? 'Approving...' : 'Approve & Send PDF'}

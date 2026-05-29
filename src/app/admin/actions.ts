@@ -17,6 +17,7 @@ import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-p
 import { getBusinessDayStart } from '@/lib/admin-utils'
 import { formatDateUTC } from '@/lib/utils'
 import { generateQrCodeDataUrl } from '@/lib/qr-code'
+import { isAtLeastAge } from '@/lib/date-only'
 import {
   createNoteVerification,
   getVerificationUrl,
@@ -239,6 +240,68 @@ export async function getMonthlyLimitData(
   } catch (error) {
     console.error('Error getting monthly limit data:', error)
     return { success: false, error: 'Failed to calculate monthly limit' }
+  }
+}
+
+export async function removeGuardianFromAdultSubmission(submissionId: string) {
+  try {
+    await getCurrentDoctor()
+
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      select: {
+        id: true,
+        patientDateOfBirth: true,
+        recipient: true,
+        guardianFirstName: true,
+        guardianLastName: true,
+        guardianDateOfBirth: true,
+      },
+    })
+
+    if (!submission) {
+      return { success: false, error: 'Submission not found' }
+    }
+
+    if (!isAtLeastAge(formatDateUTC(submission.patientDateOfBirth), 18)) {
+      return {
+        success: false,
+        error: 'Guardian information is required for patients under 18.',
+      }
+    }
+
+    const hasGuardianMode =
+      submission.recipient === 'someone_else' ||
+      Boolean(
+        submission.guardianFirstName || submission.guardianLastName || submission.guardianDateOfBirth
+      )
+
+    if (!hasGuardianMode) {
+      return { success: true }
+    }
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        recipient: 'myself',
+        guardianFirstName: null,
+        guardianLastName: null,
+        guardianDateOfBirth: null,
+        updatedAt: new Date(),
+      },
+    })
+
+    revalidatePath('/admin')
+    revalidatePath('/admin/review')
+    revalidatePath('/admin/maybe')
+    revalidatePath(`/admin/maybe/${submissionId}`)
+    revalidatePath('/admin/search')
+    revalidatePath(`/admin/search/${submissionId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error removing guardian mode:', error)
+    return { success: false, error: 'Failed to remove guardian mode' }
   }
 }
 
@@ -921,6 +984,11 @@ export async function getMaybeSubmissions() {
         patientFirstName: true,
         patientLastName: true,
         email: true,
+        patientDateOfBirth: true,
+        recipient: true,
+        guardianFirstName: true,
+        guardianLastName: true,
+        guardianDateOfBirth: true,
         firstDayOff: true,
         lastDayOff: true,
         maybeReason: true,
@@ -939,6 +1007,11 @@ export async function getMaybeSubmissions() {
       patientFirstName: sub.patientFirstName,
       patientLastName: sub.patientLastName,
       email: sub.email,
+      patientDateOfBirth: formatDateUTC(sub.patientDateOfBirth),
+      recipient: sub.recipient,
+      guardianFirstName: sub.guardianFirstName,
+      guardianLastName: sub.guardianLastName,
+      guardianDateOfBirth: sub.guardianDateOfBirth ? formatDateUTC(sub.guardianDateOfBirth) : null,
       firstDayOff: formatDateUTC(sub.firstDayOff),
       lastDayOff: formatDateUTC(sub.lastDayOff),
       maybeReason: sub.maybeReason,

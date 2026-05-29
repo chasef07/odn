@@ -31,6 +31,7 @@ import {
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
+import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import { calculateDaysDifference } from '@/lib/admin-utils'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
@@ -61,6 +62,8 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [isGuardianRemovalPending, setIsGuardianRemovalPending] = useState(false)
+  const isActionDisabled = isLoading || isGuardianRemovalPending
 
   // Dialog states
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
@@ -82,6 +85,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const [guardianDateOfBirth, setGuardianDateOfBirth] = useState(
     (submission.guardianDateOfBirth as string | null) || ''
   )
+  const [recipient, setRecipient] = useState(submission.recipient)
   const [email, setEmail] = useState(submission.email)
   const [phone, setPhone] = useState(submission.phone)
   const [state, setState] = useState(submission.state)
@@ -115,6 +119,13 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
       ? DATES_EXCEED_ALLOWED_RANGE_REASON
       : undefined
   const latestNoteVerification = submission.noteVerifications[0]
+
+  const handleGuardianRemoved = () => {
+    setRecipient('myself')
+    setGuardianFirstName('')
+    setGuardianLastName('')
+    setGuardianDateOfBirth('')
+  }
 
   const handleSave = async () => {
     setIsLoading(true)
@@ -376,6 +387,18 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               </Button>
             )}
           </div>
+
+          <RemoveGuardianModeControl
+            submissionId={submission.id}
+            patientDateOfBirth={patientDateOfBirth}
+            recipient={recipient}
+            guardianFirstName={guardianFirstName}
+            guardianLastName={guardianLastName}
+            guardianDateOfBirth={guardianDateOfBirth || null}
+            disabled={isLoading}
+            onPendingChange={setIsGuardianRemovalPending}
+            onRemoved={handleGuardianRemoved}
+          />
         </div>
       </div>
 
@@ -465,7 +488,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         </div>
 
         {/* Guardian Information */}
-        {(guardianFirstName || guardianLastName || submission.recipient === 'someone_else') && (
+        {(guardianFirstName || guardianLastName || recipient === 'someone_else') && (
           <div className="space-y-4 border-t pt-6">
             <h2 className="text-lg font-semibold text-gray-900">Guardian Information</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -864,13 +887,13 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <Button
               variant="outline"
               onClick={() => setShowApprovalDialog(false)}
-              disabled={isLoading}
+              disabled={isActionDisabled}
             >
               Cancel
             </Button>
             <Button
               onClick={handleApprove}
-              disabled={isLoading}
+              disabled={isActionDisabled}
               className="bg-green-600 hover:bg-green-700"
             >
               {isLoading ? 'Processing...' : `${approveButtonText} & Send PDF`}
