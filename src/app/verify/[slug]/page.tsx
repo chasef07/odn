@@ -3,7 +3,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { AlertCircle, Check, ShieldCheck } from 'lucide-react'
 import prisma from '@/lib/prisma'
-import { formatDisplayDate, getVerificationUrl } from '@/lib/note-verification'
+import { formatDisplayDate } from '@/lib/note-verification'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -25,7 +25,6 @@ async function getVerification(slug: string) {
     where: { verificationSlug: slug },
     select: {
       medicalRecordNumber: true,
-      verificationSlug: true,
       status: true,
       revokedAt: true,
       issueDate: true,
@@ -148,10 +147,7 @@ export default async function VerifySlugPage({ params }: PageProps) {
               </dl>
 
               <div className="mt-6 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-                <p className="font-mono break-all">
-                  {getVerificationUrl(verification.verificationSlug)}
-                </p>
-                <p className="mt-3">
+                <p>
                   For questions or concerns, please contact us via email at{' '}
                   <a className="text-primary font-medium" href="mailto:hello@platinumhealth.com">
                     hello@platinumhealth.com

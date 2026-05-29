@@ -136,7 +136,6 @@ export interface DoctorInfo {
 
 export interface DoctorNoteVerificationInfo {
   medicalRecordNumber: string
-  verificationUrl: string
   qrCodeDataUrl: string
 }
 
@@ -397,13 +396,6 @@ const styles = StyleSheet.create({
   },
   verificationText: {
     fontSize: 6,
-    marginBottom: 2,
-    lineHeight: 1.25,
-  },
-  verificationUrl: {
-    fontSize: 6,
-    color: '#0066cc',
-    textDecoration: 'underline',
     marginBottom: 2,
     lineHeight: 1.25,
   },
@@ -755,11 +747,8 @@ export function DoctorNoteTemplate({
             <View style={styles.verificationContent}>
               <Text style={styles.verificationTitle}>Document Verification</Text>
               <Text style={styles.verificationText}>
-                Scan the QR code or visit the secure URL to verify this note:
+                Scan the QR code to verify this note:
               </Text>
-              <Link src={verificationInfo.verificationUrl} style={styles.verificationUrl}>
-                {verificationInfo.verificationUrl}
-              </Link>
               <Text style={styles.verificationText}>
                 Medical Record #: {verificationInfo.medicalRecordNumber}
               </Text>

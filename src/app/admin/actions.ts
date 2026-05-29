@@ -407,7 +407,6 @@ export async function approveSubmission(
       const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
       pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions, {
         medicalRecordNumber: noteVerification.medicalRecordNumber,
-        verificationUrl,
         qrCodeDataUrl,
       })
       pdfFilename = generatePDFFilename(submission.id)
@@ -1301,7 +1300,6 @@ export async function reApproveSubmission(
       const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
       pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions, {
         medicalRecordNumber: noteVerification.medicalRecordNumber,
-        verificationUrl,
         qrCodeDataUrl,
       })
       pdfFilename = generatePDFFilename(submission.id)
