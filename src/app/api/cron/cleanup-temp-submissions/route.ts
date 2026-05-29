@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(
+      console.info(
         `✅ Cron job completed: Cleaned up ${result.count} expired TemporarySubmissions`,
         {
           deleted: result.count,

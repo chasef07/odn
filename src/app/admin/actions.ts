@@ -273,7 +273,9 @@ export async function removeGuardianFromAdultSubmission(submissionId: string) {
     const hasGuardianMode =
       submission.recipient === 'someone_else' ||
       Boolean(
-        submission.guardianFirstName || submission.guardianLastName || submission.guardianDateOfBirth
+        submission.guardianFirstName ||
+        submission.guardianLastName ||
+        submission.guardianDateOfBirth
       )
 
     if (!hasGuardianMode) {
@@ -452,7 +454,7 @@ export async function approveSubmission(
       revalidatePath('/admin/maybe')
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Manual approval completed for submission ${submissionId}`)
+        console.info(`Manual approval completed for submission ${submissionId}`)
       }
 
       return { success: true }
@@ -470,12 +472,13 @@ export async function approveSubmission(
       const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
       pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions, {
         medicalRecordNumber: noteVerification.medicalRecordNumber,
+        verificationUrl,
         qrCodeDataUrl,
       })
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`PDF generated: ${pdfFilename} for submission ${submissionId}`)
+        console.info(`PDF generated: ${pdfFilename} for submission ${submissionId}`)
       }
     } catch (pdfError) {
       await revokeNoteVerificationById(noteVerification.id)
@@ -535,7 +538,7 @@ export async function approveSubmission(
       })
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Approval email sent to ${submission.email} for submission ${submissionId}`)
+        console.info(`Approval email sent to ${submission.email} for submission ${submissionId}`)
       }
     } catch (emailError) {
       // Email failed but PDF generated successfully and the verifier exists.
@@ -629,7 +632,7 @@ export async function denySubmission(submissionId: string, reason: string) {
       revalidatePath('/admin/denied')
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Manual denial completed for submission ${submissionId}`)
+        console.info(`Manual denial completed for submission ${submissionId}`)
       }
 
       return { success: true }
@@ -703,7 +706,7 @@ export async function denySubmission(submissionId: string, reason: string) {
       )
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Refund processed: ${refund.id} for submission ${submissionId}`)
+        console.info(`Refund processed: ${refund.id} for submission ${submissionId}`)
       }
     } catch (stripeError) {
       // CRITICAL: Refund failed - rollback database status
@@ -752,7 +755,7 @@ export async function denySubmission(submissionId: string, reason: string) {
       emailSentAt = new Date()
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Denial email sent to ${submission.email} for submission ${submissionId}`)
+        console.info(`Denial email sent to ${submission.email} for submission ${submissionId}`)
       }
     } catch (emailError) {
       // Email failed but refund succeeded - log error but continue
@@ -1373,12 +1376,13 @@ export async function reApproveSubmission(
       const qrCodeDataUrl = await generateQrCodeDataUrl(verificationUrl)
       pdfBuffer = await generateDoctorNotePDF(submission, issueDate, diagnosis, withRestrictions, {
         medicalRecordNumber: noteVerification.medicalRecordNumber,
+        verificationUrl,
         qrCodeDataUrl,
       })
       pdfFilename = generatePDFFilename(submission.id)
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Re-approval: PDF generated: ${pdfFilename} for submission ${submissionId}`)
+        console.info(`Re-approval: PDF generated: ${pdfFilename} for submission ${submissionId}`)
       }
     } catch (pdfError) {
       await revokeNoteVerificationById(noteVerification.id)
@@ -1436,7 +1440,7 @@ export async function reApproveSubmission(
       })
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Re-approval email sent to ${submission.email} for submission ${submissionId}`)
+        console.info(`Re-approval email sent to ${submission.email} for submission ${submissionId}`)
       }
     } catch (emailError) {
       console.error('Re-approval email failed:', emailError)

@@ -582,9 +582,9 @@ export default function ReviewPage() {
               >
                 Privacy Policy
               </Link>
-              . I authorize ODN LLC to provide limited note verification details to anyone I
-              share my note with, including the Medical Record #, patient initials, issue date,
-              absence dates, return guidance, and certifying physician credentials.
+              . I authorize ODN LLC to provide limited note verification details to anyone I share
+              my note with, including the Medical Record #, patient initials, issue date, absence
+              dates, return guidance, and certifying physician credentials.
             </label>
           </div>
           {errors.agreeTerms && <p className="text-sm text-red-500">{errors.agreeTerms.message}</p>}

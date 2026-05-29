@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('Processing email bounce:', {
+      console.info('Processing email bounce:', {
         to: event.data.to[0],
         subject: event.data.subject,
         reason: event.data.bounce_reason,
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         submission: submission || null,
       })
       if (process.env.NODE_ENV === 'development') {
-        console.log('Bounce alert email sent successfully')
+        console.info('Bounce alert email sent successfully')
       }
     } catch (emailError) {
       // Log error but still return 200 OK to prevent retries

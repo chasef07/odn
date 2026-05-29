@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // This prevents abandoned checkouts, failed payments, and legacy events from causing errors
     if (event.type !== 'payment_intent.succeeded') {
       if (process.env.NODE_ENV === 'development') {
-        console.log('Ignoring non-succeeded event:', {
+        console.info('Ignoring non-succeeded event:', {
           eventId: event.id,
           eventType: event.type,
         })
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     // 6. Idempotency check for recent events (reuse existingSubmission from above)
     if (existingSubmission) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('Submission already processed (idempotent):', {
+        console.info('Submission already processed (idempotent):', {
           eventId: event.id,
           paymentIntentId: paymentIntent.id,
           submissionId: existingSubmission.id,
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     // 7. Log event for debugging and audit trail (Stripe best practice)
     if (process.env.NODE_ENV === 'development') {
-      console.log('Webhook event received:', {
+      console.info('Webhook event received:', {
         eventId: event.id,
         eventType: event.type,
         paymentIntentId: paymentIntent.id,
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     // This handles race conditions where webhook fires during the update step
     if (!tempSubmission && paymentIntent.metadata?.temporarySubmissionId) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('Primary lookup failed, attempting fallback by metadata.temporarySubmissionId')
+        console.info('Primary lookup failed, attempting fallback by metadata.temporarySubmissionId')
       }
 
       const tempSubmissionById = await prisma.temporarySubmission.findUnique({
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
       if (tempSubmissionById) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('FALLBACK SUCCESS: Found TemporarySubmission by metadata ID')
+          console.info('FALLBACK SUCCESS: Found TemporarySubmission by metadata ID')
         }
 
         // Update with correct payment intent ID to link them properly
@@ -138,7 +138,10 @@ export async function POST(request: NextRequest) {
         })
 
         if (process.env.NODE_ENV === 'development') {
-          console.log('TemporarySubmission updated with correct paymentIntentId:', paymentIntent.id)
+          console.info(
+            'TemporarySubmission updated with correct paymentIntentId:',
+            paymentIntent.id
+          )
         }
       }
     }
@@ -253,7 +256,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('Submission created successfully:', {
+        console.info('Submission created successfully:', {
           eventId: event.id,
           submissionId: submission.id,
           paymentIntentId: paymentIntent.id,
@@ -275,7 +278,7 @@ export async function POST(request: NextRequest) {
       })
         .then(() => {
           if (process.env.NODE_ENV === 'development') {
-            console.log('Payment confirmation email sent:', submission.email)
+            console.info('Payment confirmation email sent:', submission.email)
           }
         })
         .catch((emailError) => {
@@ -303,7 +306,7 @@ export async function POST(request: NextRequest) {
         where: { id: tempSubmission.id },
       })
       if (process.env.NODE_ENV === 'development') {
-        console.log('TemporarySubmission deleted:', tempSubmission.id)
+        console.info('TemporarySubmission deleted:', tempSubmission.id)
       }
     } catch (deleteError) {
       // Non-critical - Submission was created successfully

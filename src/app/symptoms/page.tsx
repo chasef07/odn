@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm, FieldError } from 'react-hook-form'
+import { useForm, useWatch, FieldError } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Textarea } from '@/components/ui/textarea'
 import { FormLayout } from '@/components/form-layout'
@@ -27,7 +27,7 @@ export default function SymptomsPage() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<FormData>({
@@ -45,7 +45,7 @@ export default function SymptomsPage() {
     }
   }, [absenceReason, router])
 
-  const symptoms = watch('symptoms') || []
+  const symptoms = useWatch({ control, name: 'symptoms' }) || []
 
   // Get available symptoms based on absence reason
   const availableSymptoms = SYMPTOMS_BY_REASON[absenceReason] || []

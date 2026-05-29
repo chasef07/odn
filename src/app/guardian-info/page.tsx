@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormLayout } from '@/components/form-layout'
 import { FormCard } from '@/components/form/FormCard'
@@ -30,7 +30,7 @@ export default function GuardianInfoPage() {
     formState: { errors, isSubmitting },
     setError,
     setValue,
-    watch,
+    control,
   } = useForm<FormData>({
     resolver: zodResolver(guardianSchema),
     defaultValues: {
@@ -39,6 +39,8 @@ export default function GuardianInfoPage() {
       guardianDateOfBirth: savedData.guardianDateOfBirth || '',
     },
   })
+
+  const guardianDateOfBirth = useWatch({ control, name: 'guardianDateOfBirth' }) || ''
 
   // Auto-capitalize name fields
   const handleNameChange =
@@ -102,7 +104,7 @@ export default function GuardianInfoPage() {
           <DateOfBirthInput
             name="guardianDateOfBirth"
             label="Date of Birth"
-            value={watch('guardianDateOfBirth')}
+            value={guardianDateOfBirth}
             onChange={(val) => setValue('guardianDateOfBirth', val, { shouldValidate: false })}
             error={errors.guardianDateOfBirth?.message}
           />

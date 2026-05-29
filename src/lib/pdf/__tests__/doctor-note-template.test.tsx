@@ -230,6 +230,25 @@ function extractText(node: unknown): string {
   return ''
 }
 
+function hasLinkWithSrc(node: unknown, src: string): boolean {
+  if (node === null || node === undefined || typeof node !== 'object') return false
+  if (Array.isArray(node)) return node.some((child) => hasLinkWithSrc(child, src))
+
+  if ('props' in (node as Record<string, unknown>)) {
+    const element = node as { type: unknown; props: { children?: unknown; src?: string } }
+    if (typeof element.type === 'function') {
+      const rendered = (element.type as (props: unknown) => unknown)(element.props)
+      return hasLinkWithSrc(rendered, src)
+    }
+    return (
+      (element.type === 'LINK' && element.props.src === src) ||
+      hasLinkWithSrc(element.props.children, src)
+    )
+  }
+
+  return false
+}
+
 describe('DoctorNoteTemplate - "may return" sentence', () => {
   it('omits the "may return" sentence for travel notes (default patient block)', () => {
     const tree = (
@@ -354,14 +373,16 @@ describe('getConditionPhrase()', () => {
 })
 
 describe('DoctorNoteTemplate - verification block', () => {
-  it('renders QR-only verification copy when verification info is provided', () => {
+  it('renders QR-only verification copy with a clickable QR link when verification info is provided', async () => {
+    const verificationUrl = 'https://onlinedoctornote.com/verify/v_test'
     const tree = (
       <DoctorNoteTemplate
         submissionData={baseSubmissionData}
-        doctorInfo={{ ...mockDoctorInfo, npi: '1234567890' }}
+        doctorInfo={{ ...mockDoctorInfo, signatureUrl: '', npi: '1234567890' }}
         issueDate={new Date('2024-11-08')}
         verificationInfo={{
           medicalRecordNumber: 'A7B3C9D2',
+          verificationUrl,
           qrCodeDataUrl:
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
         }}
@@ -370,9 +391,15 @@ describe('DoctorNoteTemplate - verification block', () => {
 
     const text = extractText(tree)
     expect(text).toContain('Document Verification')
-    expect(text).toContain('Scan the QR code to verify this note:')
+    expect(text).toContain('Scan or click on the QR code to verify this note:')
     expect(text).not.toContain('visit the secure URL')
-    expect(text).not.toContain('https://onlinedoctornote.com/verify/v_test')
+    expect(text).not.toContain(verificationUrl)
+    expect(hasLinkWithSrc(tree, verificationUrl)).toBe(true)
+
+    const doc = pdf(tree)
+    const pdfText = await doc.toString()
+    expect(pdfText).toContain(`/URI (${verificationUrl})`)
+
     expect(text).toContain('Medical Record #: A7B3C9D2')
     expect(text).toContain('Texas Medical License #V6158')
     expect(text).toContain('National Provider Identifier: 1234567890')

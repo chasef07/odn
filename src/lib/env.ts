@@ -48,7 +48,7 @@ export function validateEnvironment() {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    console.log('✅ Environment variables validated successfully')
+    console.info('✅ Environment variables validated successfully')
   }
 }
 

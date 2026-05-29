@@ -89,7 +89,7 @@ try {
   })
 
   if (process.env.NODE_ENV === 'development') {
-    console.log('✅ Plus Jakarta Sans fonts loaded successfully for PDF generation')
+    console.info('✅ Plus Jakarta Sans fonts loaded successfully for PDF generation')
   }
 } catch (error) {
   console.error('⚠️ Font loading failed, PDF will use fallback system fonts:', error)
@@ -136,6 +136,7 @@ export interface DoctorInfo {
 
 export interface DoctorNoteVerificationInfo {
   medicalRecordNumber: string
+  verificationUrl: string
   qrCodeDataUrl: string
 }
 
@@ -743,11 +744,13 @@ export function DoctorNoteTemplate({
 
         {verificationInfo && (
           <View style={styles.verificationBox}>
-            <Image src={verificationInfo.qrCodeDataUrl} style={styles.verificationQr} />
+            <Link src={verificationInfo.verificationUrl}>
+              <Image src={verificationInfo.qrCodeDataUrl} style={styles.verificationQr} />
+            </Link>
             <View style={styles.verificationContent}>
               <Text style={styles.verificationTitle}>Document Verification</Text>
               <Text style={styles.verificationText}>
-                Scan the QR code to verify this note:
+                Scan or click on the QR code to verify this note:
               </Text>
               <Text style={styles.verificationText}>
                 Medical Record #: {verificationInfo.medicalRecordNumber}
