@@ -10,8 +10,16 @@ const eslintConfig = [
       '.next/**',
       'out/**',
       'build/**',
+      '.claude/**',
       'next-env.d.ts',
     ],
+  },
+  {
+    files: ['src/lib/pdf/**/*.{ts,tsx,js,jsx}'],
+    rules: {
+      // React PDF's Image component is not a DOM image and does not support alt.
+      'jsx-a11y/alt-text': 'off',
+    },
   },
   {
     files: ['src/**/*.{ts,tsx,js,jsx}'],
@@ -21,7 +29,7 @@ const eslintConfig = [
       'src/**/*.spec.{ts,tsx}',
     ],
     rules: {
-      'no-console': ['warn', { allow: ['error', 'warn'] }],
+      'no-console': ['warn', { allow: ['error', 'warn', 'info'] }],
     },
   },
 ]

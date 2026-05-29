@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormProgress } from '@/components/form-progress'
 import { FormRadioGroup } from '@/components/form/FormRadioGroup'
@@ -22,14 +22,14 @@ export default function WhoIsUsingPage() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(page1Schema),
     defaultValues: getFormData(),
   })
 
-  const recipient = watch('recipient')
+  const recipient = useWatch({ control, name: 'recipient' })
 
   const onSubmit = (data: FormData) => {
     saveFormData(data)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormLayout } from '@/components/form-layout'
 import { FormCard } from '@/components/form/FormCard'
@@ -31,7 +31,7 @@ export default function BasicInfoPage() {
     formState: { errors, isSubmitting },
     setError,
     setValue,
-    watch,
+    control,
   } = useForm<FormData>({
     resolver: zodResolver(page2Schema),
     defaultValues: {
@@ -40,6 +40,8 @@ export default function BasicInfoPage() {
       patientDateOfBirth: savedData.patientDateOfBirth || '',
     },
   })
+
+  const patientDateOfBirth = useWatch({ control, name: 'patientDateOfBirth' }) || ''
 
   // Auto-capitalize name fields
   const handleNameChange =
@@ -114,7 +116,7 @@ export default function BasicInfoPage() {
             <DateOfBirthInput
               name="patientDateOfBirth"
               label="Date of Birth"
-              value={watch('patientDateOfBirth')}
+              value={patientDateOfBirth}
               onChange={(val) => setValue('patientDateOfBirth', val, { shouldValidate: false })}
               error={errors.patientDateOfBirth?.message}
             />

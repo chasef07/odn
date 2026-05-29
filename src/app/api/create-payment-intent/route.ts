@@ -31,7 +31,7 @@ async function cancelPaymentIntentWithRetry(
     try {
       await stripe.paymentIntents.cancel(paymentIntentId)
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Payment intent canceled successfully on attempt ${i + 1}:`, paymentIntentId)
+        console.info(`Payment intent canceled successfully on attempt ${i + 1}:`, paymentIntentId)
       }
       return true
     } catch (error) {
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       tempSubmissionId = tempSubmission.id
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('TemporarySubmission created:', tempSubmissionId)
+        console.info('TemporarySubmission created:', tempSubmissionId)
       }
     } catch (dbError) {
       console.error('Database error creating TemporarySubmission:', dbError)
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('PaymentIntent created:', paymentIntent.id)
+        console.info('PaymentIntent created:', paymentIntent.id)
       }
     } catch (stripeError) {
       console.error('Stripe API error:', stripeError)
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
           where: { id: tempSubmissionId },
         })
         if (process.env.NODE_ENV === 'development') {
-          console.log('Cleaned up TemporarySubmission after Stripe error:', tempSubmissionId)
+          console.info('Cleaned up TemporarySubmission after Stripe error:', tempSubmissionId)
         }
       } catch (cleanupError) {
         console.error('Failed to cleanup TemporarySubmission:', cleanupError)
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('TemporarySubmission updated with PaymentIntent ID:', paymentIntent.id)
+        console.info('TemporarySubmission updated with PaymentIntent ID:', paymentIntent.id)
       }
     } catch (updateError) {
       console.error('Failed to update TemporarySubmission with payment intent ID:', updateError)
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
           where: { id: tempSubmissionId },
         })
         if (process.env.NODE_ENV === 'development') {
-          console.log('Cleaned up TemporarySubmission after update failure:', tempSubmissionId)
+          console.info('Cleaned up TemporarySubmission after update failure:', tempSubmissionId)
         }
       } catch (cleanupError) {
         console.error('Failed to cleanup TemporarySubmission after update failure:', cleanupError)

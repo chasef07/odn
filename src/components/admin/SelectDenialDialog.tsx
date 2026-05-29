@@ -53,9 +53,8 @@ export function SelectDenialDialog({
   // Reset state when dialog opens — intentional prop-driven reset
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local dialog fields when it opens
       setDenialReason('')
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOtherReason('')
     }
   }, [open])

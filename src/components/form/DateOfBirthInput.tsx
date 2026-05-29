@@ -36,11 +36,9 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
     if (value) {
       const [y, m, d] = value.split('-')
       if (y && m && d) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- sync split date inputs from an external form value
         setYyyy(y)
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMm(m)
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDd(d)
       }
     }

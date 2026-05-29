@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormLayout } from '@/components/form-layout'
 import { FormRadioGroup } from '@/components/form/FormRadioGroup'
@@ -28,14 +28,14 @@ export default function AbsenceReasonPage() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(page7Schema),
     defaultValues: getFormData(),
   })
 
-  const selectedReason = watch('absenceReason')
+  const selectedReason = useWatch({ control, name: 'absenceReason' })
 
   // Build absence reason options from constants
   const absenceReasonOptions = [...ABSENCE_REASONS]

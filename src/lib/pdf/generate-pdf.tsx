@@ -214,7 +214,7 @@ export async function generateDoctorNotePDF(
     )
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`PDF generated successfully for submission ${submission.id}`)
+      console.info(`PDF generated successfully for submission ${submission.id}`)
     }
 
     return pdfBuffer

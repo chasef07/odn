@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormLayout } from '@/components/form-layout'
 import { FormRadioGroup } from '@/components/form/FormRadioGroup'
@@ -70,7 +70,7 @@ export default function NotePurposePage() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     clearErrors,
     formState: { errors, isSubmitting },
@@ -82,7 +82,7 @@ export default function NotePurposePage() {
     },
   })
 
-  const selectedPurpose = watch('notePurpose')
+  const selectedPurpose = useWatch({ control, name: 'notePurpose' })
   const notePurposeRegister = register('notePurpose', {
     onChange: (event) => {
       if (event.target.value === 'legal') {
