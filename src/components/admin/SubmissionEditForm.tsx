@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import {
   Select,
   SelectContent,
@@ -42,6 +43,8 @@ function parseDateSafe(dateString: string): Date {
 export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isGuardianRemovalPending, setIsGuardianRemovalPending] = useState(false)
+  const isActionDisabled = isLoading || isGuardianRemovalPending
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -56,6 +59,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
   const [guardianDateOfBirth, setGuardianDateOfBirth] = useState(
     (submission.guardianDateOfBirth as string | null) || ''
   )
+  const [recipient, setRecipient] = useState(submission.recipient)
   const [email, setEmail] = useState(submission.email)
   const [phone, setPhone] = useState(submission.phone)
   const [state, setState] = useState(submission.state)
@@ -77,6 +81,13 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
   const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
   const [diagnosis, setDiagnosis] = useState('')
   const [withRestrictions, setWithRestrictions] = useState(true)
+
+  const handleGuardianRemoved = () => {
+    setRecipient('myself')
+    setGuardianFirstName('')
+    setGuardianLastName('')
+    setGuardianDateOfBirth('')
+  }
 
   const handleApprove = async () => {
     setIsLoading(true)
@@ -226,8 +237,20 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
+            <RemoveGuardianModeControl
+              submissionId={submission.id}
+              patientDateOfBirth={patientDateOfBirth}
+              recipient={recipient}
+              guardianFirstName={guardianFirstName}
+              guardianLastName={guardianLastName}
+              guardianDateOfBirth={guardianDateOfBirth || null}
+              disabled={isLoading}
+              onPendingChange={setIsGuardianRemovalPending}
+              onRemoved={handleGuardianRemoved}
+            />
+
             {/* Guardian Information (if applicable) */}
-            {(guardianFirstName || guardianLastName || submission.recipient === 'someone_else') && (
+            {(guardianFirstName || guardianLastName || recipient === 'someone_else') && (
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold text-gray-900">Guardian Information</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -495,19 +518,19 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
 
             {/* Action Buttons */}
             <div className="flex gap-3 border-t border-gray-200 pt-6">
-              <Button onClick={handleSave} disabled={isLoading} size="lg">
+              <Button onClick={handleSave} disabled={isActionDisabled} size="lg">
                 {isLoading ? 'Saving...' : 'Save Changes'}
               </Button>
               <Button
                 onClick={handleApprove}
-                disabled={isLoading}
+                disabled={isActionDisabled}
                 size="lg"
                 className="bg-green-600 hover:bg-green-700"
               >
                 {isLoading ? 'Approving...' : 'Approve & Send PDF'}
               </Button>
               <Link href="/admin/maybe">
-                <Button variant="outline" disabled={isLoading} size="lg">
+                <Button variant="outline" disabled={isActionDisabled} size="lg">
                   Back to Maybe List
                 </Button>
               </Link>

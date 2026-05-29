@@ -21,15 +21,24 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
+import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
+import type { MaybeSubmission } from '@/app/admin/actions'
 
 interface MaybeActionButtonsProps {
-  submissionId: string
+  submission: MaybeSubmission
 }
 
-export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
+export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
   const router = useRouter()
+  const submissionId = submission.id
+  const [recipient, setRecipient] = useState(submission.recipient)
+  const [guardianFirstName, setGuardianFirstName] = useState(submission.guardianFirstName || '')
+  const [guardianLastName, setGuardianLastName] = useState(submission.guardianLastName || '')
+  const [guardianDateOfBirth, setGuardianDateOfBirth] = useState(submission.guardianDateOfBirth)
   const [isLoading, setIsLoading] = useState(false)
+  const [isGuardianRemovalPending, setIsGuardianRemovalPending] = useState(false)
+  const isActionDisabled = isLoading || isGuardianRemovalPending
 
   // Approval modal state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
@@ -45,6 +54,13 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
   // Manual note modal state
   const [showManualDialog, setShowManualDialog] = useState(false)
   const [manualError, setManualError] = useState<string | null>(null)
+
+  const handleGuardianRemoved = () => {
+    setRecipient('myself')
+    setGuardianFirstName('')
+    setGuardianLastName('')
+    setGuardianDateOfBirth(null)
+  }
 
   const handleApproveClick = () => {
     setApprovalError(null)
@@ -173,12 +189,24 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
             error={approvalError}
           />
 
+          <RemoveGuardianModeControl
+            submissionId={submissionId}
+            patientDateOfBirth={submission.patientDateOfBirth}
+            recipient={recipient}
+            guardianFirstName={guardianFirstName}
+            guardianLastName={guardianLastName}
+            guardianDateOfBirth={guardianDateOfBirth}
+            disabled={isLoading}
+            onPendingChange={setIsGuardianRemovalPending}
+            onRemoved={handleGuardianRemoved}
+          />
+
           <div className="flex items-center gap-2 py-4">
             <Switch
               id="maybe-restrictions-toggle"
               checked={withRestrictions}
               onCheckedChange={setWithRestrictions}
-              disabled={isLoading}
+              disabled={isActionDisabled}
             />
             <Label htmlFor="maybe-restrictions-toggle" className="text-sm">
               Include &quot;with no restrictions&quot; in PDF
@@ -189,13 +217,13 @@ export function MaybeActionButtons({ submissionId }: MaybeActionButtonsProps) {
             <Button
               variant="outline"
               onClick={() => setShowApprovalDialog(false)}
-              disabled={isLoading}
+              disabled={isActionDisabled}
             >
               Cancel
             </Button>
             <Button
               onClick={handleApproveConfirm}
-              disabled={isLoading}
+              disabled={isActionDisabled}
               className="bg-green-600 hover:bg-green-700"
             >
               {isLoading ? 'Approving...' : 'Approve & Send PDF'}

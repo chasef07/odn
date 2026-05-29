@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
+import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import type { Submission } from '@prisma/client'
 import {
   calculateAge,
@@ -29,6 +30,8 @@ interface SubmissionCardProps {
   onDiagnosisChange?: (value: string) => void
   withRestrictions?: boolean
   onWithRestrictionsChange?: (value: boolean) => void
+  onGuardianRemovalPendingChange?: (isPending: boolean) => void
+  onGuardianRemoved?: () => void
 }
 
 export function SubmissionCard({
@@ -41,6 +44,8 @@ export function SubmissionCard({
   onDiagnosisChange,
   withRestrictions,
   onWithRestrictionsChange,
+  onGuardianRemovalPendingChange,
+  onGuardianRemoved,
 }: SubmissionCardProps) {
   const patientAge = calculateAge(submission.patientDateOfBirth)
   const dateRange = formatDateRange(submission.firstDayOff, submission.lastDayOff)
@@ -134,6 +139,17 @@ export function SubmissionCard({
             </div>
           </div>
         )}
+
+        <RemoveGuardianModeControl
+          submissionId={submission.id}
+          patientDateOfBirth={submission.patientDateOfBirth}
+          recipient={submission.recipient}
+          guardianFirstName={submission.guardianFirstName}
+          guardianLastName={submission.guardianLastName}
+          guardianDateOfBirth={submission.guardianDateOfBirth}
+          onPendingChange={onGuardianRemovalPendingChange}
+          onRemoved={onGuardianRemoved}
+        />
 
         {/* Note Request */}
         <div className="space-y-1.5 border-t pt-2">
