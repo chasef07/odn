@@ -281,8 +281,8 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
           <div>
             <h1 className="text-3xl font-bold text-gray-950">Business Analytics</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-              Revenue-first view for note volume, net revenue, refunds, repeat customers, and
-              all-time demographic signal.
+              Revenue-first view for note volume, net revenue, refunds, repeat customers, and recent
+              demographic signal.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
@@ -312,6 +312,9 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
             </div>
             <div className="text-xs text-gray-500">
               Generated {formatDateTime(currentAnalytics.generatedAt)}
+            </div>
+            <div className="text-xs text-gray-500">
+              Scoped to the latest 2,500 submissions; 1 year max view.
             </div>
           </div>
         </div>

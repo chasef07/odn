@@ -495,8 +495,9 @@ export function FriendsFamilyAnalyticsDashboard({
               30 days is weighted highest; refunds are separated from the recommendation list.
             </p>
           </div>
-          <div className="text-sm text-gray-500">
-            Generated {formatDateTime(currentAnalytics.generatedAt)}
+          <div className="flex flex-col gap-1 text-sm text-gray-500 sm:items-end">
+            <div>Generated {formatDateTime(currentAnalytics.generatedAt)}</div>
+            <div className="text-xs">Scoped to the last year and latest 2,500 submissions.</div>
           </div>
         </div>
       </section>
