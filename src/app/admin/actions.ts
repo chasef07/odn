@@ -33,6 +33,18 @@ import {
   type MaybeApprovedDays,
   type MaybeReason,
 } from '@/lib/maybe-reasons'
+import {
+  buildFriendsFamilyCustomerDetail,
+  buildFriendsFamilyAnalytics,
+  type FriendsFamilyAnalytics,
+  type FriendsFamilyAnalyticsOptions,
+  type FriendsFamilyCustomerSegment,
+} from '@/lib/friends-family-analytics'
+import {
+  buildBusinessAnalytics,
+  type BusinessAnalytics,
+  type BusinessAnalyticsOptions,
+} from '@/lib/business-analytics'
 
 // Export shared submission types for components
 export type MaybeSubmission = Awaited<ReturnType<typeof getMaybeSubmissions>>['submissions'][number]
@@ -141,6 +153,211 @@ export async function getDashboardStats() {
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
     return { success: false, error: 'Failed to fetch dashboard stats' }
+  }
+}
+
+/**
+ * Get customer-level friends and family segmentation analytics.
+ * This is analytics-only: no outreach state, no emails, and no schema writes.
+ */
+export async function getFriendsFamilyAnalytics(
+  options: FriendsFamilyAnalyticsOptions = {}
+): Promise<{
+  success: boolean
+  data?: FriendsFamilyAnalytics
+  error?: string
+}> {
+  try {
+    await getCurrentDoctor()
+
+    const submissions = await prisma.submission.findMany({
+      select: {
+        id: true,
+        status: true,
+        patientFirstName: true,
+        patientLastName: true,
+        patientDateOfBirth: true,
+        guardianFirstName: true,
+        guardianLastName: true,
+        recipient: true,
+        email: true,
+        phone: true,
+        notePurpose: true,
+        firstDayOff: true,
+        lastDayOff: true,
+        denialReason: true,
+        maybeReason: true,
+        stripeRefundId: true,
+        refundedAt: true,
+        offerCode: true,
+        paymentAmount: true,
+        createdAt: true,
+        reviewedAt: true,
+        approvalEmailSentAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return { success: true, data: buildFriendsFamilyAnalytics(submissions, new Date(), options) }
+  } catch (error) {
+    console.error('Error fetching friends and family analytics:', error)
+    return { success: false, error: 'Failed to fetch friends and family analytics' }
+  }
+}
+
+function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWhereInput | null {
+  const separatorIndex = customerKey.indexOf(':')
+  if (separatorIndex <= 0) {
+    return null
+  }
+
+  const keyType = customerKey.slice(0, separatorIndex)
+  const keyValue = customerKey.slice(separatorIndex + 1)
+
+  if (keyType === 'email') {
+    const email = keyValue.trim().toLowerCase()
+    return email ? { email: { equals: email, mode: 'insensitive' } } : null
+  }
+
+  if (keyType === 'phone') {
+    const digits = keyValue.replace(/\D/g, '')
+    if (!digits) {
+      return null
+    }
+
+    const phoneFilters: Prisma.SubmissionWhereInput[] = [{ phone: { contains: digits } }]
+
+    if (digits.length >= 10) {
+      const tenDigits = digits.slice(0, 10)
+      phoneFilters.push({
+        phone: {
+          equals: `(${tenDigits.slice(0, 3)}) ${tenDigits.slice(3, 6)}-${tenDigits.slice(6, 10)}`,
+        },
+      })
+      phoneFilters.push({
+        AND: [
+          { phone: { contains: tenDigits.slice(0, 3) } },
+          { phone: { contains: tenDigits.slice(3, 6) } },
+          { phone: { contains: tenDigits.slice(6, 10) } },
+        ],
+      })
+    }
+
+    return { OR: phoneFilters }
+  }
+
+  if (keyType === 'patient') {
+    const [firstName, lastName, dateOfBirth, ...extraParts] = keyValue.split(':')
+    if (!firstName || !lastName || !dateOfBirth || extraParts.length > 0) {
+      return null
+    }
+
+    const parsedDateOfBirth = new Date(`${dateOfBirth}T00:00:00.000Z`)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || Number.isNaN(parsedDateOfBirth.getTime())) {
+      return null
+    }
+
+    return {
+      patientFirstName: { equals: firstName, mode: 'insensitive' },
+      patientLastName: { equals: lastName, mode: 'insensitive' },
+      patientDateOfBirth: parsedDateOfBirth,
+    }
+  }
+
+  return null
+}
+
+/**
+ * Get a single customer's timeline and score breakdown for the friends/family analytics drawer.
+ */
+export async function getFriendsFamilyCustomerDetail(customerKey: string): Promise<{
+  success: boolean
+  data?: FriendsFamilyCustomerSegment
+  error?: string
+}> {
+  try {
+    await getCurrentDoctor()
+
+    const where = getFriendsFamilyCustomerWhere(customerKey)
+    if (!where) {
+      return { success: false, error: 'Customer not found' }
+    }
+
+    const submissions = await prisma.submission.findMany({
+      where,
+      select: {
+        id: true,
+        status: true,
+        patientFirstName: true,
+        patientLastName: true,
+        patientDateOfBirth: true,
+        guardianFirstName: true,
+        guardianLastName: true,
+        recipient: true,
+        email: true,
+        phone: true,
+        notePurpose: true,
+        firstDayOff: true,
+        lastDayOff: true,
+        denialReason: true,
+        maybeReason: true,
+        stripeRefundId: true,
+        refundedAt: true,
+        offerCode: true,
+        paymentAmount: true,
+        createdAt: true,
+        reviewedAt: true,
+        approvalEmailSentAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const customer = buildFriendsFamilyCustomerDetail(submissions, customerKey)
+    if (!customer) {
+      return { success: false, error: 'Customer not found' }
+    }
+
+    return { success: true, data: customer }
+  } catch (error) {
+    console.error('Error fetching friends and family customer detail:', error)
+    return { success: false, error: 'Failed to fetch customer detail' }
+  }
+}
+
+/**
+ * Get business-focused admin analytics for revenue, volume, geography, and customer quality.
+ */
+export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {}): Promise<{
+  success: boolean
+  data?: BusinessAnalytics
+  error?: string
+}> {
+  try {
+    await getCurrentDoctor()
+
+    const submissions = await prisma.submission.findMany({
+      select: {
+        id: true,
+        status: true,
+        state: true,
+        patientFirstName: true,
+        patientLastName: true,
+        patientDateOfBirth: true,
+        email: true,
+        phone: true,
+        offerCode: true,
+        paymentAmount: true,
+        stripeRefundId: true,
+        refundedAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    return { success: true, data: buildBusinessAnalytics(submissions, new Date(), options) }
+  } catch (error) {
+    console.error('Error fetching business analytics:', error)
+    return { success: false, error: 'Failed to fetch business analytics' }
   }
 }
 

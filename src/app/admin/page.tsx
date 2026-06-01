@@ -6,6 +6,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { BarChart3, HeartHandshake, Search } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { AdminStats } from '@/components/admin/AdminStats'
 import { Button } from '@/components/ui/button'
@@ -76,19 +77,26 @@ export default async function AdminDashboardPage() {
                 Manage and review patient doctor note submissions
               </p>
             </div>
-            <Link href="/admin/search">
-              <Button variant="outline" className="gap-2">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-                Search All Submissions
-              </Button>
-            </Link>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link href="/admin/analytics">
+                <Button variant="outline" className="w-full gap-2 sm:w-auto">
+                  <BarChart3 data-icon="inline-start" />
+                  Business Analytics
+                </Button>
+              </Link>
+              <Link href="/admin/friends-family">
+                <Button variant="outline" className="w-full gap-2 sm:w-auto">
+                  <HeartHandshake data-icon="inline-start" />
+                  Friends &amp; Family Analytics
+                </Button>
+              </Link>
+              <Link href="/admin/search">
+                <Button variant="outline" className="w-full gap-2 sm:w-auto">
+                  <Search data-icon="inline-start" />
+                  Search All Submissions
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Stats Cards */}
