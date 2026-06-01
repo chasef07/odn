@@ -70,7 +70,6 @@ const DASHBOARD_TODAY_LIST_LIMIT = 250
 const BUSINESS_ANALYTICS_FETCH_LIMIT = 2500
 const FRIENDS_FAMILY_ANALYTICS_FETCH_LIMIT = 2500
 const FRIENDS_FAMILY_LOOKBACK_DAYS = 365
-const DASHBOARD_REVIEW_CREATED_LOOKBACK_DAYS = 30
 
 /**
  * Get current logged-in doctor's session
@@ -142,8 +141,6 @@ export async function getDashboardStats() {
   try {
     // Business day starts at 6am ET (not midnight UTC)
     const today = getBusinessDayStart()
-    const recentReviewCreatedAt = daysBefore(today, DASHBOARD_REVIEW_CREATED_LOOKBACK_DAYS)
-
     const [pendingCount, approvedToday, deniedToday, maybeCount, manualCount] = await Promise.all([
       // Pending reviews
       getLimitedSubmissionCount({ status: SubmissionStatus.PENDING_REVIEW }),
@@ -152,14 +149,12 @@ export async function getDashboardStats() {
       getLimitedSubmissionCount({
         status: SubmissionStatus.APPROVED,
         reviewedAt: { gte: today },
-        createdAt: { gte: recentReviewCreatedAt },
       }),
 
       // Denied today
       getLimitedSubmissionCount({
         status: SubmissionStatus.DENIED,
         reviewedAt: { gte: today },
-        createdAt: { gte: recentReviewCreatedAt },
       }),
 
       // Maybe (all time)
@@ -417,13 +412,10 @@ export async function getApprovedSubmissionsForToday() {
   try {
     // Business day starts at 6am ET (not midnight UTC)
     const today = getBusinessDayStart()
-    const recentReviewCreatedAt = daysBefore(today, DASHBOARD_REVIEW_CREATED_LOOKBACK_DAYS)
-
     const submissions = await prisma.submission.findMany({
       where: {
         status: SubmissionStatus.APPROVED,
         reviewedAt: { gte: today },
-        createdAt: { gte: recentReviewCreatedAt },
       },
       select: {
         id: true,
@@ -453,13 +445,10 @@ export async function getDeniedSubmissionsForToday() {
   try {
     // Business day starts at 6am ET (not midnight UTC)
     const today = getBusinessDayStart()
-    const recentReviewCreatedAt = daysBefore(today, DASHBOARD_REVIEW_CREATED_LOOKBACK_DAYS)
-
     const submissions = await prisma.submission.findMany({
       where: {
         status: SubmissionStatus.DENIED,
         reviewedAt: { gte: today },
-        createdAt: { gte: recentReviewCreatedAt },
       },
       select: {
         id: true,
