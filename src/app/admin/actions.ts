@@ -44,6 +44,7 @@ import {
   buildBusinessAnalytics,
   type BusinessAnalytics,
   type BusinessAnalyticsOptions,
+  type BusinessAnalyticsRange,
 } from '@/lib/business-analytics'
 
 // Export shared submission types for components
@@ -63,6 +64,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
 })
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const DASHBOARD_COUNT_LIMIT = 1000
+const DASHBOARD_TODAY_LIST_LIMIT = 250
+const BUSINESS_ANALYTICS_FETCH_LIMIT = 2500
+const FRIENDS_FAMILY_ANALYTICS_FETCH_LIMIT = 2500
+const FRIENDS_FAMILY_LOOKBACK_DAYS = 365
+const DASHBOARD_REVIEW_CREATED_LOOKBACK_DAYS = 30
+
 /**
  * Get current logged-in doctor's session
  */
@@ -74,6 +83,33 @@ async function getCurrentDoctor() {
     throw new Error('Unauthorized: No active session')
   }
   return session.user.id
+}
+
+function daysBefore(date: Date, days: number): Date {
+  return new Date(date.getTime() - days * MS_PER_DAY)
+}
+
+async function getLimitedSubmissionCount(where: Prisma.SubmissionWhereInput): Promise<number> {
+  try {
+    const rows = await prisma.submission.findMany({
+      where,
+      select: { id: true },
+      take: DASHBOARD_COUNT_LIMIT + 1,
+    })
+
+    return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
+  } catch (error) {
+    console.error('Error fetching limited dashboard count:', error)
+    return 0
+  }
+}
+
+function businessAnalyticsFetchStart(range: BusinessAnalyticsRange, referenceDate: Date): Date {
+  if (range === '30d' || range === '90d') {
+    return daysBefore(referenceDate, 180)
+  }
+
+  return daysBefore(referenceDate, FRIENDS_FAMILY_LOOKBACK_DAYS)
 }
 
 /**
@@ -106,38 +142,31 @@ export async function getDashboardStats() {
   try {
     // Business day starts at 6am ET (not midnight UTC)
     const today = getBusinessDayStart()
+    const recentReviewCreatedAt = daysBefore(today, DASHBOARD_REVIEW_CREATED_LOOKBACK_DAYS)
 
     const [pendingCount, approvedToday, deniedToday, maybeCount, manualCount] = await Promise.all([
       // Pending reviews
-      prisma.submission.count({
-        where: { status: SubmissionStatus.PENDING_REVIEW },
-      }),
+      getLimitedSubmissionCount({ status: SubmissionStatus.PENDING_REVIEW }),
 
       // Approved today
-      prisma.submission.count({
-        where: {
-          status: SubmissionStatus.APPROVED,
-          reviewedAt: { gte: today },
-        },
+      getLimitedSubmissionCount({
+        status: SubmissionStatus.APPROVED,
+        reviewedAt: { gte: today },
+        createdAt: { gte: recentReviewCreatedAt },
       }),
 
       // Denied today
-      prisma.submission.count({
-        where: {
-          status: SubmissionStatus.DENIED,
-          reviewedAt: { gte: today },
-        },
+      getLimitedSubmissionCount({
+        status: SubmissionStatus.DENIED,
+        reviewedAt: { gte: today },
+        createdAt: { gte: recentReviewCreatedAt },
       }),
 
       // Maybe (all time)
-      prisma.submission.count({
-        where: { status: SubmissionStatus.MAYBE },
-      }),
+      getLimitedSubmissionCount({ status: SubmissionStatus.MAYBE }),
 
       // Manual (all time)
-      prisma.submission.count({
-        where: { status: SubmissionStatus.MANUAL },
-      }),
+      getLimitedSubmissionCount({ status: SubmissionStatus.MANUAL }),
     ])
 
     return {
@@ -169,8 +198,13 @@ export async function getFriendsFamilyAnalytics(
 }> {
   try {
     await getCurrentDoctor()
+    const referenceDate = new Date()
+    const lookbackStart = daysBefore(referenceDate, FRIENDS_FAMILY_LOOKBACK_DAYS)
 
     const submissions = await prisma.submission.findMany({
+      where: {
+        createdAt: { gte: lookbackStart },
+      },
       select: {
         id: true,
         status: true,
@@ -196,9 +230,10 @@ export async function getFriendsFamilyAnalytics(
         approvalEmailSentAt: true,
       },
       orderBy: { createdAt: 'desc' },
+      take: FRIENDS_FAMILY_ANALYTICS_FETCH_LIMIT,
     })
 
-    return { success: true, data: buildFriendsFamilyAnalytics(submissions, new Date(), options) }
+    return { success: true, data: buildFriendsFamilyAnalytics(submissions, referenceDate, options) }
   } catch (error) {
     console.error('Error fetching friends and family analytics:', error)
     return { success: false, error: 'Failed to fetch friends and family analytics' }
@@ -334,8 +369,14 @@ export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {
 }> {
   try {
     await getCurrentDoctor()
+    const referenceDate = new Date()
+    const range = options.range ?? '30d'
+    const fetchStart = businessAnalyticsFetchStart(range, referenceDate)
 
     const submissions = await prisma.submission.findMany({
+      where: {
+        createdAt: { gte: fetchStart },
+      },
       select: {
         id: true,
         status: true,
@@ -351,10 +392,17 @@ export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {
         refundedAt: true,
         createdAt: true,
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
+      take: BUSINESS_ANALYTICS_FETCH_LIMIT,
     })
 
-    return { success: true, data: buildBusinessAnalytics(submissions, new Date(), options) }
+    return {
+      success: true,
+      data: buildBusinessAnalytics([...submissions].reverse(), referenceDate, {
+        ...options,
+        range,
+      }),
+    }
   } catch (error) {
     console.error('Error fetching business analytics:', error)
     return { success: false, error: 'Failed to fetch business analytics' }
@@ -369,11 +417,13 @@ export async function getApprovedSubmissionsForToday() {
   try {
     // Business day starts at 6am ET (not midnight UTC)
     const today = getBusinessDayStart()
+    const recentReviewCreatedAt = daysBefore(today, DASHBOARD_REVIEW_CREATED_LOOKBACK_DAYS)
 
     const submissions = await prisma.submission.findMany({
       where: {
         status: SubmissionStatus.APPROVED,
         reviewedAt: { gte: today },
+        createdAt: { gte: recentReviewCreatedAt },
       },
       select: {
         id: true,
@@ -385,6 +435,7 @@ export async function getApprovedSubmissionsForToday() {
       orderBy: {
         approvalEmailSentAt: 'desc', // Newest first
       },
+      take: DASHBOARD_TODAY_LIST_LIMIT,
     })
 
     return { success: true, data: submissions }
@@ -402,11 +453,13 @@ export async function getDeniedSubmissionsForToday() {
   try {
     // Business day starts at 6am ET (not midnight UTC)
     const today = getBusinessDayStart()
+    const recentReviewCreatedAt = daysBefore(today, DASHBOARD_REVIEW_CREATED_LOOKBACK_DAYS)
 
     const submissions = await prisma.submission.findMany({
       where: {
         status: SubmissionStatus.DENIED,
         reviewedAt: { gte: today },
+        createdAt: { gte: recentReviewCreatedAt },
       },
       select: {
         id: true,
@@ -418,6 +471,7 @@ export async function getDeniedSubmissionsForToday() {
       orderBy: {
         denialEmailSentAt: 'desc', // Newest first
       },
+      take: DASHBOARD_TODAY_LIST_LIMIT,
     })
 
     return { success: true, data: submissions }

@@ -1,7 +1,7 @@
 import { SubmissionStatus } from '@prisma/client'
 import { normalizeOfferCode } from '@/lib/offer-codes'
 
-export type BusinessAnalyticsRange = '30d' | '90d' | 'all'
+export type BusinessAnalyticsRange = '30d' | '90d' | '365d' | 'all'
 
 export type BusinessAnalyticsOptions = {
   range?: BusinessAnalyticsRange
@@ -247,7 +247,7 @@ function buildPeriod(range: BusinessAnalyticsRange, referenceDate: Date): Analyt
     }
   }
 
-  const days = range === '90d' ? 90 : 30
+  const days = range === '365d' ? 365 : range === '90d' ? 90 : 30
   const start = addUtcDays(endExclusive, -days)
 
   return {

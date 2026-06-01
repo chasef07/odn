@@ -37,7 +37,7 @@ type RangeOption = {
 const RANGE_OPTIONS: RangeOption[] = [
   { key: '30d', label: '30 days' },
   { key: '90d', label: '90 days' },
-  { key: 'all', label: 'All time' },
+  { key: '365d', label: '1 year' },
 ]
 
 const trendChartConfig = {
