@@ -5,7 +5,6 @@ export type FriendsFamilySegmentKey =
   | 'best_targets'
   | 'recent_approvals'
   | 'repeat_customers'
-  | 'lapsed_good'
   | 'family_signal'
   | 'needs_review'
   | 'refunded'
@@ -114,11 +113,12 @@ export type FriendsFamilyAnalyticsSummary = {
   bestTargets: number
   recentApprovals: number
   repeatCustomers: number
-  lapsedGood: number
   familySignal: number
   needsReview: number
   refunded: number
   offerUsed: number
+  offerNotesCount: number
+  offerNetRevenueCents: number
   targetableFullPriceCustomers: number
   grossRevenueCents: number
   refundedRevenueCents: number
@@ -289,30 +289,44 @@ function buildCustomerSegment(
         Boolean(submission.guardianLastName)
     )
 
+  const daysSinceLastApproved =
+    lastApprovedAt !== null
+      ? Math.floor((referenceDate.getTime() - lastApprovedAt.getTime()) / MS_PER_DAY)
+      : null
+
   const reasons: FriendsFamilyReason[] = []
   const scoreFactors: FriendsFamilyScoreFactor[] = []
   let score = 0
 
-  if (approvedNotes > 0) {
-    score += addFactor(scoreFactors, reasons, 'Successful approved history', 35, 'positive')
-  }
-
-  if (approvedLast30Days > 0) {
-    score += addFactor(scoreFactors, reasons, 'Approved in last 30 days', 25, 'positive')
-  }
-
+  // Loyalty / repeat-buyer signals (strongest positive)
   if (approvedNotes >= 2) {
-    score += addFactor(scoreFactors, reasons, 'Repeat successful customer', 18, 'positive')
+    score += addFactor(scoreFactors, reasons, 'Repeat successful customer', 30, 'positive')
+  }
+  if (approvedNotes >= 3) {
+    score += addFactor(scoreFactors, reasons, '3+ approved notes', 10, 'positive')
   }
 
-  if (approvedLastSixMonths >= 3) {
-    score += addFactor(scoreFactors, reasons, '3+ approved notes in 6 months', 16, 'positive')
-  } else if (approvedLastSixMonths >= 2) {
-    score += addFactor(scoreFactors, reasons, '2 approved notes in 6 months', 8, 'positive')
+  // Recency: reward 30-90 day lapse, penalize too-recent and cold
+  if (daysSinceLastApproved !== null) {
+    if (daysSinceLastApproved < 14) {
+      score += addFactor(scoreFactors, reasons, 'Too recent to discount', -20, 'warning')
+    } else if (daysSinceLastApproved < 30) {
+      score += addFactor(scoreFactors, reasons, 'Recently active', 5, 'positive')
+    } else if (daysSinceLastApproved <= 90) {
+      score += addFactor(scoreFactors, reasons, 'Sweet spot recency', 25, 'positive')
+    } else if (daysSinceLastApproved <= 180) {
+      score += addFactor(scoreFactors, reasons, 'Cooling off', -5, 'warning')
+    } else {
+      score += addFactor(scoreFactors, reasons, 'Cold lead', -20, 'warning')
+    }
+  }
+
+  if (approvedNotes === 0) {
+    score += addFactor(scoreFactors, reasons, 'No approved history', -15, 'warning')
   }
 
   if (familySignal) {
-    score += addFactor(scoreFactors, reasons, 'Family or caregiver pattern', 10, 'positive')
+    score += addFactor(scoreFactors, reasons, 'Family or caregiver pattern', 8, 'positive')
   }
 
   if (refundedNotes === 0) {
@@ -322,7 +336,7 @@ function buildCustomerSegment(
   }
 
   if (deniedNotes === 0) {
-    score += addFactor(scoreFactors, reasons, 'No denial history', 8, 'positive')
+    score += addFactor(scoreFactors, reasons, 'No denial history', 5, 'positive')
   } else {
     score += addFactor(
       scoreFactors,
@@ -342,7 +356,7 @@ function buildCustomerSegment(
   }
 
   if (offerUsedCount > 0) {
-    score += addFactor(scoreFactors, reasons, 'Already used friends20', -10, 'neutral')
+    score += addFactor(scoreFactors, reasons, 'Already used friends20', -25, 'warning')
   } else if (standardPriceNotes > 0) {
     score += addFactor(scoreFactors, reasons, 'Paid standard price before', 8, 'positive')
   }
@@ -352,19 +366,18 @@ function buildCustomerSegment(
   const segments: FriendsFamilySegmentKey[] = []
 
   if (
-    refundedNotes === 0 &&
-    openNotes === 0 &&
+    approvedNotes >= 2 &&
+    daysSinceLastApproved !== null &&
+    daysSinceLastApproved >= 30 &&
+    daysSinceLastApproved <= 90 &&
     offerUsedCount === 0 &&
-    approvedNotes > 0 &&
-    finalScore >= 55
+    refundedNotes === 0 &&
+    openNotes === 0
   ) {
     segments.push('best_targets')
   }
   if (approvedLast30Days > 0 && refundedNotes === 0) segments.push('recent_approvals')
   if (approvedNotes >= 2) segments.push('repeat_customers')
-  if (approvedNotes > 0 && approvedLast30Days === 0 && refundedNotes === 0 && openNotes === 0) {
-    segments.push('lapsed_good')
-  }
   if (familySignal) segments.push('family_signal')
   if (openNotes > 0 || deniedNotes > 0 || maybeNotes > 0) segments.push('needs_review')
   if (refundedNotes > 0) segments.push('refunded')
@@ -421,8 +434,18 @@ export function buildFriendsFamilyAnalytics(
   options: FriendsFamilyAnalyticsOptions = {}
 ): FriendsFamilyAnalytics {
   const activeSegment = options.segment ?? 'best_targets'
-  const limit = Math.max(1, Math.min(options.limit ?? 50, 250))
+  const limit = Math.max(1, Math.min(options.limit ?? 200, 50000))
   const grouped = new Map<string, FriendsFamilySubmissionInput[]>()
+
+  let offerNotesCount = 0
+  let offerNetRevenueCents = 0
+  for (const submission of submissions) {
+    if (normalizeOfferCode(submission.offerCode) !== FRIENDS_FAMILY_OFFER_CODE) continue
+    offerNotesCount += 1
+    const paid = submission.paymentAmount ?? 0
+    const refunded = Boolean(submission.refundedAt) || Boolean(submission.stripeRefundId)
+    offerNetRevenueCents += refunded ? 0 : paid
+  }
 
   for (const submission of submissions) {
     const customerKey = getFriendsFamilyCustomerKey(submission)
@@ -459,11 +482,12 @@ export function buildFriendsFamilyAnalytics(
     bestTargets: countSegment('best_targets'),
     recentApprovals: countSegment('recent_approvals'),
     repeatCustomers: countSegment('repeat_customers'),
-    lapsedGood: countSegment('lapsed_good'),
     familySignal: countSegment('family_signal'),
     needsReview: countSegment('needs_review'),
     refunded: countSegment('refunded'),
     offerUsed: countSegment('offer_used'),
+    offerNotesCount,
+    offerNetRevenueCents,
     targetableFullPriceCustomers: customers.filter(
       (customer) =>
         customer.segments.includes('best_targets') &&

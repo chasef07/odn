@@ -489,7 +489,7 @@ Run tests: `npm test`
 
 16. **PDF Fonts**: Plus Jakarta Sans from npm package with validation and fallback handling.
 
-17. **Analytics**: Vercel Analytics integrated in `layout.tsx`.
+17. **Analytics**: Google Tag Manager and configured ad pixels are integrated in `layout.tsx`.
 
 18. **Webhooks (Local)**: Use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3`
 

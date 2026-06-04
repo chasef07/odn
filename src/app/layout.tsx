@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Manrope, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
-import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import '@/lib/env' // Validate environment variables on startup
 import OfferCodeCapture from '@/components/OfferCodeCapture'
@@ -156,7 +155,6 @@ export default function RootLayout({
         {/* End Google Tag Manager (noscript) */}
         <OfferCodeCapture />
         {children}
-        <Analytics />
       </body>
     </html>
   )

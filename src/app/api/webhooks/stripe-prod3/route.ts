@@ -237,6 +237,7 @@ export async function POST(request: NextRequest) {
           guardianLastName: formData.guardianLastName || null,
           email: formData.email!,
           phone: formData.phone!,
+          smsOptIn: formData.smsOptIn === true,
           notePurpose: formData.notePurpose!,
           otherNotePurpose: formData.otherNotePurpose || null,
           absenceReason: formData.absenceReason!,

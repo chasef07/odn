@@ -38,7 +38,10 @@ import {
   buildFriendsFamilyAnalytics,
   type FriendsFamilyAnalytics,
   type FriendsFamilyAnalyticsOptions,
+  type FriendsFamilyCustomerRow,
   type FriendsFamilyCustomerSegment,
+  type FriendsFamilySegmentFilter,
+  type FriendsFamilySubmissionInput,
 } from '@/lib/friends-family-analytics'
 import {
   buildBusinessAnalytics,
@@ -67,9 +70,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const DASHBOARD_COUNT_LIMIT = 1000
 const DASHBOARD_TODAY_LIST_LIMIT = 250
-const BUSINESS_ANALYTICS_FETCH_LIMIT = 2500
-const FRIENDS_FAMILY_ANALYTICS_FETCH_LIMIT = 2500
 const FRIENDS_FAMILY_LOOKBACK_DAYS = 365
+const FRIENDS_FAMILY_PAGE_SIZE = 4000
+// Hard safety cap to prevent runaway queries (well above expected ~50k/year).
+const FRIENDS_FAMILY_MAX_ROWS = 100_000
+const BUSINESS_ANALYTICS_PAGE_SIZE = 4000
+const BUSINESS_ANALYTICS_MAX_ROWS = 100_000
 
 /**
  * Get current logged-in doctor's session
@@ -104,10 +110,8 @@ async function getLimitedSubmissionCount(where: Prisma.SubmissionWhereInput): Pr
 }
 
 function businessAnalyticsFetchStart(range: BusinessAnalyticsRange, referenceDate: Date): Date {
-  if (range === '30d' || range === '90d') {
-    return daysBefore(referenceDate, 180)
-  }
-
+  if (range === '7d') return daysBefore(referenceDate, 14)
+  if (range === '30d' || range === '90d') return daysBefore(referenceDate, 180)
   return daysBefore(referenceDate, FRIENDS_FAMILY_LOOKBACK_DAYS)
 }
 
@@ -184,19 +188,17 @@ export async function getDashboardStats() {
  * Get customer-level friends and family segmentation analytics.
  * This is analytics-only: no outreach state, no emails, and no schema writes.
  */
-export async function getFriendsFamilyAnalytics(
-  options: FriendsFamilyAnalyticsOptions = {}
-): Promise<{
-  success: boolean
-  data?: FriendsFamilyAnalytics
-  error?: string
-}> {
-  try {
-    await getCurrentDoctor()
-    const referenceDate = new Date()
-    const lookbackStart = daysBefore(referenceDate, FRIENDS_FAMILY_LOOKBACK_DAYS)
+async function fetchFriendsFamilySubmissions(
+  referenceDate: Date
+): Promise<FriendsFamilySubmissionInput[]> {
+  const lookbackStart = daysBefore(referenceDate, FRIENDS_FAMILY_LOOKBACK_DAYS)
 
-    const submissions = await prisma.submission.findMany({
+  // Prisma Accelerate caps responses at ~5MB, so we paginate via id cursor
+  // to grab ALL submissions in the lookback window without hitting that cap.
+  const submissions: FriendsFamilySubmissionInput[] = []
+  let cursor: string | undefined
+  while (submissions.length < FRIENDS_FAMILY_MAX_ROWS) {
+    const page = await prisma.submission.findMany({
       where: {
         createdAt: { gte: lookbackStart },
       },
@@ -224,14 +226,61 @@ export async function getFriendsFamilyAnalytics(
         reviewedAt: true,
         approvalEmailSentAt: true,
       },
-      orderBy: { createdAt: 'desc' },
-      take: FRIENDS_FAMILY_ANALYTICS_FETCH_LIMIT,
+      orderBy: { id: 'asc' },
+      take: FRIENDS_FAMILY_PAGE_SIZE,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     })
+    if (page.length === 0) break
+    submissions.push(...page)
+    if (page.length < FRIENDS_FAMILY_PAGE_SIZE) break
+    cursor = page[page.length - 1].id
+  }
+
+  return submissions
+}
+
+export async function getFriendsFamilyAnalytics(
+  options: FriendsFamilyAnalyticsOptions = {}
+): Promise<{
+  success: boolean
+  data?: FriendsFamilyAnalytics
+  error?: string
+}> {
+  try {
+    await getCurrentDoctor()
+    const referenceDate = new Date()
+    const submissions = await fetchFriendsFamilySubmissions(referenceDate)
 
     return { success: true, data: buildFriendsFamilyAnalytics(submissions, referenceDate, options) }
   } catch (error) {
     console.error('Error fetching friends and family analytics:', error)
     return { success: false, error: 'Failed to fetch friends and family analytics' }
+  }
+}
+
+/**
+ * Export the full customer segment list for CSV download.
+ * Skips the summary payload so the response is just the customer rows.
+ */
+export async function exportFriendsFamilyCustomers(options: {
+  segment: FriendsFamilySegmentFilter
+}): Promise<{
+  success: boolean
+  data?: FriendsFamilyCustomerRow[]
+  error?: string
+}> {
+  try {
+    await getCurrentDoctor()
+    const referenceDate = new Date()
+    const submissions = await fetchFriendsFamilySubmissions(referenceDate)
+    const result = buildFriendsFamilyAnalytics(submissions, referenceDate, {
+      segment: options.segment,
+      limit: 50_000,
+    })
+    return { success: true, data: result.customers }
+  } catch (error) {
+    console.error('Error exporting friends and family customers:', error)
+    return { success: false, error: 'Failed to export customer list' }
   }
 }
 
@@ -368,32 +417,55 @@ export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {
     const range = options.range ?? '30d'
     const fetchStart = businessAnalyticsFetchStart(range, referenceDate)
 
-    const submissions = await prisma.submission.findMany({
-      where: {
-        createdAt: { gte: fetchStart },
-      },
-      select: {
-        id: true,
-        status: true,
-        state: true,
-        patientFirstName: true,
-        patientLastName: true,
-        patientDateOfBirth: true,
-        email: true,
-        phone: true,
-        offerCode: true,
-        paymentAmount: true,
-        stripeRefundId: true,
-        refundedAt: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: BUSINESS_ANALYTICS_FETCH_LIMIT,
-    })
+    // Paginate via id cursor to grab ALL submissions in the window
+    // (Prisma Accelerate caps responses at ~5MB; ~300+/day would blow a single fetch).
+    const submissions: Array<{
+      id: string
+      status: SubmissionStatus
+      state: string
+      patientFirstName: string
+      patientLastName: string
+      patientDateOfBirth: Date
+      email: string
+      phone: string
+      offerCode: string | null
+      paymentAmount: number | null
+      stripeRefundId: string | null
+      refundedAt: Date | null
+      createdAt: Date
+    }> = []
+    let cursor: string | undefined
+    while (submissions.length < BUSINESS_ANALYTICS_MAX_ROWS) {
+      const page = await prisma.submission.findMany({
+        where: { createdAt: { gte: fetchStart } },
+        select: {
+          id: true,
+          status: true,
+          state: true,
+          patientFirstName: true,
+          patientLastName: true,
+          patientDateOfBirth: true,
+          email: true,
+          phone: true,
+          offerCode: true,
+          paymentAmount: true,
+          stripeRefundId: true,
+          refundedAt: true,
+          createdAt: true,
+        },
+        orderBy: { id: 'asc' },
+        take: BUSINESS_ANALYTICS_PAGE_SIZE,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      })
+      if (page.length === 0) break
+      submissions.push(...page)
+      if (page.length < BUSINESS_ANALYTICS_PAGE_SIZE) break
+      cursor = page[page.length - 1].id
+    }
 
     return {
       success: true,
-      data: buildBusinessAnalytics([...submissions].reverse(), referenceDate, {
+      data: buildBusinessAnalytics(submissions, referenceDate, {
         ...options,
         range,
       }),

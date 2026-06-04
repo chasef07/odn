@@ -78,6 +78,7 @@ describe('POST /api/create-payment-intent', () => {
     patientDateOfBirth: '1990-01-01',
     email: 'john@example.com',
     phone: '5551234567',
+    smsOptIn: true,
     notePurpose: 'work',
     firstDayOff: _daysFromToday(-1),
     lastDayOff: _daysFromToday(1),

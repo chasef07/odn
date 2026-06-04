@@ -753,6 +753,7 @@ describe('Validation Schemas', () => {
       const result = page10Schema.safeParse({
         certifyAccurate: true,
         agreeTerms: true,
+        smsOptIn: true,
       })
       expect(result.success).toBe(true)
     })
@@ -761,6 +762,7 @@ describe('Validation Schemas', () => {
       const result = page10Schema.safeParse({
         certifyAccurate: false,
         agreeTerms: true,
+        smsOptIn: true,
       })
       expect(result.success).toBe(false)
       if (!result.success) {
@@ -772,6 +774,7 @@ describe('Validation Schemas', () => {
       const result = page10Schema.safeParse({
         certifyAccurate: true,
         agreeTerms: false,
+        smsOptIn: true,
       })
       expect(result.success).toBe(false)
       if (!result.success) {
@@ -783,20 +786,38 @@ describe('Validation Schemas', () => {
       const result = page10Schema.safeParse({
         certifyAccurate: false,
         agreeTerms: false,
+        smsOptIn: false,
       })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.length).toBeGreaterThanOrEqual(2)
+        expect(result.error.issues.length).toBeGreaterThanOrEqual(3)
+      }
+    })
+
+    it('should reject smsOptIn as false', () => {
+      const result = page10Schema.safeParse({
+        certifyAccurate: true,
+        agreeTerms: true,
+        smsOptIn: false,
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain('text updates')
       }
     })
 
     it('should reject missing certifyAccurate', () => {
-      const result = page10Schema.safeParse({ agreeTerms: true })
+      const result = page10Schema.safeParse({ agreeTerms: true, smsOptIn: true })
       expect(result.success).toBe(false)
     })
 
     it('should reject missing agreeTerms', () => {
-      const result = page10Schema.safeParse({ certifyAccurate: true })
+      const result = page10Schema.safeParse({ certifyAccurate: true, smsOptIn: true })
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject missing smsOptIn', () => {
+      const result = page10Schema.safeParse({ certifyAccurate: true, agreeTerms: true })
       expect(result.success).toBe(false)
     })
   })

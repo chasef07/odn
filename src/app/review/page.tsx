@@ -33,6 +33,7 @@ type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 type TermsFormData = {
   certifyAccurate: boolean
   agreeTerms: boolean
+  smsOptIn: boolean
 }
 
 type PersonalFormData = {
@@ -76,6 +77,7 @@ export default function ReviewPage() {
     defaultValues: {
       certifyAccurate: false,
       agreeTerms: false,
+      smsOptIn: formData.smsOptIn || false,
     },
   })
 
@@ -235,7 +237,8 @@ export default function ReviewPage() {
   })
 
   // Main form submission
-  const onSubmit = () => {
+  const onSubmit = (data: TermsFormData) => {
+    saveFormData({ smsOptIn: data.smsOptIn === true })
     setIsProcessing(true)
 
     // Simulate processing delay to show loading state
@@ -550,6 +553,23 @@ export default function ReviewPage() {
           {errors.certifyAccurate && (
             <p className="text-sm text-red-500">{errors.certifyAccurate.message}</p>
           )}
+
+          <div className="flex items-start space-x-3">
+            <input
+              type="checkbox"
+              id="smsOptIn"
+              {...register('smsOptIn')}
+              className="border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-primary/40 mt-1 h-5 w-5 flex-shrink-0 cursor-pointer rounded border-2 focus-visible:ring-2"
+            />
+            <Label
+              htmlFor="smsOptIn"
+              className="text-foreground flex-1 cursor-pointer text-sm leading-relaxed font-normal"
+            >
+              Text me updates about my request. Msg/data rates may apply. Reply STOP to opt out,
+              HELP for help.
+            </Label>
+          </div>
+          {errors.smsOptIn && <p className="text-sm text-red-500">{errors.smsOptIn.message}</p>}
 
           <div className="flex items-start space-x-3">
             <input

@@ -1,7 +1,7 @@
 import { SubmissionStatus } from '@prisma/client'
 import { normalizeOfferCode } from '@/lib/offer-codes'
 
-export type BusinessAnalyticsRange = '30d' | '90d' | '365d' | 'all'
+export type BusinessAnalyticsRange = '7d' | '30d' | '90d' | '365d' | 'all'
 
 export type BusinessAnalyticsOptions = {
   range?: BusinessAnalyticsRange
@@ -141,7 +141,7 @@ type PeriodMetrics = {
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
-const MAX_STATE_ROWS = 8
+const MAX_STATE_ROWS = 10
 
 const dayLabelFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -232,6 +232,15 @@ function inPeriod(
   return (!start || submission.createdAt >= start) && submission.createdAt < endExclusive
 }
 
+// Fallback price (in cents) when paymentAmount is missing — older rows
+// predate the column being populated. Every Submission row represents a
+// completed transaction, so we treat null as the standard $24.95.
+const ESTIMATED_PAYMENT_CENTS = 2495
+
+function effectivePaymentCents(submission: BusinessAnalyticsSubmissionInput): number {
+  return submission.paymentAmount ?? ESTIMATED_PAYMENT_CENTS
+}
+
 function buildPeriod(range: BusinessAnalyticsRange, referenceDate: Date): AnalyticsPeriod {
   const endExclusive = addUtcDays(startOfUtcDay(referenceDate), 1)
 
@@ -247,7 +256,8 @@ function buildPeriod(range: BusinessAnalyticsRange, referenceDate: Date): Analyt
     }
   }
 
-  const days = range === '365d' ? 365 : range === '90d' ? 90 : 30
+  const days =
+    range === '365d' ? 365 : range === '90d' ? 90 : range === '30d' ? 30 : 7
   const start = addUtcDays(endExclusive, -days)
 
   return {
@@ -281,7 +291,7 @@ function buildPeriodMetrics(
 ): PeriodMetrics {
   const totalNotes = periodSubmissions.length
   const paidNotes = periodSubmissions.filter(
-    (submission) => (submission.paymentAmount ?? 0) > 0
+    (submission) => (effectivePaymentCents(submission)) > 0
   ).length
   const approvedNotes = periodSubmissions.filter(
     (submission) => submission.status === SubmissionStatus.APPROVED
@@ -295,12 +305,12 @@ function buildPeriodMetrics(
   const openNotes = periodSubmissions.filter((submission) => isOpenStatus(submission.status)).length
   const refundedNotes = periodSubmissions.filter(isRefunded).length
   const grossRevenueCents = periodSubmissions.reduce(
-    (total, submission) => total + (submission.paymentAmount ?? 0),
+    (total, submission) => total + (effectivePaymentCents(submission)),
     0
   )
   const refundedRevenueCents = periodSubmissions
     .filter(isRefunded)
-    .reduce((total, submission) => total + (submission.paymentAmount ?? 0), 0)
+    .reduce((total, submission) => total + (effectivePaymentCents(submission)), 0)
   const netRevenueCents = grossRevenueCents - refundedRevenueCents
 
   const previousCustomerKeys = new Set(
@@ -334,7 +344,7 @@ function buildPeriodMetrics(
       repeatCustomers += 1
       repeatRevenueCents += submissions.reduce(
         (total, submission) =>
-          total + (isRefunded(submission) ? 0 : (submission.paymentAmount ?? 0)),
+          total + (isRefunded(submission) ? 0 : (effectivePaymentCents(submission))),
         0
       )
     } else {
@@ -347,7 +357,7 @@ function buildPeriodMetrics(
   )
   const offerNotes = offerSubmissions.length
   const offerNetRevenueCents = offerSubmissions.reduce(
-    (total, submission) => total + (isRefunded(submission) ? 0 : (submission.paymentAmount ?? 0)),
+    (total, submission) => total + (isRefunded(submission) ? 0 : (effectivePaymentCents(submission))),
     0
   )
 
@@ -399,7 +409,7 @@ function buildTrend(
       const bucket = buckets.get(key)
       if (!bucket) continue
 
-      const paymentAmount = submission.paymentAmount ?? 0
+      const paymentAmount = effectivePaymentCents(submission)
       const refundedAmount = isRefunded(submission) ? paymentAmount : 0
 
       bucket.notes += 1
@@ -440,7 +450,7 @@ function buildTrend(
     const bucket = buckets.get(key)
     if (!bucket) continue
 
-    const paymentAmount = submission.paymentAmount ?? 0
+    const paymentAmount = effectivePaymentCents(submission)
     const refundedAmount = isRefunded(submission) ? paymentAmount : 0
 
     bucket.notes += 1
@@ -507,7 +517,7 @@ function buildStateRows(
         refundedNotes: 0,
         refundRate: 0,
       } satisfies BusinessAnalyticsStateRow)
-    const paymentAmount = submission.paymentAmount ?? 0
+    const paymentAmount = effectivePaymentCents(submission)
     const refundedAmount = isRefunded(submission) ? paymentAmount : 0
 
     existing.notes += 1
@@ -578,7 +588,7 @@ function buildAgeBands(
     const row = rows.get(key)
     if (!row) continue
 
-    const paymentAmount = submission.paymentAmount ?? 0
+    const paymentAmount = effectivePaymentCents(submission)
     row.notes += 1
     row.netRevenueCents += isRefunded(submission) ? 0 : paymentAmount
   }
