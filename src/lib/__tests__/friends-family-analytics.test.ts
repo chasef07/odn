@@ -44,11 +44,11 @@ function submission(
 }
 
 describe('friends-family analytics segmentation', () => {
-  it('ranks recent repeat full-price customers as best targets', () => {
+  it('ranks lapsed repeat full-price customers as the best targets', () => {
     const analytics = buildFriendsFamilyAnalytics(
       [
-        submission({ id: 'sub-1', createdAt: daysAgo(7), reviewedAt: daysAgo(7) }),
-        submission({ id: 'sub-2', createdAt: daysAgo(60), reviewedAt: daysAgo(60) }),
+        submission({ id: 'sub-1', createdAt: daysAgo(45), reviewedAt: daysAgo(45) }),
+        submission({ id: 'sub-2', createdAt: daysAgo(75), reviewedAt: daysAgo(75) }),
         submission({ id: 'sub-3', createdAt: daysAgo(120), reviewedAt: daysAgo(120) }),
       ],
       referenceDate
@@ -57,19 +57,35 @@ describe('friends-family analytics segmentation', () => {
     const customer = analytics.customers[0]
 
     expect(analytics.summary.bestTargets).toBe(1)
-    expect(analytics.summary.recentApprovals).toBe(1)
     expect(analytics.summary.repeatCustomers).toBe(1)
     expect(customer.priority).toBe('HIGH_PRIORITY')
     expect(customer.segments).toContain('best_targets')
-    expect(customer.reasons.map((reason) => reason.label)).toContain(
-      '3+ approved notes in 6 months'
-    )
+    expect(customer.reasons.map((reason) => reason.label)).toContain('Sweet spot recency')
+    expect(customer.reasons.map((reason) => reason.label)).toContain('Repeat successful customer')
   })
 
-  it('keeps customers with prior denials eligible but lower ranked', () => {
+  it('penalizes too-recent customers so they fall out of best targets', () => {
     const analytics = buildFriendsFamilyAnalytics(
       [
-        submission({ id: 'approved', createdAt: daysAgo(5), reviewedAt: daysAgo(5) }),
+        submission({ id: 'sub-1', createdAt: daysAgo(3), reviewedAt: daysAgo(3) }),
+        submission({ id: 'sub-2', createdAt: daysAgo(40), reviewedAt: daysAgo(40) }),
+      ],
+      referenceDate,
+      { segment: 'all_customers' }
+    )
+
+    const customer = analytics.customers[0]
+
+    expect(analytics.summary.bestTargets).toBe(0)
+    expect(customer.segments).not.toContain('best_targets')
+    expect(customer.reasons.map((reason) => reason.label)).toContain('Too recent to discount')
+  })
+
+  it('keeps customers with prior denials surfaced but lower ranked', () => {
+    const analytics = buildFriendsFamilyAnalytics(
+      [
+        submission({ id: 'approved', createdAt: daysAgo(45), reviewedAt: daysAgo(45) }),
+        submission({ id: 'approved-2', createdAt: daysAgo(70), reviewedAt: daysAgo(70) }),
         submission({
           id: 'denied',
           status: SubmissionStatus.DENIED,
@@ -85,7 +101,7 @@ describe('friends-family analytics segmentation', () => {
 
     expect(customer.refundedNotes).toBe(0)
     expect(customer.deniedNotes).toBe(1)
-    expect(customer.segments).toContain('best_targets')
+    expect(customer.segments).toContain('repeat_customers')
     expect(customer.segments).toContain('needs_review')
     expect(customer.reasons.some((reason) => reason.label === '1 prior denial')).toBe(true)
   })
@@ -176,7 +192,8 @@ describe('friends-family analytics segmentation', () => {
           reviewedAt: daysAgo(70),
         }),
       ],
-      referenceDate
+      referenceDate,
+      { segment: 'all_customers' }
     )
 
     const customer = analytics.customers[0]
@@ -189,14 +206,21 @@ describe('friends-family analytics segmentation', () => {
   })
 
   it('returns limited segment rows without timelines or score factors', () => {
-    const submissions = Array.from({ length: 60 }, (_, index) =>
+    // 60 distinct repeat customers, each with two approved notes 40 and 80 days ago.
+    const submissions = Array.from({ length: 60 }, (_, index) => [
       submission({
-        id: `sub-${index}`,
+        id: `sub-${index}-recent`,
         email: `customer-${index}@example.com`,
-        createdAt: daysAgo(index + 1),
-        reviewedAt: daysAgo(index + 1),
-      })
-    )
+        createdAt: daysAgo(40),
+        reviewedAt: daysAgo(40),
+      }),
+      submission({
+        id: `sub-${index}-older`,
+        email: `customer-${index}@example.com`,
+        createdAt: daysAgo(80),
+        reviewedAt: daysAgo(80),
+      }),
+    ]).flat()
 
     const analytics = buildFriendsFamilyAnalytics(submissions, referenceDate, {
       segment: 'best_targets',

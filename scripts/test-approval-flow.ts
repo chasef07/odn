@@ -40,6 +40,7 @@ const mockSubmission: Submission = {
   guardianDateOfBirth: null,
   email: 'john.doe@example.com',
   phone: '(555) 123-4567',
+  smsOptIn: true,
   notePurpose: 'work',
   otherNotePurpose: null,
   firstDayOff: new Date('2024-11-08'),

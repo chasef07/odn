@@ -38,7 +38,7 @@
 - **Email** — React Email + Resend; bounce tracking via Resend webhook
 - **PDF** — @react-pdf/renderer with @fontsource/plus-jakarta-sans
 - **Testing** — Vitest + Testing Library, PGlite per run
-- **Analytics** — Vercel Analytics, Google Ads, Reddit Pixel
+- **Analytics** — Google Ads, Reddit Pixel
 
 ---
 

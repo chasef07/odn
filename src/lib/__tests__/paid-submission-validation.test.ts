@@ -11,6 +11,7 @@ const validSubmissionData: FormData = {
   patientDateOfBirth: '1990-01-01',
   email: 'john@example.com',
   phone: '5551234567',
+  smsOptIn: true,
   notePurpose: 'work',
   firstDayOff: '2026-01-05',
   lastDayOff: '2026-01-06',
@@ -26,5 +27,15 @@ describe('validatePaidSubmissionData', () => {
 
     expect(result.canPersistSubmission).toBe(false)
     expect(result.errors).toContain(LEGAL_NOTE_PURPOSE_ERROR)
+  })
+
+  it('rejects submissions without SMS consent', () => {
+    const result = validatePaidSubmissionData({
+      ...validSubmissionData,
+      smsOptIn: false,
+    })
+
+    expect(result.canPersistSubmission).toBe(false)
+    expect(result.errors).toContain('SMS consent is required to continue')
   })
 })

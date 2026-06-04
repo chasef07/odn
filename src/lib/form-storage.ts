@@ -23,6 +23,7 @@ export interface FormData {
   // Page 4 - Contact Information
   email?: string
   phone?: string
+  smsOptIn?: boolean
 
   // Page 5 - Note Purpose
   notePurpose?: 'work' | 'school' | 'both' | 'travel' | 'legal' | 'other' | null

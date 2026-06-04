@@ -21,7 +21,10 @@ export default async function FriendsFamilyAnalyticsPage() {
     redirect('/admin/login')
   }
 
-  const analyticsResult = await getFriendsFamilyAnalytics({ segment: 'best_targets', limit: 50 })
+  const analyticsResult = await getFriendsFamilyAnalytics({
+    segment: 'best_targets',
+    limit: 50,
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">

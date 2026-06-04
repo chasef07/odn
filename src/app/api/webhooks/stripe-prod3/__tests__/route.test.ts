@@ -89,6 +89,7 @@ const validFormData: FormData = {
   patientDateOfBirth: '1990-01-01',
   email: 'john@example.com',
   phone: '5551234567',
+  smsOptIn: true,
   notePurpose: 'work',
   firstDayOff: daysFromToday(-1),
   lastDayOff: daysFromToday(1),

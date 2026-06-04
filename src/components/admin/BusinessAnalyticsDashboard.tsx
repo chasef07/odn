@@ -1,21 +1,10 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import {
-  Activity,
-  AlertTriangle,
-  BarChart3,
-  DollarSign,
-  MapPin,
-  ReceiptText,
-  RotateCcw,
-  TrendingUp,
-  Users,
-  type LucideIcon,
-} from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, XAxis, YAxis } from 'recharts'
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { getBusinessAnalytics } from '@/app/admin/actions'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ChartContainer,
   ChartTooltip,
@@ -23,11 +12,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import { cn } from '@/lib/utils'
-import type {
-  BusinessAnalytics,
-  BusinessAnalyticsRange,
-  BusinessAnalyticsTone,
-} from '@/lib/business-analytics'
+import type { BusinessAnalytics, BusinessAnalyticsRange } from '@/lib/business-analytics'
 
 type RangeOption = {
   key: BusinessAnalyticsRange
@@ -35,51 +20,29 @@ type RangeOption = {
 }
 
 const RANGE_OPTIONS: RangeOption[] = [
-  { key: '30d', label: '30 days' },
-  { key: '90d', label: '90 days' },
-  { key: '365d', label: '1 year' },
+  { key: '7d', label: '7d' },
+  { key: '30d', label: '30d' },
+  { key: '90d', label: '90d' },
 ]
 
-const trendChartConfig = {
-  notes: {
-    label: 'Notes',
-    color: '#2563eb',
-  },
-  netRevenue: {
-    label: 'Net revenue',
-    color: '#16a34a',
-  },
+const REVENUE_COLOR = '#16a34a'
+const NOTES_COLOR = '#2563eb'
+
+const revenueChartConfig = {
+  netRevenue: { label: 'Net revenue', color: REVENUE_COLOR },
 } satisfies ChartConfig
 
-const outcomeChartConfig = {
-  notes: {
-    label: 'Notes',
-    color: '#2563eb',
-  },
+const notesChartConfig = {
+  notes: { label: 'Notes', color: NOTES_COLOR },
 } satisfies ChartConfig
 
-const stateChartConfig = {
-  netRevenue: {
-    label: 'Net revenue',
-    color: '#16a34a',
-  },
-} satisfies ChartConfig
-
-const ageChartConfig = {
-  notes: {
-    label: 'Notes',
-    color: '#7c3aed',
-  },
-} satisfies ChartConfig
-
-const toneClasses: Record<BusinessAnalyticsTone, string> = {
-  positive: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  warning: 'border-amber-200 bg-amber-50 text-amber-800',
-  negative: 'border-red-200 bg-red-50 text-red-800',
-  neutral: 'border-gray-200 bg-gray-50 text-gray-700',
+const outcomeDotColors: Record<string, string> = {
+  approved: '#16a34a',
+  denied: '#dc2626',
+  maybe: '#d97706',
+  pending: '#2563eb',
+  manual: '#7c3aed',
 }
-
-const outcomeColors = ['#16a34a', '#dc2626', '#d97706', '#2563eb', '#7c3aed']
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-US').format(value)
@@ -95,10 +58,7 @@ function formatCurrency(cents: number, showCents = false): string {
 }
 
 function formatCompactDollars(value: number): string {
-  if (Math.abs(value) >= 1000) {
-    return `$${Math.round(value / 1000)}k`
-  }
-
+  if (Math.abs(value) >= 1000) return `$${Math.round(value / 1000)}k`
   return `$${Math.round(value)}`
 }
 
@@ -109,106 +69,91 @@ function formatPercent(value: number): string {
   }).format(value)
 }
 
-function formatDelta(value: number | null): string {
-  if (value === null) return 'new'
-  const rounded = Math.abs(value).toFixed(Math.abs(value) >= 10 ? 0 : 1)
-  return `${value >= 0 ? '+' : '-'}${rounded}%`
-}
-
-function formatPointDelta(value: number | null): string {
-  if (value === null) return 'new'
-  const points = Math.abs(value * 100).toFixed(1)
-  return `${value >= 0 ? '+' : '-'}${points} pts`
-}
-
-function formatDateTime(isoDate: string): string {
+function formatShortDate(iso: string | null): string {
+  if (!iso) return '—'
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(isoDate))
+    timeZone: 'UTC',
+  }).format(new Date(iso))
 }
 
-function KpiCard({
+type DeltaConfig = {
+  text: string
+  positive: boolean
+  neutral?: boolean
+}
+
+function pctDelta(value: number | null): DeltaConfig | null {
+  if (value === null) return null
+  if (value === 0) return { text: '0%', positive: true, neutral: true }
+  const rounded = Math.abs(value).toFixed(Math.abs(value) >= 10 ? 0 : 1)
+  return {
+    text: `${value >= 0 ? '+' : '−'}${rounded}%`,
+    positive: value >= 0,
+  }
+}
+
+function pointsDelta(value: number | null): DeltaConfig | null {
+  if (value === null) return null
+  if (value === 0) return { text: '0pp', positive: true, neutral: true }
+  const points = Math.abs(value * 100).toFixed(1)
+  return {
+    text: `${value >= 0 ? '+' : '−'}${points}pp`,
+    positive: value >= 0,
+  }
+}
+
+function DeltaBadge({ delta, invert = false }: { delta: DeltaConfig | null; invert?: boolean }) {
+  if (!delta) return null
+  if (delta.neutral) {
+    return (
+      <span className="inline-flex items-center text-xs font-medium text-gray-500 tabular-nums">
+        {delta.text}
+      </span>
+    )
+  }
+  const isGood = invert ? !delta.positive : delta.positive
+  const Icon = delta.positive ? ArrowUpRight : ArrowDownRight
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-0.5 text-xs font-medium tabular-nums',
+        isGood ? 'text-emerald-600' : 'text-red-600'
+      )}
+    >
+      <Icon className="size-3" />
+      {delta.text}
+    </span>
+  )
+}
+
+function KpiTile({
   label,
   value,
-  detail,
   delta,
-  deltaTone,
-  icon: Icon,
+  invertDelta = false,
 }: {
   label: string
   value: string
-  detail: string
-  delta?: string
-  deltaTone?: BusinessAnalyticsTone
-  icon: LucideIcon
+  delta?: DeltaConfig | null
+  invertDelta?: boolean
 }) {
   return (
     <Card className="p-0">
-      <CardContent className="flex min-h-36 flex-col justify-between gap-4 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="rounded-lg bg-gray-100 p-2 text-gray-700">
-            <Icon className="size-5" />
-          </div>
-          {delta && (
-            <span
-              className={cn(
-                'rounded-full border px-2 py-0.5 text-xs font-medium',
-                toneClasses[deltaTone ?? 'neutral']
-              )}
-            >
-              {delta}
-            </span>
-          )}
+      <CardContent className="flex flex-col gap-2 p-4">
+        <div className="text-[10px] font-medium tracking-wider text-gray-500 uppercase">
+          {label}
         </div>
-        <div>
-          <div className="text-2xl font-bold text-gray-950">{value}</div>
-          <div className="mt-1 text-sm font-medium text-gray-900">{label}</div>
-          <div className="mt-1 text-xs leading-5 text-gray-500">{detail}</div>
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="text-2xl font-semibold text-gray-950 tabular-nums sm:text-3xl">
+            {value}
+          </div>
+          <DeltaBadge delta={delta ?? null} invert={invertDelta} />
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-function MetricRow({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 rounded-lg border bg-white px-3 py-2">
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-gray-900">{label}</div>
-        {detail && <div className="mt-0.5 text-xs text-gray-500">{detail}</div>}
-      </div>
-      <div className="shrink-0 text-right font-mono text-sm font-semibold text-gray-950">
-        {value}
-      </div>
-    </div>
-  )
-}
-
-function ProgressMetric({ label, value, max }: { label: string; value: number; max: number }) {
-  const width = max > 0 ? Math.max(3, Math.round((value / max) * 100)) : 0
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="truncate text-gray-500">{label}</span>
-        <span className="font-mono font-semibold text-gray-900">{formatNumber(value)}</span>
-      </div>
-      <div className="h-2 rounded-full bg-gray-100">
-        <div className="h-2 rounded-full bg-gray-900" style={{ width: `${width}%` }} />
-      </div>
-    </div>
-  )
-}
-
-function EmptyChartState({ label }: { label: string }) {
-  return (
-    <div className="flex h-64 items-center justify-center rounded-lg border bg-gray-50 text-sm text-gray-500">
-      {label}
-    </div>
   )
 }
 
@@ -221,34 +166,36 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
   const trendData = useMemo(
     () =>
       currentAnalytics.trend.map((point) => ({
-        ...point,
+        key: point.key,
+        label: point.label,
+        notes: point.notes,
         netRevenue: point.netRevenueCents / 100,
       })),
     [currentAnalytics.trend]
   )
-  const stateData = useMemo(
+
+  const topStates = useMemo(
     () =>
-      currentAnalytics.stateRows.map((row) => ({
-        ...row,
-        netRevenue: row.netRevenueCents / 100,
-      })),
+      [...currentAnalytics.stateRows]
+        .sort((a, b) => b.netRevenueCents - a.netRevenueCents)
+        .slice(0, 10),
     [currentAnalytics.stateRows]
   )
-  const ageData = useMemo(
-    () =>
-      currentAnalytics.ageBands.map((row) => ({
-        ...row,
-        netRevenue: row.netRevenueCents / 100,
-      })),
-    [currentAnalytics.ageBands]
+
+  const outcomeRows = useMemo(
+    () => currentAnalytics.outcomeBreakdown.filter((row) => row.notes > 0),
+    [currentAnalytics.outcomeBreakdown]
   )
-  const maxOutcomeNotes = Math.max(...currentAnalytics.outcomeBreakdown.map((row) => row.notes), 0)
+
+  // Show roughly 6-8 X axis ticks regardless of point count
+  const xAxisInterval = useMemo(() => {
+    if (trendData.length <= 8) return 0
+    return Math.max(0, Math.floor(trendData.length / 6) - 1)
+  }, [trendData.length])
 
   const handleRangeChange = (range: BusinessAnalyticsRange) => {
     if (range === activeRange) return
-
     setError(null)
-
     startTransition(async () => {
       const result = await getBusinessAnalytics({ range })
       if (result.success && result.data) {
@@ -261,368 +208,248 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
   }
 
   const summary = currentAnalytics.summary
-  const netRevenueTone =
-    summary.netRevenueDeltaPct === null || summary.netRevenueDeltaPct >= 0 ? 'positive' : 'warning'
-  const notesTone =
-    summary.notesDeltaPct === null || summary.notesDeltaPct >= 0 ? 'positive' : 'warning'
-  const refundTone =
-    summary.refundRateDeltaPoints === null || summary.refundRateDeltaPoints <= 0
-      ? 'positive'
-      : 'warning'
-  const repeatTone =
-    summary.repeatCustomerRateDeltaPoints === null || summary.repeatCustomerRateDeltaPoints >= 0
-      ? 'positive'
-      : 'neutral'
 
   return (
-    <div className="flex flex-col gap-7">
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-950">Business Analytics</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-              Revenue-first view for note volume, net revenue, refunds, repeat customers, and recent
-              demographic signal.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:items-end">
-            <div
-              className="flex rounded-lg border bg-white p-1"
-              role="tablist"
-              aria-label="Analytics range"
-            >
-              {RANGE_OPTIONS.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeRange === option.key}
-                  disabled={isPending}
-                  onClick={() => handleRangeChange(option.key)}
-                  className={cn(
-                    'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                    activeRange === option.key
-                      ? 'bg-gray-950 text-white'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <div className="text-xs text-gray-500">
-              Generated {formatDateTime(currentAnalytics.generatedAt)}
-            </div>
-            <div className="text-xs text-gray-500">
-              Scoped to the latest 2,500 submissions; 1 year max view.
-            </div>
-          </div>
+    <div className="flex flex-col gap-5">
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-950">Analytics</h1>
+          <p className="mt-1 text-xs text-gray-500 tabular-nums">
+            {formatShortDate(summary.startDate)} – {formatShortDate(summary.endDate)}
+            {summary.comparisonLabel ? (
+              <span className="text-gray-400"> · vs {summary.comparisonLabel}</span>
+            ) : null}
+          </p>
         </div>
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-      </section>
+        <div
+          className="inline-flex self-start rounded-lg border bg-white p-0.5 sm:self-auto"
+          role="tablist"
+          aria-label="Analytics range"
+        >
+          {RANGE_OPTIONS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              role="tab"
+              aria-selected={activeRange === option.key}
+              disabled={isPending}
+              onClick={() => handleRangeChange(option.key)}
+              className={cn(
+                'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                activeRange === option.key
+                  ? 'bg-gray-950 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <KpiCard
-          label="Net Revenue"
-          value={formatCurrency(summary.netRevenueCents)}
-          detail={`${formatCurrency(summary.grossRevenueCents)} gross, ${formatCurrency(
-            summary.refundedRevenueCents
-          )} refunded`}
-          delta={formatDelta(summary.netRevenueDeltaPct)}
-          deltaTone={netRevenueTone}
-          icon={DollarSign}
-        />
-        <KpiCard
-          label="Notes"
-          value={formatNumber(summary.totalNotes)}
-          detail={`${formatNumber(summary.paidNotes)} paid notes in ${summary.rangeLabel.toLowerCase()}`}
-          delta={formatDelta(summary.notesDeltaPct)}
-          deltaTone={notesTone}
-          icon={ReceiptText}
-        />
-        <KpiCard
-          label="Average Net / Paid Note"
-          value={formatCurrency(summary.averageNetRevenuePerPaidNoteCents, true)}
-          detail="Net revenue divided by paid notes"
-          icon={TrendingUp}
-        />
-        <KpiCard
-          label="Refund Rate"
-          value={formatPercent(summary.refundRate)}
-          detail={`${formatNumber(summary.refundedNotes)} refunded notes`}
-          delta={formatPointDelta(summary.refundRateDeltaPoints)}
-          deltaTone={refundTone}
-          icon={AlertTriangle}
-        />
-        <KpiCard
-          label="Repeat Customers"
-          value={formatNumber(summary.repeatCustomers)}
-          detail={`${formatPercent(summary.repeatCustomerRate)} of customers`}
-          delta={formatPointDelta(summary.repeatCustomerRateDeltaPoints)}
-          deltaTone={repeatTone}
-          icon={RotateCcw}
-        />
-      </section>
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_22rem]">
+      {/* KPI tiles */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiTile label="Net Revenue" value={formatCurrency(summary.netRevenueCents)} />
+        <KpiTile label="Approved Notes" value={formatNumber(summary.approvedNotes)} />
+        <KpiTile label="Repeat Customer Rate" value={formatPercent(summary.repeatCustomerRate)} />
+        <KpiTile label="Refund Rate" value={formatPercent(summary.refundRate)} />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="p-0">
-          <CardHeader>
-            <CardTitle>What changed</CardTitle>
-            <CardDescription>
-              {summary.rangeLabel} compared against the prior period.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            {currentAnalytics.insights.map((insight) => (
-              <div
-                key={`${insight.title}-${insight.detail}`}
-                className={cn('rounded-lg border p-3', toneClasses[insight.tone])}
-              >
-                <div className="text-sm font-semibold">{insight.title}</div>
-                <div className="mt-1 text-xs leading-5">{insight.detail}</div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="p-0">
-          <CardHeader>
-            <CardTitle>Revenue Quality</CardTitle>
-            <CardDescription>Net revenue is gross less refunded orders.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <MetricRow label="Gross collected" value={formatCurrency(summary.grossRevenueCents)} />
-            <MetricRow
-              label="Refunded amount"
-              value={formatCurrency(summary.refundedRevenueCents)}
-              detail={`${formatPercent(summary.refundRate)} of notes`}
-            />
-            <MetricRow label="Net revenue" value={formatCurrency(summary.netRevenueCents)} />
-            <MetricRow
-              label="Offer usage"
-              value={formatNumber(summary.offerNotes)}
-              detail={`${formatCurrency(summary.offerNetRevenueCents)} net`}
-            />
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-        <Card className="p-0">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="size-5 text-gray-500" />
-              <CardTitle>Notes and Net Revenue Over Time</CardTitle>
+          <CardHeader className="px-4 pt-3 pb-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <CardTitle className="text-xs font-medium tracking-wider text-gray-500 uppercase">
+                Net Revenue / day
+              </CardTitle>
+              <span className="text-xs font-medium text-gray-950 tabular-nums">
+                {formatCurrency(summary.netRevenueCents)}
+              </span>
             </div>
-            <CardDescription>{summary.rangeLabel}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 pt-0 pb-2">
             {trendData.length === 0 ? (
-              <EmptyChartState label="No notes in this range" />
+              <div className="flex h-36 items-center justify-center text-xs text-gray-400">
+                No data
+              </div>
             ) : (
-              <ChartContainer config={trendChartConfig} className="h-80 w-full">
-                <ComposedChart data={trendData} margin={{ left: 8, right: 8, top: 8 }}>
-                  <CartesianGrid vertical={false} />
+              <ChartContainer config={revenueChartConfig} className="h-36 w-full">
+                <AreaChart data={trendData} margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={REVENUE_COLOR} stopOpacity={0.25} />
+                      <stop offset="100%" stopColor={REVENUE_COLOR} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" />
                   <XAxis
                     dataKey="label"
                     tickLine={false}
                     axisLine={false}
-                    tickMargin={8}
-                    minTickGap={18}
+                    tickMargin={4}
+                    minTickGap={24}
+                    interval="preserveStartEnd"
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
                   />
                   <YAxis
-                    yAxisId="notes"
                     tickLine={false}
                     axisLine={false}
-                    tickMargin={8}
-                    allowDecimals={false}
                     width={32}
-                  />
-                  <YAxis
-                    yAxisId="revenue"
-                    orientation="right"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    width={52}
+                    tickCount={4}
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
                     tickFormatter={formatCompactDollars}
                   />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    yAxisId="notes"
-                    dataKey="notes"
-                    name="Notes"
-                    fill="var(--color-notes)"
-                    radius={[4, 4, 0, 0]}
-                  />
-                  <Line
-                    yAxisId="revenue"
+                  <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                  <Area
                     type="monotone"
                     dataKey="netRevenue"
                     name="Net revenue"
-                    stroke="var(--color-netRevenue)"
-                    strokeWidth={2}
-                    dot={false}
+                    stroke={REVENUE_COLOR}
+                    strokeWidth={1.75}
+                    fill="url(#revenueFill)"
                   />
-                </ComposedChart>
+                </AreaChart>
               </ChartContainer>
             )}
           </CardContent>
         </Card>
 
         <Card className="p-0">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Activity className="size-5 text-gray-500" />
-              <CardTitle>Review Outcomes</CardTitle>
+          <CardHeader className="px-4 pt-3 pb-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <CardTitle className="text-xs font-medium tracking-wider text-gray-500 uppercase">
+                Notes / day
+              </CardTitle>
+              <span className="text-xs font-medium text-gray-950 tabular-nums">
+                {formatNumber(summary.approvedNotes)}
+              </span>
             </div>
-            <CardDescription>{formatPercent(summary.approvalRate)} approved</CardDescription>
           </CardHeader>
-          <CardContent>
-            {summary.totalNotes === 0 ? (
-              <EmptyChartState label="No outcomes in this range" />
-            ) : (
-              <div className="flex flex-col gap-5">
-                <ChartContainer config={outcomeChartConfig} className="h-64 w-full">
-                  <BarChart data={currentAnalytics.outcomeBreakdown} margin={{ left: 4, right: 4 }}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
-                    <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={30} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="notes" name="Notes" radius={[4, 4, 0, 0]}>
-                      {currentAnalytics.outcomeBreakdown.map((row, index) => (
-                        <Cell key={row.key} fill={outcomeColors[index % outcomeColors.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-                <div className="grid gap-3">
-                  {currentAnalytics.outcomeBreakdown.map((row) => (
-                    <ProgressMetric
-                      key={row.key}
-                      label={`${row.label} (${formatPercent(row.rate)})`}
-                      value={row.notes}
-                      max={maxOutcomeNotes}
-                    />
-                  ))}
-                </div>
+          <CardContent className="px-2 pt-0 pb-2">
+            {trendData.length === 0 ? (
+              <div className="flex h-36 items-center justify-center text-xs text-gray-400">
+                No data
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card className="p-0">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <MapPin className="size-5 text-gray-500" />
-              <CardTitle>Top States by Net Revenue</CardTitle>
-            </div>
-            <CardDescription>All submissions, sorted by net revenue.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {stateData.length === 0 ? (
-              <EmptyChartState label="No state data yet" />
             ) : (
-              <ChartContainer config={stateChartConfig} className="h-80 w-full">
-                <BarChart
-                  data={stateData}
-                  layout="vertical"
-                  margin={{ left: 16, right: 16, top: 8, bottom: 8 }}
-                >
-                  <CartesianGrid horizontal={false} />
+              <ChartContainer config={notesChartConfig} className="h-36 w-full">
+                <BarChart data={trendData} margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" />
                   <XAxis
-                    type="number"
+                    dataKey="label"
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={formatCompactDollars}
+                    tickMargin={4}
+                    minTickGap={24}
+                    interval="preserveStartEnd"
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
                   />
                   <YAxis
-                    dataKey="state"
-                    type="category"
                     tickLine={false}
                     axisLine={false}
-                    width={92}
+                    width={28}
+                    tickCount={4}
+                    allowDecimals={false}
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
                   />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="netRevenue"
-                    name="Net revenue"
-                    fill="var(--color-netRevenue)"
-                    radius={[0, 4, 4, 0]}
-                  />
+                  <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                  <Bar dataKey="notes" name="Notes" fill={NOTES_COLOR} radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ChartContainer>
             )}
           </CardContent>
         </Card>
+      </div>
 
+      {/* Tables */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="p-0">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Users className="size-5 text-gray-500" />
-              <CardTitle>Age Bands</CardTitle>
-            </div>
-            <CardDescription>All submissions by patient age.</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-700">
+              Top States by Net Revenue
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            {ageData.length === 0 ? (
-              <EmptyChartState label="No age data yet" />
+          <CardContent className="pt-0">
+            {topStates.length === 0 ? (
+              <div className="py-6 text-xs text-gray-400">No data</div>
             ) : (
-              <ChartContainer config={ageChartConfig} className="h-80 w-full">
-                <BarChart data={ageData} margin={{ left: 4, right: 4, top: 8 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={30} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="notes"
-                    name="Notes"
-                    fill="var(--color-notes)"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ChartContainer>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-[10px] font-medium tracking-wider text-gray-500 uppercase">
+                    <th className="py-2 text-left font-medium">State</th>
+                    <th className="py-2 text-right font-medium">Notes</th>
+                    <th className="py-2 text-right font-medium">Net Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topStates.map((row) => (
+                    <tr key={row.state} className="border-b last:border-0">
+                      <td className="py-1.5 font-medium text-gray-900">{row.state}</td>
+                      <td className="py-1.5 text-right text-gray-700 tabular-nums">
+                        {formatNumber(row.notes)}
+                      </td>
+                      <td className="py-1.5 text-right font-medium text-gray-950 tabular-nums">
+                        {formatCurrency(row.netRevenueCents)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </CardContent>
         </Card>
-      </section>
 
-      <section>
         <Card className="p-0">
-          <CardHeader>
-            <CardTitle>Customer Base</CardTitle>
-            <CardDescription>Repeat behavior and dense-use customer signal.</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-700">Outcome Breakdown</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <MetricRow
-              label="New customers"
-              value={formatNumber(summary.newCustomers)}
-              detail={summary.rangeLabel}
-            />
-            <MetricRow
-              label="Repeat customer revenue"
-              value={formatCurrency(summary.repeatRevenueCents)}
-              detail={`${formatPercent(summary.repeatCustomerRate)} repeat customer rate`}
-            />
-            <MetricRow
-              label="3+ notes in 6 months"
-              value={formatNumber(summary.threePlusNotesSixMonthsCustomers)}
-              detail="High-use customer base"
-            />
-            <MetricRow
-              label="Open reviews"
-              value={formatNumber(summary.openNotes)}
-              detail="Pending, maybe, or manual"
-            />
+          <CardContent className="pt-0">
+            {outcomeRows.length === 0 ? (
+              <div className="py-6 text-xs text-gray-400">No data</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-[10px] font-medium tracking-wider text-gray-500 uppercase">
+                    <th className="py-2 text-left font-medium">Outcome</th>
+                    <th className="py-2 text-right font-medium">Notes</th>
+                    <th className="py-2 text-right font-medium">% of Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {outcomeRows.map((row) => (
+                    <tr key={row.key} className="border-b last:border-0">
+                      <td className="py-1.5 font-medium text-gray-900">
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className="inline-block size-2 rounded-full"
+                            style={{
+                              backgroundColor: outcomeDotColors[row.key] ?? '#94a3b8',
+                            }}
+                          />
+                          {row.label}
+                        </span>
+                      </td>
+                      <td className="py-1.5 text-right text-gray-700 tabular-nums">
+                        {formatNumber(row.notes)}
+                      </td>
+                      <td className="py-1.5 text-right font-medium text-gray-950 tabular-nums">
+                        {formatPercent(row.rate)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
-      </section>
+      </div>
     </div>
   )
 }
