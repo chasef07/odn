@@ -256,8 +256,7 @@ function buildPeriod(range: BusinessAnalyticsRange, referenceDate: Date): Analyt
     }
   }
 
-  const days =
-    range === '365d' ? 365 : range === '90d' ? 90 : range === '30d' ? 30 : 7
+  const days = range === '365d' ? 365 : range === '90d' ? 90 : range === '30d' ? 30 : 7
   const start = addUtcDays(endExclusive, -days)
 
   return {
@@ -291,7 +290,7 @@ function buildPeriodMetrics(
 ): PeriodMetrics {
   const totalNotes = periodSubmissions.length
   const paidNotes = periodSubmissions.filter(
-    (submission) => (effectivePaymentCents(submission)) > 0
+    (submission) => effectivePaymentCents(submission) > 0
   ).length
   const approvedNotes = periodSubmissions.filter(
     (submission) => submission.status === SubmissionStatus.APPROVED
@@ -305,12 +304,12 @@ function buildPeriodMetrics(
   const openNotes = periodSubmissions.filter((submission) => isOpenStatus(submission.status)).length
   const refundedNotes = periodSubmissions.filter(isRefunded).length
   const grossRevenueCents = periodSubmissions.reduce(
-    (total, submission) => total + (effectivePaymentCents(submission)),
+    (total, submission) => total + effectivePaymentCents(submission),
     0
   )
   const refundedRevenueCents = periodSubmissions
     .filter(isRefunded)
-    .reduce((total, submission) => total + (effectivePaymentCents(submission)), 0)
+    .reduce((total, submission) => total + effectivePaymentCents(submission), 0)
   const netRevenueCents = grossRevenueCents - refundedRevenueCents
 
   const previousCustomerKeys = new Set(
@@ -344,7 +343,7 @@ function buildPeriodMetrics(
       repeatCustomers += 1
       repeatRevenueCents += submissions.reduce(
         (total, submission) =>
-          total + (isRefunded(submission) ? 0 : (effectivePaymentCents(submission))),
+          total + (isRefunded(submission) ? 0 : effectivePaymentCents(submission)),
         0
       )
     } else {
@@ -357,7 +356,7 @@ function buildPeriodMetrics(
   )
   const offerNotes = offerSubmissions.length
   const offerNetRevenueCents = offerSubmissions.reduce(
-    (total, submission) => total + (isRefunded(submission) ? 0 : (effectivePaymentCents(submission))),
+    (total, submission) => total + (isRefunded(submission) ? 0 : effectivePaymentCents(submission)),
     0
   )
 

@@ -109,7 +109,7 @@ function DeltaBadge({ delta, invert = false }: { delta: DeltaConfig | null; inve
   if (!delta) return null
   if (delta.neutral) {
     return (
-      <span className="inline-flex items-center text-xs font-medium tabular-nums text-gray-500">
+      <span className="inline-flex items-center text-xs font-medium text-gray-500 tabular-nums">
         {delta.text}
       </span>
     )
@@ -143,11 +143,11 @@ function KpiTile({
   return (
     <Card className="p-0">
       <CardContent className="flex flex-col gap-2 p-4">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
+        <div className="text-[10px] font-medium tracking-wider text-gray-500 uppercase">
           {label}
         </div>
         <div className="flex items-baseline justify-between gap-2">
-          <div className="text-2xl font-semibold tabular-nums text-gray-950 sm:text-3xl">
+          <div className="text-2xl font-semibold text-gray-950 tabular-nums sm:text-3xl">
             {value}
           </div>
           <DeltaBadge delta={delta ?? null} invert={invertDelta} />
@@ -175,7 +175,10 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
   )
 
   const topStates = useMemo(
-    () => [...currentAnalytics.stateRows].sort((a, b) => b.netRevenueCents - a.netRevenueCents).slice(0, 10),
+    () =>
+      [...currentAnalytics.stateRows]
+        .sort((a, b) => b.netRevenueCents - a.netRevenueCents)
+        .slice(0, 10),
     [currentAnalytics.stateRows]
   )
 
@@ -255,10 +258,7 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile label="Net Revenue" value={formatCurrency(summary.netRevenueCents)} />
         <KpiTile label="Approved Notes" value={formatNumber(summary.approvedNotes)} />
-        <KpiTile
-          label="Repeat Customer Rate"
-          value={formatPercent(summary.repeatCustomerRate)}
-        />
+        <KpiTile label="Repeat Customer Rate" value={formatPercent(summary.repeatCustomerRate)} />
         <KpiTile label="Refund Rate" value={formatPercent(summary.refundRate)} />
       </div>
 
@@ -267,15 +267,15 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
         <Card className="p-0">
           <CardHeader className="px-4 pt-3 pb-1">
             <div className="flex items-baseline justify-between gap-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-gray-500">
+              <CardTitle className="text-xs font-medium tracking-wider text-gray-500 uppercase">
                 Net Revenue / day
               </CardTitle>
-              <span className="text-xs font-medium tabular-nums text-gray-950">
+              <span className="text-xs font-medium text-gray-950 tabular-nums">
                 {formatCurrency(summary.netRevenueCents)}
               </span>
             </div>
           </CardHeader>
-          <CardContent className="px-2 pb-2 pt-0">
+          <CardContent className="px-2 pt-0 pb-2">
             {trendData.length === 0 ? (
               <div className="flex h-36 items-center justify-center text-xs text-gray-400">
                 No data
@@ -325,15 +325,15 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
         <Card className="p-0">
           <CardHeader className="px-4 pt-3 pb-1">
             <div className="flex items-baseline justify-between gap-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-gray-500">
+              <CardTitle className="text-xs font-medium tracking-wider text-gray-500 uppercase">
                 Notes / day
               </CardTitle>
-              <span className="text-xs font-medium tabular-nums text-gray-950">
+              <span className="text-xs font-medium text-gray-950 tabular-nums">
                 {formatNumber(summary.approvedNotes)}
               </span>
             </div>
           </CardHeader>
-          <CardContent className="px-2 pb-2 pt-0">
+          <CardContent className="px-2 pt-0 pb-2">
             {trendData.length === 0 ? (
               <div className="flex h-36 items-center justify-center text-xs text-gray-400">
                 No data
@@ -382,7 +382,7 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                  <tr className="border-b text-[10px] font-medium tracking-wider text-gray-500 uppercase">
                     <th className="py-2 text-left font-medium">State</th>
                     <th className="py-2 text-right font-medium">Notes</th>
                     <th className="py-2 text-right font-medium">Net Revenue</th>
@@ -392,10 +392,10 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
                   {topStates.map((row) => (
                     <tr key={row.state} className="border-b last:border-0">
                       <td className="py-1.5 font-medium text-gray-900">{row.state}</td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-right text-gray-700 tabular-nums">
                         {formatNumber(row.notes)}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums font-medium text-gray-950">
+                      <td className="py-1.5 text-right font-medium text-gray-950 tabular-nums">
                         {formatCurrency(row.netRevenueCents)}
                       </td>
                     </tr>
@@ -416,7 +416,7 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                  <tr className="border-b text-[10px] font-medium tracking-wider text-gray-500 uppercase">
                     <th className="py-2 text-left font-medium">Outcome</th>
                     <th className="py-2 text-right font-medium">Notes</th>
                     <th className="py-2 text-right font-medium">% of Total</th>
@@ -436,10 +436,10 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
                           {row.label}
                         </span>
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-right text-gray-700 tabular-nums">
                         {formatNumber(row.notes)}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums font-medium text-gray-950">
+                      <td className="py-1.5 text-right font-medium text-gray-950 tabular-nums">
                         {formatPercent(row.rate)}
                       </td>
                     </tr>
