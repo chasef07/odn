@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import type { z } from 'zod'
 import { format, parse } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import Link from 'next/link'
@@ -30,11 +31,8 @@ import { UI_TIMING } from '@/lib/validation-constants'
 
 type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 
-type TermsFormData = {
-  certifyAccurate: boolean
-  agreeTerms: boolean
-  smsOptIn: boolean
-}
+type TermsFormInput = z.input<typeof page10Schema>
+type TermsFormData = z.output<typeof page10Schema>
 
 type PersonalFormData = {
   patientFirstName: string
@@ -72,7 +70,7 @@ export default function ReviewPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<TermsFormData>({
+  } = useForm<TermsFormInput, unknown, TermsFormData>({
     resolver: zodResolver(page10Schema),
     defaultValues: {
       certifyAccurate: false,
