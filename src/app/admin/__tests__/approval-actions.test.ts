@@ -17,6 +17,7 @@ const {
   mockGenerateQrCodeDataUrl,
   mockCreateNoteVerification,
   mockGetVerificationUrl,
+  mockNormalizeMedicalRecordNumber,
   mockParseIssueDateInput,
   mockRevokeNoteVerificationById,
   mockRevokeOtherNoteVerificationsForSubmission,
@@ -32,6 +33,12 @@ const {
   mockGenerateQrCodeDataUrl: vi.fn(),
   mockCreateNoteVerification: vi.fn(),
   mockGetVerificationUrl: vi.fn(),
+  mockNormalizeMedicalRecordNumber: vi.fn((input: string) =>
+    input
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+  ),
   mockParseIssueDateInput: vi.fn(),
   mockRevokeNoteVerificationById: vi.fn(),
   mockRevokeOtherNoteVerificationsForSubmission: vi.fn(),
@@ -70,6 +77,7 @@ vi.mock('@/lib/qr-code', () => ({
 vi.mock('@/lib/note-verification', () => ({
   createNoteVerification: mockCreateNoteVerification,
   getVerificationUrl: mockGetVerificationUrl,
+  normalizeMedicalRecordNumber: mockNormalizeMedicalRecordNumber,
   parseIssueDateInput: mockParseIssueDateInput,
   revokeNoteVerificationById: mockRevokeNoteVerificationById,
   revokeOtherNoteVerificationsForSubmission: mockRevokeOtherNoteVerificationsForSubmission,

@@ -2,7 +2,7 @@
 
 /**
  * Search Page Component
- * Main search interface for finding submissions by name, email, or ID
+ * Main search interface for finding submissions by name, email, phone, or Medical Record #
  */
 
 import { useState, useTransition } from 'react'
@@ -19,13 +19,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { StatusBadge } from '@/components/admin/StatusBadge'
-import { searchSubmissions, type SearchSubmission } from '@/app/admin/actions'
+import { searchSubmissions, type AdminSearchType, type SearchSubmission } from '@/app/admin/actions'
+
+type VisibleAdminSearchType = Exclude<AdminSearchType, 'id'>
 
 interface SearchPageProps {
   initialResults?: SearchSubmission[]
   initialTotal?: number
   initialQuery?: string
-  initialSearchType?: 'name' | 'email' | 'id' | 'phone'
+  initialSearchType?: VisibleAdminSearchType
   initialPage?: number
 }
 
@@ -35,6 +37,10 @@ const NOTE_PURPOSE_LABELS: Record<string, string> = {
   both: 'Work & School',
   travel: 'Travel',
   other: 'Other',
+}
+
+function isVisibleAdminSearchType(value: string): value is VisibleAdminSearchType {
+  return value === 'name' || value === 'email' || value === 'phone' || value === 'medicalRecord'
 }
 
 export function SearchPage({
@@ -49,7 +55,7 @@ export function SearchPage({
   const [isPending, startTransition] = useTransition()
 
   const [query, setQuery] = useState(initialQuery)
-  const [searchType, setSearchType] = useState<'name' | 'email' | 'id' | 'phone'>(initialSearchType)
+  const [searchType, setSearchType] = useState<VisibleAdminSearchType>(initialSearchType)
   const [results, setResults] = useState<SearchSubmission[]>(initialResults)
   const [total, setTotal] = useState(initialTotal)
   const [page, setPage] = useState(initialPage)
@@ -116,7 +122,7 @@ export function SearchPage({
       <div>
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Search Submissions</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Search across all submissions by name, email, phone, or ID
+          Search across all submissions by name, email, phone, or Medical Record #
         </p>
       </div>
 
@@ -133,7 +139,9 @@ export function SearchPage({
                   ? 'Enter email address...'
                   : searchType === 'phone'
                     ? 'Enter phone number...'
-                    : 'Enter submission ID...'
+                    : searchType === 'medicalRecord'
+                      ? 'Enter Medical Record #...'
+                      : 'Enter patient name...'
             }
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -145,17 +153,19 @@ export function SearchPage({
         <div className="flex gap-2">
           <Select
             value={searchType}
-            onValueChange={(value: 'name' | 'email' | 'id' | 'phone') => setSearchType(value)}
+            onValueChange={(value) => {
+              if (isVisibleAdminSearchType(value)) setSearchType(value)
+            }}
             disabled={isPending}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="email">Email</SelectItem>
               <SelectItem value="phone">Phone</SelectItem>
-              <SelectItem value="id">ID</SelectItem>
+              <SelectItem value="medicalRecord">Medical Record #</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={() => handleSearch(1)} disabled={isPending || !query.trim()}>
@@ -316,7 +326,7 @@ export function SearchPage({
           <Search className="mx-auto h-12 w-12 text-gray-300" />
           <p className="mt-4 text-gray-500">Enter a search term to find submissions</p>
           <p className="mt-1 text-sm text-gray-400">
-            Search by patient name, email address, phone number, or submission ID
+            Search by patient name, email address, phone number, or Medical Record #
           </p>
         </div>
       ) : null}

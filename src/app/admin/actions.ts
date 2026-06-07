@@ -21,6 +21,7 @@ import { isAtLeastAge } from '@/lib/date-only'
 import {
   createNoteVerification,
   getVerificationUrl,
+  normalizeMedicalRecordNumber,
   parseIssueDateInput,
   revokeNoteVerificationById,
   revokeOtherNoteVerificationsForSubmission,
@@ -1419,10 +1420,12 @@ export type SearchSubmission = {
   createdAt: Date
 }
 
+export type AdminSearchType = 'name' | 'email' | 'id' | 'phone' | 'medicalRecord'
+
 /**
- * Search submissions by name, email, or ID
+ * Search submissions by name, email, phone, submission ID, or Medical Record #
  * @param query - Search query string
- * @param searchType - Type of search: 'name', 'email', or 'id'
+ * @param searchType - Type of search
  * @param page - Page number (1-indexed)
  * @param limit - Results per page
  * @returns Paginated search results
@@ -1434,7 +1437,7 @@ export async function searchSubmissions({
   limit = 10,
 }: {
   query: string
-  searchType: 'name' | 'email' | 'id' | 'phone'
+  searchType: AdminSearchType
   page?: number
   limit?: number
 }): Promise<{
@@ -1494,6 +1497,17 @@ export async function searchSubmissions({
           id: { startsWith: trimmedQuery.toLowerCase() },
         }
         break
+
+      case 'medicalRecord': {
+        whereClause = {
+          noteVerifications: {
+            some: {
+              medicalRecordNumber: normalizeMedicalRecordNumber(trimmedQuery),
+            },
+          },
+        }
+        break
+      }
 
       case 'phone': {
         // Strip non-digits and format to match stored format (XXX) XXX-XXXX

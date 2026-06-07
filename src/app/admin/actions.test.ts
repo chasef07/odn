@@ -10,19 +10,30 @@ import { SubmissionStatus } from '@prisma/client'
 const {
   mockRefundsCreate,
   mockFindUnique,
+  mockFindMany,
+  mockCount,
   mockUpdate,
   mockUpdateMany,
   mockSendDenialEmail,
   mockSendMaybeEmail,
+  mockNormalizeMedicalRecordNumber,
   mockRevokeNoteVerificationForSubmission,
   mockGetSession,
 } = vi.hoisted(() => ({
   mockRefundsCreate: vi.fn(),
   mockFindUnique: vi.fn(),
+  mockFindMany: vi.fn(),
+  mockCount: vi.fn(),
   mockUpdate: vi.fn(),
   mockUpdateMany: vi.fn(),
   mockSendDenialEmail: vi.fn(),
   mockSendMaybeEmail: vi.fn(),
+  mockNormalizeMedicalRecordNumber: vi.fn((input: string) =>
+    input
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+  ),
   mockRevokeNoteVerificationForSubmission: vi.fn(),
   mockGetSession: vi.fn(),
 }))
@@ -43,6 +54,8 @@ vi.mock('@/lib/prisma', () => ({
   default: {
     submission: {
       findUnique: mockFindUnique,
+      findMany: mockFindMany,
+      count: mockCount,
       update: mockUpdate,
       updateMany: mockUpdateMany,
     },
@@ -58,6 +71,7 @@ vi.mock('@/lib/email', () => ({
 vi.mock('@/lib/note-verification', () => ({
   createNoteVerification: vi.fn(),
   getVerificationUrl: vi.fn(),
+  normalizeMedicalRecordNumber: mockNormalizeMedicalRecordNumber,
   parseIssueDateInput: vi.fn(),
   revokeNoteVerificationById: vi.fn(),
   revokeOtherNoteVerificationsForSubmission: vi.fn(),
@@ -84,7 +98,73 @@ vi.mock('next/headers', () => ({
 }))
 
 // Now import the functions under test
-import { changeSubmissionStatus, denySubmission, maybeSubmission } from './actions'
+import {
+  changeSubmissionStatus,
+  denySubmission,
+  maybeSubmission,
+  searchSubmissions,
+} from './actions'
+
+describe('searchSubmissions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({
+      user: { id: 'doctor_123' },
+    })
+    mockFindMany.mockResolvedValue([
+      {
+        id: 'sub_123',
+        patientFirstName: 'Jane',
+        patientLastName: 'Doe',
+        email: 'jane@example.com',
+        status: SubmissionStatus.APPROVED,
+        notePurpose: 'work',
+        firstDayOff: new Date('2026-06-01T00:00:00.000Z'),
+        lastDayOff: new Date('2026-06-02T00:00:00.000Z'),
+        createdAt: new Date('2026-05-30T12:00:00.000Z'),
+      },
+    ])
+    mockCount.mockResolvedValue(1)
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('searches submissions by normalized Medical Record #', async () => {
+    const result = await searchSubmissions({
+      query: ' fat5-yhab ',
+      searchType: 'medicalRecord',
+    })
+
+    const expectedWhere = {
+      noteVerifications: {
+        some: {
+          medicalRecordNumber: 'FAT5YHAB',
+        },
+      },
+    }
+
+    expect(mockNormalizeMedicalRecordNumber).toHaveBeenCalledWith('fat5-yhab')
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expectedWhere,
+      })
+    )
+    expect(mockCount).toHaveBeenCalledWith({ where: expectedWhere })
+    expect(result).toMatchObject({
+      success: true,
+      total: 1,
+      submissions: [
+        expect.objectContaining({
+          id: 'sub_123',
+          patientFirstName: 'Jane',
+          patientLastName: 'Doe',
+        }),
+      ],
+    })
+  })
+})
 
 describe('denySubmission - Denial Automation', () => {
   const mockSubmissionId = 'sub_123'
