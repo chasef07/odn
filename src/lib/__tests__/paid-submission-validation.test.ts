@@ -29,13 +29,13 @@ describe('validatePaidSubmissionData', () => {
     expect(result.errors).toContain(LEGAL_NOTE_PURPOSE_ERROR)
   })
 
-  it('rejects submissions without SMS consent', () => {
+  it('allows submissions without SMS consent', () => {
     const result = validatePaidSubmissionData({
       ...validSubmissionData,
       smsOptIn: false,
     })
 
-    expect(result.canPersistSubmission).toBe(false)
-    expect(result.errors).toContain('SMS consent is required to continue')
+    expect(result.canPersistSubmission).toBe(true)
+    expect(result.errors).not.toContain('SMS consent is required to continue')
   })
 })

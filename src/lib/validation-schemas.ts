@@ -328,7 +328,5 @@ export const page10Schema = z.object({
   agreeTerms: z.boolean().refine((val) => val === true, {
     message: 'You must agree to the Terms of Service and Privacy Policy',
   }),
-  smsOptIn: z.boolean().refine((val) => val === true, {
-    message: 'You must agree to receive text updates to continue',
-  }),
+  smsOptIn: z.boolean().optional().default(false),
 })

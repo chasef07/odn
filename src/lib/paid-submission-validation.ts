@@ -70,10 +70,6 @@ export function validatePaidSubmissionData(formData: FormData): PaidSubmissionVa
     pushUnique(errors, LEGAL_NOTE_PURPOSE_ERROR)
   }
 
-  if (formData.smsOptIn !== true) {
-    pushUnique(errors, 'SMS consent is required to continue')
-  }
-
   if (formData.recipient === 'someone_else') {
     if (!hasValue(formData.guardianFirstName) || !hasValue(formData.guardianLastName)) {
       pushUnique(errors, 'Guardian information is required when submitting for someone else')
@@ -136,7 +132,6 @@ export function validatePaidSubmissionData(formData: FormData): PaidSubmissionVa
   const canPersistSubmission =
     !hasBlockedNotePurpose &&
     missingFields.length === 0 &&
-    formData.smsOptIn === true &&
     (formData.recipient === 'myself' || formData.recipient === 'someone_else') &&
     parsedDates.patientDateOfBirth !== null &&
     parsedDates.firstDayOff !== null &&

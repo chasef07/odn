@@ -782,7 +782,7 @@ describe('Validation Schemas', () => {
       }
     })
 
-    it('should reject both checkboxes as false', () => {
+    it('should reject required checkboxes as false', () => {
       const result = page10Schema.safeParse({
         certifyAccurate: false,
         agreeTerms: false,
@@ -790,19 +790,19 @@ describe('Validation Schemas', () => {
       })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.length).toBeGreaterThanOrEqual(3)
+        expect(result.error.issues.length).toBeGreaterThanOrEqual(2)
       }
     })
 
-    it('should reject smsOptIn as false', () => {
+    it('should accept smsOptIn as false', () => {
       const result = page10Schema.safeParse({
         certifyAccurate: true,
         agreeTerms: true,
         smsOptIn: false,
       })
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(result.error.issues[0].message).toContain('text updates')
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.smsOptIn).toBe(false)
       }
     })
 
@@ -816,9 +816,12 @@ describe('Validation Schemas', () => {
       expect(result.success).toBe(false)
     })
 
-    it('should reject missing smsOptIn', () => {
+    it('should default missing smsOptIn to false', () => {
       const result = page10Schema.safeParse({ certifyAccurate: true, agreeTerms: true })
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.smsOptIn).toBe(false)
+      }
     })
   })
 })
