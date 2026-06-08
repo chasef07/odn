@@ -1,6 +1,6 @@
 /**
  * Admin Search Page
- * Search submissions by name, email, phone, or Medical Record #
+ * Search submissions by name, email, phone, submission ID, or Medical Record #
  */
 
 import { headers } from 'next/headers'
@@ -19,10 +19,14 @@ interface PageProps {
   }>
 }
 
-type VisibleAdminSearchType = Exclude<AdminSearchType, 'id'>
-
-function isVisibleAdminSearchType(value: string | undefined): value is VisibleAdminSearchType {
-  return value === 'name' || value === 'email' || value === 'phone' || value === 'medicalRecord'
+function isAdminSearchType(value: string | undefined): value is AdminSearchType {
+  return (
+    value === 'name' ||
+    value === 'email' ||
+    value === 'id' ||
+    value === 'phone' ||
+    value === 'medicalRecord'
+  )
 }
 
 export default async function AdminSearchPage({ searchParams }: PageProps) {
@@ -38,7 +42,7 @@ export default async function AdminSearchPage({ searchParams }: PageProps) {
   // Parse search params
   const params = await searchParams
   const query = params.q || ''
-  const searchType = isVisibleAdminSearchType(params.type) ? params.type : 'name'
+  const searchType = isAdminSearchType(params.type) ? params.type : 'name'
   const page = parseInt(params.page || '1', 10)
 
   // Fetch initial results if query exists

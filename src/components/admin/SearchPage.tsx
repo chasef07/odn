@@ -2,7 +2,7 @@
 
 /**
  * Search Page Component
- * Main search interface for finding submissions by name, email, phone, or Medical Record #
+ * Main search interface for finding submissions by name, email, phone, submission ID, or Medical Record #
  */
 
 import { useState, useTransition } from 'react'
@@ -21,13 +21,11 @@ import {
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { searchSubmissions, type AdminSearchType, type SearchSubmission } from '@/app/admin/actions'
 
-type VisibleAdminSearchType = Exclude<AdminSearchType, 'id'>
-
 interface SearchPageProps {
   initialResults?: SearchSubmission[]
   initialTotal?: number
   initialQuery?: string
-  initialSearchType?: VisibleAdminSearchType
+  initialSearchType?: AdminSearchType
   initialPage?: number
 }
 
@@ -39,8 +37,14 @@ const NOTE_PURPOSE_LABELS: Record<string, string> = {
   other: 'Other',
 }
 
-function isVisibleAdminSearchType(value: string): value is VisibleAdminSearchType {
-  return value === 'name' || value === 'email' || value === 'phone' || value === 'medicalRecord'
+function isAdminSearchType(value: string): value is AdminSearchType {
+  return (
+    value === 'name' ||
+    value === 'email' ||
+    value === 'id' ||
+    value === 'phone' ||
+    value === 'medicalRecord'
+  )
 }
 
 export function SearchPage({
@@ -55,7 +59,7 @@ export function SearchPage({
   const [isPending, startTransition] = useTransition()
 
   const [query, setQuery] = useState(initialQuery)
-  const [searchType, setSearchType] = useState<VisibleAdminSearchType>(initialSearchType)
+  const [searchType, setSearchType] = useState<AdminSearchType>(initialSearchType)
   const [results, setResults] = useState<SearchSubmission[]>(initialResults)
   const [total, setTotal] = useState(initialTotal)
   const [page, setPage] = useState(initialPage)
@@ -122,7 +126,7 @@ export function SearchPage({
       <div>
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Search Submissions</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Search across all submissions by name, email, phone, or Medical Record #
+          Search across all submissions by name, email, phone, Submission ID, or Medical Record #
         </p>
       </div>
 
@@ -141,7 +145,7 @@ export function SearchPage({
                     ? 'Enter phone number...'
                     : searchType === 'medicalRecord'
                       ? 'Enter Medical Record #...'
-                      : 'Enter patient name...'
+                      : 'Enter Submission ID...'
             }
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -154,7 +158,7 @@ export function SearchPage({
           <Select
             value={searchType}
             onValueChange={(value) => {
-              if (isVisibleAdminSearchType(value)) setSearchType(value)
+              if (isAdminSearchType(value)) setSearchType(value)
             }}
             disabled={isPending}
           >
@@ -165,6 +169,7 @@ export function SearchPage({
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="email">Email</SelectItem>
               <SelectItem value="phone">Phone</SelectItem>
+              <SelectItem value="id">Submission ID</SelectItem>
               <SelectItem value="medicalRecord">Medical Record #</SelectItem>
             </SelectContent>
           </Select>
@@ -326,7 +331,7 @@ export function SearchPage({
           <Search className="mx-auto h-12 w-12 text-gray-300" />
           <p className="mt-4 text-gray-500">Enter a search term to find submissions</p>
           <p className="mt-1 text-sm text-gray-400">
-            Search by patient name, email address, phone number, or Medical Record #
+            Search by patient name, email address, phone number, Submission ID, or Medical Record #
           </p>
         </div>
       ) : null}
