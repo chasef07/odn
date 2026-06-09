@@ -146,7 +146,11 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
 
     expect(html).toContain('employer')
     expect(html).toContain('needs further verification')
-    expect(html).toContain('https://onlinedoctornote.com/verify')
+    expect(html).toContain('scan the QR code on the note')
+    expect(html).toContain(
+      'Please know that we will never provide any personal health information without your written request.'
+    )
+    expect(html).not.toContain('onlinedoctornote.com/verify')
   })
 
   it('should say "school" for school notes', async () => {
@@ -181,7 +185,7 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
     expect(html).toContain('needs further verification')
   })
 
-  it('should include the exact verification URL and Medical Record # when provided', async () => {
+  it('should not include verification URLs or Medical Record # in the email body', async () => {
     const html = await render(
       <ApprovalEmail
         patientName="John Doe"
@@ -192,8 +196,11 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
       />
     )
 
-    expect(html).toContain('https://onlinedoctornote.com/verify/v_test')
-    expect(html).toContain('A7B3C9D2')
+    expect(html).toContain('scan the QR code on the note')
+    expect(html).not.toContain('https://onlinedoctornote.com/verify/v_test')
+    expect(html).not.toContain('https://onlinedoctornote.com/verify')
+    expect(html).not.toContain('A7B3C9D2')
+    expect(html).not.toContain('Medical Record #')
   })
 })
 
@@ -298,12 +305,12 @@ describe('ApprovalEmail - Regular Note Content', () => {
 })
 
 describe('ApprovalEmail - Contact Information', () => {
-  it('should direct verifiers to the verification page', async () => {
+  it('should not promote the verification page URL in the email body', async () => {
     const html = await render(
       <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
-    expect(html).toContain('https://onlinedoctornote.com/verify')
+    expect(html).not.toContain('https://onlinedoctornote.com/verify')
   })
 
   it('should not offer phone verification', async () => {

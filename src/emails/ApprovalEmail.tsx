@@ -29,8 +29,6 @@ export const ApprovalEmail = ({
   patientName = 'Patient',
   notePurpose = 'work or school',
   absenceReason = 'Feeling sick',
-  medicalRecordNumber,
-  verificationUrl,
 }: ApprovalEmailProps) => {
   // Check if this is a caregiver note or doctor's appointment
   const isCaregiver = absenceReason === 'Taking care of someone'
@@ -116,40 +114,10 @@ export const ApprovalEmail = ({
                 <Column>
                   <Text className="m-0 text-base leading-relaxed text-gray-700">
                     If your {getRecipientName(notePurpose)} needs further verification, please ask
-                    them to scan the QR code on the note
-                    {verificationUrl ? (
-                      <>
-                        {' '}
-                        or visit{' '}
-                        <Link
-                          href={verificationUrl}
-                          className="font-medium no-underline"
-                          style={{ color: '#009ed9' }}
-                        >
-                          {verificationUrl}
-                        </Link>
-                        . This opens the verification page directly.
-                      </>
-                    ) : (
-                      <>.</>
-                    )}{' '}
-                    They can also visit{' '}
-                    <Link
-                      href="https://onlinedoctornote.com/verify"
-                      className="font-medium no-underline"
-                      style={{ color: '#009ed9' }}
-                    >
-                      https://onlinedoctornote.com/verify
-                    </Link>{' '}
-                    and enter{' '}
-                    {medicalRecordNumber ? (
-                      <>
-                        Medical Record #: <strong>{medicalRecordNumber}</strong>.
-                      </>
-                    ) : (
-                      <>the Medical Record # shown on the attached note.</>
-                    )}{' '}
-                    Please note that we will never provide any personal health information without
+                    them to scan the QR code on the note.
+                  </Text>
+                  <Text className="mt-3 mb-0 text-base leading-relaxed text-gray-700">
+                    Please know that we will never provide any personal health information without
                     your written request.
                   </Text>
                 </Column>
