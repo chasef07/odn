@@ -563,30 +563,10 @@ export default function ReviewPage() {
               htmlFor="smsOptIn"
               className="text-foreground flex-1 cursor-pointer text-sm leading-relaxed font-normal"
             >
-              By checking this box and submitting this form, you consent to receive transactional
-              text messages for Healthcare Alerts from OnlineDoctorNote. Reply STOP to opt out.
-              Reply HELP for help. Standard message and data rates may apply. Message frequency may
-              vary. View our{' '}
-              <Link
-                href="/terms-of-service"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Terms and Conditions
-              </Link>
-              . View our{' '}
-              <Link
-                href="/privacy-policy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Privacy Policy
-              </Link>
-              .
+              By providing your phone number, you agree to receive transactional SMS Healthcare
+              Alerts about your note from OnlineDoctorNote. Message frequency may vary. Standard
+              message and data rates may apply. Reply STOP to opt out. Reply HELP for help. We will
+              not share mobile information with third parties for promotional or marketing purposes.
             </Label>
           </div>
           {errors.smsOptIn && <p className="text-sm text-red-500">{errors.smsOptIn.message}</p>}
