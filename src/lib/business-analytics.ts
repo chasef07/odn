@@ -535,7 +535,11 @@ function buildTrend(
   }
 
   const buckets = new Map<string, BusinessAnalyticsTrendPoint>()
-  for (let cursor = axisStart; cursor < period.endExclusive; cursor = advance(cursor, granularity)) {
+  for (
+    let cursor = axisStart;
+    cursor < period.endExclusive;
+    cursor = advance(cursor, granularity)
+  ) {
     const key = bucketKey(cursor, granularity)
     buckets.set(key, {
       key,
