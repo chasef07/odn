@@ -1,7 +1,17 @@
 import { SubmissionStatus } from '@prisma/client'
 import { normalizeOfferCode } from '@/lib/offer-codes'
 
-export type BusinessAnalyticsRange = '7d' | '30d' | '90d' | '365d' | 'all'
+export type BusinessAnalyticsRange =
+  | '7d'
+  | '30d'
+  | '90d'
+  | '365d'
+  | 'all'
+  | 'monthly'
+  | 'quarterly'
+  | 'yearly'
+
+type TrendGranularity = 'day' | 'month' | 'quarter' | 'year'
 
 export type BusinessAnalyticsOptions = {
   range?: BusinessAnalyticsRange
@@ -115,6 +125,7 @@ type AnalyticsPeriod = {
   previousStart: Date | null
   previousEndExclusive: Date | null
   days: number | null
+  granularity: TrendGranularity
 }
 
 type PeriodMetrics = {
@@ -155,6 +166,14 @@ const monthLabelFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: 'UTC',
 })
 
+function quarterLabel(date: Date): string {
+  return `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${String(date.getUTCFullYear()).slice(2)}`
+}
+
+function yearLabel(date: Date): string {
+  return String(date.getUTCFullYear())
+}
+
 const AGE_BANDS = [
   { key: 'under_18', label: 'Under 18', min: Number.NEGATIVE_INFINITY, max: 17 },
   { key: '18_24', label: '18-24', min: 18, max: 24 },
@@ -192,6 +211,67 @@ function startOfUtcMonth(date: Date): Date {
 
 function addUtcMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1))
+}
+
+function startOfUtcQuarter(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), Math.floor(date.getUTCMonth() / 3) * 3, 1))
+}
+
+function startOfUtcYear(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+}
+
+function advance(date: Date, granularity: TrendGranularity): Date {
+  switch (granularity) {
+    case 'day':
+      return addUtcDays(date, 1)
+    case 'month':
+      return addUtcMonth(date)
+    case 'quarter':
+      return addUtcMonths(date, 3)
+    case 'year':
+      return new Date(Date.UTC(date.getUTCFullYear() + 1, 0, 1))
+  }
+}
+
+function bucketStart(date: Date, granularity: TrendGranularity): Date {
+  switch (granularity) {
+    case 'day':
+      return startOfUtcDay(date)
+    case 'month':
+      return startOfUtcMonth(date)
+    case 'quarter':
+      return startOfUtcQuarter(date)
+    case 'year':
+      return startOfUtcYear(date)
+  }
+}
+
+function bucketKey(date: Date, granularity: TrendGranularity): string {
+  const start = bucketStart(date, granularity)
+  switch (granularity) {
+    case 'day':
+      return toCalendarDate(start)
+    case 'month':
+      return `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}`
+    case 'quarter':
+      return `${start.getUTCFullYear()}-Q${Math.floor(start.getUTCMonth() / 3) + 1}`
+    case 'year':
+      return String(start.getUTCFullYear())
+  }
+}
+
+function bucketLabel(date: Date, granularity: TrendGranularity): string {
+  switch (granularity) {
+    case 'day':
+      return dayLabelFormatter.format(date)
+    case 'month':
+      return monthLabelFormatter.format(date)
+    case 'quarter':
+      return quarterLabel(date)
+    case 'year':
+      return yearLabel(date)
+  }
 }
 
 function normalizeEmail(email: string): string {
@@ -253,6 +333,48 @@ function buildPeriod(range: BusinessAnalyticsRange, referenceDate: Date): Analyt
       previousStart: null,
       previousEndExclusive: null,
       days: null,
+      granularity: 'month',
+    }
+  }
+
+  // Period-bucketed views: re-aggregate the trend by month/quarter/year over a
+  // fixed window (no day-based previous-period comparison).
+  if (range === 'monthly') {
+    return {
+      range,
+      label: 'Last 12 months',
+      start: addUtcMonths(startOfUtcMonth(referenceDate), -11),
+      endExclusive,
+      previousStart: null,
+      previousEndExclusive: null,
+      days: null,
+      granularity: 'month',
+    }
+  }
+
+  if (range === 'quarterly') {
+    return {
+      range,
+      label: 'Last 8 quarters',
+      start: addUtcMonths(startOfUtcQuarter(referenceDate), -21),
+      endExclusive,
+      previousStart: null,
+      previousEndExclusive: null,
+      days: null,
+      granularity: 'quarter',
+    }
+  }
+
+  if (range === 'yearly') {
+    return {
+      range,
+      label: 'By year',
+      start: null,
+      endExclusive,
+      previousStart: null,
+      previousEndExclusive: null,
+      days: null,
+      granularity: 'year',
     }
   }
 
@@ -267,6 +389,7 @@ function buildPeriod(range: BusinessAnalyticsRange, referenceDate: Date): Analyt
     previousStart: addUtcDays(start, -days),
     previousEndExclusive: start,
     days,
+    granularity: 'day',
   }
 }
 
@@ -388,54 +511,39 @@ function buildTrend(
   periodSubmissions: BusinessAnalyticsSubmissionInput[],
   period: AnalyticsPeriod
 ): BusinessAnalyticsTrendPoint[] {
-  if (period.range !== 'all' && period.start) {
-    const buckets = new Map<string, BusinessAnalyticsTrendPoint>()
+  const { granularity } = period
 
-    for (let cursor = period.start; cursor < period.endExclusive; cursor = addUtcDays(cursor, 1)) {
-      const key = toCalendarDate(cursor)
-      buckets.set(key, {
-        key,
-        label: dayLabelFormatter.format(cursor),
-        notes: 0,
-        grossRevenueCents: 0,
-        refundedRevenueCents: 0,
-        netRevenueCents: 0,
-      })
-    }
+  const earliestSubmission =
+    periodSubmissions.length > 0
+      ? periodSubmissions.reduce(
+          (min, submission) => (submission.createdAt < min ? submission.createdAt : min),
+          periodSubmissions[0].createdAt
+        )
+      : null
 
-    for (const submission of periodSubmissions) {
-      const key = toCalendarDate(submission.createdAt)
-      const bucket = buckets.get(key)
-      if (!bucket) continue
-
-      const paymentAmount = effectivePaymentCents(submission)
-      const refundedAmount = isRefunded(submission) ? paymentAmount : 0
-
-      bucket.notes += 1
-      bucket.grossRevenueCents += paymentAmount
-      bucket.refundedRevenueCents += refundedAmount
-      bucket.netRevenueCents += paymentAmount - refundedAmount
-    }
-
-    return Array.from(buckets.values())
+  // Determine where the bucket axis begins. Daily ranges keep the full window so
+  // zero-days still render. Open windows (all time, yearly) start at the first
+  // data point. Month/quarter windows are clamped to the first bucket that has
+  // data so pre-launch months/quarters aren't shown as empty dead space.
+  let axisStart: Date | null = period.start ? bucketStart(period.start, granularity) : null
+  if (!axisStart) {
+    if (!earliestSubmission) return []
+    axisStart = bucketStart(earliestSubmission, granularity)
+  } else if ((granularity === 'month' || granularity === 'quarter') && earliestSubmission) {
+    const firstDataBucket = bucketStart(earliestSubmission, granularity)
+    if (firstDataBucket > axisStart) axisStart = firstDataBucket
   }
 
-  if (periodSubmissions.length === 0) {
-    return []
-  }
-
-  const sorted = [...periodSubmissions].sort(
-    (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-  )
-  const firstMonth = startOfUtcMonth(sorted[0].createdAt)
-  const lastMonthEnd = addUtcMonth(startOfUtcMonth(period.endExclusive))
   const buckets = new Map<string, BusinessAnalyticsTrendPoint>()
-
-  for (let cursor = firstMonth; cursor < lastMonthEnd; cursor = addUtcMonth(cursor)) {
-    const key = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}`
+  for (
+    let cursor = axisStart;
+    cursor < period.endExclusive;
+    cursor = advance(cursor, granularity)
+  ) {
+    const key = bucketKey(cursor, granularity)
     buckets.set(key, {
       key,
-      label: monthLabelFormatter.format(cursor),
+      label: bucketLabel(cursor, granularity),
       notes: 0,
       grossRevenueCents: 0,
       refundedRevenueCents: 0,
@@ -444,9 +552,7 @@ function buildTrend(
   }
 
   for (const submission of periodSubmissions) {
-    const createdAt = submission.createdAt
-    const key = `${createdAt.getUTCFullYear()}-${String(createdAt.getUTCMonth() + 1).padStart(2, '0')}`
-    const bucket = buckets.get(key)
+    const bucket = buckets.get(bucketKey(submission.createdAt, granularity))
     if (!bucket) continue
 
     const paymentAmount = effectivePaymentCents(submission)

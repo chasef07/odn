@@ -23,7 +23,24 @@ const RANGE_OPTIONS: RangeOption[] = [
   { key: '7d', label: '7d' },
   { key: '30d', label: '30d' },
   { key: '90d', label: '90d' },
+  { key: 'monthly', label: 'Monthly' },
+  { key: 'quarterly', label: 'Quarterly' },
+  { key: 'yearly', label: 'Yearly' },
 ]
+
+// Per-bucket unit shown in the chart titles ("Net Revenue / month", etc.)
+function rangeUnit(range: BusinessAnalyticsRange): string {
+  switch (range) {
+    case 'monthly':
+      return 'month'
+    case 'quarterly':
+      return 'quarter'
+    case 'yearly':
+      return 'year'
+    default:
+      return 'day'
+  }
+}
 
 const REVENUE_COLOR = '#16a34a'
 const NOTES_COLOR = '#2563eb'
@@ -60,6 +77,11 @@ function formatCurrency(cents: number, showCents = false): string {
 function formatCompactDollars(value: number): string {
   if (Math.abs(value) >= 1000) return `$${Math.round(value / 1000)}k`
   return `$${Math.round(value)}`
+}
+
+function formatCompactNumber(value: number): string {
+  if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`
+  return `${Math.round(value)}`
 }
 
 function formatPercent(value: number): string {
@@ -255,7 +277,8 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
       )}
 
       {/* KPI tiles */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <KpiTile label="Gross Revenue" value={formatCurrency(summary.grossRevenueCents)} />
         <KpiTile label="Net Revenue" value={formatCurrency(summary.netRevenueCents)} />
         <KpiTile label="Approved Notes" value={formatNumber(summary.approvedNotes)} />
         <KpiTile label="Repeat Customer Rate" value={formatPercent(summary.repeatCustomerRate)} />
@@ -268,7 +291,7 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
           <CardHeader className="px-4 pt-3 pb-1">
             <div className="flex items-baseline justify-between gap-2">
               <CardTitle className="text-xs font-medium tracking-wider text-gray-500 uppercase">
-                Net Revenue / day
+                Net Revenue / {rangeUnit(activeRange)}
               </CardTitle>
               <span className="text-xs font-medium text-gray-950 tabular-nums">
                 {formatCurrency(summary.netRevenueCents)}
@@ -302,7 +325,7 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    width={32}
+                    width={48}
                     tickCount={4}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
                     tickFormatter={formatCompactDollars}
@@ -326,7 +349,7 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
           <CardHeader className="px-4 pt-3 pb-1">
             <div className="flex items-baseline justify-between gap-2">
               <CardTitle className="text-xs font-medium tracking-wider text-gray-500 uppercase">
-                Notes / day
+                Notes / {rangeUnit(activeRange)}
               </CardTitle>
               <span className="text-xs font-medium text-gray-950 tabular-nums">
                 {formatNumber(summary.approvedNotes)}
@@ -354,10 +377,11 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    width={28}
+                    width={40}
                     tickCount={4}
                     allowDecimals={false}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
+                    tickFormatter={formatCompactNumber}
                   />
                   <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
                   <Bar dataKey="notes" name="Notes" fill={NOTES_COLOR} radius={[2, 2, 0, 0]} />
