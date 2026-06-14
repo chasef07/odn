@@ -5,6 +5,7 @@ export type FriendsFamilySegmentKey =
   | 'best_targets'
   | 'recent_approvals'
   | 'repeat_customers'
+  | 'no_refunds'
   | 'family_signal'
   | 'needs_review'
   | 'refunded'
@@ -113,13 +114,13 @@ export type FriendsFamilyAnalyticsSummary = {
   bestTargets: number
   recentApprovals: number
   repeatCustomers: number
+  noRefunds: number
   familySignal: number
   needsReview: number
   refunded: number
   offerUsed: number
   offerNotesCount: number
   offerNetRevenueCents: number
-  targetableFullPriceCustomers: number
   grossRevenueCents: number
   refundedRevenueCents: number
   netRevenueCents: number
@@ -378,6 +379,7 @@ function buildCustomerSegment(
   }
   if (approvedLast30Days > 0 && refundedNotes === 0) segments.push('recent_approvals')
   if (approvedNotes >= 2) segments.push('repeat_customers')
+  if (refundedNotes === 0) segments.push('no_refunds')
   if (familySignal) segments.push('family_signal')
   if (openNotes > 0 || deniedNotes > 0 || maybeNotes > 0) segments.push('needs_review')
   if (refundedNotes > 0) segments.push('refunded')
@@ -457,43 +459,64 @@ export function buildFriendsFamilyAnalytics(
     }
   }
 
+  const byScore = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
+    if (b.score !== a.score) return b.score - a.score
+    const aApproved = a.lastApprovedAt ? new Date(a.lastApprovedAt).getTime() : 0
+    const bApproved = b.lastApprovedAt ? new Date(b.lastApprovedAt).getTime() : 0
+    if (bApproved !== aApproved) return bApproved - aApproved
+    return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
+  }
+
+  // All Customers is a recency view: surface the most recently approved (then
+  // most recently active) customers first instead of the targeting score, which
+  // intentionally favors a 30–90 day lapse and buries fresh approvals.
+  const byRecency = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
+    const aApproved = a.lastApprovedAt ? new Date(a.lastApprovedAt).getTime() : 0
+    const bApproved = b.lastApprovedAt ? new Date(b.lastApprovedAt).getTime() : 0
+    if (bApproved !== aApproved) return bApproved - aApproved
+    return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
+  }
+
+  // No Refunds is a loyalty view: rank by the customers with the most approved
+  // notes first, then by recency.
+  const byNotes = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
+    if (b.approvedNotes !== a.approvedNotes) return b.approvedNotes - a.approvedNotes
+    return byRecency(a, b)
+  }
+
+  const sortForSegment = (segment: FriendsFamilySegmentFilter) => {
+    if (segment === 'all_customers') return byRecency
+    if (segment === 'no_refunds') return byNotes
+    return byScore
+  }
+
   const customers = Array.from(grouped.entries())
     .map(([customerKey, customerSubmissions]) =>
       buildCustomerSegment(customerKey, customerSubmissions, referenceDate)
     )
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score
-      const aApproved = a.lastApprovedAt ? new Date(a.lastApprovedAt).getTime() : 0
-      const bApproved = b.lastApprovedAt ? new Date(b.lastApprovedAt).getTime() : 0
-      if (bApproved !== aApproved) return bApproved - aApproved
-      return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
-    })
+    .sort(byScore)
 
   const countSegment = (segment: FriendsFamilySegmentKey) =>
     customers.filter((customer) => customer.segments.includes(segment)).length
 
-  const activeCustomers =
+  const activeCustomers = (
     activeSegment === 'all_customers'
-      ? customers
+      ? [...customers]
       : customers.filter((customer) => customer.segments.includes(activeSegment))
+  ).sort(sortForSegment(activeSegment))
 
   const summary: FriendsFamilyAnalyticsSummary = {
     totalCustomers: customers.length,
     bestTargets: countSegment('best_targets'),
     recentApprovals: countSegment('recent_approvals'),
     repeatCustomers: countSegment('repeat_customers'),
+    noRefunds: countSegment('no_refunds'),
     familySignal: countSegment('family_signal'),
     needsReview: countSegment('needs_review'),
     refunded: countSegment('refunded'),
     offerUsed: countSegment('offer_used'),
     offerNotesCount,
     offerNetRevenueCents,
-    targetableFullPriceCustomers: customers.filter(
-      (customer) =>
-        customer.segments.includes('best_targets') &&
-        customer.standardPriceNotes > 0 &&
-        customer.offerUsedCount === 0
-    ).length,
     grossRevenueCents: customers.reduce((total, customer) => total + customer.grossRevenueCents, 0),
     refundedRevenueCents: customers.reduce(
       (total, customer) => total + customer.refundedRevenueCents,

@@ -233,6 +233,54 @@ describe('friends-family analytics segmentation', () => {
     expect('scoreFactors' in analytics.customers[0]).toBe(false)
   })
 
+  it('segments customers who never requested a refund and ranks them by note volume', () => {
+    const analytics = buildFriendsFamilyAnalytics(
+      [
+        // Single approved note.
+        submission({ id: 'one', email: 'one@example.com', createdAt: daysAgo(5) }),
+        // Three approved notes — most volume, should rank first.
+        submission({ id: 'three-a', email: 'three@example.com', createdAt: daysAgo(20) }),
+        submission({ id: 'three-b', email: 'three@example.com', createdAt: daysAgo(50) }),
+        submission({ id: 'three-c', email: 'three@example.com', createdAt: daysAgo(90) }),
+        // Refunded customer — excluded entirely.
+        submission({
+          id: 'refunded',
+          email: 'refunded@example.com',
+          status: SubmissionStatus.DENIED,
+          stripeRefundId: 're_123',
+          refundedAt: daysAgo(19),
+          createdAt: daysAgo(20),
+        }),
+      ],
+      referenceDate,
+      { segment: 'no_refunds' }
+    )
+
+    expect(analytics.summary.noRefunds).toBe(2)
+    expect(analytics.customers.map((customer) => customer.email)).toEqual([
+      'three@example.com',
+      'one@example.com',
+    ])
+    expect(analytics.customers[0].approvedNotes).toBe(3)
+    expect(analytics.customers[0].segments).toContain('no_refunds')
+  })
+
+  it('sorts the all-customers view by most recent approval, not targeting score', () => {
+    const analytics = buildFriendsFamilyAnalytics(
+      [
+        // Lapsed repeat customer: high targeting score, but older approval.
+        submission({ id: 'lapsed-1', email: 'lapsed@example.com', createdAt: daysAgo(45) }),
+        submission({ id: 'lapsed-2', email: 'lapsed@example.com', createdAt: daysAgo(80) }),
+        // Fresh single approval: lower score, but most recent.
+        submission({ id: 'fresh', email: 'fresh@example.com', createdAt: daysAgo(2) }),
+      ],
+      referenceDate,
+      { segment: 'all_customers' }
+    )
+
+    expect(analytics.customers[0].email).toBe('fresh@example.com')
+  })
+
   it('reports gross, refunded, and net revenue separately', () => {
     const analytics = buildFriendsFamilyAnalytics(
       [

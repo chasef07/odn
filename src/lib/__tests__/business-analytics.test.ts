@@ -119,6 +119,58 @@ describe('business analytics', () => {
     expect(analytics.trend.at(-1)?.key).toBe('2026-06')
   })
 
+  it('buckets the monthly view by month and trims empty months before the first data point', () => {
+    const analytics = buildBusinessAnalytics(
+      [
+        submission({ id: 'launch', createdAt: new Date('2025-11-15T12:00:00.000Z') }),
+        submission({ id: 'this-month', createdAt: new Date('2026-06-01T12:00:00.000Z') }),
+      ],
+      referenceDate,
+      { range: 'monthly' }
+    )
+
+    expect(analytics.summary.rangeLabel).toBe('Last 12 months')
+    expect(analytics.summary.netRevenueDeltaPct).toBeNull()
+    // Nov 2025 → Jun 2026 inclusive, no empty pre-launch months.
+    expect(analytics.trend).toHaveLength(8)
+    expect(analytics.trend[0].key).toBe('2025-11')
+    expect(analytics.trend.at(-1)?.key).toBe('2026-06')
+    expect(analytics.trend.at(-1)?.notes).toBe(1)
+  })
+
+  it('buckets the quarterly view by quarter and trims empty quarters before the first data point', () => {
+    const analytics = buildBusinessAnalytics(
+      [
+        submission({ id: 'launch', createdAt: new Date('2025-11-15T12:00:00.000Z') }),
+        submission({ id: 'q2-2026', createdAt: new Date('2026-04-15T12:00:00.000Z') }),
+      ],
+      referenceDate,
+      { range: 'quarterly' }
+    )
+
+    expect(analytics.summary.rangeLabel).toBe('Last 8 quarters')
+    // Q4 2025 → Q2 2026 inclusive, no empty pre-launch quarters.
+    expect(analytics.trend.map((point) => point.key)).toEqual(['2025-Q4', '2026-Q1', '2026-Q2'])
+    expect(analytics.trend[0].notes).toBe(1)
+    expect(analytics.trend.at(-1)?.notes).toBe(1)
+  })
+
+  it('buckets the yearly view by year across all history', () => {
+    const analytics = buildBusinessAnalytics(
+      [
+        submission({ id: 'y2025', createdAt: new Date('2025-08-01T12:00:00.000Z') }),
+        submission({ id: 'y2026', createdAt: new Date('2026-02-01T12:00:00.000Z') }),
+      ],
+      referenceDate,
+      { range: 'yearly' }
+    )
+
+    expect(analytics.summary.rangeLabel).toBe('By year')
+    expect(analytics.trend.map((point) => point.key)).toEqual(['2025', '2026'])
+    expect(analytics.trend[0].notes).toBe(1)
+    expect(analytics.trend[1].notes).toBe(1)
+  })
+
   it('labels unchanged refund-rate comparisons as steady', () => {
     const analytics = buildBusinessAnalytics(
       [

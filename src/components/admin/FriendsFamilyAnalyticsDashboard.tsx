@@ -16,7 +16,7 @@ const LOOKBACK_DAYS = 365
 
 type SegmentTabKey = Extract<
   FriendsFamilySegmentFilter,
-  'best_targets' | 'repeat_customers' | 'all_customers'
+  'best_targets' | 'repeat_customers' | 'no_refunds' | 'all_customers'
 >
 
 type SegmentTab = {
@@ -33,6 +33,11 @@ const SEGMENT_TABS: SegmentTab[] = [
       'Repeat customers, last order 30–90 days ago, never used promo — your highest-intent campaign pool.',
   },
   { key: 'repeat_customers', label: 'Repeat Customers' },
+  {
+    key: 'no_refunds',
+    label: 'No Refunds',
+    description: 'Customers who have never requested a refund.',
+  },
   { key: 'all_customers', label: 'All Customers' },
 ]
 
@@ -67,8 +72,15 @@ function csvEscape(value: string): string {
   return value
 }
 
-function buildCsv(rows: FriendsFamilyCustomerRow[]): string {
-  const header = ['displayName', 'email', 'phone', 'score', 'approvedNotes', 'lastApprovedAt']
+function buildCsv(rows: FriendsFamilyCustomerRow[], includeScore = true): string {
+  const header = [
+    'displayName',
+    'email',
+    'phone',
+    ...(includeScore ? ['score'] : []),
+    'approvedNotes',
+    'lastApprovedAt',
+  ]
   const lines = [header.join(',')]
 
   for (const row of rows) {
@@ -78,7 +90,7 @@ function buildCsv(rows: FriendsFamilyCustomerRow[]): string {
         csvEscape(row.displayName),
         csvEscape(row.email),
         csvEscape(row.phone),
-        String(row.score),
+        ...(includeScore ? [String(row.score)] : []),
         String(row.approvedNotes),
         lastApproved,
       ].join(',')
@@ -137,6 +149,8 @@ function getSegmentCount(analytics: FriendsFamilyAnalytics, key: SegmentTabKey):
       return analytics.summary.bestTargets
     case 'repeat_customers':
       return analytics.summary.repeatCustomers
+    case 'no_refunds':
+      return analytics.summary.noRefunds
   }
 }
 
@@ -162,6 +176,9 @@ export function FriendsFamilyAnalyticsDashboard({
   const activeSegmentDescription =
     SEGMENT_TABS.find((tab) => tab.key === activeSegment)?.description ?? null
 
+  // No Refunds is ranked by note volume, so the targeting score is irrelevant.
+  const showScore = activeSegment !== 'no_refunds'
+
   const handleSegmentChange = (segment: SegmentTabKey) => {
     if (segment === activeSegment) return
     setError(null)
@@ -184,7 +201,7 @@ export function FriendsFamilyAnalyticsDashboard({
       if (result.success && result.data) {
         const today = new Date().toISOString().slice(0, 10)
         const filename = `customer-segment-${activeSegment}-${today}.csv`
-        downloadCsv(filename, buildCsv(result.data))
+        downloadCsv(filename, buildCsv(result.data, showScore))
       } else {
         const message = result.error || 'Failed to export customer list'
         console.error('Failed to export friends-family customers:', message)
@@ -225,10 +242,7 @@ export function FriendsFamilyAnalyticsDashboard({
 
       {/* KPI tiles */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiTile
-          label="Total Eligible Customers"
-          value={formatNumber(summary.targetableFullPriceCustomers)}
-        />
+        <KpiTile label="No Refunds" value={formatNumber(summary.noRefunds)} />
         <KpiTile label="Repeat Customers" value={formatNumber(summary.repeatCustomers)} />
         <KpiTile label="Best Targets" value={formatNumber(summary.bestTargets)} />
         <KpiTile
@@ -308,7 +322,7 @@ export function FriendsFamilyAnalyticsDashboard({
                     <th className="py-2 pr-3 text-left font-medium">Name</th>
                     <th className="px-3 py-2 text-left font-medium">Email</th>
                     <th className="px-3 py-2 text-left font-medium">Phone</th>
-                    <th className="px-3 py-2 text-right font-medium">Score</th>
+                    {showScore && <th className="px-3 py-2 text-right font-medium">Score</th>}
                     <th className="px-3 py-2 text-right font-medium">Notes</th>
                     <th className="py-2 pl-3 text-right font-medium">Last Approved</th>
                   </tr>
@@ -323,9 +337,11 @@ export function FriendsFamilyAnalyticsDashboard({
                         </a>
                       </td>
                       <td className="px-3 py-2 text-gray-700 tabular-nums">{row.phone}</td>
-                      <td className="px-3 py-2 text-right text-gray-700 tabular-nums">
-                        {row.score}
-                      </td>
+                      {showScore && (
+                        <td className="px-3 py-2 text-right text-gray-700 tabular-nums">
+                          {row.score}
+                        </td>
+                      )}
                       <td className="px-3 py-2 text-right text-gray-700 tabular-nums">
                         {formatNumber(row.approvedNotes)}
                       </td>

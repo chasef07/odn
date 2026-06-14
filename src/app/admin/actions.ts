@@ -113,6 +113,11 @@ async function getLimitedSubmissionCount(where: Prisma.SubmissionWhereInput): Pr
 function businessAnalyticsFetchStart(range: BusinessAnalyticsRange, referenceDate: Date): Date {
   if (range === '7d') return daysBefore(referenceDate, 14)
   if (range === '30d' || range === '90d') return daysBefore(referenceDate, 180)
+  // 12-month view needs ~13 months; 8-quarter view needs ~25 months.
+  if (range === 'monthly') return daysBefore(referenceDate, 400)
+  if (range === 'quarterly') return daysBefore(referenceDate, 770)
+  // 'all' and 'yearly' need the full history.
+  if (range === 'all' || range === 'yearly') return new Date('2000-01-01T00:00:00.000Z')
   return daysBefore(referenceDate, FRIENDS_FAMILY_LOOKBACK_DAYS)
 }
 
