@@ -16,6 +16,7 @@ const {
   mockUpdateMany,
   mockSendDenialEmail,
   mockSendMaybeEmail,
+  mockSendTransactionalSmsForSubmission,
   mockNormalizeMedicalRecordNumber,
   mockRevokeNoteVerificationForSubmission,
   mockGetSession,
@@ -28,6 +29,7 @@ const {
   mockUpdateMany: vi.fn(),
   mockSendDenialEmail: vi.fn(),
   mockSendMaybeEmail: vi.fn(),
+  mockSendTransactionalSmsForSubmission: vi.fn(),
   mockNormalizeMedicalRecordNumber: vi.fn((input: string) =>
     input
       .trim()
@@ -68,6 +70,10 @@ vi.mock('@/lib/email', () => ({
   sendMaybeEmail: mockSendMaybeEmail,
 }))
 
+vi.mock('@/lib/telnyx', () => ({
+  sendTransactionalSmsForSubmission: mockSendTransactionalSmsForSubmission,
+}))
+
 vi.mock('@/lib/note-verification', () => ({
   createNoteVerification: vi.fn(),
   getVerificationUrl: vi.fn(),
@@ -103,6 +109,7 @@ import {
   denySubmission,
   maybeSubmission,
   searchSubmissions,
+  updateSubmission,
 } from './actions'
 
 describe('searchSubmissions', () => {
@@ -163,6 +170,74 @@ describe('searchSubmissions', () => {
         }),
       ],
     })
+  })
+})
+
+describe('updateSubmission', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({
+      user: { id: 'doctor_123' },
+    })
+    mockUpdate.mockResolvedValue({})
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('clears SMS consent when admins change the consented phone number', async () => {
+    mockFindUnique.mockResolvedValue({
+      phone: '(555) 123-4567',
+      smsOptIn: true,
+      smsPhoneE164: '+15551234567',
+    })
+
+    const result = await updateSubmission('sub_123', {
+      phone: '(555) 987-6543',
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 'sub_123' },
+      data: expect.objectContaining({
+        phone: '(555) 987-6543',
+        smsOptIn: false,
+        smsOptInAt: null,
+        smsConsentVersion: null,
+        smsPhoneE164: null,
+        updatedAt: expect.any(Date),
+      }),
+    })
+  })
+
+  it('keeps SMS consent when admins only reformat the same phone number', async () => {
+    mockFindUnique.mockResolvedValue({
+      phone: '(555) 123-4567',
+      smsOptIn: true,
+      smsPhoneE164: '+15551234567',
+    })
+
+    const result = await updateSubmission('sub_123', {
+      phone: '+1 555 123 4567',
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 'sub_123' },
+      data: expect.objectContaining({
+        phone: '+1 555 123 4567',
+        smsPhoneE164: '+15551234567',
+        updatedAt: expect.any(Date),
+      }),
+    })
+    expect(mockUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          smsOptIn: false,
+        }),
+      })
+    )
   })
 })
 
@@ -566,6 +641,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     mockUpdate.mockResolvedValue({})
     mockUpdateMany.mockResolvedValue({ count: 1 })
     mockSendMaybeEmail.mockResolvedValue({ id: 'email_123' })
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -608,6 +684,31 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     expect(mockUpdate).toHaveBeenCalledWith({
       where: { id: mockSubmissionId },
       data: { maybeEmailSentAt: expect.any(Date) },
+    })
+  })
+
+  it('sends maybe SMS after the maybe email succeeds', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...mockSubmission,
+      phone: '(555) 123-4567',
+      smsOptIn: true,
+    })
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
+
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'OTHER_REVIEW',
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockSendMaybeEmail).toHaveBeenCalled()
+    expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalledWith({
+      submission: expect.objectContaining({
+        id: mockSubmissionId,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      }),
+      type: 'MAYBE_UPDATE',
+      body: 'OnlineDoctorNote: Your request needs extra review. Please check your email for details. STOP to opt out.',
     })
   })
 
@@ -721,6 +822,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     expect(mockUpdateMany).toHaveBeenCalledTimes(1)
     expect(mockUpdate).not.toHaveBeenCalled()
     expect(mockSendMaybeEmail).toHaveBeenCalled()
+    expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
   })
 
   it('does not send duplicate email if another doctor already moved the pending submission', async () => {

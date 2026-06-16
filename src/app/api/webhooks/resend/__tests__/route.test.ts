@@ -22,14 +22,18 @@ vi.mock('resend', () => {
 })
 
 // Mock Prisma using vi.hoisted
-const { mockPrismaFindFirst } = vi.hoisted(() => ({
+const { mockPrismaFindFirst, mockResendWebhookCreate } = vi.hoisted(() => ({
   mockPrismaFindFirst: vi.fn(),
+  mockResendWebhookCreate: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
   default: {
     submission: {
-      findFirst: mockPrismaFindFirst,
+      findMany: mockPrismaFindFirst,
+    },
+    resendWebhookEvent: {
+      create: mockResendWebhookCreate,
     },
   },
 }))
@@ -48,6 +52,13 @@ vi.mock('@/lib/email', () => ({
   },
 }))
 
+const { mockSendTransactionalSmsForSubmission } = vi.hoisted(() => ({
+  mockSendTransactionalSmsForSubmission: vi.fn(),
+}))
+vi.mock('@/lib/telnyx', () => ({
+  sendTransactionalSmsForSubmission: mockSendTransactionalSmsForSubmission,
+}))
+
 // Import after mocks
 import { POST } from '../route'
 
@@ -58,6 +69,7 @@ describe('POST /api/webhooks/resend', () => {
     patientLastName: 'Doe',
     email: 'john@example.com',
     phone: '(555) 123-4567',
+    smsOptIn: true,
     status: 'APPROVED',
   }
 
@@ -65,6 +77,8 @@ describe('POST /api/webhooks/resend', () => {
     vi.clearAllMocks()
     process.env.RESEND_API_KEY = 're_test_key'
     process.env.RESEND_WEBHOOK_SECRET = 'whsec_test_secret'
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
+    mockResendWebhookCreate.mockResolvedValue({})
   })
 
   it('should return 400 if Svix headers are missing', async () => {
@@ -171,7 +185,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(mockSubmission)
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -218,7 +232,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(mockSubmission)
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -250,6 +264,196 @@ describe('POST /api/webhooks/resend', () => {
     })
   })
 
+  it('sends bounce SMS when the resolved submission is opted in', async () => {
+    mockResendVerify.mockReturnValue({
+      type: 'email.bounced',
+      data: {
+        email_id: 'email_123',
+        to: ['john@example.com'],
+        subject: 'Payment Confirmed',
+        bounce_reason: 'invalid_email',
+        from: 'noreply@onlinedoctornote.com',
+        created_at: '2025-01-01T00:00:00Z',
+      },
+    })
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
+
+    const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'email.bounced',
+        data: {
+          to: ['john@example.com'],
+          subject: 'Payment Confirmed',
+          bounce_reason: 'invalid_email',
+        },
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'svix-id': 'msg_123',
+        'svix-timestamp': '1234567890',
+        'svix-signature': 'valid_signature',
+      },
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalledWith({
+      submission: expect.objectContaining({
+        id: 'sub_123',
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      }),
+      type: 'EMAIL_BOUNCE',
+      body: 'OnlineDoctorNote: Your email bounced. Please email your correct email address to hello@onlinedoctornote.com. STOP to opt out.',
+    })
+    expect(mockSendBounceAlertEmail).toHaveBeenCalled()
+  })
+
+  it('skips duplicate bounce events before customer SMS', async () => {
+    mockResendVerify.mockReturnValue({
+      type: 'email.bounced',
+      data: {
+        email_id: 'email_123',
+        to: ['john@example.com'],
+        subject: 'Payment Confirmed',
+        bounce_reason: 'invalid_email',
+        from: 'noreply@onlinedoctornote.com',
+        created_at: '2025-01-01T00:00:00Z',
+      },
+    })
+    mockResendWebhookCreate.mockRejectedValue({ code: 'P2002' })
+
+    const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'email.bounced',
+        data: {
+          to: ['john@example.com'],
+          subject: 'Payment Confirmed',
+          bounce_reason: 'invalid_email',
+        },
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'svix-id': 'msg_123',
+        'svix-timestamp': '1234567890',
+        'svix-signature': 'valid_signature',
+      },
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockPrismaFindFirst).not.toHaveBeenCalled()
+    expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
+    expect(mockSendBounceAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('keeps the bounce alert flow working when bounce SMS fails', async () => {
+    mockResendVerify.mockReturnValue({
+      type: 'email.bounced',
+      data: {
+        email_id: 'email_123',
+        to: ['john@example.com'],
+        subject: 'Payment Confirmed',
+        bounce_reason: 'invalid_email',
+        from: 'noreply@onlinedoctornote.com',
+        created_at: '2025-01-01T00:00:00Z',
+      },
+    })
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockSendTransactionalSmsForSubmission.mockRejectedValue(new Error('Telnyx unavailable'))
+    mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'email.bounced',
+        data: {
+          to: ['john@example.com'],
+          subject: 'Payment Confirmed',
+          bounce_reason: 'invalid_email',
+        },
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'svix-id': 'msg_123',
+        'svix-timestamp': '1234567890',
+        'svix-signature': 'valid_signature',
+      },
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockSendBounceAlertEmail).toHaveBeenCalled()
+    expect(consoleWarn).toHaveBeenCalledWith(
+      'Failed to send transactional SMS (non-critical):',
+      expect.objectContaining({
+        submissionId: 'sub_123',
+        type: 'EMAIL_BOUNCE',
+      })
+    )
+
+    consoleWarn.mockRestore()
+  })
+
+  it('does not send bounce SMS for ambiguous email matches', async () => {
+    mockResendVerify.mockReturnValue({
+      type: 'email.bounced',
+      data: {
+        email_id: 'email_123',
+        to: ['john@example.com'],
+        subject: 'Payment Confirmed',
+        bounce_reason: 'invalid_email',
+        from: 'noreply@onlinedoctornote.com',
+        created_at: '2025-01-01T00:00:00Z',
+      },
+    })
+    mockPrismaFindFirst.mockResolvedValue([
+      mockSubmission,
+      {
+        ...mockSubmission,
+        id: 'sub_456',
+        phone: '(555) 987-6543',
+      },
+    ])
+    mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
+
+    const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'email.bounced',
+        data: {
+          to: ['john@example.com'],
+          subject: 'Payment Confirmed',
+          bounce_reason: 'invalid_email',
+        },
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'svix-id': 'msg_123',
+        'svix-timestamp': '1234567890',
+        'svix-signature': 'valid_signature',
+      },
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
+    expect(mockSendBounceAlertEmail).toHaveBeenCalledWith({
+      bouncedEmail: 'john@example.com',
+      bounceReason: 'invalid_email',
+      emailType: 'payment_confirmation',
+      submission: mockSubmission,
+    })
+  })
+
   it('should identify denial email from subject', async () => {
     mockResendVerify.mockReturnValue({
       type: 'email.bounced',
@@ -263,7 +467,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(mockSubmission)
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -308,7 +512,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(mockSubmission)
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -353,7 +557,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(mockSubmission)
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -379,12 +583,15 @@ describe('POST /api/webhooks/resend', () => {
     expect(mockPrismaFindFirst).toHaveBeenCalledWith({
       where: { email: 'john@example.com' },
       orderBy: { createdAt: 'desc' },
+      take: 2,
       select: {
         id: true,
         patientFirstName: true,
         patientLastName: true,
         email: true,
         phone: true,
+        smsOptIn: true,
+        smsPhoneE164: true,
         status: true,
       },
     })
@@ -403,7 +610,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(null)
+    mockPrismaFindFirst.mockResolvedValue([])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -498,7 +705,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(mockSubmission)
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockRejectedValue(new Error('Email service down'))
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -540,7 +747,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(mockSubmission)
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -593,7 +800,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue(null)
+    mockPrismaFindFirst.mockResolvedValue([])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {

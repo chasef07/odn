@@ -4,6 +4,9 @@ import { SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
 import { sendPaymentConfirmationEmail } from '@/lib/email'
+import { purchaseConfirmationSms, SMS_CONSENT_VERSION } from '@/lib/sms-templates'
+import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
+import { toE164UsPhone } from '@/lib/phone-utils'
 import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { INTERNAL_ONLY_MAYBE_REASON } from '@/lib/maybe-reasons'
 import { revalidatePath } from 'next/cache'
@@ -213,6 +216,7 @@ export async function POST(request: NextRequest) {
     // 9. Create permanent Submission record
     let submission: Awaited<ReturnType<typeof prisma.submission.create>>
     try {
+      const smsOptedIn = formData.smsOptIn === true
       submission = await prisma.submission.create({
         data: {
           // System fields
@@ -237,7 +241,10 @@ export async function POST(request: NextRequest) {
           guardianLastName: formData.guardianLastName || null,
           email: formData.email!,
           phone: formData.phone!,
-          smsOptIn: formData.smsOptIn === true,
+          smsOptIn: smsOptedIn,
+          smsOptInAt: smsOptedIn ? new Date() : null,
+          smsConsentVersion: smsOptedIn ? SMS_CONSENT_VERSION : null,
+          smsPhoneE164: smsOptedIn ? toE164UsPhone(formData.phone) : null,
           notePurpose: formData.notePurpose!,
           otherNotePurpose: formData.otherNotePurpose || null,
           absenceReason: formData.absenceReason!,
@@ -286,6 +293,20 @@ export async function POST(request: NextRequest) {
           // NON-BLOCKING: Log warning but don't fail webhook
           console.warn('Failed to send payment confirmation email (non-critical):', emailError)
         })
+
+      if (submission.smsOptIn) {
+        sendTransactionalSmsForSubmission({
+          submission,
+          type: 'PURCHASE_CONFIRMATION',
+          body: purchaseConfirmationSms(submission.id),
+        }).catch((smsError) => {
+          console.warn('Failed to send transactional SMS (non-critical):', {
+            submissionId: submission.id,
+            type: 'PURCHASE_CONFIRMATION',
+            error: smsError instanceof Error ? smsError.message : 'Unknown SMS error',
+          })
+        })
+      }
     } catch (submissionError) {
       console.error('Failed to create Submission:', submissionError)
 

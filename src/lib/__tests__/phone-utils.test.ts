@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatPhoneNumber } from '../phone-utils'
+import { formatPhoneNumber, toE164UsPhone } from '../phone-utils'
 
 describe('formatPhoneNumber', () => {
   describe('Empty and short inputs', () => {
@@ -180,5 +180,23 @@ describe('formatPhoneNumber', () => {
       expect(formatPhoneNumber('5551234567')).toBe('(555) 123-4567')
       expect(formatPhoneNumber('55512345678')).toBe('(555) 123-4567')
     })
+  })
+})
+
+describe('toE164UsPhone', () => {
+  it('normalizes 10 digit US numbers', () => {
+    expect(toE164UsPhone('5551234567')).toBe('+15551234567')
+    expect(toE164UsPhone('(555) 123-4567')).toBe('+15551234567')
+  })
+
+  it('normalizes US numbers with leading country code', () => {
+    expect(toE164UsPhone('+1 555 123 4567')).toBe('+15551234567')
+    expect(toE164UsPhone('15551234567')).toBe('+15551234567')
+  })
+
+  it('rejects invalid numbers', () => {
+    expect(toE164UsPhone('555123456')).toBeNull()
+    expect(toE164UsPhone('255512345678')).toBeNull()
+    expect(toE164UsPhone(null)).toBeNull()
   })
 })

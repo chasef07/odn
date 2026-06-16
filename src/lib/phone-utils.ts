@@ -24,3 +24,14 @@ export const formatPhoneNumber = (value: string): string => {
   // Full format with area code, prefix, and line number
   return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
 }
+
+export function toE164UsPhone(value: string | null | undefined): string | null {
+  if (!value) return null
+
+  const digits = value.replace(/\D/g, '')
+  const nationalDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits
+
+  if (nationalDigits.length !== 10) return null
+
+  return `+1${nationalDigits}`
+}

@@ -12,6 +12,7 @@ const {
   mockUpdate,
   mockUpdateMany,
   mockSendApprovalEmail,
+  mockSendTransactionalSmsForSubmission,
   mockGenerateDoctorNotePDF,
   mockGeneratePDFFilename,
   mockGenerateQrCodeDataUrl,
@@ -28,6 +29,7 @@ const {
   mockUpdate: vi.fn(),
   mockUpdateMany: vi.fn(),
   mockSendApprovalEmail: vi.fn(),
+  mockSendTransactionalSmsForSubmission: vi.fn(),
   mockGenerateDoctorNotePDF: vi.fn(),
   mockGeneratePDFFilename: vi.fn(),
   mockGenerateQrCodeDataUrl: vi.fn(),
@@ -62,6 +64,10 @@ vi.mock('@/lib/email', () => ({
   sendDenialEmail: vi.fn(), // Keep for other tests
   sendApprovalEmail: mockSendApprovalEmail,
   sendMaybeEmail: vi.fn(),
+}))
+
+vi.mock('@/lib/telnyx', () => ({
+  sendTransactionalSmsForSubmission: mockSendTransactionalSmsForSubmission,
 }))
 
 // Mock PDF generation utilities
@@ -186,6 +192,7 @@ describe('approveSubmission - Approval Automation', () => {
     mockCreateNoteVerification.mockResolvedValue(mockVerificationRecord)
     mockGetVerificationUrl.mockReturnValue(mockVerificationPdfInfo.verificationUrl)
     mockGenerateQrCodeDataUrl.mockResolvedValue(mockVerificationPdfInfo.qrCodeDataUrl)
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -257,6 +264,33 @@ describe('approveSubmission - Approval Automation', () => {
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: mockSubmissionId },
         data: { approvalEmailSentAt: expect.any(Date) },
+      })
+    })
+
+    it('sends approval SMS after the approval email succeeds', async () => {
+      mockFindUnique.mockResolvedValue({
+        ...mockSubmission,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      })
+      mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+      mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+      mockSendApprovalEmail.mockResolvedValue({ success: true })
+      mockUpdate.mockResolvedValue({})
+      mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
+
+      const result = await approveSubmission(mockSubmissionId)
+
+      expect(result).toEqual({ success: true })
+      expect(mockSendApprovalEmail).toHaveBeenCalled()
+      expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalledWith({
+        submission: expect.objectContaining({
+          id: mockSubmissionId,
+          phone: '(555) 123-4567',
+          smsOptIn: true,
+        }),
+        type: 'APPROVAL_SENT',
+        body: "OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam. STOP to opt out.",
       })
     })
 
@@ -531,6 +565,7 @@ describe('approveSubmission - Approval Automation', () => {
         })
       )
       expect(mockUpdate).not.toHaveBeenCalled()
+      expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
     })
   })
 
@@ -789,6 +824,7 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
     mockCreateNoteVerification.mockResolvedValue(mockVerificationRecord)
     mockGetVerificationUrl.mockReturnValue(mockVerificationPdfInfo.verificationUrl)
     mockGenerateQrCodeDataUrl.mockResolvedValue(mockVerificationPdfInfo.qrCodeDataUrl)
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -849,6 +885,34 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
     expect(mockUpdate).toHaveBeenCalledWith({
       where: { id: mockSubmissionId },
       data: { approvalEmailSentAt: expect.any(Date) },
+    })
+  })
+
+  it('sends approval SMS after the re-approval email succeeds', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...mockApprovedSubmission,
+      phone: '(555) 123-4567',
+      smsOptIn: true,
+    })
+    mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
+    mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
+    mockSendApprovalEmail.mockResolvedValue({ success: true })
+    mockUpdate.mockResolvedValue({})
+    mockUpdateMany.mockResolvedValue({ count: 1 })
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
+
+    const result = await reApproveSubmission(mockSubmissionId)
+
+    expect(result).toEqual({ success: true })
+    expect(mockSendApprovalEmail).toHaveBeenCalled()
+    expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalledWith({
+      submission: expect.objectContaining({
+        id: mockSubmissionId,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      }),
+      type: 'APPROVAL_SENT',
+      body: "OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam. STOP to opt out.",
     })
   })
 
