@@ -573,7 +573,7 @@ export function DoctorNoteTemplate({
                 hello@platinumhealthclinic.com
               </Link>
             </Text>
-            <Text style={styles.headerLine}>Phone: 888-597-8820</Text>
+            <Text style={styles.headerLine}>Phone: 888-597-8420</Text>
             <Text style={styles.headerLine}>Fax: 888-597-8820</Text>
           </View>
 
