@@ -1,0 +1,56 @@
+name: Production Prisma Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type DEPLOY to run production migrations
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-prisma-migrations
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Confirm
+    if: inputs.confirm != 'DEPLOY'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "Refusing to run. Re-dispatch with confirm=DEPLOY."
+          exit 1
+
+  migrate:
+    name: Migrate Production
+    if: inputs.confirm == 'DEPLOY'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PRISMA_DATABASE_URL: ${{ secrets.PRISMA_DATABASE_URL || secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Check migration status before deploy
+        run: npx prisma migrate status
+
+      - name: Apply pending migrations
+        run: npx prisma migrate deploy
+
+      - name: Check migration status after deploy
+        run: npx prisma migrate status
