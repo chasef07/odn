@@ -44,6 +44,7 @@ import {
   type FormattedSubmission,
   type MaybeSubmissionInput,
 } from '@/app/admin/actions'
+import { smsStatusLabel } from '@/lib/sms-status'
 import { SubmissionStatus } from '@prisma/client'
 
 interface SearchSubmissionDetailProps {
@@ -54,6 +55,45 @@ interface SearchSubmissionDetailProps {
 function parseDateSafe(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number)
   return new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+}
+
+type SmsMessageForDisplay = FormattedSubmission['smsMessages'][number]
+
+function formatSmsLabel(value: string): string {
+  return value
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ')
+}
+
+function getSmsStatusLabel(message: SmsMessageForDisplay): string {
+  const normalized = (message.providerStatus || '').toLowerCase().replace(/[\s-]+/g, '_')
+  const direction = message.direction.toLowerCase()
+
+  if (direction === 'inbound') return normalized ? formatSmsLabel(normalized) : 'Received'
+  if (normalized) return smsStatusLabel(normalized)
+  if (message.sentAt) return 'Sent'
+  return 'Queued'
+}
+
+function getSmsStatusClass(message: SmsMessageForDisplay): string {
+  const label = getSmsStatusLabel(message).toLowerCase()
+
+  if (label === 'failed') return 'border-red-200 bg-red-50 text-red-700'
+  if (label === 'delivered' || label === 'received') {
+    return 'border-green-200 bg-green-50 text-green-700'
+  }
+  if (label === 'sent') return 'border-blue-200 bg-blue-50 text-blue-700'
+  return 'border-gray-200 bg-gray-50 text-gray-700'
+}
+
+function getSmsError(message: SmsMessageForDisplay): string {
+  const errorText = [message.errorCode, message.errorMessage].filter(Boolean).join(': ')
+  const compact = errorText.replace(/\s+/g, ' ').trim()
+
+  if (!compact) return 'N/A'
+  return compact.length > 160 ? `${compact.slice(0, 157)}...` : compact
 }
 
 export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailProps) {
@@ -326,6 +366,17 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     submission.status === SubmissionStatus.APPROVED
       ? "This will generate a NEW doctor's note PDF and send a NEW email to the patient. Use this if you made edits that need to be reflected in the note."
       : "This will generate a doctor's note PDF and send it to the patient via email."
+  const smsMessages = submission.smsMessages ?? []
+  const smsConsentLabel = submission.smsOptOutAt
+    ? 'Opted out'
+    : submission.smsOptIn
+      ? 'Opted in'
+      : 'Not opted in'
+  const smsConsentClass = submission.smsOptOutAt
+    ? 'border-red-200 bg-red-50 text-red-700'
+    : submission.smsOptIn
+      ? 'border-green-200 bg-green-50 text-green-700'
+      : 'border-gray-200 bg-gray-50 text-gray-700'
 
   return (
     <div className="space-y-6">
@@ -574,6 +625,89 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               )}
             </div>
           </div>
+        </div>
+
+        {/* SMS Log */}
+        <div className="space-y-4 border-t pt-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">SMS Log</h2>
+            <span
+              className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${smsConsentClass}`}
+            >
+              {smsConsentLabel}
+            </span>
+          </div>
+
+          {submission.smsOptOutAt && (
+            <p className="text-sm text-gray-600">
+              Opted out {formatDateTime(submission.smsOptOutAt)}.
+            </p>
+          )}
+
+          {smsMessages.length === 0 ? (
+            <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+              No SMS messages yet.
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
+                  <tr>
+                    <th className="px-3 py-2">Type</th>
+                    <th className="px-3 py-2">Direction</th>
+                    <th className="px-3 py-2">Sent/Received</th>
+                    <th className="px-3 py-2">Finalized</th>
+                    <th className="px-3 py-2">Provider Status</th>
+                    <th className="px-3 py-2">Error</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {smsMessages.map((message) => {
+                    const eventTime =
+                      message.direction.toLowerCase() === 'inbound'
+                        ? message.receivedAt
+                        : message.sentAt
+                    const statusLabel = getSmsStatusLabel(message)
+                    const providerStatus = message.providerStatus?.trim()
+                    const showRawProviderStatus =
+                      providerStatus && providerStatus.toLowerCase() !== statusLabel.toLowerCase()
+
+                    return (
+                      <tr key={message.id}>
+                        <td className="px-3 py-2 font-medium whitespace-nowrap text-gray-900">
+                          {formatSmsLabel(message.type)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-700">
+                          {formatSmsLabel(message.direction)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-700">
+                          {formatDateTime(eventTime || message.createdAt)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-700">
+                          {formatDateTime(message.finalizedAt)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <span
+                            className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${getSmsStatusClass(message)}`}
+                          >
+                            {statusLabel}
+                          </span>
+                          {showRawProviderStatus && (
+                            <span className="ml-2 font-mono text-xs text-gray-500">
+                              {providerStatus}
+                            </span>
+                          )}
+                        </td>
+                        <td className="max-w-[18rem] px-3 py-2 break-words text-gray-700">
+                          {getSmsError(message)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Note Details */}

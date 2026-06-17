@@ -121,9 +121,12 @@ model Submission {
   guardianDateOfBirth DateTime? @map("guardian_date_of_birth") @db.Date
 
   // Contact Information
-  email    String
-  phone    String
-  smsOptIn Boolean @default(false) @map("sms_opt_in")
+  email             String
+  phone             String
+  smsOptIn          Boolean   @default(false) @map("sms_opt_in")
+  smsOptInAt        DateTime? @map("sms_opt_in_at")
+  smsConsentVersion String?   @map("sms_consent_version")
+  smsPhoneE164      String?   @map("sms_phone_e164")
 
   // Note Details
   notePurpose      String  @map("note_purpose") // 'work', 'school', 'both', 'other'
@@ -168,6 +171,7 @@ model Submission {
 
   // Public note verification snapshot
   noteVerifications NoteVerification[]
+  smsMessages       SmsMessage[]
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -179,8 +183,64 @@ model Submission {
   @@index([status, createdAt])
   @@index([patientFirstName, patientLastName, patientDateOfBirth, status])
   @@index([email, status])
+  @@index([smsPhoneE164])
   @@index([offerCode])
   @@map("submissions")
+}
+
+model SmsPhoneState {
+  phoneE164   String    @id @map("phone_e164")
+  optedOutAt  DateTime? @map("opted_out_at")
+  lastOptInAt DateTime? @map("last_opt_in_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("sms_phone_states")
+}
+
+model SmsMessage {
+  id                String      @id @default(uuid())
+  submissionId      String?     @map("submission_id")
+  submission        Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  type              String
+  direction         String
+  to                String?
+  from              String?
+  body              String      @db.Text
+  providerMessageId String?     @unique @map("provider_message_id")
+  providerStatus    String?     @map("provider_status")
+  errorCode         String?     @map("error_code")
+  errorMessage      String?     @map("error_message") @db.Text
+  sentAt            DateTime?   @map("sent_at")
+  receivedAt        DateTime?   @map("received_at")
+  finalizedAt       DateTime?   @map("finalized_at")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@index([submissionId])
+  @@index([type])
+  @@index([providerStatus])
+  @@index([createdAt])
+  @@map("sms_messages")
+}
+
+model TelnyxWebhookEvent {
+  id          String   @id
+  eventType   String   @map("event_type")
+  occurredAt  DateTime @map("occurred_at")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("telnyx_webhook_events")
+}
+
+model ResendWebhookEvent {
+  id          String   @id
+  emailId     String?  @map("email_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@index([emailId])
+  @@map("resend_webhook_events")
 }
 
 model NoteVerification {

@@ -13,6 +13,9 @@ import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
 import prisma from '@/lib/prisma'
 import Stripe from 'stripe'
 import { sendDenialEmail, sendApprovalEmail, sendMaybeEmail } from '@/lib/email'
+import { approvalSentSms, maybeUpdateSms } from '@/lib/sms-templates'
+import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
+import { toE164UsPhone } from '@/lib/phone-utils'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { getBusinessDayStart } from '@/lib/admin-utils'
 import { formatDateUTC } from '@/lib/utils'
@@ -61,6 +64,19 @@ export type MaybeSubmissionInput = {
   reason: MaybeReason | string
   internalNote?: string
   approvedDays?: MaybeApprovedDays | number
+}
+
+export type FormattedSmsMessage = {
+  id: string
+  type: string
+  direction: string
+  providerStatus: string | null
+  errorCode: string | null
+  errorMessage: string | null
+  sentAt: Date | null
+  receivedAt: Date | null
+  finalizedAt: Date | null
+  createdAt: Date | null
 }
 
 // Initialize Stripe client
@@ -875,6 +891,12 @@ export async function approveSubmission(
         data: { approvalEmailSentAt: new Date() },
       })
 
+      await sendTransactionalSmsForSubmission({
+        submission,
+        type: 'APPROVAL_SENT',
+        body: approvalSentSms(),
+      })
+
       if (process.env.NODE_ENV === 'development') {
         console.info(`Approval email sent to ${submission.email} for submission ${submissionId}`)
       }
@@ -1248,6 +1270,12 @@ async function moveSubmissionToMaybe({
           maybeEmailSentAt: new Date(),
         },
       })
+
+      await sendTransactionalSmsForSubmission({
+        submission,
+        type: 'MAYBE_UPDATE',
+        body: maybeUpdateSms(),
+      })
     } catch (emailError) {
       console.error('Failed to send maybe email:', emailError)
       emailWarning = 'Submission moved to Maybe, but email notification failed to send'
@@ -1583,6 +1611,9 @@ export type FormattedSubmission = Omit<
   guardianDateOfBirth: string | null
   firstDayOff: string
   lastDayOff: string
+  smsMessages: FormattedSmsMessage[]
+  smsOptOutAt: Date | null
+  smsPhoneE164: string | null
 }
 
 /**
@@ -1607,12 +1638,34 @@ export async function getSubmissionById(
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
+        smsMessages: {
+          select: {
+            id: true,
+            type: true,
+            direction: true,
+            providerStatus: true,
+            errorCode: true,
+            errorMessage: true,
+            sentAt: true,
+            receivedAt: true,
+            finalizedAt: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     })
 
     if (!submission) {
       return { success: false, error: 'Submission not found' }
     }
+
+    const smsPhoneState = submission.smsPhoneE164
+      ? await prisma.smsPhoneState.findUnique({
+          where: { phoneE164: submission.smsPhoneE164 },
+          select: { optedOutAt: true },
+        })
+      : null
 
     // Return submission with formatted date fields
     const formattedSubmission: FormattedSubmission = {
@@ -1623,6 +1676,9 @@ export async function getSubmissionById(
         : null,
       firstDayOff: formatDateUTC(submission.firstDayOff),
       lastDayOff: formatDateUTC(submission.lastDayOff),
+      smsMessages: submission.smsMessages,
+      smsOptOutAt: smsPhoneState?.optedOutAt || null,
+      smsPhoneE164: submission.smsPhoneE164,
     }
 
     return {
@@ -1667,11 +1723,51 @@ export async function updateSubmission(
   try {
     await getCurrentDoctor() // Verify authentication
 
+    let updateData: typeof data & {
+      smsOptIn?: boolean
+      smsOptInAt?: Date | null
+      smsConsentVersion?: string | null
+      smsPhoneE164?: string | null
+    } = data
+    if (data.phone !== undefined) {
+      const currentSubmission = await prisma.submission.findUnique({
+        where: { id: submissionId },
+        select: {
+          phone: true,
+          smsOptIn: true,
+          smsPhoneE164: true,
+        },
+      })
+
+      if (!currentSubmission) {
+        return { success: false, error: 'Submission not found' }
+      }
+
+      const nextSmsPhoneE164 = toE164UsPhone(data.phone)
+      const currentSmsPhoneE164 =
+        currentSubmission.smsPhoneE164 || toE164UsPhone(currentSubmission.phone)
+      const smsNumberChanged = nextSmsPhoneE164 !== currentSmsPhoneE164
+
+      updateData =
+        currentSubmission.smsOptIn && !smsNumberChanged
+          ? {
+              ...data,
+              smsPhoneE164: nextSmsPhoneE164,
+            }
+          : {
+              ...data,
+              smsOptIn: false,
+              smsOptInAt: null,
+              smsConsentVersion: null,
+              smsPhoneE164: null,
+            }
+    }
+
     // Update submission with new values, keep status as MAYBE
     await prisma.submission.update({
       where: { id: submissionId },
       data: {
-        ...data,
+        ...updateData,
         updatedAt: new Date(),
       },
     })
@@ -1788,6 +1884,12 @@ export async function reApproveSubmission(
       await prisma.submission.update({
         where: { id: submissionId },
         data: { approvalEmailSentAt: new Date() },
+      })
+
+      await sendTransactionalSmsForSubmission({
+        submission,
+        type: 'APPROVAL_SENT',
+        body: approvalSentSms(),
       })
 
       if (process.env.NODE_ENV === 'development') {

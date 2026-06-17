@@ -64,6 +64,13 @@ vi.mock('@/lib/email', () => ({
   sendPaymentConfirmationEmail: mockSendPaymentConfirmationEmail,
 }))
 
+const { mockSendTransactionalSmsForSubmission } = vi.hoisted(() => ({
+  mockSendTransactionalSmsForSubmission: vi.fn(),
+}))
+vi.mock('@/lib/telnyx', () => ({
+  sendTransactionalSmsForSubmission: mockSendTransactionalSmsForSubmission,
+}))
+
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
@@ -131,6 +138,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_mock'
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test'
     vi.clearAllMocks()
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
 
     // Default: no existing submission (fresh event)
     mockSubmissionFindUnique.mockResolvedValue(null)
@@ -164,6 +172,121 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(createArg.data.paymentAmount).toBe(2495)
     expect(createArg.data.offerCode).toBeNull()
     expect(createArg.data.offerPriceId).toBeNull()
+  })
+
+  it('sends purchase confirmation SMS when opted in', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_sms',
+      paymentIntentId: 'pi_test_123',
+      formData: validFormData,
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: '78a58d67-1111-4444-8888-123456789abc',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+      phone: '(555) 123-4567',
+      smsOptIn: true,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalledWith({
+      submission: expect.objectContaining({
+        id: '78a58d67-1111-4444-8888-123456789abc',
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      }),
+      type: 'PURCHASE_CONFIRMATION',
+      body: 'OnlineDoctorNote: Request received. Ref #78A58D67. Watch your email soon and check spam. STOP to opt out.',
+    })
+  })
+
+  it('does not wait for purchase confirmation SMS before acknowledging Stripe', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    let resolveSms: () => void = () => {}
+    mockSendTransactionalSmsForSubmission.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveSms = resolve
+      })
+    )
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_sms_pending',
+      paymentIntentId: 'pi_test_123',
+      formData: validFormData,
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_sms_pending',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+      phone: '(555) 123-4567',
+      smsOptIn: true,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalled()
+
+    resolveSms()
+  })
+
+  it('does not send purchase confirmation SMS when opted out', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_no_sms',
+      paymentIntentId: 'pi_test_123',
+      formData: {
+        ...validFormData,
+        smsOptIn: false,
+      },
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_no_sms',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+      phone: '(555) 123-4567',
+      smsOptIn: false,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
+  })
+
+  it('does not fail the Stripe webhook when purchase SMS fails', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockSendTransactionalSmsForSubmission.mockRejectedValue(new Error('Telnyx unavailable'))
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_sms_error',
+      paymentIntentId: 'pi_test_123',
+      formData: validFormData,
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_sms_error',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+      phone: '(555) 123-4567',
+      smsOptIn: true,
+    })
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalled()
+    await Promise.resolve()
+    expect(consoleWarn).toHaveBeenCalledWith(
+      'Failed to send transactional SMS (non-critical):',
+      expect.objectContaining({
+        submissionId: 'sub_sms_error',
+        type: 'PURCHASE_CONFIRMATION',
+      })
+    )
+
+    consoleWarn.mockRestore()
   })
 
   it('stores friends and family offer metadata on the submission', async () => {
