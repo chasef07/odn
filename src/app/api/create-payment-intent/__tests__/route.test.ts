@@ -90,13 +90,19 @@ describe('POST /api/create-payment-intent', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_mock_key'
     process.env.STRIPE_PRICE_ID = 'price_test_mock'
     process.env.STRIPE_FRIENDS_FAMILY_PRICE_ID = 'price_friends_family_mock'
+    process.env.STRIPE_DOCTOR_10_PRICE_ID = 'price_doctor_10_mock'
     vi.clearAllMocks()
 
     // Default mock for price retrieval
     mockPricesRetrieve.mockImplementation(async (priceId: string) => {
       return {
         id: priceId,
-        unit_amount: priceId === 'price_friends_family_mock' ? 2000 : 2495,
+        unit_amount:
+          priceId === 'price_friends_family_mock'
+            ? 2000
+            : priceId === 'price_doctor_10_mock'
+              ? 2246
+              : 2495,
         currency: 'usd',
       }
     })
@@ -336,6 +342,56 @@ describe('POST /api/create-payment-intent', () => {
     )
   })
 
+  it('should use doctor price when doctor10 offer is supplied', async () => {
+    const mockTempSubmissionId = 'temp_doctor_10'
+
+    mockPrismaCreate.mockResolvedValue({
+      id: mockTempSubmissionId,
+    })
+
+    mockPaymentIntentCreate.mockResolvedValue({
+      id: 'pi_doctor_10',
+      client_secret: 'pi_doctor_10_secret',
+      amount: 2246,
+      currency: 'usd',
+    })
+
+    mockPrismaUpdate.mockResolvedValue({})
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: { ...mockFormData, offerCode: 'doctor10' } }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockPricesRetrieve).toHaveBeenCalledWith('price_doctor_10_mock')
+    expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 2246,
+        metadata: expect.objectContaining({
+          price_id: 'price_doctor_10_mock',
+          price_type: 'doctor_10',
+          offer_code: 'doctor10',
+          offer_price_id: 'price_doctor_10_mock',
+          temporarySubmissionId: mockTempSubmissionId,
+        }),
+      })
+    )
+    expect(data).toEqual(
+      expect.objectContaining({
+        amount: 2246,
+        formattedAmount: '22.46',
+        priceId: 'price_doctor_10_mock',
+        offerApplied: true,
+        offerCode: 'doctor10',
+      })
+    )
+  })
+
   it('should fall back to standard price when offer is invalid', async () => {
     mockPrismaCreate.mockResolvedValue({ id: 'temp_invalid_offer' })
 
@@ -400,6 +456,31 @@ describe('POST /api/create-payment-intent', () => {
     expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
     expect(consoleError).toHaveBeenCalledWith(
       'Friends and family offer requested but STRIPE_FRIENDS_FAMILY_PRICE_ID is unset'
+    )
+
+    consoleError.mockRestore()
+  })
+
+  it('should return an error when doctor price is not configured', async () => {
+    delete process.env.STRIPE_DOCTOR_10_PRICE_ID
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: mockFormData, offerCode: 'doctor10' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Doctor offer is not configured. Please contact support.')
+    expect(mockPricesRetrieve).not.toHaveBeenCalled()
+    expect(mockPrismaCreate).not.toHaveBeenCalled()
+    expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    expect(consoleError).toHaveBeenCalledWith(
+      'Doctor offer requested but STRIPE_DOCTOR_10_PRICE_ID is unset'
     )
 
     consoleError.mockRestore()

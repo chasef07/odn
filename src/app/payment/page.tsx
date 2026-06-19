@@ -71,9 +71,7 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
               Doctor&apos;s Note - Online Medical Documentation
             </p>
             {priceInfo?.offerApplied && (
-              <p className="mt-1 text-sm font-medium text-green-700">
-                Friends &amp; family offer applied
-              </p>
+              <p className="mt-1 text-sm font-medium text-green-700">Discount applied</p>
             )}
           </div>
           <span className="text-primary text-xl font-bold">

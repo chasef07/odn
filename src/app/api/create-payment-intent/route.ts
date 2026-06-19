@@ -4,12 +4,7 @@ import prisma from '@/lib/prisma'
 import { FormData } from '@/lib/form-storage'
 import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { getCachedPrice } from '@/lib/stripe-price'
-import {
-  FRIENDS_FAMILY_OFFER_CODE,
-  isFriendsFamilyOfferCode,
-  normalizeOfferCode,
-  type PriceType,
-} from '@/lib/offer-codes'
+import { getOfferConfig, normalizeOfferCode, type PriceType } from '@/lib/offer-codes'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -67,22 +62,17 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedOfferCode = normalizeOfferCode(offerCode ?? formData.offerCode)
-    const friendsFamilyPriceId = process.env.STRIPE_FRIENDS_FAMILY_PRICE_ID?.trim()
-    const requestedFriendsFamilyOffer = isFriendsFamilyOfferCode(normalizedOfferCode)
+    const offerConfig = getOfferConfig(normalizedOfferCode)
+    const offerPriceId = offerConfig ? process.env[offerConfig.priceEnvVar]?.trim() : null
 
-    if (requestedFriendsFamilyOffer && !friendsFamilyPriceId) {
-      console.error(
-        'Friends and family offer requested but STRIPE_FRIENDS_FAMILY_PRICE_ID is unset'
-      )
-      return NextResponse.json(
-        { error: 'Friends and family offer is not configured. Please contact support.' },
-        { status: 500 }
-      )
+    if (offerConfig && !offerPriceId) {
+      console.error(offerConfig.missingConfigLog)
+      return NextResponse.json({ error: offerConfig.missingConfigError }, { status: 500 })
     }
 
-    const offerApplied = requestedFriendsFamilyOffer
-    const selectedPriceId = offerApplied ? friendsFamilyPriceId! : process.env.STRIPE_PRICE_ID!
-    const priceType: PriceType = offerApplied ? 'friends_family' : 'standard'
+    const offerApplied = Boolean(offerConfig)
+    const selectedPriceId = offerConfig ? offerPriceId! : process.env.STRIPE_PRICE_ID!
+    const priceType: PriceType = offerConfig?.priceType ?? 'standard'
 
     // 4. Fetch price from Stripe (cached for 1 hour)
     let price: Stripe.Price
@@ -147,7 +137,7 @@ export async function POST(request: NextRequest) {
           email: formData.email || '',
           price_id: price.id,
           price_type: priceType,
-          offer_code: offerApplied ? FRIENDS_FAMILY_OFFER_CODE : '',
+          offer_code: offerConfig?.code ?? '',
           offer_price_id: offerApplied ? price.id : '',
           temporarySubmissionId: tempSubmissionId, // Add reference for webhook fallback
         },
@@ -237,7 +227,7 @@ export async function POST(request: NextRequest) {
       priceId: price.id,
       formattedAmount: (price.unit_amount / 100).toFixed(2),
       offerApplied,
-      offerCode: offerApplied ? FRIENDS_FAMILY_OFFER_CODE : null,
+      offerCode: offerConfig?.code ?? null,
     })
   } catch (error) {
     console.error('Unexpected error in create-payment-intent:', error)
