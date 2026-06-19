@@ -460,6 +460,44 @@ describe('denySubmission - Denial Automation', () => {
         })
       )
     })
+
+    it('persists "Refund (Denial)" as a distinct denial reason', async () => {
+      // Arrange
+      mockFindUnique.mockResolvedValue(mockSubmission)
+      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockRefundsCreate.mockResolvedValue({
+        id: mockRefundId,
+        amount: 2495,
+      })
+      mockUpdate.mockResolvedValue({})
+      mockSendDenialEmail.mockResolvedValue({ success: true })
+
+      // Act
+      const result = await denySubmission(mockSubmissionId, 'Refund (Denial)')
+
+      // Assert
+      expect(result).toEqual({ success: true })
+      expect(mockUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            denialReason: 'Refund (Denial)',
+          }),
+        })
+      )
+      expect(mockRefundsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            denialReason: 'Refund (Denial)',
+          }),
+        }),
+        expect.any(Object)
+      )
+      expect(mockSendDenialEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          denialReason: 'Refund (Denial)',
+        })
+      )
+    })
   })
 
   describe('Refund failure scenarios (BLOCKING)', () => {

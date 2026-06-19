@@ -17,46 +17,13 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { DenialReason } from '@/lib/admin-utils'
+import { DENIAL_REASON_OPTIONS, DenialReason } from '@/lib/admin-utils'
 
 interface DenialReasonDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: (reason: DenialReason) => void
 }
-
-const DENIAL_REASONS: { value: DenialReason; label: string; description: string }[] = [
-  {
-    value: 'Legal',
-    label: 'Jury Duty/Legal Matter',
-    description: 'Request is for jury duty, court, or legal obligation (not medical)',
-  },
-  {
-    value: '7+ days',
-    label: 'Exceeds 7-Day Limit',
-    description: 'Request exceeds the 7-day absence limit',
-  },
-  {
-    value: 'Duplicate',
-    label: 'Duplicate Submission',
-    description: 'Patient submitted the intake form twice',
-  },
-  {
-    value: 'Refund',
-    label: 'Refund',
-    description: 'Process refund for customer',
-  },
-  {
-    value: 'Under 18',
-    label: 'Under 18',
-    description: 'Patient is under 18 years old (minor using parent/guardian info)',
-  },
-  {
-    value: 'Other',
-    label: 'Other Reason',
-    description: 'Other reason for denial',
-  },
-]
 
 export function DenialReasonDialog({ open, onOpenChange, onConfirm }: DenialReasonDialogProps) {
   const [selectedReason, setSelectedReason] = useState<DenialReason>('Other')
@@ -87,7 +54,7 @@ export function DenialReasonDialog({ open, onOpenChange, onConfirm }: DenialReas
             onValueChange={(value) => setSelectedReason(value as DenialReason)}
           >
             <div className="space-y-4">
-              {DENIAL_REASONS.map((reason) => (
+              {DENIAL_REASON_OPTIONS.map((reason) => (
                 <div key={reason.value} className="flex items-start space-x-3">
                   <RadioGroupItem value={reason.value} id={reason.value} className="mt-1" />
                   <div className="flex-1">
