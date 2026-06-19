@@ -1692,7 +1692,7 @@ export async function getSubmissionById(
 }
 
 /**
- * Update submission fields (keeps status as MAYBE)
+ * Update editable submission fields without changing status.
  * @param submissionId - Submission ID to update
  * @param data - Updated submission data
  * @returns Success status
@@ -1763,7 +1763,7 @@ export async function updateSubmission(
             }
     }
 
-    // Update submission with new values, keep status as MAYBE
+    // Update submission with new values without changing status.
     await prisma.submission.update({
       where: { id: submissionId },
       data: {
@@ -1773,6 +1773,7 @@ export async function updateSubmission(
     })
 
     // Revalidate admin pages
+    revalidatePath('/admin/review')
     revalidatePath('/admin/maybe')
     revalidatePath(`/admin/maybe/${submissionId}`)
     revalidatePath('/admin/search')

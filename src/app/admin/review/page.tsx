@@ -28,6 +28,7 @@ import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
 import { getTodayLocal } from '@/components/admin/ApprovalDialogContent'
 import { calculateDaysDifference, type DenialReason } from '@/lib/admin-utils'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
+import { ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import type { Submission } from '@prisma/client'
 import {
   getSubmissionsForReview,
@@ -35,6 +36,7 @@ import {
   denySubmission,
   maybeSubmission,
   getMonthlyLimitData,
+  updateSubmission,
   type MaybeSubmissionInput,
 } from '../actions'
 
@@ -67,15 +69,30 @@ export default function AdminReviewPage() {
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
   const [withRestrictions, setWithRestrictions] = useState(true)
   const [isGuardianRemovalPending, setIsGuardianRemovalPending] = useState(false)
+  const [classificationDraft, setClassificationDraft] = useState<{
+    notePurpose: string
+    absenceReason: string
+  } | null>(null)
+  const [classificationError, setClassificationError] = useState<string | null>(null)
+  const [isSavingClassification, setIsSavingClassification] = useState(false)
 
   const currentSubmission = submissions[currentIndex]
   const isLastSubmission = currentIndex === submissions.length - 1
-  const isReviewActionDisabled = isTransitioning || isGuardianRemovalPending
+  const isReviewActionDisabled =
+    isTransitioning || isGuardianRemovalPending || isSavingClassification
   const suggestedMaybeReason =
     currentSubmission &&
     calculateDaysDifference(currentSubmission.firstDayOff, currentSubmission.lastDayOff) > 7
       ? DATES_EXCEED_ALLOWED_RANGE_REASON
       : undefined
+  const selectedNotePurpose =
+    classificationDraft?.notePurpose ?? currentSubmission?.notePurpose ?? ''
+  const selectedAbsenceReason =
+    classificationDraft?.absenceReason ?? currentSubmission?.absenceReason ?? ''
+  const hasClassificationChanges =
+    !!currentSubmission &&
+    (selectedNotePurpose !== currentSubmission.notePurpose ||
+      selectedAbsenceReason !== currentSubmission.absenceReason)
 
   const handleGuardianRemoved = () => {
     if (!currentSubmission) return
@@ -142,6 +159,60 @@ export default function AdminReviewPage() {
 
     fetchMonthlyData()
   }, [currentSubmission])
+
+  useEffect(() => {
+    if (!currentSubmission) {
+      setClassificationDraft(null)
+      setClassificationError(null)
+      return
+    }
+
+    setClassificationDraft({
+      notePurpose: currentSubmission.notePurpose,
+      absenceReason: currentSubmission.absenceReason,
+    })
+    setClassificationError(null)
+  }, [currentSubmission])
+
+  const handleClassificationSave = async () => {
+    if (!currentSubmission || !classificationDraft || isReviewActionDisabled) return
+
+    setIsSavingClassification(true)
+    setClassificationError(null)
+
+    const result = await updateSubmission(currentSubmission.id, {
+      notePurpose: classificationDraft.notePurpose,
+      otherNotePurpose:
+        classificationDraft.notePurpose === 'other' ? currentSubmission.otherNotePurpose : null,
+      absenceReason: classificationDraft.absenceReason,
+      otherAbsenceReason:
+        classificationDraft.absenceReason === 'Other' ? currentSubmission.otherAbsenceReason : null,
+    })
+
+    if (result.success) {
+      setSubmissions((prev) =>
+        prev.map((submission) =>
+          submission.id === currentSubmission.id
+            ? {
+                ...submission,
+                notePurpose: classificationDraft.notePurpose,
+                otherNotePurpose:
+                  classificationDraft.notePurpose === 'other' ? submission.otherNotePurpose : null,
+                absenceReason: classificationDraft.absenceReason,
+                otherAbsenceReason:
+                  classificationDraft.absenceReason === 'Other'
+                    ? submission.otherAbsenceReason
+                    : null,
+              }
+            : submission
+        )
+      )
+    } else {
+      setClassificationError(result.error || 'Failed to save classification')
+    }
+
+    setIsSavingClassification(false)
+  }
 
   // Handle approval - show dialog first
   const handleApprove = () => {
@@ -298,6 +369,7 @@ export default function AdminReviewPage() {
       if (
         isTransitioning ||
         isGuardianRemovalPending ||
+        isSavingClassification ||
         showCompletion ||
         showDenialDialog ||
         showMaybeDialog ||
@@ -325,6 +397,7 @@ export default function AdminReviewPage() {
     currentIndex,
     isTransitioning,
     isGuardianRemovalPending,
+    isSavingClassification,
     showCompletion,
     showDenialDialog,
     showMaybeDialog,
@@ -438,6 +511,30 @@ export default function AdminReviewPage() {
             onWithRestrictionsChange={setWithRestrictions}
             onGuardianRemovalPendingChange={setIsGuardianRemovalPending}
             onGuardianRemoved={handleGuardianRemoved}
+            notePurposeOptions={Object.entries(NOTE_PURPOSES).map(([value, { label }]) => ({
+              value,
+              label,
+            }))}
+            absenceReasonOptions={[...ABSENCE_REASONS]}
+            selectedNotePurpose={selectedNotePurpose}
+            selectedAbsenceReason={selectedAbsenceReason}
+            onNotePurposeChange={(notePurpose) =>
+              setClassificationDraft((prev) => ({
+                notePurpose,
+                absenceReason: prev?.absenceReason ?? currentSubmission.absenceReason,
+              }))
+            }
+            onAbsenceReasonChange={(absenceReason) =>
+              setClassificationDraft((prev) => ({
+                notePurpose: prev?.notePurpose ?? currentSubmission.notePurpose,
+                absenceReason,
+              }))
+            }
+            onClassificationSave={handleClassificationSave}
+            classificationError={classificationError}
+            isClassificationDirty={hasClassificationChanges}
+            isClassificationSaving={isSavingClassification}
+            isClassificationDisabled={isReviewActionDisabled}
           />
         </div>
       </div>
