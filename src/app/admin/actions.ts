@@ -13,7 +13,7 @@ import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
 import prisma from '@/lib/prisma'
 import Stripe from 'stripe'
 import { sendDenialEmail, sendApprovalEmail, sendMaybeEmail } from '@/lib/email'
-import { approvalSentSms, maybeUpdateSms } from '@/lib/sms-templates'
+import { approvalSentSms, denialSentSms, maybeUpdateSms } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
@@ -944,6 +944,9 @@ export async function denySubmission(submissionId: string, reason: string) {
         stripePaymentIntentId: true,
         stripeRefundId: true,
         email: true,
+        phone: true,
+        smsOptIn: true,
+        smsPhoneE164: true,
         patientFirstName: true,
         patientLastName: true,
         status: true,
@@ -1113,6 +1116,12 @@ export async function denySubmission(submissionId: string, reason: string) {
         refundAmount: refundAmountDollars,
       })
       emailSentAt = new Date()
+
+      await sendTransactionalSmsForSubmission({
+        submission,
+        type: 'DENIAL_SENT',
+        body: denialSentSms(),
+      })
 
       if (process.env.NODE_ENV === 'development') {
         console.info(`Denial email sent to ${submission.email} for submission ${submissionId}`)
@@ -1998,6 +2007,11 @@ export async function changeSubmissionStatus(
               denialReason,
               refundAmount: 0, // Already refunded previously
             })
+            await sendTransactionalSmsForSubmission({
+              submission,
+              type: 'DENIAL_SENT',
+              body: denialSentSms(),
+            })
           } catch {
             emailWarning = 'Status changed but email notification failed to send'
           }
@@ -2069,6 +2083,11 @@ export async function changeSubmissionStatus(
             patientName,
             denialReason,
             refundAmount: refundAmountDollars,
+          })
+          await sendTransactionalSmsForSubmission({
+            submission,
+            type: 'DENIAL_SENT',
+            body: denialSentSms(),
           })
         } catch {
           emailWarning = 'Submission denied and refunded, but email notification failed to send'

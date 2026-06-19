@@ -252,6 +252,9 @@ describe('denySubmission - Denial Automation', () => {
     stripePaymentIntentId: mockPaymentIntentId,
     stripeRefundId: null,
     email: 'patient@example.com',
+    phone: '(555) 123-4567',
+    smsOptIn: true,
+    smsPhoneE164: '+15551234567',
     patientFirstName: 'John',
     patientLastName: 'Doe',
     status: SubmissionStatus.PENDING_REVIEW,
@@ -330,6 +333,16 @@ describe('denySubmission - Denial Automation', () => {
         patientName: 'John Doe',
         denialReason: 'Legal',
         refundAmount: 24.95,
+      })
+      expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalledWith({
+        submission: expect.objectContaining({
+          id: mockSubmissionId,
+          phone: '(555) 123-4567',
+          smsOptIn: true,
+          smsPhoneE164: '+15551234567',
+        }),
+        type: 'DENIAL_SENT',
+        body: 'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details. STOP to opt out.',
       })
 
       // Verify database was updated with real refund ID and email timestamp
@@ -484,6 +497,7 @@ describe('denySubmission - Denial Automation', () => {
 
       // Verify email was attempted
       expect(mockSendDenialEmail).toHaveBeenCalled()
+      expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
 
       // Verify database was updated with refund ID but NOT email timestamp
       expect(mockUpdate).toHaveBeenCalledTimes(1) // Only refund ID update, no email timestamp
@@ -615,6 +629,94 @@ describe('denySubmission - Denial Automation', () => {
           refundAmount: 24.95, // Correctly converted to dollars
         })
       )
+    })
+  })
+})
+
+describe('changeSubmissionStatus - Denial SMS', () => {
+  const mockSubmissionId = 'sub_123'
+  const mockDoctorId = 'doctor_123'
+
+  const mockSubmission = {
+    id: mockSubmissionId,
+    stripePaymentIntentId: 'pi_test_123',
+    stripeRefundId: null,
+    email: 'patient@example.com',
+    phone: '(555) 123-4567',
+    smsOptIn: true,
+    smsPhoneE164: '+15551234567',
+    patientFirstName: 'John',
+    patientLastName: 'Doe',
+    status: SubmissionStatus.APPROVED,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({
+      user: { id: mockDoctorId },
+    })
+    mockUpdate.mockResolvedValue({})
+    mockSendDenialEmail.mockResolvedValue({ success: true })
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sends denial SMS after status-change denial email succeeds', async () => {
+    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockRefundsCreate.mockResolvedValue({
+      id: 're_test_123',
+      amount: 2495,
+    })
+
+    const result = await changeSubmissionStatus(mockSubmissionId, SubmissionStatus.DENIED, 'Legal')
+
+    expect(result).toEqual({ success: true, warning: undefined })
+    expect(mockSendDenialEmail).toHaveBeenCalledWith({
+      to: 'patient@example.com',
+      patientName: 'John Doe',
+      denialReason: 'Legal',
+      refundAmount: 24.95,
+    })
+    expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalledWith({
+      submission: expect.objectContaining({
+        id: mockSubmissionId,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      }),
+      type: 'DENIAL_SENT',
+      body: 'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details. STOP to opt out.',
+    })
+  })
+
+  it('sends denial SMS after already-refunded denial email succeeds', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...mockSubmission,
+      stripeRefundId: 're_existing_refund',
+    })
+
+    const result = await changeSubmissionStatus(mockSubmissionId, SubmissionStatus.DENIED, 'Legal')
+
+    expect(result).toEqual({
+      success: true,
+      warning: 'Submission denied. Note: Refund was already processed previously.',
+    })
+    expect(mockRefundsCreate).not.toHaveBeenCalled()
+    expect(mockSendDenialEmail).toHaveBeenCalledWith({
+      to: 'patient@example.com',
+      patientName: 'John Doe',
+      denialReason: 'Legal',
+      refundAmount: 0,
+    })
+    expect(mockSendTransactionalSmsForSubmission).toHaveBeenCalledWith({
+      submission: expect.objectContaining({
+        id: mockSubmissionId,
+        smsOptIn: true,
+      }),
+      type: 'DENIAL_SENT',
+      body: 'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details. STOP to opt out.',
     })
   })
 })

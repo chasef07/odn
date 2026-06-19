@@ -4,6 +4,7 @@ export type SmsMessageType =
   | 'PURCHASE_CONFIRMATION'
   | 'MAYBE_UPDATE'
   | 'APPROVAL_SENT'
+  | 'DENIAL_SENT'
   | 'EMAIL_BOUNCE'
 
 export function submissionReference(submissionId: string): string {
@@ -26,4 +27,8 @@ export function maybeUpdateSms(): string {
 
 export function approvalSentSms(): string {
   return "OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam. STOP to opt out."
+}
+
+export function denialSentSms(): string {
+  return 'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details. STOP to opt out.'
 }
