@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { DENIAL_REASON_OPTIONS } from '@/lib/admin-utils'
 
 interface SelectDenialDialogProps {
   open: boolean
@@ -88,14 +89,11 @@ export function SelectDenialDialog({
                 <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Legal">
-                  Legal - Cannot provide note for this situation
-                </SelectItem>
-                <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
-                <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
-                <SelectItem value="Refund">Refund</SelectItem>
-                <SelectItem value="Under 18">Under 18 - Patient is a minor</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                {DENIAL_REASON_OPTIONS.map((reason) => (
+                  <SelectItem key={reason.value} value={reason.value}>
+                    {reason.selectLabel}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

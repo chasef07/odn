@@ -9,7 +9,64 @@ import { formatInTimeZone, toZonedTime } from 'date-fns-tz'
 /**
  * Denial reason types for submissions
  */
-export type DenialReason = 'Legal' | '7+ days' | 'Duplicate' | 'Refund' | 'Under 18' | 'Other'
+export type DenialReason =
+  | 'Legal'
+  | '7+ days'
+  | 'Duplicate'
+  | 'Refund (Customer)'
+  | 'Refund (Denial)'
+  | 'Under 18'
+  | 'Other'
+
+export const DENIAL_REASON_OPTIONS: {
+  value: DenialReason
+  label: string
+  description: string
+  selectLabel: string
+}[] = [
+  {
+    value: 'Legal',
+    label: 'Jury Duty/Legal Matter',
+    description: 'Request is for jury duty, court, or legal obligation (not medical)',
+    selectLabel: 'Legal - Cannot provide note for this situation',
+  },
+  {
+    value: '7+ days',
+    label: 'Exceeds 7-Day Limit',
+    description: 'Request exceeds the 7-day absence limit',
+    selectLabel: '7+ days - Absence period exceeds 7 days',
+  },
+  {
+    value: 'Duplicate',
+    label: 'Duplicate Submission',
+    description: 'Patient submitted the intake form twice',
+    selectLabel: 'Duplicate - Patient submitted twice',
+  },
+  {
+    value: 'Refund (Customer)',
+    label: 'Refund (Customer)',
+    description: 'Customer requested a refund',
+    selectLabel: 'Refund (Customer)',
+  },
+  {
+    value: 'Refund (Denial)',
+    label: 'Refund (Denial)',
+    description: 'Employer or school denied the note',
+    selectLabel: 'Refund (Denial)',
+  },
+  {
+    value: 'Under 18',
+    label: 'Under 18',
+    description: 'Patient is under 18 years old (minor using parent/guardian info)',
+    selectLabel: 'Under 18 - Patient is a minor',
+  },
+  {
+    value: 'Other',
+    label: 'Other Reason',
+    description: 'Other reason for denial',
+    selectLabel: 'Other',
+  },
+]
 
 /**
  * Parse date string in local timezone to avoid off-by-one day issues

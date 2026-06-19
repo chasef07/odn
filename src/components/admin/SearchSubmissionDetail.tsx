@@ -33,7 +33,7 @@ import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
-import { calculateDaysDifference } from '@/lib/admin-utils'
+import { DENIAL_REASON_OPTIONS, calculateDaysDifference } from '@/lib/admin-utils'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import {
   updateSubmission,
@@ -1060,14 +1060,11 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                   <SelectValue placeholder="Select a reason" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Legal">
-                    Legal - Cannot provide note for this situation
-                  </SelectItem>
-                  <SelectItem value="7+ days">7+ days - Absence period exceeds 7 days</SelectItem>
-                  <SelectItem value="Duplicate">Duplicate - Patient submitted twice</SelectItem>
-                  <SelectItem value="Refund">Refund</SelectItem>
-                  <SelectItem value="Under 18">Under 18 - Patient is a minor</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {DENIAL_REASON_OPTIONS.map((reason) => (
+                    <SelectItem key={reason.value} value={reason.value}>
+                      {reason.selectLabel}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
