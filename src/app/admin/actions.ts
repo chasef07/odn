@@ -1701,7 +1701,7 @@ export async function getSubmissionById(
 }
 
 /**
- * Update submission fields (keeps status as MAYBE)
+ * Update editable submission fields without changing status.
  * @param submissionId - Submission ID to update
  * @param data - Updated submission data
  * @returns Success status
@@ -1772,7 +1772,7 @@ export async function updateSubmission(
             }
     }
 
-    // Update submission with new values, keep status as MAYBE
+    // Update submission with new values without changing status.
     await prisma.submission.update({
       where: { id: submissionId },
       data: {
@@ -1782,6 +1782,7 @@ export async function updateSubmission(
     })
 
     // Revalidate admin pages
+    revalidatePath('/admin/review')
     revalidatePath('/admin/maybe')
     revalidatePath(`/admin/maybe/${submissionId}`)
     revalidatePath('/admin/search')
@@ -1791,6 +1792,49 @@ export async function updateSubmission(
   } catch (error) {
     console.error('Error updating submission:', error)
     return { success: false, error: 'Failed to update submission' }
+  }
+}
+
+/**
+ * Update review-only classification fields while a submission is still pending review.
+ * This prevents stale review tabs from editing classifications after another admin
+ * has already approved, denied, or moved the submission out of the review queue.
+ */
+export async function updateReviewClassification(
+  submissionId: string,
+  data: {
+    notePurpose: string
+    otherNotePurpose: string | null
+    absenceReason: string
+    otherAbsenceReason: string | null
+  }
+) {
+  try {
+    await getCurrentDoctor()
+
+    const result = await prisma.submission.updateMany({
+      where: {
+        id: submissionId,
+        status: SubmissionStatus.PENDING_REVIEW,
+      },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+    })
+
+    if (result.count === 0) {
+      return { success: false, error: 'Submission is no longer pending review' }
+    }
+
+    revalidatePath('/admin/review')
+    revalidatePath('/admin/search')
+    revalidatePath(`/admin/search/${submissionId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating review classification:', error)
+    return { success: false, error: 'Failed to update classification' }
   }
 }
 

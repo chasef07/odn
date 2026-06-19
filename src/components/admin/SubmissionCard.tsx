@@ -8,8 +8,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
 import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { Submission } from '@prisma/client'
 import {
   calculateAge,
@@ -32,6 +40,17 @@ interface SubmissionCardProps {
   onWithRestrictionsChange?: (value: boolean) => void
   onGuardianRemovalPendingChange?: (isPending: boolean) => void
   onGuardianRemoved?: () => void
+  notePurposeOptions?: { value: string; label: string }[]
+  absenceReasonOptions?: string[]
+  selectedNotePurpose?: string
+  selectedAbsenceReason?: string
+  onNotePurposeChange?: (value: string) => void
+  onAbsenceReasonChange?: (value: string) => void
+  onClassificationSave?: () => void
+  classificationError?: string | null
+  isClassificationDirty?: boolean
+  isClassificationSaving?: boolean
+  isClassificationDisabled?: boolean
 }
 
 export function SubmissionCard({
@@ -46,6 +65,17 @@ export function SubmissionCard({
   onWithRestrictionsChange,
   onGuardianRemovalPendingChange,
   onGuardianRemoved,
+  notePurposeOptions,
+  absenceReasonOptions,
+  selectedNotePurpose,
+  selectedAbsenceReason,
+  onNotePurposeChange,
+  onAbsenceReasonChange,
+  onClassificationSave,
+  classificationError,
+  isClassificationDirty = false,
+  isClassificationSaving = false,
+  isClassificationDisabled = false,
 }: SubmissionCardProps) {
   const patientAge = calculateAge(submission.patientDateOfBirth)
   const dateRange = formatDateRange(submission.firstDayOff, submission.lastDayOff)
@@ -58,6 +88,14 @@ export function SubmissionCard({
       ? submission.symptoms
       : []
     : []
+  const canEditClassification =
+    notePurposeOptions &&
+    absenceReasonOptions &&
+    selectedNotePurpose &&
+    selectedAbsenceReason &&
+    onNotePurposeChange &&
+    onAbsenceReasonChange &&
+    onClassificationSave
 
   return (
     <Card className="mx-auto w-full max-w-2xl">
@@ -195,6 +233,70 @@ export function SubmissionCard({
             )}
           </div>
         </div>
+
+        {canEditClassification && (
+          <div className="space-y-2 border-t pt-2">
+            <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              Correct Classification
+            </h3>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <div className="space-y-1">
+                <Label htmlFor="review-note-purpose" className="text-muted-foreground text-xs">
+                  Purpose
+                </Label>
+                <Select
+                  value={selectedNotePurpose}
+                  onValueChange={onNotePurposeChange}
+                  disabled={isClassificationDisabled}
+                >
+                  <SelectTrigger id="review-note-purpose" className="h-8 text-xs">
+                    <SelectValue placeholder="Purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {notePurposeOptions.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="review-absence-reason" className="text-muted-foreground text-xs">
+                  Reason
+                </Label>
+                <Select
+                  value={selectedAbsenceReason}
+                  onValueChange={onAbsenceReasonChange}
+                  disabled={isClassificationDisabled}
+                >
+                  <SelectTrigger id="review-absence-reason" className="h-8 text-xs">
+                    <SelectValue placeholder="Reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {absenceReasonOptions.map((reason) => (
+                      <SelectItem key={reason} value={reason}>
+                        {reason}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8"
+                onClick={onClassificationSave}
+                disabled={isClassificationDisabled || !isClassificationDirty}
+              >
+                {isClassificationSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+            {classificationError && (
+              <p className="text-xs font-medium text-red-600">{classificationError}</p>
+            )}
+          </div>
+        )}
 
         {/* PDF Options */}
         {(onEvaluationDateChange || onDiagnosisChange || onWithRestrictionsChange) && (
