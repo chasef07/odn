@@ -24,7 +24,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/start', '/about', '/faq', '/blog', '/privacy-policy', '/terms-of-service'],
+        allow: ['/', '/about', '/faq', '/blog', '/privacy-policy', '/terms-of-service'],
         disallow: ['/api/', '/admin/', '/*?', ...formPages],
       },
       // AI crawlers - limited to homepage + legal pages only

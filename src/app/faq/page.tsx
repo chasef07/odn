@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: 'FAQ - Frequently Asked Questions',
   description:
     "Get answers to common questions about online doctor's notes. Learn about our service, pricing, delivery time, and money-back guarantee.",
+  alternates: {
+    canonical: '/faq',
+  },
 }
 
 const faqs = [

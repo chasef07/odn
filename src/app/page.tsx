@@ -28,6 +28,9 @@ export const metadata: Metadata = {
     type: 'website',
     url: 'https://onlinedoctornote.com',
   },
+  alternates: {
+    canonical: '/',
+  },
 }
 
 const testimonialAvatars = [
