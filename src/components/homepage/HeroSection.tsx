@@ -49,7 +49,7 @@ export default function HeroSection() {
                   </div>
                 </div>
               </div>
-              <p className="mt-1 text-sm text-gray-600">Trusted by 60,000+ patients nationwide</p>
+              <p className="mt-1 text-sm text-gray-600">Trusted by 80,000+ patients nationwide</p>
             </div>
 
             {/* CTA */}
