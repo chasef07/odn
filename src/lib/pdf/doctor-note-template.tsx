@@ -757,8 +757,8 @@ export function DoctorNoteTemplate({
               </Text>
               <Text style={styles.verificationText}>
                 CONFIDENTIAL · This document contains protected health information and is intended
-                solely for the recipient identified above. Unauthorized access, use, disclosure, or
-                distribution is prohibited under 45 CFR § 164 (HIPAA Privacy Rule).
+                solely for the recipient identified above.{'\n'}Unauthorized access, use,
+                disclosure, or distribution is prohibited under 45 CFR § 164 (HIPAA Privacy Rule).
               </Text>
             </View>
           </View>
