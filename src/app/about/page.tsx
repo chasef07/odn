@@ -8,6 +8,9 @@ export const metadata = {
   title: 'About Us | OnlineDoctorNote',
   description:
     'Learn about OnlineDoctorNote - our mission, values, and commitment to providing legitimate, doctor-signed medical documentation.',
+  alternates: {
+    canonical: '/about',
+  },
 }
 
 export default function AboutPage() {

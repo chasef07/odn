@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: 'Blog - Health & Medical Documentation Tips',
   description:
     "Helpful articles about doctor's notes, telehealth, HIPAA compliance, and navigating medical documentation for work and school absences.",
+  alternates: {
+    canonical: '/blog',
+  },
 }
 
 const posts = [

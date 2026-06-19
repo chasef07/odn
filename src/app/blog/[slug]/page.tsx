@@ -198,6 +198,9 @@ export async function generateMetadata({
   return {
     title: `${post.title} - Online Doctor's Note Blog`,
     description: post.content.slice(0, 160).trim(),
+    alternates: {
+      canonical: `/blog/${slug}`,
+    },
   }
 }
 
