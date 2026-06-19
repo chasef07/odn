@@ -1787,6 +1787,49 @@ export async function updateSubmission(
 }
 
 /**
+ * Update review-only classification fields while a submission is still pending review.
+ * This prevents stale review tabs from editing classifications after another admin
+ * has already approved, denied, or moved the submission out of the review queue.
+ */
+export async function updateReviewClassification(
+  submissionId: string,
+  data: {
+    notePurpose: string
+    otherNotePurpose: string | null
+    absenceReason: string
+    otherAbsenceReason: string | null
+  }
+) {
+  try {
+    await getCurrentDoctor()
+
+    const result = await prisma.submission.updateMany({
+      where: {
+        id: submissionId,
+        status: SubmissionStatus.PENDING_REVIEW,
+      },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+    })
+
+    if (result.count === 0) {
+      return { success: false, error: 'Submission is no longer pending review' }
+    }
+
+    revalidatePath('/admin/review')
+    revalidatePath('/admin/search')
+    revalidatePath(`/admin/search/${submissionId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating review classification:', error)
+    return { success: false, error: 'Failed to update classification' }
+  }
+}
+
+/**
  * Re-approve an already approved submission (generates new PDF and sends new email)
  * Use this when edits were made to an approved submission and a new note is needed
  * @param submissionId - Submission ID to re-approve

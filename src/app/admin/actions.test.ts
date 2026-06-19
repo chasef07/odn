@@ -110,6 +110,7 @@ import {
   maybeSubmission,
   searchSubmissions,
   updateSubmission,
+  updateReviewClassification,
 } from './actions'
 
 describe('searchSubmissions', () => {
@@ -238,6 +239,57 @@ describe('updateSubmission', () => {
         }),
       })
     )
+  })
+})
+
+describe('updateReviewClassification', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({
+      user: { id: 'doctor_123' },
+    })
+  })
+
+  it('updates classification only for pending review submissions', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 })
+
+    const result = await updateReviewClassification('sub_123', {
+      notePurpose: 'school',
+      otherNotePurpose: null,
+      absenceReason: 'Illness',
+      otherAbsenceReason: null,
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'sub_123',
+        status: SubmissionStatus.PENDING_REVIEW,
+      },
+      data: expect.objectContaining({
+        notePurpose: 'school',
+        otherNotePurpose: null,
+        absenceReason: 'Illness',
+        otherAbsenceReason: null,
+        updatedAt: expect.any(Date),
+      }),
+    })
+  })
+
+  it('rejects classification updates once a submission leaves review', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 })
+
+    const result = await updateReviewClassification('sub_123', {
+      notePurpose: 'school',
+      otherNotePurpose: null,
+      absenceReason: 'Illness',
+      otherAbsenceReason: null,
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Submission is no longer pending review',
+    })
   })
 })
 

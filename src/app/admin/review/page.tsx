@@ -36,7 +36,7 @@ import {
   denySubmission,
   maybeSubmission,
   getMonthlyLimitData,
-  updateSubmission,
+  updateReviewClassification,
   type MaybeSubmissionInput,
 } from '../actions'
 
@@ -78,8 +78,7 @@ export default function AdminReviewPage() {
 
   const currentSubmission = submissions[currentIndex]
   const isLastSubmission = currentIndex === submissions.length - 1
-  const isReviewActionDisabled =
-    isTransitioning || isGuardianRemovalPending || isSavingClassification
+  const isReviewBusy = isTransitioning || isGuardianRemovalPending || isSavingClassification
   const suggestedMaybeReason =
     currentSubmission &&
     calculateDaysDifference(currentSubmission.firstDayOff, currentSubmission.lastDayOff) > 7
@@ -93,6 +92,7 @@ export default function AdminReviewPage() {
     !!currentSubmission &&
     (selectedNotePurpose !== currentSubmission.notePurpose ||
       selectedAbsenceReason !== currentSubmission.absenceReason)
+  const isReviewActionDisabled = isReviewBusy || hasClassificationChanges
 
   const handleGuardianRemoved = () => {
     if (!currentSubmission) return
@@ -175,12 +175,12 @@ export default function AdminReviewPage() {
   }, [currentSubmission])
 
   const handleClassificationSave = async () => {
-    if (!currentSubmission || !classificationDraft || isReviewActionDisabled) return
+    if (!currentSubmission || !classificationDraft || isReviewBusy) return
 
     setIsSavingClassification(true)
     setClassificationError(null)
 
-    const result = await updateSubmission(currentSubmission.id, {
+    const result = await updateReviewClassification(currentSubmission.id, {
       notePurpose: classificationDraft.notePurpose,
       otherNotePurpose:
         classificationDraft.notePurpose === 'other' ? currentSubmission.otherNotePurpose : null,
@@ -398,6 +398,7 @@ export default function AdminReviewPage() {
     isTransitioning,
     isGuardianRemovalPending,
     isSavingClassification,
+    hasClassificationChanges,
     showCompletion,
     showDenialDialog,
     showMaybeDialog,
@@ -534,7 +535,7 @@ export default function AdminReviewPage() {
             classificationError={classificationError}
             isClassificationDirty={hasClassificationChanges}
             isClassificationSaving={isSavingClassification}
-            isClassificationDisabled={isReviewActionDisabled}
+            isClassificationDisabled={isReviewBusy}
           />
         </div>
       </div>
