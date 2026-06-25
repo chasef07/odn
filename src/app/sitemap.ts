@@ -1,12 +1,5 @@
 import { MetadataRoute } from 'next'
 
-const blogPosts = [
-  'when-do-you-need-a-doctors-note',
-  'understanding-hipaa-and-your-medical-records',
-  'telehealth-vs-in-person-visits',
-  'mental-health-days-at-work',
-]
-
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://onlinedoctornote.com'
   const currentDate = new Date()
@@ -50,12 +43,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ]
 
-  const blogPages: MetadataRoute.Sitemap = blogPosts.map((slug) => ({
-    url: `${baseUrl}/blog/${slug}`,
-    lastModified: currentDate,
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
-  }))
-
-  return [...staticPages, ...blogPages]
+  return staticPages
 }
