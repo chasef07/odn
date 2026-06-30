@@ -651,26 +651,28 @@ regenerateApprovedSubmission({
 This helper should own the full approved-note regeneration boundary and can later replace shared
 parts of `reApproveSubmission(...)`.
 
-## Job Runner
+## Job Execution
 
-Because Telnyx webhooks should return quickly, support automation should run through jobs.
+Support automation should still use durable jobs, but production should not depend on a scheduled
+SMS cron.
 
 Add:
 
-- `src/app/api/cron/sms-support-jobs/route.ts`
 - `src/lib/sms-support-jobs.ts`
 
 Behavior:
 
-1. Telnyx webhook creates a queued job and returns 2xx.
-2. Cron/admin runner claims queued jobs with `status='QUEUED'` and `runAfter <= now`.
-3. Runner sets `status='RUNNING'`, `lockedAt`, `lockedBy`.
-4. Runner calls `runSupportTicketAutomation(...)`.
-5. Success sets job `SUCCEEDED` and ticket `CLOSED`.
-6. Recoverable failure increments `attempts`, stores `lastError`, and reschedules.
-7. Final failure sets job `FAILED`, ticket `NEEDS_CSR`, and sends CSR alert.
+1. Telnyx webhook collects the final valid DOB/date/purpose answer.
+2. The SMS flow creates a queued job, updates the ticket to `RUNNING_AUTOMATION`, and sends the
+   customer the "working on it" SMS.
+3. If that SMS prompt is delivered, the same flow immediately claims that specific queued job.
+4. Runner sets job `status='RUNNING'`, `lockedAt`, `lockedBy`.
+5. Runner calls `runSupportTicketAutomation(...)`.
+6. Success sets job `SUCCEEDED` and ticket `CLOSED`.
+7. Failure sets job `FAILED`, ticket `NEEDS_CSR`, stores `failureReason`, and sends CSR alert.
 
-The admin ticket detail page should also include "Run now" for a queued or failed automation job.
+The admin queue can still include "Run jobs" or "Retry" controls for manual recovery of leftover
+queued or failed jobs. There should be no Vercel cron for SMS support jobs in the MVP.
 
 ## Admin Portal
 
@@ -871,9 +873,9 @@ Future customer support link:
 - `src/app/support/actions.ts`
 - `src/components/support/SupportTicketFlow.tsx`
 
-Jobs:
+Manual recovery:
 
-- `src/app/api/cron/sms-support-jobs/route.ts`
+- `src/lib/sms-support-jobs.ts`
 
 Email:
 
@@ -991,14 +993,14 @@ Slice 5: automation foundation
 1. Add `sms-support-automation.ts`.
 2. Extract approved-note regeneration helper.
 3. Add job model helpers.
-4. Add cron runner.
+4. Add immediate job execution from the completed SMS flow.
 
 Slice 6: automated changes
 
 1. Add date automation.
 2. Add DOB automation.
 3. Add purpose automation.
-4. Add retry/failure handling and admin run-now.
+4. Add failure handling, CSR escalation, and admin retry/run-now.
 
 Slice 7: legal/provider readiness
 
@@ -1024,8 +1026,9 @@ Future slice: support link entrypoint
 1. Raw SMS retention duration.
    - Current approved direction: raw bodies may be stored.
    - Remaining decision: keep forever or set a retention period.
-2. Retry limits for automation jobs.
-   - Recommendation: 3 attempts, then `NEEDS_CSR`.
+2. Retry behavior for automation jobs.
+   - Current direction: no scheduled retries; immediate failure becomes `NEEDS_CSR`, and admin can
+     retry explicitly from the ticket.
 3. How many invalid SMS replies before CSR escalation.
    - Recommendation: 2 invalid replies in the same state.
 4. Whether support SMS consent text should be updated before or in the same release as code.

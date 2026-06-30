@@ -58,6 +58,7 @@ vi.mock('@/lib/sms-support-alerts', () => ({
 
 import {
   enqueueSupportAutomationJob,
+  processSmsSupportJobNow,
   processQueuedSmsSupportJobs,
   retrySupportAutomationJob,
   SupportAutomationPayloadConflictError,
@@ -242,7 +243,53 @@ describe('processQueuedSmsSupportJobs', () => {
     )
   })
 
-  it('keeps retryable automation failures out of CSR state until attempts are exhausted', async () => {
+  it('runs a single queued job immediately when requested by the SMS flow', async () => {
+    mockJobFindFirst.mockResolvedValue({
+      id: 'job_123',
+      ticketId: 'ticket_123',
+    })
+
+    const result = await processSmsSupportJobNow('job_123', { workerId: 'sms-inbound-test' })
+
+    expect(result).toEqual({ processed: 1, succeeded: 1, failed: 0 })
+    expect(mockJobFindFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'job_123',
+        status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+        runAfter: { lte: expect.any(Date) },
+        ticket: {
+          status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+          automationStatus: {
+            in: [SMS_SUPPORT_AUTOMATION_STATUS.QUEUED, SMS_SUPPORT_AUTOMATION_STATUS.RUNNING],
+          },
+        },
+      },
+      select: {
+        id: true,
+        ticketId: true,
+      },
+    })
+    expect(mockJobUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'job_123',
+        status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+      },
+      data: expect.objectContaining({
+        status: SMS_SUPPORT_JOB_STATUS.RUNNING,
+        lockedBy: 'sms-inbound-test',
+      }),
+    })
+    expect(mockRunSupportTicketAutomation).toHaveBeenCalledWith('job_123')
+    expect(mockJobUpdate).toHaveBeenCalledWith({
+      where: { id: 'job_123' },
+      data: expect.objectContaining({
+        status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED,
+        lastError: null,
+      }),
+    })
+  })
+
+  it('escalates automation failures instead of rescheduling hidden cron work', async () => {
     mockJobFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
       {
         id: 'job_123',
@@ -258,19 +305,24 @@ describe('processQueuedSmsSupportJobs', () => {
     expect(mockJobUpdate).toHaveBeenCalledWith({
       where: { id: 'job_123' },
       data: expect.objectContaining({
-        status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+        status: SMS_SUPPORT_JOB_STATUS.FAILED,
         lastError: 'Resend timeout',
       }),
     })
     expect(mockTicketUpdate).toHaveBeenCalledWith({
       where: { id: 'ticket_123' },
       data: expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-        automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
+        status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+        automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED,
         failureReason: 'Resend timeout',
       }),
     })
-    expect(mockAlertSupportTicketNeedsCsr).not.toHaveBeenCalled()
+    expect(mockAlertSupportTicketNeedsCsr).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketId: 'ticket_123',
+        summary: expect.stringContaining('failed and needs staff review'),
+      })
+    )
   })
 
   it('escalates manual-review automation failures without retrying', async () => {

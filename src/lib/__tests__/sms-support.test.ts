@@ -17,6 +17,7 @@ const {
   mockSendSupportSms,
   mockAlertSupportTicketNeedsCsr,
   mockEnqueueSupportAutomationJob,
+  mockProcessSmsSupportJobNow,
 } = vi.hoisted(() => ({
   mockSmsSupportTicketFindFirst: vi.fn(),
   mockSmsSupportTicketCreate: vi.fn(),
@@ -28,6 +29,7 @@ const {
   mockSendSupportSms: vi.fn(),
   mockAlertSupportTicketNeedsCsr: vi.fn(),
   mockEnqueueSupportAutomationJob: vi.fn(),
+  mockProcessSmsSupportJobNow: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -60,6 +62,7 @@ vi.mock('@/lib/sms-support-alerts', () => ({
 
 vi.mock('@/lib/sms-support-jobs', () => ({
   enqueueSupportAutomationJob: mockEnqueueSupportAutomationJob,
+  processSmsSupportJobNow: mockProcessSmsSupportJobNow,
   SupportAutomationPayloadConflictError: class SupportAutomationPayloadConflictError extends Error {},
 }))
 
@@ -95,6 +98,7 @@ describe('handleInboundSupportSms', () => {
     vi.clearAllMocks()
     mockSendSupportSms.mockResolvedValue({ success: true })
     mockEnqueueSupportAutomationJob.mockResolvedValue({ id: 'job_123' })
+    mockProcessSmsSupportJobNow.mockResolvedValue({ processed: 1, succeeded: 1, failed: 0 })
     mockSubmissionFindMany.mockResolvedValue([])
   })
 
@@ -593,6 +597,12 @@ describe('handleInboundSupportSms', () => {
         }),
       }),
     })
+    expect(mockProcessSmsSupportJobNow).toHaveBeenCalledWith(
+      'job_123',
+      expect.objectContaining({
+        workerId: expect.stringMatching(/^sms-inbound-/),
+      })
+    )
     expect(mockSmsSupportTicketUpdate).toHaveBeenLastCalledWith({
       where: { id: 'ticket_123' },
       data: expect.objectContaining({

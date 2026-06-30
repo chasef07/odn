@@ -29,6 +29,7 @@ import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
 import { automationPayloadForCollectedData, automationSummary } from '@/lib/sms-support-automation'
 import {
   enqueueSupportAutomationJob,
+  processSmsSupportJobNow,
   SupportAutomationPayloadConflictError,
 } from '@/lib/sms-support-jobs'
 import {
@@ -625,8 +626,9 @@ async function queueAutomation(
   }
 
   const payload = automationPayloadForCollectedData({ category, ...data })
+  let job: Awaited<ReturnType<typeof enqueueSupportAutomationJob>>
   try {
-    await enqueueSupportAutomationJob({ ticketId: ticket.id, payload })
+    job = await enqueueSupportAutomationJob({ ticketId: ticket.id, payload })
   } catch (error) {
     if (error instanceof SupportAutomationPayloadConflictError) {
       await reply(ticket, automationStillRunningSms(), 'SUPPORT_AUTOMATION_UPDATE')
@@ -650,6 +652,8 @@ async function queueAutomation(
     automationQueuedSms(),
     'SUPPORT_AUTOMATION_UPDATE'
   )
+
+  await processSmsSupportJobNow(job.id, { workerId: `sms-inbound-${Date.now()}` })
 }
 
 async function moveToCsr(

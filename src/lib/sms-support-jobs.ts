@@ -16,7 +16,6 @@ import {
 } from '@/lib/sms-support-types'
 import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
 
-const MAX_JOB_ATTEMPTS = 3
 const STALE_RUNNING_JOB_MS = 15 * 60 * 1000
 const STALE_COMMITTING_MESSAGE =
   'Support automation stalled while finalizing the updated note. Staff must verify whether the note/email was issued before retrying manually.'
@@ -69,6 +68,36 @@ export async function enqueueSupportAutomationJob({
     )
   }
   return existingJob
+}
+
+type JobProcessingResult = { processed: number; succeeded: number; failed: number }
+type QueuedSupportJob = { id: string; ticketId: string }
+
+export async function processSmsSupportJobNow(
+  jobId: string,
+  { workerId = `sms-support-immediate-${process.pid}` }: { workerId?: string } = {}
+): Promise<JobProcessingResult> {
+  const job = await prisma.smsSupportJob.findFirst({
+    where: {
+      id: jobId,
+      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+      runAfter: { lte: new Date() },
+      ticket: {
+        status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+        automationStatus: {
+          in: [SMS_SUPPORT_AUTOMATION_STATUS.QUEUED, SMS_SUPPORT_AUTOMATION_STATUS.RUNNING],
+        },
+      },
+    },
+    select: {
+      id: true,
+      ticketId: true,
+    },
+  })
+
+  if (!job) return { processed: 0, succeeded: 0, failed: 0 }
+
+  return processQueuedSupportJob(job, workerId)
 }
 
 export async function processQueuedSmsSupportJobs({
@@ -163,99 +192,79 @@ export async function processQueuedSmsSupportJobs({
   })
 
   for (const job of jobs) {
-    const claimed = await prisma.smsSupportJob.updateMany({
-      where: {
-        id: job.id,
-        status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      },
-      data: {
-        status: SMS_SUPPORT_JOB_STATUS.RUNNING,
-        lockedAt: new Date(),
-        lockedBy: workerId,
-        attempts: { increment: 1 },
-      },
-    })
-
-    if (claimed.count !== 1) continue
-
-    processed += 1
-
-    try {
-      await runSupportTicketAutomation(job.id)
-      await prisma.smsSupportJob.update({
-        where: { id: job.id },
-        data: {
-          status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED,
-          completedAt: new Date(),
-          lockedAt: null,
-          lockedBy: null,
-          lastError: null,
-        },
-      })
-      succeeded += 1
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown support job error'
-      const nextAttemptCount = job.attempts + 1
-
-      if (error instanceof SupportAutomationCancelledError) {
-        await prisma.smsSupportJob.update({
-          where: { id: job.id },
-          data: {
-            status: SMS_SUPPORT_JOB_STATUS.FAILED,
-            lockedAt: null,
-            lockedBy: null,
-            lastError: message,
-            completedAt: new Date(),
-          },
-        })
-        failed += 1
-        continue
-      }
-
-      if (error instanceof SupportAutomationManualReviewError) {
-        await failJobAndEscalateToCsr({
-          jobId: job.id,
-          ticketId: job.ticketId,
-          message,
-          summary: `Automation requires staff review: ${message}`,
-        })
-        failed += 1
-        continue
-      }
-
-      if (nextAttemptCount < MAX_JOB_ATTEMPTS) {
-        await prisma.smsSupportJob.update({
-          where: { id: job.id },
-          data: {
-            status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-            lockedAt: null,
-            lockedBy: null,
-            lastError: message,
-            runAfter: new Date(Date.now() + nextAttemptCount * 5 * 60 * 1000),
-          },
-        })
-        await prisma.smsSupportTicket.update({
-          where: { id: job.ticketId },
-          data: {
-            status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-            automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
-            failureReason: message,
-          },
-        })
-      } else {
-        await failJobAndEscalateToCsr({
-          jobId: job.id,
-          ticketId: job.ticketId,
-          message,
-          summary: `Automation failed after ${MAX_JOB_ATTEMPTS} attempts: ${message}`,
-        })
-      }
-
-      failed += 1
-    }
+    const result = await processQueuedSupportJob(job, workerId)
+    processed += result.processed
+    succeeded += result.succeeded
+    failed += result.failed
   }
 
   return { processed, succeeded, failed }
+}
+
+async function processQueuedSupportJob(
+  job: QueuedSupportJob,
+  workerId: string
+): Promise<JobProcessingResult> {
+  const claimed = await prisma.smsSupportJob.updateMany({
+    where: {
+      id: job.id,
+      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+    },
+    data: {
+      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
+      lockedAt: new Date(),
+      lockedBy: workerId,
+      attempts: { increment: 1 },
+    },
+  })
+
+  if (claimed.count !== 1) return { processed: 0, succeeded: 0, failed: 0 }
+
+  try {
+    await runSupportTicketAutomation(job.id)
+    await prisma.smsSupportJob.update({
+      where: { id: job.id },
+      data: {
+        status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED,
+        completedAt: new Date(),
+        lockedAt: null,
+        lockedBy: null,
+        lastError: null,
+      },
+    })
+    return { processed: 1, succeeded: 1, failed: 0 }
+  } catch (error) {
+    await handleSupportJobFailure(job, error)
+    return { processed: 1, succeeded: 0, failed: 1 }
+  }
+}
+
+async function handleSupportJobFailure(job: QueuedSupportJob, error: unknown): Promise<void> {
+  const message = error instanceof Error ? error.message : 'Unknown support job error'
+
+  if (error instanceof SupportAutomationCancelledError) {
+    await prisma.smsSupportJob.update({
+      where: { id: job.id },
+      data: {
+        status: SMS_SUPPORT_JOB_STATUS.FAILED,
+        lockedAt: null,
+        lockedBy: null,
+        lastError: message,
+        completedAt: new Date(),
+      },
+    })
+    return
+  }
+
+  await failJobAndEscalateToCsr({
+    jobId: job.id,
+    ticketId: job.ticketId,
+    message,
+    summary:
+      error instanceof SupportAutomationManualReviewError
+        ? `Automation requires staff review: ${message}`
+        : `Automation failed and needs staff review: ${message}`,
+  })
 }
 
 export async function retrySupportAutomationJob(ticketId: string) {
@@ -301,7 +310,7 @@ export async function retrySupportAutomationJob(ticketId: string) {
     return { success: false, error: 'No failed automation job to retry' }
   }
 
-  await prisma.smsSupportJob.create({
+  const job = await prisma.smsSupportJob.create({
     data: {
       ticketId,
       kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
@@ -318,12 +327,14 @@ export async function retrySupportAutomationJob(ticketId: string) {
       automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
       adminSummary:
         payload && typeof payload === 'object'
-          ? `Retry queued: ${automationSummary(payload as unknown as SupportAutomationPayload)}`
-          : 'Retry queued.',
+          ? `Retry started: ${automationSummary(payload as unknown as SupportAutomationPayload)}`
+          : 'Retry started.',
       failureReason: null,
       retryCount: { increment: 1 },
     },
   })
+
+  await processSmsSupportJobNow(job.id, { workerId: `admin-retry-${Date.now()}` })
 
   return { success: true }
 }

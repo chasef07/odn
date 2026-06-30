@@ -60,7 +60,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
     setMessage(null)
     startTransition(async () => {
       const result = await retrySupportTicketAutomation(ticket.id)
-      setMessage(result.success ? 'Retry queued.' : result.error || 'Retry failed.')
+      setMessage(result.success ? 'Retry ran.' : result.error || 'Retry failed.')
       router.refresh()
     })
   }
