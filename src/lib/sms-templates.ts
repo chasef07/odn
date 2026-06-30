@@ -6,6 +6,10 @@ export type SmsMessageType =
   | 'APPROVAL_SENT'
   | 'DENIAL_SENT'
   | 'EMAIL_BOUNCE'
+  | 'INBOUND'
+  | 'SUPPORT_REPLY'
+  | 'SUPPORT_AUTOMATION_UPDATE'
+  | 'SUPPORT_CSR_ALERT'
 
 export function submissionReference(submissionId: string): string {
   return submissionId.slice(0, 8).toUpperCase()

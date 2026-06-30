@@ -65,6 +65,8 @@ const mockSubmission: Submission = {
   refundedAt: null,
   approvalEmailSentAt: null,
   denialEmailSentAt: null,
+  approvalDiagnosis: null,
+  approvalWithRestrictions: null,
   createdAt: new Date('2024-11-07'),
   updatedAt: new Date('2024-11-07'),
 }

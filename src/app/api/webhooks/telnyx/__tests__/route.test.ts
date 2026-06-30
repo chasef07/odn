@@ -4,21 +4,27 @@ import { NextRequest } from 'next/server'
 const {
   mockTelnyxWebhookFindUnique,
   mockTelnyxWebhookCreate,
+  mockTelnyxWebhookUpdateMany,
+  mockSmsMessageFindUnique,
   mockSmsMessageUpsert,
   mockSmsMessageUpdateMany,
   mockSmsPhoneStateFindUnique,
   mockSmsPhoneStateUpsert,
   mockSubmissionFindFirst,
   mockSubmissionCount,
+  mockHandleInboundSupportSms,
 } = vi.hoisted(() => ({
   mockTelnyxWebhookFindUnique: vi.fn(),
   mockTelnyxWebhookCreate: vi.fn(),
+  mockTelnyxWebhookUpdateMany: vi.fn(),
+  mockSmsMessageFindUnique: vi.fn(),
   mockSmsMessageUpsert: vi.fn(),
   mockSmsMessageUpdateMany: vi.fn(),
   mockSmsPhoneStateFindUnique: vi.fn(),
   mockSmsPhoneStateUpsert: vi.fn(),
   mockSubmissionFindFirst: vi.fn(),
   mockSubmissionCount: vi.fn(),
+  mockHandleInboundSupportSms: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -26,8 +32,10 @@ vi.mock('@/lib/prisma', () => ({
     telnyxWebhookEvent: {
       findUnique: mockTelnyxWebhookFindUnique,
       create: mockTelnyxWebhookCreate,
+      updateMany: mockTelnyxWebhookUpdateMany,
     },
     smsMessage: {
+      findUnique: mockSmsMessageFindUnique,
       upsert: mockSmsMessageUpsert,
       updateMany: mockSmsMessageUpdateMany,
     },
@@ -46,6 +54,10 @@ vi.mock('@/lib/telnyx', () => ({
   verifyTelnyxWebhookSignature: vi.fn(() => true),
   isLocalOptOut: (body: string) => body.trim().toUpperCase() === 'STOP',
   isOptInKeyword: (body: string) => ['START', 'UNSTOP'].includes(body.trim().toUpperCase()),
+}))
+
+vi.mock('@/lib/sms-support', () => ({
+  handleInboundSupportSms: mockHandleInboundSupportSms,
 }))
 
 import { POST } from '../route'
@@ -90,6 +102,8 @@ describe('POST /api/webhooks/telnyx', () => {
     vi.clearAllMocks()
     mockTelnyxWebhookFindUnique.mockResolvedValue(null)
     mockTelnyxWebhookCreate.mockResolvedValue({})
+    mockTelnyxWebhookUpdateMany.mockResolvedValue({ count: 1 })
+    mockSmsMessageFindUnique.mockResolvedValue(null)
     mockSmsMessageUpsert.mockResolvedValue({})
     mockSmsMessageUpdateMany.mockResolvedValue({ count: 1 })
     mockSmsPhoneStateFindUnique.mockResolvedValue(null)
@@ -132,7 +146,11 @@ describe('POST /api/webhooks/telnyx', () => {
   })
 
   it('skips already processed Telnyx events', async () => {
-    mockTelnyxWebhookFindUnique.mockResolvedValue({ id: 'evt_message_sent' })
+    mockTelnyxWebhookFindUnique.mockResolvedValue({
+      id: 'evt_message_sent',
+      status: 'PROCESSED',
+      processedAt: new Date(occurredAt),
+    })
 
     const response = await POST(buildRequest('message.sent'))
 
@@ -163,6 +181,7 @@ describe('POST /api/webhooks/telnyx', () => {
       update: { optedOutAt: new Date(occurredAt) },
       create: { phoneE164: '+15551234567', optedOutAt: new Date(occurredAt) },
     })
+    expect(mockHandleInboundSupportSms).not.toHaveBeenCalled()
   })
 
   it('does not let older opt-outs move newer opt-out state backward', async () => {
@@ -197,5 +216,127 @@ describe('POST /api/webhooks/telnyx', () => {
       select: { optedOutAt: true, lastOptInAt: true },
     })
     expect(mockSmsPhoneStateUpsert).not.toHaveBeenCalled()
+    expect(mockHandleInboundSupportSms).not.toHaveBeenCalled()
+  })
+
+  it('routes ordinary inbound SMS into support automation after recording the raw SMS', async () => {
+    const response = await POST(buildRequest('message.received', { text: 'HELP' }))
+
+    expect(response.status).toBe(200)
+    expect(mockSmsMessageUpsert).toHaveBeenCalledWith({
+      where: { providerMessageId: 'msg_123' },
+      update: {
+        providerStatus: 'sent',
+        receivedAt: new Date(occurredAt),
+      },
+      create: {
+        submissionId: 'sub_123',
+        type: 'INBOUND',
+        direction: 'inbound',
+        to: '+18885551212',
+        from: '+15551234567',
+        body: 'HELP',
+        providerMessageId: 'msg_123',
+        providerStatus: 'sent',
+        receivedAt: new Date(occurredAt),
+      },
+    })
+    expect(mockHandleInboundSupportSms).toHaveBeenCalledWith({
+      fromPhone: '+15551234567',
+      body: 'HELP',
+      providerMessageId: 'msg_123',
+      receivedAt: new Date(occurredAt),
+    })
+    expect(mockTelnyxWebhookCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        id: 'evt_message_received',
+        status: 'PROCESSING',
+        lastError: null,
+      }),
+    })
+    expect(mockTelnyxWebhookCreate.mock.invocationCallOrder[0]).toBeLessThan(
+      mockHandleInboundSupportSms.mock.invocationCallOrder[0]
+    )
+    expect(mockTelnyxWebhookUpdateMany).toHaveBeenLastCalledWith({
+      where: { id: 'evt_message_received' },
+      data: expect.objectContaining({
+        status: 'PROCESSED',
+        lastError: null,
+      }),
+    })
+    expect(mockSmsMessageUpdateMany).toHaveBeenCalledWith({
+      where: { providerMessageId: 'msg_123' },
+      data: { supportHandledAt: expect.any(Date) },
+    })
+  })
+
+  it('does not rerun support routing when a failed Telnyx event already handled that inbound SMS', async () => {
+    mockTelnyxWebhookFindUnique.mockResolvedValue({
+      id: 'evt_message_received',
+      status: 'FAILED',
+      processedAt: new Date(occurredAt),
+    })
+    mockSmsMessageFindUnique.mockResolvedValue({
+      supportHandledAt: new Date('2026-06-16T12:01:00Z'),
+    })
+
+    const response = await POST(buildRequest('message.received', { text: 'HELP' }))
+
+    expect(response.status).toBe(200)
+    expect(mockSmsMessageUpsert).toHaveBeenCalled()
+    expect(mockHandleInboundSupportSms).not.toHaveBeenCalled()
+    expect(mockTelnyxWebhookUpdateMany).toHaveBeenLastCalledWith({
+      where: { id: 'evt_message_received' },
+      data: expect.objectContaining({
+        status: 'PROCESSED',
+        lastError: null,
+      }),
+    })
+  })
+
+  it('leaves ordinary inbound support events retryable when support routing fails', async () => {
+    mockHandleInboundSupportSms.mockRejectedValue(new Error('support route failed'))
+
+    await expect(POST(buildRequest('message.received', { text: 'HELP' }))).rejects.toThrow(
+      'support route failed'
+    )
+
+    expect(mockTelnyxWebhookCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        id: 'evt_message_received',
+        status: 'PROCESSING',
+      }),
+    })
+    expect(mockTelnyxWebhookUpdateMany).toHaveBeenLastCalledWith({
+      where: { id: 'evt_message_received' },
+      data: expect.objectContaining({
+        status: 'FAILED',
+        lastError: 'support route failed',
+      }),
+    })
+  })
+
+  it('does not route support twice when a concurrent duplicate event is already processing', async () => {
+    mockTelnyxWebhookFindUnique.mockResolvedValue({
+      id: 'evt_message_received',
+      status: 'PROCESSING',
+      processedAt: new Date(),
+    })
+
+    const response = await POST(buildRequest('message.received', { text: 'HELP' }))
+
+    expect(response.status).toBe(500)
+    expect(mockSmsMessageUpsert).toHaveBeenCalled()
+    expect(mockHandleInboundSupportSms).not.toHaveBeenCalled()
+  })
+
+  it('does not route support twice when a concurrent duplicate event wins the claim', async () => {
+    mockTelnyxWebhookCreate.mockRejectedValue({ code: 'P2002' })
+
+    const response = await POST(buildRequest('message.received', { text: 'HELP' }))
+
+    expect(response.status).toBe(500)
+    expect(mockSmsMessageUpsert).toHaveBeenCalled()
+    expect(mockHandleInboundSupportSms).not.toHaveBeenCalled()
   })
 })

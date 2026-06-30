@@ -799,6 +799,8 @@ export async function approveSubmission(
           reviewedAt: now,
           denialReason: null,
           approvalEmailSentAt: null, // No email sent for manual approvals
+          approvalDiagnosis: null,
+          approvalWithRestrictions: null,
         },
       })
 
@@ -859,6 +861,8 @@ export async function approveSubmission(
         reviewedByAdminId: doctorId,
         reviewedAt: now,
         denialReason: null,
+        approvalDiagnosis: diagnosis || null,
+        approvalWithRestrictions: withRestrictions,
       },
     })
     if (approvalUpdate.count !== 1) {
@@ -1906,6 +1910,8 @@ export async function reApproveSubmission(
         reviewedByAdminId: doctorId,
         reviewedAt: now,
         denialReason: null,
+        approvalDiagnosis: diagnosis || null,
+        approvalWithRestrictions: withRestrictions,
         updatedAt: now,
       },
     })

@@ -1,0 +1,187 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Play, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { runSupportTicketJobsNow, type SupportTicketListItem } from '@/app/admin/support/actions'
+import { supportCategoryLabel, supportStatusLabel } from '@/lib/sms-support-types'
+
+const STATUS_FILTERS = [
+  { label: 'All', value: '' },
+  { label: 'Needs CSR', value: 'NEEDS_CSR' },
+  { label: 'Running', value: 'RUNNING_AUTOMATION' },
+  { label: 'Waiting', value: 'WAITING_CUSTOMER' },
+  { label: 'Open', value: 'OPEN' },
+  { label: 'Closed', value: 'CLOSED' },
+]
+
+export function SupportTicketQueue({
+  tickets,
+  activeStatus,
+}: {
+  tickets: SupportTicketListItem[]
+  activeStatus?: string
+}) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [message, setMessage] = useState<string | null>(null)
+
+  const runJobs = () => {
+    setMessage(null)
+    startTransition(async () => {
+      const result = await runSupportTicketJobsNow()
+      if (result.success && result.result) {
+        setMessage(
+          `Processed ${result.result.processed}, succeeded ${result.result.succeeded}, failed ${result.result.failed}.`
+        )
+        router.refresh()
+      } else {
+        setMessage(result.error || 'Failed to run jobs.')
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">SMS Support</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Customer-service texts, automation jobs, and staff handoff queue.
+          </p>
+        </div>
+        <Button onClick={runJobs} disabled={isPending} className="gap-2 sm:w-auto">
+          {isPending ? (
+            <RefreshCw data-icon="inline-start" className="animate-spin" />
+          ) : (
+            <Play data-icon="inline-start" />
+          )}
+          Run Jobs
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((filter) => {
+          const isActive = (activeStatus || '') === filter.value
+          const href = filter.value ? `/admin/support?status=${filter.value}` : '/admin/support'
+          return (
+            <Link
+              key={filter.value || 'all'}
+              href={href}
+              className={`rounded-md border px-3 py-1.5 text-sm ${
+                isActive
+                  ? 'border-gray-900 bg-gray-900 text-white'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {filter.label}
+            </Link>
+          )
+        })}
+      </div>
+
+      {message && (
+        <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-700">
+          {message}
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        {tickets.length === 0 ? (
+          <div className="p-8 text-center text-sm text-gray-500">No support tickets found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                    Ticket
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                    Customer
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                    Last Message
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase">
+                    Updated
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {tickets.map((ticket) => {
+                  const latestMessage = ticket.messages[0]
+                  const patientName = ticket.submission
+                    ? `${ticket.submission.patientFirstName} ${ticket.submission.patientLastName}`
+                    : ticket.phoneE164
+
+                  return (
+                    <tr key={ticket.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 align-top">
+                        <Link
+                          href={`/admin/support/${ticket.id}`}
+                          className="font-medium text-blue-700 hover:underline"
+                        >
+                          {supportCategoryLabel(ticket.category)}
+                        </Link>
+                        <p className="mt-1 text-xs text-gray-500">{ticket.id.slice(0, 12)}...</p>
+                      </td>
+                      <td className="px-4 py-4 align-top">
+                        <p className="font-medium text-gray-900">{patientName}</p>
+                        <p className="text-xs text-gray-500">{ticket.phoneE164}</p>
+                      </td>
+                      <td className="px-4 py-4 align-top">
+                        <span className={statusClass(ticket.status)}>
+                          {supportStatusLabel(ticket.status)}
+                        </span>
+                        {ticket.jobs[0] && (
+                          <p className="mt-2 text-xs text-gray-500">
+                            Job: {supportStatusLabel(ticket.jobs[0].status)}
+                          </p>
+                        )}
+                      </td>
+                      <td className="max-w-md px-4 py-4 align-top">
+                        <p className="line-clamp-2 text-sm text-gray-700">
+                          {latestMessage?.body || ticket.adminSummary || 'No messages yet'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-right align-top text-sm text-gray-500">
+                        {formatDateTime(ticket.updatedAt)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function statusClass(status: string): string {
+  if (status === 'NEEDS_CSR')
+    return 'rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700'
+  if (status === 'RUNNING_AUTOMATION') {
+    return 'rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700'
+  }
+  if (status === 'CLOSED') {
+    return 'rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700'
+  }
+  return 'rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700'
+}
+
+function formatDateTime(date: Date): string {
+  return new Date(date).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}

@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/cleanup-temp-submissions",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/sms-support-jobs",
+      "schedule": "* * * * *"
     }
   ]
 }

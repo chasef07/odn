@@ -1,0 +1,48 @@
+import prisma from '@/lib/prisma'
+import { toE164UsPhone } from '@/lib/phone-utils'
+import { sendTelnyxSms } from '@/lib/telnyx'
+import type { SmsMessageType } from '@/lib/sms-templates'
+import { withSupportStopCopy } from '@/lib/sms-support-templates'
+
+export async function sendSupportSms({
+  ticketId,
+  submissionId,
+  toPhone,
+  type = 'SUPPORT_REPLY',
+  body,
+}: {
+  ticketId: string
+  submissionId?: string | null
+  toPhone: string
+  type?: SmsMessageType
+  body: string
+}): Promise<{ success: boolean; error?: string }> {
+  const to = toE164UsPhone(toPhone)
+  if (!to) return { success: false, error: 'Invalid SMS phone number' }
+
+  const phoneState = await prisma.smsPhoneState.findUnique({
+    where: { phoneE164: to },
+    select: { optedOutAt: true },
+  })
+
+  if (phoneState?.optedOutAt) {
+    return { success: false, error: 'Phone number is opted out' }
+  }
+
+  const result = await sendTelnyxSms({
+    submissionId: submissionId || undefined,
+    supportTicketId: ticketId,
+    type,
+    toPhone: to,
+    body: withSupportStopCopy(body),
+  })
+
+  if (result.success) {
+    await prisma.smsSupportTicket.updateMany({
+      where: { id: ticketId },
+      data: { lastOutboundAt: new Date() },
+    })
+  }
+
+  return result.success ? { success: true } : { success: false, error: result.error }
+}

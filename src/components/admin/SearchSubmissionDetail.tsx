@@ -44,6 +44,7 @@ import {
   type FormattedSubmission,
   type MaybeSubmissionInput,
 } from '@/app/admin/actions'
+import { createSupportTicketFromSubmission } from '@/app/admin/support/actions'
 import { smsStatusLabel } from '@/lib/sms-status'
 import { SubmissionStatus } from '@prisma/client'
 
@@ -103,7 +104,8 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const [success, setSuccess] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isGuardianRemovalPending, setIsGuardianRemovalPending] = useState(false)
-  const isActionDisabled = isLoading || isGuardianRemovalPending
+  const [isSupportTicketPending, setIsSupportTicketPending] = useState(false)
+  const isActionDisabled = isLoading || isGuardianRemovalPending || isSupportTicketPending
 
   // Dialog states
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
@@ -339,6 +341,25 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setSuccess('Verification URL copied.')
   }
 
+  const handleOpenSupportTicket = async () => {
+    setIsSupportTicketPending(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const result = await createSupportTicketFromSubmission(submission.id)
+      if (result.success) {
+        router.push(`/admin/support/${result.ticketId}`)
+      } else {
+        setError(result.error || 'Failed to open support ticket')
+      }
+    } catch {
+      setError('An unexpected error occurred')
+    } finally {
+      setIsSupportTicketPending(false)
+    }
+  }
+
   const formatDateTime = (date: Date | null) => {
     if (!date) return 'N/A'
     return new Date(date).toLocaleString('en-US', {
@@ -391,7 +412,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             {showApproveButton && (
               <Button
                 onClick={() => setShowApprovalDialog(true)}
-                disabled={isLoading}
+                disabled={isActionDisabled}
                 className="bg-green-600 hover:bg-green-700"
                 size="sm"
               >
@@ -405,7 +426,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                   setOtherDenialReason('')
                   setShowDenialDialog(true)
                 }}
-                disabled={isLoading}
+                disabled={isActionDisabled}
                 variant="destructive"
                 size="sm"
               >
@@ -418,7 +439,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                   setMaybeError(null)
                   setShowMaybeDialog(true)
                 }}
-                disabled={isLoading}
+                disabled={isActionDisabled}
                 variant="outline"
                 size="sm"
                 className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
@@ -429,7 +450,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             {showManualButton && (
               <Button
                 onClick={() => setShowManualDialog(true)}
-                disabled={isLoading}
+                disabled={isActionDisabled}
                 variant="outline"
                 size="sm"
                 className="border-purple-500 text-purple-700 hover:bg-purple-50"
@@ -437,6 +458,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 Manual
               </Button>
             )}
+            <Button
+              onClick={handleOpenSupportTicket}
+              disabled={isActionDisabled}
+              variant="outline"
+              size="sm"
+            >
+              {isSupportTicketPending ? 'Opening...' : 'Support Ticket'}
+            </Button>
           </div>
 
           <RemoveGuardianModeControl
@@ -446,7 +475,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             guardianFirstName={guardianFirstName}
             guardianLastName={guardianLastName}
             guardianDateOfBirth={guardianDateOfBirth || null}
-            disabled={isLoading}
+            disabled={isActionDisabled}
             onPendingChange={setIsGuardianRemovalPending}
             onRemoved={handleGuardianRemoved}
           />

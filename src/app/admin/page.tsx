@@ -6,7 +6,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { BarChart3, HeartHandshake, Search } from 'lucide-react'
+import { BarChart3, HeartHandshake, MessageSquare, Search } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { AdminStats } from '@/components/admin/AdminStats'
 import { Button } from '@/components/ui/button'
@@ -94,6 +94,12 @@ export default async function AdminDashboardPage() {
                 <Button variant="outline" className="w-full gap-2 sm:w-auto">
                   <Search data-icon="inline-start" />
                   Search All Submissions
+                </Button>
+              </Link>
+              <Link href="/admin/support">
+                <Button variant="outline" className="w-full gap-2 sm:w-auto">
+                  <MessageSquare data-icon="inline-start" />
+                  SMS Support
                 </Button>
               </Link>
             </div>

@@ -20,6 +20,7 @@ type TransactionalSmsSubmission = SmsEligibleSubmission & {
 
 export type SendTelnyxSmsInput = {
   submissionId?: string
+  supportTicketId?: string
   type: SmsMessageType
   toPhone: string
   body: string
@@ -97,6 +98,7 @@ export async function sendTelnyxSms(input: SendTelnyxSmsInput): Promise<{
   const message = await prisma.smsMessage.create({
     data: {
       submissionId: input.submissionId,
+      supportTicketId: input.supportTicketId,
       type: input.type,
       direction: 'outbound',
       to,

@@ -279,3 +279,62 @@ export async function sendBounceAlertEmail({
     )
   }
 }
+
+export async function sendSmsSupportTicketAlertEmail({
+  ticketId,
+  phoneE164,
+  category,
+  summary,
+  submissionId,
+}: {
+  ticketId: string
+  phoneE164: string
+  category: string | null
+  summary: string
+  submissionId?: string | null
+}) {
+  try {
+    const siteUrl = (
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.BETTER_AUTH_URL ||
+      'https://onlinedoctornote.com'
+    ).replace(/\/+$/, '')
+    const supportUrl = `${siteUrl}/admin/support/${ticketId}`
+    const submissionUrl = submissionId ? `${siteUrl}/admin/search/${submissionId}` : null
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+        <h2>SMS support ticket needs review</h2>
+        <p><strong>Ticket:</strong> ${escapeHtml(ticketId)}</p>
+        <p><strong>Category:</strong> ${escapeHtml(category || 'Uncategorized')}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(phoneE164)}</p>
+        <p><strong>Summary:</strong> ${escapeHtml(summary)}</p>
+        <p><a href="${supportUrl}">Open support ticket</a></p>
+        ${submissionUrl ? `<p><a href="${submissionUrl}">Open submission</a></p>` : ''}
+      </div>
+    `
+
+    return await resend.emails.send({
+      from: FROM_EMAIL,
+      to: 'hello@onlinedoctornote.com',
+      subject: `SMS Support Ticket: ${category || 'Needs Review'}`,
+      html: emailHtml,
+    })
+  } catch (error) {
+    console.error('Failed to send SMS support ticket alert email:', error)
+    throw new Error(
+      `Failed to send SMS support ticket alert email: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`
+    )
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
