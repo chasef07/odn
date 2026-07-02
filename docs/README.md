@@ -4,9 +4,10 @@ This folder contains current, actively maintained documentation for the Online D
 
 ## Available Guides
 
-| Document                                                       | Description                                                             |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [LOCAL_DEVELOPMENT_TESTING.md](./LOCAL_DEVELOPMENT_TESTING.md) | Complete guide for setting up local development and testing environment |
+| Document                                                             | Description                                                              |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [LOCAL_DEVELOPMENT_TESTING.md](./LOCAL_DEVELOPMENT_TESTING.md)       | Complete guide for setting up local development and testing environment  |
+| [SMS_SUPPORT_AUTOMATION_GUIDE.md](./SMS_SUPPORT_AUTOMATION_GUIDE.md) | Doctor-facing guide for SMS support automation and admin ticket handling |
 
 ## Legacy Documentation
 

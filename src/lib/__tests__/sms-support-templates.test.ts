@@ -25,15 +25,15 @@ describe('sms support templates', () => {
   it('uses numbered SMS menus instead of unsupported dropdown wording', () => {
     const body = supportIntroMenuSms()
 
-    expect(body).toContain('Reply 1')
-    expect(body).toContain('2 change note')
+    expect(body).toContain('\n1 Note not received')
+    expect(body).toContain('\n2 Change note')
     expect(body).toContain('STOP to opt out')
     expect(body).not.toMatch(/dropdown|select from the menu/i)
   })
 
   it('collects DOB and purpose changes with constrained prompts', () => {
     expect(askDobSms()).toContain('MM/DD/YYYY')
-    expect(askPurposeSms()).toContain('1 work')
+    expect(askPurposeSms()).toContain('\n1 Work')
     expect(askPurposeSms()).toContain('Legal notes need staff review')
   })
 
@@ -42,7 +42,7 @@ describe('sms support templates', () => {
     expect(automationQueuedSms()).toContain('new email')
   })
 
-  it('keeps opt-out copy in every support prompt and reply template', () => {
+  it('keeps HELP and opt-out copy in every support prompt and reply template', () => {
     const bodies = [
       supportIntroMenuSms(),
       changeNoteMenuSms(),
@@ -65,6 +65,8 @@ describe('sms support templates', () => {
     ]
 
     for (const body of bodies) {
+      expect(body).toMatch(/\bHELP\b/)
+      expect(body).toContain('note changes or customer support')
       expect(body).toContain('STOP to opt out.')
     }
   })

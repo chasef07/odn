@@ -1,20 +1,43 @@
 import { supportCategoryLabel, type SmsSupportCategory } from '@/lib/sms-support-types'
 
+const HELP_COPY = 'Reply HELP for note changes or customer support.'
 const STOP_COPY = 'STOP to opt out.'
 
 export function withSupportStopCopy(body: string): string {
-  return body.includes(STOP_COPY) ? body : `${body} ${STOP_COPY}`
+  const hasHelpCopy = /\bHELP\b/.test(body)
+  const hasStopCopy = /STOP to opt out\./i.test(body)
+  if (hasHelpCopy && hasStopCopy) return body.trim()
+
+  const cleanBody = body.trim().replace(/\s*STOP to opt out\.\s*$/i, '')
+  const parts = [cleanBody]
+  if (!hasHelpCopy) parts.push(HELP_COPY)
+  parts.push(STOP_COPY)
+  return parts.join('\n')
 }
 
 export function supportIntroMenuSms(): string {
   return withSupportStopCopy(
-    'OnlineDoctorNote support: Reply 1 note not received, 2 change note, 3 refund, 4 diagnosis/symptoms, or 5 other.'
+    [
+      'OnlineDoctorNote support:',
+      '1 Note not received',
+      '2 Change note',
+      '3 Refund',
+      '4 Diagnosis/symptoms',
+      '5 Other',
+    ].join('\n')
   )
 }
 
 export function changeNoteMenuSms(): string {
   return withSupportStopCopy(
-    'What needs changing? Reply 1 birthday, 2 absence dates, 3 work/school purpose, 4 return date question, or 5 other.'
+    [
+      'What needs changing?',
+      '1 Birthday',
+      '2 Absence dates',
+      '3 Work/school purpose',
+      '4 Return date question',
+      '5 Other',
+    ].join('\n')
   )
 }
 
@@ -42,7 +65,14 @@ export function askLastDayOffSms(): string {
 
 export function askPurposeSms(): string {
   return withSupportStopCopy(
-    'Reply with the new purpose: 1 work, 2 school, 3 work and school, or 4 travel. Legal notes need staff review.'
+    [
+      'Reply with the new purpose:',
+      '1 Work',
+      '2 School',
+      '3 Work and school',
+      '4 Travel',
+      'Legal notes need staff review.',
+    ].join('\n')
   )
 }
 
@@ -94,7 +124,9 @@ export function invalidDateSms(): string {
 
 export function invalidPurposeSms(): string {
   return withSupportStopCopy(
-    'Please reply 1 for work, 2 for school, 3 for work and school, or 4 for travel.'
+    ['Please reply with one option:', '1 Work', '2 School', '3 Work and school', '4 Travel'].join(
+      '\n'
+    )
   )
 }
 

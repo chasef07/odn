@@ -32,7 +32,7 @@ describe('sendSupportSms', () => {
     mockSmsSupportTicketUpdateMany.mockResolvedValue({ count: 1 })
   })
 
-  it('adds opt-out copy to raw support replies at the send boundary', async () => {
+  it('adds HELP and opt-out copy to raw support replies at the send boundary', async () => {
     const result = await sendSupportSms({
       ticketId: 'ticket_123',
       submissionId: 'sub_123',
@@ -46,12 +46,16 @@ describe('sendSupportSms', () => {
       expect.objectContaining({
         supportTicketId: 'ticket_123',
         submissionId: 'sub_123',
-        body: 'We are checking this now. STOP to opt out.',
+        body: [
+          'We are checking this now.',
+          'Reply HELP for note changes or customer support.',
+          'STOP to opt out.',
+        ].join('\n'),
       })
     )
   })
 
-  it('does not duplicate existing opt-out copy', async () => {
+  it('does not duplicate existing opt-out copy when adding HELP', async () => {
     await sendSupportSms({
       ticketId: 'ticket_123',
       toPhone: '+15551234567',
@@ -60,7 +64,11 @@ describe('sendSupportSms', () => {
 
     expect(mockSendTelnyxSms).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: 'Thanks. STOP to opt out.',
+        body: [
+          'Thanks.',
+          'Reply HELP for note changes or customer support.',
+          'STOP to opt out.',
+        ].join('\n'),
       })
     )
   })
