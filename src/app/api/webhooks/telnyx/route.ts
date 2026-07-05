@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
               return NextResponse.json({ received: true }, { status: 200 })
             }
 
-            await handleInboundSupportSms(supportRoute)
             await markSupportMessageHandled(supportRoute.providerMessageId)
+            await handleInboundSupportSms(supportRoute)
             await markTelnyxEventProcessed(data.id)
           } catch (error) {
             await markTelnyxEventFailed(data.id, error)

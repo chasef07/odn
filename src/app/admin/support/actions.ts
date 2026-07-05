@@ -198,14 +198,25 @@ export async function createSupportTicketFromSubmission(submissionId: string) {
     const existingTicket = await prisma.smsSupportTicket.findFirst({
       where: {
         phoneE164,
-        submissionId,
         status: { in: ACTIVE_TICKET_STATUSES },
       },
       orderBy: { updatedAt: 'desc' },
-      select: { id: true },
+      select: { id: true, status: true, submissionId: true },
     })
 
     if (existingTicket) {
+      if (
+        existingTicket.status !== SMS_SUPPORT_STATUS.RUNNING_AUTOMATION &&
+        existingTicket.submissionId !== submissionId
+      ) {
+        await prisma.smsSupportTicket.update({
+          where: { id: existingTicket.id },
+          data: { submissionId },
+        })
+        revalidateSupportPaths(existingTicket.id, existingTicket.submissionId)
+      }
+
+      revalidateSupportPaths(existingTicket.id, submissionId)
       return { success: true, ticketId: existingTicket.id }
     }
 
@@ -255,7 +266,7 @@ export async function sendSupportTicketReply(ticketId: string, body: string) {
     const cancelResult = await cancelCancellableSupportJobs({
       ticketId,
       now,
-      lastError: 'Ticket replied to by staff before automation completed',
+      lastError: 'Ticket replied to by admin before automation completed',
     })
     if (!cancelResult.success) return cancelResult
 
@@ -264,7 +275,8 @@ export async function sendSupportTicketReply(ticketId: string, body: string) {
       data: {
         status: SMS_SUPPORT_STATUS.OPEN,
         state: SMS_SUPPORT_STATE.CSR_REVIEW,
-        adminSummary: 'Staff replied by SMS.',
+        adminSummary: 'Admin replied by SMS.',
+        csrAlertedAt: null,
       },
     })
 
@@ -283,8 +295,8 @@ export async function sendSupportTicketReply(ticketId: string, body: string) {
         data: {
           status: SMS_SUPPORT_STATUS.NEEDS_CSR,
           state: SMS_SUPPORT_STATE.CSR_REVIEW,
-          adminSummary: 'Staff reply failed to send by SMS.',
-          failureReason: `Staff SMS reply failed: ${errorMessage}`,
+          adminSummary: 'Admin reply failed to send by SMS.',
+          failureReason: `Admin SMS reply failed: ${errorMessage}`,
         },
       })
       revalidateSupportPaths(ticketId, ticket.submissionId)
@@ -307,7 +319,7 @@ export async function closeSupportTicket(ticketId: string) {
     const cancelResult = await cancelCancellableSupportJobs({
       ticketId,
       now,
-      lastError: 'Ticket closed by staff before automation ran',
+      lastError: 'Ticket closed by admin before automation ran',
     })
     if (!cancelResult.success) return cancelResult
 
@@ -336,7 +348,7 @@ export async function markSupportTicketNeedsCsr(ticketId: string) {
     const cancelResult = await cancelCancellableSupportJobs({
       ticketId,
       now: new Date(),
-      lastError: 'Ticket escalated to admin by staff before automation ran',
+      lastError: 'Ticket escalated to admin before automation ran',
     })
     if (!cancelResult.success) return cancelResult
 

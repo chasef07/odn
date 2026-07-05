@@ -143,7 +143,7 @@ async function regenerateApprovedSubmission({
   }
   if (typeof submission.approvalWithRestrictions !== 'boolean') {
     throw new SupportAutomationManualReviewError(
-      'Approval PDF options are unknown; staff must reissue this note manually'
+      'Approval PDF options are unknown; admin must reissue this note manually'
     )
   }
 
@@ -295,7 +295,7 @@ async function assertSupportJobStillRunning(jobId: string): Promise<void> {
   })
 
   if (job?.status !== SMS_SUPPORT_JOB_STATUS.RUNNING) {
-    throw new SupportAutomationCancelledError('Support automation job was cancelled by staff')
+    throw new SupportAutomationCancelledError('Support automation job was cancelled by admin')
   }
 }
 

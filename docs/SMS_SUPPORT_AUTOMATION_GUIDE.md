@@ -1,6 +1,6 @@
 # SMS Support Automation Guide
 
-This guide explains how OnlineDoctorNote SMS support works for customers and what staff should watch in the admin portal.
+This guide explains how OnlineDoctorNote SMS support works for customers and what admin should watch in the admin portal.
 
 ## What Customers Can Do By Text
 
@@ -50,6 +50,17 @@ Reply HELP for note changes or customer support.
 STOP to opt out.
 ```
 
+If they choose `1 I did not receive my note`, the system first asks them to check spam/junk:
+
+```text
+Please check your spam/junk folder. Reply 1 if you found it or 2 if you still cannot find it.
+Reply HELP for note changes or customer support.
+STOP to opt out.
+```
+
+- Reply `1`: the ticket closes.
+- Reply `2`: the system asks for the correct email address, then sends the ticket to admin review.
+
 ## What Is Automated
 
 Automation only runs for an already-approved note that the system can safely match to the customer's SMS phone number.
@@ -68,12 +79,12 @@ Work/school purpose correction:
   - `2 School`
   - `3 Work and school`
   - `4 Travel`
-- Legal/court/jury/probation-style requests are not automated and go to staff review.
+- Legal/court/jury/probation-style requests are not automated and go to admin review.
 - If valid, the note is regenerated and emailed.
 
-## What Always Goes To Staff
+## What Always Goes To Admin
 
-Staff review is required when:
+Admin review is required when:
 
 - The system cannot find one clear approved note for that phone number.
 - There are multiple approved notes and the customer cannot provide a valid reference number.
@@ -82,7 +93,7 @@ Staff review is required when:
 - SMS delivery fails.
 - PDF generation, email delivery, note verification cleanup, or any automation job fails.
 
-## What Staff Sees In The Admin Portal
+## What Admin Sees In The Admin Portal
 
 Use the support queue in the admin portal.
 
@@ -90,7 +101,7 @@ Key ticket states:
 
 - `Waiting customer`: the system is waiting for the customer's next text.
 - `Running automation`: the system is updating and reissuing the note.
-- `Needs Admin`: staff must review or reply manually.
+- `Needs Admin`: admin must review or reply manually.
 - `Closed`: the request is complete.
 
 Each ticket shows:
@@ -103,7 +114,7 @@ Each ticket shows:
 - Failure reason, if something broke
 - Latest job attempt
 
-## Staff Workflow
+## Admin Workflow
 
 1. Open the support queue.
 2. Work `Needs Admin` tickets first.
@@ -143,14 +154,27 @@ Dates:
 Customer: HELP
 Customer: 2
 Customer: 2
-System: First/last day off changes need staff review. Email hello@onlinedoctornote.com with the correct dates.
+System: First/last day off changes need admin review. Email hello@onlinedoctornote.com with the correct dates.
 Admin portal: ticket appears as Needs Admin
 ```
 
-Needs staff:
+Needs admin:
 
 ```text
 Customer: I need the diagnosis changed
-System: Thanks. A support ticket was created for staff review...
+System: Thanks. A support ticket was created for admin review...
+Admin portal: ticket appears as Needs Admin
+```
+
+Missing note:
+
+```text
+Customer: HELP
+Customer: 1
+System: Please check your spam/junk folder. Reply 1 if you found it or 2 if you still cannot find it.
+Customer: 2
+System: Reply with the correct email address and admin will help.
+Customer: corrected@example.com
+System: Thanks. A support ticket was created for admin review...
 Admin portal: ticket appears as Needs Admin
 ```

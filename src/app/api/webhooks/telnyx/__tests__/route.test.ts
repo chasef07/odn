@@ -257,6 +257,9 @@ describe('POST /api/webhooks/telnyx', () => {
     expect(mockTelnyxWebhookCreate.mock.invocationCallOrder[0]).toBeLessThan(
       mockHandleInboundSupportSms.mock.invocationCallOrder[0]
     )
+    expect(mockSmsMessageUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      mockHandleInboundSupportSms.mock.invocationCallOrder[0]
+    )
     expect(mockTelnyxWebhookUpdateMany).toHaveBeenLastCalledWith({
       where: { id: 'evt_message_received' },
       data: expect.objectContaining({
@@ -294,7 +297,7 @@ describe('POST /api/webhooks/telnyx', () => {
     })
   })
 
-  it('leaves ordinary inbound support events retryable when support routing fails', async () => {
+  it('does not replay ordinary inbound support events when support routing fails after handling starts', async () => {
     mockHandleInboundSupportSms.mockRejectedValue(new Error('support route failed'))
 
     await expect(POST(buildRequest('message.received', { text: 'HELP' }))).rejects.toThrow(
@@ -314,6 +317,13 @@ describe('POST /api/webhooks/telnyx', () => {
         lastError: 'support route failed',
       }),
     })
+    expect(mockSmsMessageUpdateMany).toHaveBeenCalledWith({
+      where: { providerMessageId: 'msg_123' },
+      data: { supportHandledAt: expect.any(Date) },
+    })
+    expect(mockSmsMessageUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      mockHandleInboundSupportSms.mock.invocationCallOrder[0]
+    )
   })
 
   it('does not route support twice when a concurrent duplicate event is already processing', async () => {

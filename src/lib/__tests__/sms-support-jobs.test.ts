@@ -320,7 +320,7 @@ describe('processQueuedSmsSupportJobs', () => {
     expect(mockAlertSupportTicketNeedsCsr).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
-        summary: expect.stringContaining('failed and needs staff review'),
+        summary: expect.stringContaining('failed and needs admin review'),
       })
     )
   })
@@ -335,7 +335,7 @@ describe('processQueuedSmsSupportJobs', () => {
     ])
     mockRunSupportTicketAutomation.mockRejectedValue(
       new SupportAutomationManualReviewError(
-        'Approval PDF options are unknown; staff must reissue this note manually'
+        'Approval PDF options are unknown; admin must reissue this note manually'
       )
     )
 
@@ -346,7 +346,7 @@ describe('processQueuedSmsSupportJobs', () => {
       where: { id: 'job_123' },
       data: expect.objectContaining({
         status: SMS_SUPPORT_JOB_STATUS.FAILED,
-        lastError: 'Approval PDF options are unknown; staff must reissue this note manually',
+        lastError: 'Approval PDF options are unknown; admin must reissue this note manually',
       }),
     })
     expect(mockTicketUpdate).toHaveBeenCalledWith({
@@ -354,13 +354,13 @@ describe('processQueuedSmsSupportJobs', () => {
       data: expect.objectContaining({
         status: SMS_SUPPORT_STATUS.NEEDS_CSR,
         automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED,
-        failureReason: 'Approval PDF options are unknown; staff must reissue this note manually',
+        failureReason: 'Approval PDF options are unknown; admin must reissue this note manually',
       }),
     })
     expect(mockAlertSupportTicketNeedsCsr).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
-        summary: expect.stringContaining('requires staff review'),
+        summary: expect.stringContaining('requires admin review'),
       })
     )
   })

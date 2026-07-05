@@ -23,6 +23,8 @@ import {
   invalidPurposeSms,
   issueDateManualSms,
   nameCorrectionPromptSms,
+  noteNotReceivedEmailSms,
+  noteNotReceivedFoundSms,
   noteNotReceivedSms,
   otherMenuSms,
   refundManualSms,
@@ -155,6 +157,9 @@ async function routeByState(
     case SMS_SUPPORT_STATE.COLLECT_SUBMISSION_REF:
       await handleSubmissionReference(ticket, body, providerMessageId)
       return
+    case SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK:
+      await collectMissingNoteSpamCheck(ticket, body)
+      return
     case SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_COLLECT_EMAIL:
       await collectMissingNoteEmail(ticket, body)
       return
@@ -221,7 +226,7 @@ async function routeIntroMenu(ticket: ConcreteSupportTicket, body: string): Prom
       ticket.id,
       {
         status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_COLLECT_EMAIL,
+        state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK,
         category,
       },
       noteNotReceivedSms()
@@ -665,7 +670,7 @@ async function collectDiagnosisSymptomsConfirmation(
 
   await moveToCsr(ticket, {
     category: SMS_SUPPORT_CATEGORY.DIAGNOSIS_SYMPTOMS,
-    summary: 'Customer confirmed they want staff review for a diagnosis/symptom change.',
+    summary: 'Customer confirmed they want admin review for a diagnosis/symptom change.',
     replyBody: csrQueuedSms(),
   })
 }
@@ -697,9 +702,46 @@ async function collectRestrictionsConfirmation(
 
   await moveToCsr(ticket, {
     category: SMS_SUPPORT_CATEGORY.RESTRICTIONS_ACCOMMODATIONS,
-    summary: 'Customer wants staff review to remove "no restrictions" language.',
+    summary: 'Customer wants admin review to remove "no restrictions" language.',
     replyBody: csrQueuedSms(),
   })
+}
+
+async function collectMissingNoteSpamCheck(
+  ticket: ConcreteSupportTicket,
+  body: string
+): Promise<void> {
+  const normalized = normalizeSmsKeyword(body)
+
+  if (normalized === '1' || normalized === 'YES' || normalized.includes('FOUND')) {
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.CLOSED,
+        state: SMS_SUPPORT_STATE.CLOSED,
+        category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
+        adminSummary: 'Customer found the note after checking spam/junk.',
+        closedAt: new Date(),
+      },
+      noteNotReceivedFoundSms()
+    )
+    return
+  }
+
+  if (normalized === '2' || normalized === 'NO' || normalized.includes('CANNOT')) {
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_COLLECT_EMAIL,
+        category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
+      },
+      noteNotReceivedEmailSms()
+    )
+    return
+  }
+
+  await reply(ticket, noteNotReceivedSms())
 }
 
 async function collectMissingNoteEmail(ticket: ConcreteSupportTicket, body: string): Promise<void> {
@@ -1021,6 +1063,8 @@ function stateForAutomationCategory(category: SmsSupportCategory): SmsSupportSta
 function promptForState(state: SmsSupportState): string {
   if (state === SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT) return askDobSms()
   if (state === SMS_SUPPORT_STATE.CHANGE_PURPOSE_COLLECT) return askPurposeSms()
+  if (state === SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK) return noteNotReceivedSms()
+  if (state === SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_COLLECT_EMAIL) return noteNotReceivedEmailSms()
   return supportIntroMenuSms()
 }
 
@@ -1048,7 +1092,7 @@ function isConfirmReply(body: string): boolean {
 }
 
 function parseUsDateToIso(value: string): string | null {
-  const match = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/.exec(value)
+  const match = /^\s*(\d{2})\/(\d{2})\/(\d{4})\s*$/.exec(value)
   if (!match) return null
 
   const month = Number(match[1])
@@ -1123,7 +1167,7 @@ async function reply(
         status: SMS_SUPPORT_STATUS.NEEDS_CSR,
         state: SMS_SUPPORT_STATE.CSR_REVIEW,
         failureReason,
-        adminSummary: 'Support SMS failed to send. Staff should contact the customer manually.',
+        adminSummary: 'Support SMS failed to send. Admin should contact the customer manually.',
         closedAt: null,
       },
     })

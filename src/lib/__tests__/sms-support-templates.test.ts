@@ -19,6 +19,8 @@ import {
   invalidPurposeSms,
   issueDateManualSms,
   nameCorrectionPromptSms,
+  noteNotReceivedEmailSms,
+  noteNotReceivedFoundSms,
   noteNotReceivedSms,
   otherMenuSms,
   refundManualSms,
@@ -55,12 +57,19 @@ describe('sms support templates', () => {
   it('collects DOB and purpose changes with constrained prompts', () => {
     expect(askDobSms()).toContain('MM/DD/YYYY')
     expect(askPurposeSms()).toContain('\n1 Work')
-    expect(askPurposeSms()).toContain('Legal notes need staff review')
+    expect(askPurposeSms()).toContain('Legal notes need admin review')
   })
 
   it('sets the right expectation for queued automation', () => {
     expect(automationQueuedSms()).toContain('updating your approved note')
     expect(automationQueuedSms()).toContain('new email')
+  })
+
+  it('uses the requested spam-check flow before collecting email for missing notes', () => {
+    expect(noteNotReceivedSms()).toContain('Reply 1 if you found it')
+    expect(noteNotReceivedSms()).toContain('2 if you still cannot find it')
+    expect(noteNotReceivedEmailSms()).toContain('correct email address')
+    expect(noteNotReceivedFoundSms()).toContain('No further action')
   })
 
   it('keeps HELP and opt-out copy in every support prompt and reply template', () => {
@@ -72,6 +81,8 @@ describe('sms support templates', () => {
       askDobSms(),
       askPurposeSms(),
       noteNotReceivedSms(),
+      noteNotReceivedEmailSms(),
+      noteNotReceivedFoundSms(),
       additionalFormManualSms(),
       dateChangeManualSms(),
       issueDateManualSms(),
@@ -85,7 +96,7 @@ describe('sms support templates', () => {
       automationQueuedSms(),
       automationSuccessSms(SMS_SUPPORT_CATEGORY.CHANGE_DOB),
       csrQueuedSms(),
-      automationBlockedSms('staff review is required'),
+      automationBlockedSms('admin review is required'),
       invalidDateSms(),
       invalidPurposeSms(),
       automationStillRunningSms(),

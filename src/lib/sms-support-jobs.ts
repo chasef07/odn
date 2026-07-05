@@ -18,7 +18,7 @@ import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
 
 const STALE_RUNNING_JOB_MS = 15 * 60 * 1000
 const STALE_COMMITTING_MESSAGE =
-  'Support automation stalled while finalizing the updated note. Staff must verify whether the note/email was issued before retrying manually.'
+  'Support automation stalled while finalizing the updated note. Admin must verify whether the note/email was issued before retrying manually.'
 const ACTIVE_JOB_STATUSES = [
   SMS_SUPPORT_JOB_STATUS.QUEUED,
   SMS_SUPPORT_JOB_STATUS.RUNNING,
@@ -262,8 +262,8 @@ async function handleSupportJobFailure(job: QueuedSupportJob, error: unknown): P
     message,
     summary:
       error instanceof SupportAutomationManualReviewError
-        ? `Automation requires staff review: ${message}`
-        : `Automation failed and needs staff review: ${message}`,
+        ? `Automation requires admin review: ${message}`
+        : `Automation failed and needs admin review: ${message}`,
   })
 }
 

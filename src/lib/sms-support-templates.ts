@@ -63,25 +63,25 @@ export function askDobSms(): string {
 
 export function dateChangeManualSms(): string {
   return withSupportStopCopy(
-    'First/last day off changes need staff review. Email hello@onlinedoctornote.com with the correct dates.'
+    'First/last day off changes need admin review. Email hello@onlinedoctornote.com with the correct dates.'
   )
 }
 
 export function issueDateManualSms(): string {
   return withSupportStopCopy(
-    'The issue/evaluation date cannot be changed by text. Email hello@onlinedoctornote.com if you still need staff help.'
+    'The issue/evaluation date cannot be changed by text. Email hello@onlinedoctornote.com if you still need admin help.'
   )
 }
 
 export function returnDateInfoSms(): string {
   return withSupportStopCopy(
-    'Notes show a return date of AFTER the last day off. Email hello@onlinedoctornote.com if you still need staff help.'
+    'Notes show a return date of AFTER the last day off. Email hello@onlinedoctornote.com if you still need admin help.'
   )
 }
 
 export function diagnosisSymptomsConfirmSms(): string {
   return withSupportStopCopy(
-    'Diagnosis/symptom changes involve protected health information. Reply 1 if you still want staff to review this request.'
+    'Diagnosis/symptom changes involve protected health information. Reply 1 if you still want admin to review this request.'
   )
 }
 
@@ -91,7 +91,7 @@ export function nameCorrectionPromptSms(): string {
 
 export function restrictionsConfirmSms(): string {
   return withSupportStopCopy(
-    'We cannot add restrictions or accommodations. Reply 1 if you want staff to review removing "no restrictions."'
+    'We cannot add restrictions or accommodations. Reply 1 if you want admin to review removing "no restrictions."'
   )
 }
 
@@ -103,38 +103,46 @@ export function askPurposeSms(): string {
       '2 School',
       '3 Work and school',
       '4 Travel',
-      'Legal notes need staff review.',
+      'Legal notes need admin review.',
     ].join('\n')
   )
 }
 
 export function noteNotReceivedSms(): string {
   return withSupportStopCopy(
-    'Please check spam/promotions first. If still missing, reply with the correct email address and staff will help.'
+    'Please check your spam/junk folder. Reply 1 if you found it or 2 if you still cannot find it.'
   )
+}
+
+export function noteNotReceivedFoundSms(): string {
+  return withSupportStopCopy('Great. No further action is needed for this support ticket.')
+}
+
+export function noteNotReceivedEmailSms(): string {
+  return withSupportStopCopy('Reply with the correct email address and admin will help.')
 }
 
 export function additionalFormManualSms(): string {
   return withSupportStopCopy(
-    'Email the form as a PDF to hello@onlinedoctornote.com. Staff will review it as soon as possible.'
+    'Email the form as a PDF to hello@onlinedoctornote.com. Admin will review it as soon as possible.'
   )
 }
 
 export function refundManualSms(): string {
   return withSupportStopCopy(
-    'Email hello@onlinedoctornote.com and staff will review the refund request.'
+    'Email hello@onlinedoctornote.com and admin will review the refund request.'
   )
 }
 
 export function askRefundReasonSms(): string {
   return withSupportStopCopy(
-    'Reply with a short refund reason. Staff will review it in the support queue.'
+    'Reply with a short refund reason. Admin will review it in the support queue.'
   )
 }
 
 export function askOtherMessageSms(): string {
   return withSupportStopCopy(
-    'Reply with a short message. Staff will review it in the support queue.'
+    'Reply with a short message. Admin will review it in the support queue.'
   )
 }
 
@@ -152,13 +160,13 @@ export function automationSuccessSms(category: SmsSupportCategory): string {
 
 export function csrQueuedSms(): string {
   return withSupportStopCopy(
-    'Thanks. A support ticket was created for staff review. We will follow up as soon as possible.'
+    'Thanks. A support ticket was created for admin review. We will follow up as soon as possible.'
   )
 }
 
 export function automationBlockedSms(reason: string): string {
   return withSupportStopCopy(
-    `We could not safely automate that by text: ${reason}. Staff will review your ticket.`
+    `We could not safely automate that by text: ${reason}. Admin will review your ticket.`
   )
 }
 
@@ -176,7 +184,7 @@ export function invalidPurposeSms(): string {
 
 export function automationStillRunningSms(): string {
   return withSupportStopCopy(
-    'We are still processing that update. Staff can see the ticket if anything needs review.'
+    'We are still processing that update. Admin can see the ticket if anything needs review.'
   )
 }
 

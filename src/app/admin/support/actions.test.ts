@@ -121,8 +121,11 @@ describe('createSupportTicketFromSubmission', () => {
     expect(mockSmsSupportTicketCreate).not.toHaveBeenCalled()
   })
 
-  it('reuses an active ticket for the selected submission only', async () => {
-    mockSmsSupportTicketFindFirst.mockResolvedValue({ id: 'ticket_existing' })
+  it('reuses any active ticket for the same phone', async () => {
+    mockSmsSupportTicketFindFirst.mockResolvedValue({
+      id: 'ticket_existing',
+      submissionId: null,
+    })
 
     const result = await createSupportTicketFromSubmission('sub_123')
 
@@ -130,16 +133,33 @@ describe('createSupportTicketFromSubmission', () => {
     expect(mockSmsSupportTicketFindFirst).toHaveBeenCalledWith({
       where: {
         phoneE164: '+15551234567',
-        submissionId: 'sub_123',
         status: { in: ['OPEN', 'WAITING_CUSTOMER', 'RUNNING_AUTOMATION', 'NEEDS_CSR'] },
       },
       orderBy: { updatedAt: 'desc' },
-      select: { id: true },
+      select: { id: true, status: true, submissionId: true },
+    })
+    expect(mockSmsSupportTicketUpdate).toHaveBeenCalledWith({
+      where: { id: 'ticket_existing' },
+      data: { submissionId: 'sub_123' },
     })
     expect(mockSmsSupportTicketCreate).not.toHaveBeenCalled()
   })
 
-  it('cancels queued automation jobs when staff escalates a ticket to admin', async () => {
+  it('does not relink an active automation ticket to a different submission', async () => {
+    mockSmsSupportTicketFindFirst.mockResolvedValue({
+      id: 'ticket_running',
+      status: 'RUNNING_AUTOMATION',
+      submissionId: 'sub_original',
+    })
+
+    const result = await createSupportTicketFromSubmission('sub_123')
+
+    expect(result).toEqual({ success: true, ticketId: 'ticket_running' })
+    expect(mockSmsSupportTicketUpdate).not.toHaveBeenCalled()
+    expect(mockSmsSupportTicketCreate).not.toHaveBeenCalled()
+  })
+
+  it('cancels queued automation jobs when admin marks a ticket for review', async () => {
     const result = await markSupportTicketNeedsCsr('ticket_123')
 
     expect(result).toEqual({ success: true })
@@ -158,12 +178,12 @@ describe('createSupportTicketFromSubmission', () => {
       },
       data: expect.objectContaining({
         status: 'FAILED',
-        lastError: 'Ticket escalated to admin by staff before automation ran',
+        lastError: 'Ticket escalated to admin before automation ran',
       }),
     })
   })
 
-  it('cancels queued automation jobs when staff replies by SMS', async () => {
+  it('cancels queued automation jobs and clears prior alert state when admin replies by SMS', async () => {
     const result = await sendSupportTicketReply('ticket_123', 'We will handle this manually.')
 
     expect(result).toEqual({ success: true })
@@ -179,6 +199,8 @@ describe('createSupportTicketFromSubmission', () => {
       data: expect.objectContaining({
         status: 'OPEN',
         state: 'CSR_REVIEW',
+        adminSummary: 'Admin replied by SMS.',
+        csrAlertedAt: null,
       }),
     })
     expect(mockSmsSupportJobUpdateMany).toHaveBeenCalledWith({
@@ -188,7 +210,7 @@ describe('createSupportTicketFromSubmission', () => {
       },
       data: expect.objectContaining({
         status: 'FAILED',
-        lastError: 'Ticket replied to by staff before automation completed',
+        lastError: 'Ticket replied to by admin before automation completed',
       }),
     })
     expect(mockSmsSupportJobUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(
@@ -199,7 +221,7 @@ describe('createSupportTicketFromSubmission', () => {
     )
   })
 
-  it('does not let staff reply while an automation job is finalizing the reissue', async () => {
+  it('does not let admin reply while an automation job is finalizing the reissue', async () => {
     mockSmsSupportJobFindFirst.mockResolvedValue({ id: 'job_finalizing' })
 
     const result = await sendSupportTicketReply('ticket_123', 'We will handle this manually.')

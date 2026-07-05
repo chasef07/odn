@@ -198,6 +198,136 @@ describe('handleInboundSupportSms', () => {
     })
   })
 
+  it('starts the missing-note spam check before asking for email', async () => {
+    const activeTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+      category: null,
+    })
+    const touchedTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+      category: null,
+    })
+    const spamCheckTicket = supportTicket({
+      status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+      state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK,
+      category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
+    mockSmsSupportTicketUpdate
+      .mockResolvedValueOnce(touchedTicket)
+      .mockResolvedValueOnce(spamCheckTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: '1',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockSmsSupportTicketUpdate).toHaveBeenLastCalledWith({
+      where: { id: 'ticket_123' },
+      data: expect.objectContaining({
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK,
+        category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
+      }),
+    })
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketId: 'ticket_123',
+        body: expect.stringContaining('Reply 1 if you found it'),
+      })
+    )
+  })
+
+  it('closes a missing-note ticket when the customer finds the note in spam', async () => {
+    const activeTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK,
+      category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
+    })
+    const touchedTicket = supportTicket({
+      ...activeTicket,
+      lastInboundAt: new Date('2026-06-29T12:05:00Z'),
+    })
+    const closedTicket = supportTicket({
+      ...activeTicket,
+      status: SMS_SUPPORT_STATUS.CLOSED,
+      state: SMS_SUPPORT_STATE.CLOSED,
+      adminSummary: 'Customer found the note after checking spam/junk.',
+      closedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
+    mockSmsSupportTicketUpdate
+      .mockResolvedValueOnce(touchedTicket)
+      .mockResolvedValueOnce(closedTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: '1',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockSmsSupportTicketUpdate).toHaveBeenLastCalledWith({
+      where: { id: 'ticket_123' },
+      data: expect.objectContaining({
+        status: SMS_SUPPORT_STATUS.CLOSED,
+        state: SMS_SUPPORT_STATE.CLOSED,
+        category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
+        adminSummary: 'Customer found the note after checking spam/junk.',
+        closedAt: expect.any(Date),
+      }),
+    })
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketId: 'ticket_123',
+        body: expect.stringContaining('No further action'),
+      })
+    )
+  })
+
+  it('asks for corrected email when the missing note is still not found', async () => {
+    const activeTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK,
+      category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
+    })
+    const touchedTicket = supportTicket({
+      ...activeTicket,
+      lastInboundAt: new Date('2026-06-29T12:05:00Z'),
+    })
+    const collectEmailTicket = supportTicket({
+      ...activeTicket,
+      status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+      state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_COLLECT_EMAIL,
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
+    mockSmsSupportTicketUpdate
+      .mockResolvedValueOnce(touchedTicket)
+      .mockResolvedValueOnce(collectEmailTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: '2',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockSmsSupportTicketUpdate).toHaveBeenLastCalledWith({
+      where: { id: 'ticket_123' },
+      data: expect.objectContaining({
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_COLLECT_EMAIL,
+        category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
+      }),
+    })
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketId: 'ticket_123',
+        body: expect.stringContaining('correct email address'),
+      })
+    )
+  })
+
   it('routes return-date menu replies to admin', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
@@ -444,7 +574,7 @@ describe('handleInboundSupportSms', () => {
       status: SMS_SUPPORT_STATUS.NEEDS_CSR,
       state: SMS_SUPPORT_STATE.CSR_REVIEW,
       category: SMS_SUPPORT_CATEGORY.REFUND,
-      adminSummary: 'Refund request needs staff review.',
+      adminSummary: 'Refund request needs admin review.',
     })
     const touchedTicket = supportTicket({
       ...activeTicket,
@@ -568,6 +698,35 @@ describe('handleInboundSupportSms', () => {
       expect.objectContaining({
         ticketId: 'ticket_123',
         body: expect.stringContaining('Ref #'),
+      })
+    )
+  })
+
+  it('rejects ambiguous short birthday dates instead of queueing automation', async () => {
+    const activeTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT,
+      category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
+    })
+    const touchedTicket = supportTicket({
+      ...activeTicket,
+      lastInboundAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
+    mockSmsSupportTicketUpdate.mockResolvedValueOnce(touchedTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: '3/4/1990',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockEnqueueSupportAutomationJob).not.toHaveBeenCalled()
+    expect(mockProcessSmsSupportJobNow).not.toHaveBeenCalled()
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketId: 'ticket_123',
+        body: expect.stringContaining('valid date in MM/DD/YYYY format'),
       })
     )
   })
@@ -713,7 +872,7 @@ describe('handleInboundSupportSms', () => {
         status: SMS_SUPPORT_STATUS.NEEDS_CSR,
         state: SMS_SUPPORT_STATE.CSR_REVIEW,
         failureReason: 'Support SMS send failed: Telnyx timeout',
-        adminSummary: 'Support SMS failed to send. Staff should contact the customer manually.',
+        adminSummary: 'Support SMS failed to send. Admin should contact the customer manually.',
       }),
     })
     expect(mockAlertSupportTicketNeedsCsr).toHaveBeenCalledWith(

@@ -61,6 +61,8 @@ function parseDateSafe(dateString: string): Date {
 type SmsMessageForDisplay = FormattedSubmission['smsMessages'][number]
 
 function formatSmsLabel(value: string): string {
+  if (value === 'SUPPORT_CSR_ALERT') return 'Support Admin Alert'
+
   return value
     .split('_')
     .filter(Boolean)

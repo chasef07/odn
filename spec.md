@@ -19,13 +19,13 @@ The system must support:
 5. Future agent assistance inside the ticket/admin boundary.
 
 Primary product rule: the admin portal is the source of truth for every support ticket and
-automation result. Email alerts are secondary notifications that link staff back into the admin
+automation result. Email alerts are secondary notifications that link admin back into the admin
 ticket.
 
-MVP customer/staff entrypoints:
+MVP customer/admin entrypoints:
 
 1. Customer texts `HELP`.
-2. Staff opens a support ticket from the admin portal for an existing submission.
+2. Admin opens a support ticket from the admin portal for an existing submission.
 
 Future entrypoint:
 
@@ -308,7 +308,7 @@ OnlineDoctorNote: Your updated note was emailed. Please check inbox/spam. STOP t
 Automation blocked:
 
 ```text
-OnlineDoctorNote: Staff needs to review this before we can update your note. We will follow up soon. STOP to opt out.
+OnlineDoctorNote: Admin needs to review this before we can update your note. We will follow up soon. STOP to opt out.
 ```
 
 Never include:
@@ -372,17 +372,17 @@ STOP to opt out.
 Send:
 
 ```text
-OnlineDoctorNote: The evaluation date cannot be changed after review. Reply 7 if you still need staff help. STOP to opt out.
+OnlineDoctorNote: The evaluation date cannot be changed after review. Reply 7 if you still need admin help. STOP to opt out.
 ```
 
 Default:
 
-- Close unless customer replies for staff help.
+- Close unless customer replies for admin help.
 
 ### 2.2 First/Last Day Off
 
 ```text
-OnlineDoctorNote: First/last day off changes need staff review. Email hello@onlinedoctornote.com with the correct dates. STOP to opt out.
+OnlineDoctorNote: First/last day off changes need admin review. Email hello@onlinedoctornote.com with the correct dates. STOP to opt out.
 ```
 
 Then:
@@ -440,7 +440,7 @@ Automation result:
 Send:
 
 ```text
-OnlineDoctorNote: The note says the patient may return after the last day off. Reply 1 to change first/last day off or 7 for staff help. STOP to opt out.
+OnlineDoctorNote: The note says the patient may return after the last day off. Reply 1 to change first/last day off or 7 for admin help. STOP to opt out.
 ```
 
 Customer `1` or any return-date question routes to admin/email guidance.
@@ -450,7 +450,7 @@ Customer `1` or any return-date question routes to admin/email guidance.
 Send:
 
 ```text
-OnlineDoctorNote: Diagnosis or symptom changes require staff review. Reply 1 if you want staff to review this request. STOP to opt out.
+OnlineDoctorNote: Diagnosis or symptom changes require admin review. Reply 1 if you want admin to review this request. STOP to opt out.
 ```
 
 Customer `1`:
@@ -539,7 +539,7 @@ STOP to opt out.
 Send:
 
 ```text
-OnlineDoctorNote: Please email the PDF form to hello@onlinedoctornote.com. Staff will review whether it can be completed. STOP to opt out.
+OnlineDoctorNote: Please email the PDF form to hello@onlinedoctornote.com. Admin will review whether it can be completed. STOP to opt out.
 ```
 
 Then:
@@ -715,7 +715,7 @@ Add:
 
 Send admin email when:
 
-- ticket is created and needs staff awareness
+- ticket is created and needs admin awareness
 - ticket enters `NEEDS_CSR`
 - automation fails permanently
 
@@ -747,7 +747,7 @@ The system should be agent-ready without letting agents mutate production state 
 
 Allowed future agent actions:
 
-- summarize raw SMS ledger for staff
+- summarize raw SMS ledger for admin
 - suggest category/state
 - draft a canned SMS reply
 - identify likely linked submission candidates
@@ -796,7 +796,7 @@ PHI minimization:
   echo, or full Medical Record #.
 - DOB may be collected for correction, but only as structured ticket data and raw inbound SMS
   ledger.
-- Admin portal may show collected DOB to authenticated staff.
+- Admin portal may show collected DOB to authenticated admin.
 
 Ambiguous identity:
 
