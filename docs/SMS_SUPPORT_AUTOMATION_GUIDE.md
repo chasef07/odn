@@ -14,26 +14,26 @@ STOP to opt out.
 When a customer texts `HELP`, they receive:
 
 ```text
-OnlineDoctorNote support:
-1 Note not received
-2 Change note
+How can we help? Reply with a number.
+1 I did not receive my note
+2 I need to change my note
 3 Other
 Reply HELP for note changes or customer support.
 STOP to opt out.
 ```
 
-If they choose `2 Change note`, they receive:
+If they choose `2 I need to change my note`, they receive:
 
 ```text
-What needs changing?
+Reply with a number.
 1 Issue/evaluation date
 2 First/last day off
-3 Birthday
+3 Date of birth
 4 Return date
-5 Diagnosis/symptoms
-6 Work/school/travel purpose
+5 Add diagnosis/symptoms
+6 Change purpose to work/school/travel
 7 Name misspelled
-8 Restrictions/accommodations
+8 Need restrictions/accommodations
 9 Other
 Reply HELP for note changes or customer support.
 STOP to opt out.
@@ -42,9 +42,9 @@ STOP to opt out.
 If they choose `3 Other`, they receive:
 
 ```text
-What else do you need?
-1 Additional form
-2 Refund
+Reply with a number.
+1 Need an additional form
+2 Need refund
 3 Other
 Reply HELP for note changes or customer support.
 STOP to opt out.
@@ -90,7 +90,7 @@ Key ticket states:
 
 - `Waiting customer`: the system is waiting for the customer's next text.
 - `Running automation`: the system is updating and reissuing the note.
-- `Needs CSR`: staff must review or reply manually.
+- `Needs Admin`: staff must review or reply manually.
 - `Closed`: the request is complete.
 
 Each ticket shows:
@@ -106,7 +106,7 @@ Each ticket shows:
 ## Staff Workflow
 
 1. Open the support queue.
-2. Work `Needs CSR` tickets first.
+2. Work `Needs Admin` tickets first.
 3. Read the ticket summary and recent message history.
 4. If it is a safe administrative issue, reply by SMS from the ticket.
 5. If the note must be manually changed, update/reissue it through the normal admin note flow.
@@ -144,7 +144,7 @@ Customer: HELP
 Customer: 2
 Customer: 2
 System: First/last day off changes need staff review. Email hello@onlinedoctornote.com with the correct dates.
-Admin portal: ticket appears as Needs CSR
+Admin portal: ticket appears as Needs Admin
 ```
 
 Needs staff:
@@ -152,5 +152,5 @@ Needs staff:
 ```text
 Customer: I need the diagnosis changed
 System: Thanks. A support ticket was created for staff review...
-Admin portal: ticket appears as Needs CSR
+Admin portal: ticket appears as Needs Admin
 ```

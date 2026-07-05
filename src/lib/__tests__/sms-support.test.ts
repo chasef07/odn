@@ -102,7 +102,7 @@ describe('handleInboundSupportSms', () => {
     mockSubmissionFindMany.mockResolvedValue([])
   })
 
-  it('keeps raw freeform SMS in the ticket but sends a sanitized CSR alert summary', async () => {
+  it('keeps raw freeform SMS in the ticket but sends a sanitized admin alert summary', async () => {
     const activeTicket = supportTicket()
     const touchedTicket = supportTicket({ lastInboundAt: new Date('2026-06-29T12:05:00Z') })
     const csrTicket = supportTicket({
@@ -198,7 +198,7 @@ describe('handleInboundSupportSms', () => {
     })
   })
 
-  it('routes return-date menu replies to CSR', async () => {
+  it('routes return-date menu replies to admin', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
       category: null,
@@ -233,7 +233,7 @@ describe('handleInboundSupportSms', () => {
     })
   })
 
-  it('routes return-to-work-date messages to CSR from the intro menu', async () => {
+  it('routes return-to-work-date messages to admin from the intro menu', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.INTRO_MENU,
       category: null,
@@ -310,7 +310,7 @@ describe('handleInboundSupportSms', () => {
     expect(mockSendSupportSms).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
-        body: expect.stringContaining('3 Birthday'),
+        body: expect.stringContaining('3 Date of birth'),
       })
     )
   })
@@ -352,12 +352,12 @@ describe('handleInboundSupportSms', () => {
     expect(mockSendSupportSms).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
-        body: expect.stringContaining('1 Additional form'),
+        body: expect.stringContaining('1 Need an additional form'),
       })
     )
   })
 
-  it('routes first/last date changes to CSR instead of automation', async () => {
+  it('routes first/last date changes to admin instead of automation', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
       category: null,
@@ -402,7 +402,7 @@ describe('handleInboundSupportSms', () => {
     )
   })
 
-  it('escalates stale date collection tickets to CSR instead of continuing automation', async () => {
+  it('escalates stale date collection tickets to admin instead of continuing automation', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_LAST,
       category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
@@ -439,7 +439,7 @@ describe('handleInboundSupportSms', () => {
     expect(mockEnqueueSupportAutomationJob).not.toHaveBeenCalled()
   })
 
-  it('keeps already escalated CSR tickets in the CSR queue when customers ask for help', async () => {
+  it('keeps already escalated admin tickets in the admin queue when customers ask for help', async () => {
     const activeTicket = supportTicket({
       status: SMS_SUPPORT_STATUS.NEEDS_CSR,
       state: SMS_SUPPORT_STATE.CSR_REVIEW,
@@ -572,7 +572,7 @@ describe('handleInboundSupportSms', () => {
     )
   })
 
-  it('routes legal purpose replies to CSR review instead of invalid-purpose retry', async () => {
+  it('routes legal purpose replies to admin review instead of invalid-purpose retry', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.CHANGE_PURPOSE_COLLECT,
       category: SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE,
@@ -670,7 +670,7 @@ describe('handleInboundSupportSms', () => {
     })
   })
 
-  it('escalates to CSR when a support SMS prompt fails to send', async () => {
+  it('escalates to admin when a support SMS prompt fails to send', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.INTRO_MENU,
       category: null,

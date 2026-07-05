@@ -17,22 +17,27 @@ export function withSupportStopCopy(body: string): string {
 
 export function supportIntroMenuSms(): string {
   return withSupportStopCopy(
-    ['OnlineDoctorNote support:', '1 Note not received', '2 Change note', '3 Other'].join('\n')
+    [
+      'How can we help? Reply with a number.',
+      '1 I did not receive my note',
+      '2 I need to change my note',
+      '3 Other',
+    ].join('\n')
   )
 }
 
 export function changeNoteMenuSms(): string {
   return withSupportStopCopy(
     [
-      'What needs changing?',
+      'Reply with a number.',
       '1 Issue/evaluation date',
       '2 First/last day off',
-      '3 Birthday',
+      '3 Date of birth',
       '4 Return date',
-      '5 Diagnosis/symptoms',
-      '6 Work/school/travel purpose',
+      '5 Add diagnosis/symptoms',
+      '6 Change purpose to work/school/travel',
       '7 Name misspelled',
-      '8 Restrictions/accommodations',
+      '8 Need restrictions/accommodations',
       '9 Other',
     ].join('\n')
   )
@@ -40,7 +45,7 @@ export function changeNoteMenuSms(): string {
 
 export function otherMenuSms(): string {
   return withSupportStopCopy(
-    ['What else do you need?', '1 Additional form', '2 Refund', '3 Other'].join('\n')
+    ['Reply with a number.', '1 Need an additional form', '2 Need refund', '3 Other'].join('\n')
   )
 }
 
@@ -70,13 +75,13 @@ export function issueDateManualSms(): string {
 
 export function returnDateInfoSms(): string {
   return withSupportStopCopy(
-    'Notes show a return date of after the last day off. Email hello@onlinedoctornote.com if you still need staff help.'
+    'Notes show a return date of AFTER the last day off. Email hello@onlinedoctornote.com if you still need staff help.'
   )
 }
 
 export function diagnosisSymptomsConfirmSms(): string {
   return withSupportStopCopy(
-    'Diagnosis/symptom changes may involve protected health information. Reply 1 if you still want staff to review this request.'
+    'Diagnosis/symptom changes involve protected health information. Reply 1 if you still want staff to review this request.'
   )
 }
 

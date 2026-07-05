@@ -396,8 +396,6 @@ function automationPayloadsMatch(
     existing.category === nextPayload.category &&
     updateValue(existing.updates.patientDateOfBirth) ===
       updateValue(nextPayload.updates.patientDateOfBirth) &&
-    updateValue(existing.updates.firstDayOff) === updateValue(nextPayload.updates.firstDayOff) &&
-    updateValue(existing.updates.lastDayOff) === updateValue(nextPayload.updates.lastDayOff) &&
     updateValue(existing.updates.notePurpose) === updateValue(nextPayload.updates.notePurpose) &&
     updateValue(existing.updates.otherNotePurpose) ===
       updateValue(nextPayload.updates.otherNotePurpose)

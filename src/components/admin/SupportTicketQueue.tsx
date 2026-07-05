@@ -10,7 +10,7 @@ import { supportCategoryLabel, supportStatusLabel } from '@/lib/sms-support-type
 
 const STATUS_FILTERS = [
   { label: 'All', value: '' },
-  { label: 'Needs CSR', value: 'NEEDS_CSR' },
+  { label: 'Needs Admin', value: 'NEEDS_CSR' },
   { label: 'Running', value: 'RUNNING_AUTOMATION' },
   { label: 'Waiting', value: 'WAITING_CUSTOMER' },
   { label: 'Open', value: 'OPEN' },
@@ -49,7 +49,7 @@ export function SupportTicketQueue({
         <div>
           <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">SMS Support</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Customer-service texts, automation jobs, and staff handoff queue.
+            Customer-service texts, automation jobs, and admin handoff queue.
           </p>
         </div>
         <Button onClick={runJobs} disabled={isPending} className="gap-2 sm:w-auto">

@@ -52,7 +52,14 @@ export default async function AdminDashboardPage() {
     )
   }
 
-  const { pendingCount, approvedToday, deniedToday, maybeCount, manualCount } = statsResult.data
+  const {
+    pendingCount,
+    approvedToday,
+    deniedToday,
+    maybeCount,
+    manualCount,
+    needsAdminSupportCount = 0,
+  } = statsResult.data
 
   return (
     <div>
@@ -97,9 +104,17 @@ export default async function AdminDashboardPage() {
                 </Button>
               </Link>
               <Link href="/admin/support">
-                <Button variant="outline" className="w-full gap-2 sm:w-auto">
+                <Button variant="outline" className="relative w-full gap-2 sm:w-auto">
                   <MessageSquare data-icon="inline-start" />
                   SMS Support
+                  {needsAdminSupportCount > 0 && (
+                    <span
+                      aria-label={`${needsAdminSupportCount} support tickets need admin attention`}
+                      className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-semibold text-white"
+                    >
+                      {needsAdminSupportCount > 99 ? '99+' : needsAdminSupportCount}
+                    </span>
+                  )}
                 </Button>
               </Link>
             </div>

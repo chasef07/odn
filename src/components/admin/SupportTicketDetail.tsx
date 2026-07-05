@@ -45,12 +45,12 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
     })
   }
 
-  const markNeedsCsr = () => {
+  const markNeedsAdmin = () => {
     setMessage(null)
     startTransition(async () => {
       const result = await markSupportTicketNeedsCsr(ticket.id)
       setMessage(
-        result.success ? 'Ticket marked for staff review.' : result.error || 'Update failed.'
+        result.success ? 'Ticket marked for admin review.' : result.error || 'Update failed.'
       )
       router.refresh()
     })
@@ -111,12 +111,12 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
             {ticket.status !== 'NEEDS_CSR' && ticket.status !== 'CLOSED' && (
               <Button
                 variant="outline"
-                onClick={markNeedsCsr}
+                onClick={markNeedsAdmin}
                 disabled={isPending}
                 className="gap-2"
               >
                 <AlertTriangle data-icon="inline-start" />
-                Needs CSR
+                Needs Admin
               </Button>
             )}
             {ticket.status !== 'CLOSED' && (

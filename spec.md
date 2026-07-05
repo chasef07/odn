@@ -38,7 +38,7 @@ Chase has approved these decisions for this spec:
 - Customer-service SMS is allowed.
 - Raw inbound and outbound SMS bodies may be retained in the SMS/support ledger.
 - DOB correction should be automated after strict validation.
-- First/last day off changes should not be automated in v1; they route to CSR/email.
+- First/last day off changes should not be automated in v1; they route to admin/email.
 - Purpose changes should be automated after strict validation.
 - Ticketing admin UI is required in the first complete build.
 
@@ -135,9 +135,9 @@ MVP includes:
 5. Inbound `HELP` support routing.
 6. Admin-created support tickets from submission detail.
 7. Deterministic SMS state machine.
-8. CSR email alert for new/actionable tickets.
+8. Admin email alert for new/actionable tickets.
 9. Automated DOB correction.
-10. Manual CSR/email path for first/last day off changes.
+10. Manual admin/email path for first/last day off changes.
 11. Automated purpose correction.
 12. Audit trail and failure visibility.
 13. Agent-ready ticket actions, without autonomous AI writes in MVP.
@@ -239,6 +239,8 @@ Recommended string values:
 - Job `status`: `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`
 
 Use string values, not Prisma enums, during early iteration.
+`NEEDS_CSR`, `CSR_REVIEW`, and `SEND_CSR_ALERT` are internal compatibility names only; admin-facing
+copy should say `Needs Admin`, `admin review`, and `admin alert`.
 
 ## State Machine Files
 
@@ -283,11 +285,12 @@ All outbound support SMS should be short, branded, and avoid PHI.
 Intro:
 
 ```text
-OnlineDoctorNote: How can we assist you? Reply with a number:
-1 Note not received
-2 Change my note
+OnlineDoctorNote: How can we help? Reply with a number.
+1 I did not receive my note
+2 I need to change my note
 3 Other
-STOP to opt out
+Reply HELP for note changes or customer support.
+STOP to opt out.
 ```
 
 Invalid menu reply:
@@ -339,9 +342,9 @@ Customer `2`:
 - Validate email format.
 - Store `collectedData.correctedEmail`.
 - Set `status='NEEDS_CSR'`.
-- Send CSR alert.
+- Send admin alert.
 
-No automatic email update in MVP. Email correction remains CSR/admin handled.
+No automatic email update in MVP. Email correction remains admin handled.
 
 ## Flow 2: Change My Note
 
@@ -350,17 +353,18 @@ State: `CHANGE_NOTE_MENU`
 Send:
 
 ```text
-OnlineDoctorNote: What needs changed?
+OnlineDoctorNote: Reply with a number.
 1 Issue/evaluation date
 2 First/last day off
 3 Date of birth
 4 Return date
 5 Add diagnosis/symptoms
-6 Work/school/travel purpose
+6 Change purpose to work/school/travel
 7 Name misspelled
-8 Restrictions/accommodations
+8 Need restrictions/accommodations
 9 Other
-STOP to opt out
+Reply HELP for note changes or customer support.
+STOP to opt out.
 ```
 
 ### 2.1 Issue/Evaluation Date
@@ -385,7 +389,7 @@ Then:
 
 - Set `category='CHANGE_DATES'`.
 - Set `status='NEEDS_CSR'`.
-- Alert CSR.
+- Alert admin.
 - Do not collect dates by SMS automation and do not create an automation job.
 
 ### 2.3 Date Of Birth Automation
@@ -439,7 +443,7 @@ Send:
 OnlineDoctorNote: The note says the patient may return after the last day off. Reply 1 to change first/last day off or 7 for staff help. STOP to opt out.
 ```
 
-Customer `1` or any return-date question routes to CSR/email guidance.
+Customer `1` or any return-date question routes to admin/email guidance.
 
 ### 2.5 Diagnosis Or Symptoms
 
@@ -453,7 +457,7 @@ Customer `1`:
 
 - Set `category='CHANGE_NOTE'`.
 - Set `status='NEEDS_CSR'`.
-- Alert CSR.
+- Alert admin.
 
 No automated diagnosis/symptom note generation in MVP.
 
@@ -513,7 +517,7 @@ Then:
 - Store raw body in `SmsMessage`.
 - Store a short admin summary if deterministic.
 - Set `status='NEEDS_CSR'`.
-- Alert CSR.
+- Alert admin.
 
 ## Flow 3: Refund, Form, Or Other
 
@@ -522,7 +526,12 @@ State: `OTHER_MENU`
 Send:
 
 ```text
-OnlineDoctorNote: Reply 1 for an additional form, 2 for refund, or 3 for something else. STOP to opt out.
+OnlineDoctorNote: Reply with a number.
+1 Need an additional form
+2 Need refund
+3 Other
+Reply HELP for note changes or customer support.
+STOP to opt out.
 ```
 
 ### 3.1 Additional Form
@@ -536,7 +545,7 @@ OnlineDoctorNote: Please email the PDF form to hello@onlinedoctornote.com. Staff
 Then:
 
 - Set `status='NEEDS_CSR'`.
-- Alert CSR.
+- Alert admin.
 
 ### 3.2 Refund
 
@@ -555,7 +564,7 @@ Map:
 Then:
 
 - Set `status='NEEDS_CSR'`.
-- Alert CSR.
+- Alert admin.
 
 No automatic refund in MVP. Refund decisions remain admin/Stripe-controlled.
 
@@ -567,7 +576,7 @@ Then:
 
 - Store raw body in `SmsMessage`.
 - Set `status='NEEDS_CSR'`.
-- Alert CSR.
+- Alert admin.
 
 ## Automation Service
 
@@ -633,7 +642,7 @@ Behavior:
 4. Runner sets job `status='RUNNING'`, `lockedAt`, `lockedBy`.
 5. Runner calls `runSupportTicketAutomation(...)`.
 6. Success sets job `SUCCEEDED` and ticket `CLOSED`.
-7. Failure sets job `FAILED`, ticket `NEEDS_CSR`, stores `failureReason`, and sends CSR alert.
+7. Failure sets job `FAILED`, ticket `NEEDS_CSR`, stores `failureReason`, and sends admin alert.
 
 The admin queue can still include "Run jobs" or "Retry" controls for manual recovery of leftover
 queued or failed jobs. There should be no Vercel cron for SMS support jobs in the MVP.
@@ -647,7 +656,7 @@ Queue tabs:
 - New
 - Waiting for customer
 - Running automation
-- Needs CSR review
+- Needs Admin review
 - Closed
 
 Ticket row fields:
@@ -672,13 +681,13 @@ Ticket detail sections:
 - automation validation result
 - automation/job history
 - admin actions
-- CSR notes
+- Admin notes
 
 Admin actions:
 
 - Link/unlink submission.
 - Send canned SMS reply.
-- Mark as needs CSR review.
+- Mark as needs admin review.
 - Mark closed.
 - Retry failed automation.
 - Run queued automation now.
@@ -697,14 +706,14 @@ Optional later:
 - approved cards
 - denied cards
 
-## CSR Email Alerts
+## Admin Email Alerts
 
 Add:
 
 - `src/emails/SmsSupportTicketAlertEmail.tsx`
 - send helper in `src/lib/email.ts`
 
-Send CSR email when:
+Send admin email when:
 
 - ticket is created and needs staff awareness
 - ticket enters `NEEDS_CSR`
@@ -743,7 +752,7 @@ Allowed future agent actions:
 - draft a canned SMS reply
 - identify likely linked submission candidates
 - explain why automation is blocked
-- prepare a CSR decision packet
+- prepare an admin decision packet
 
 Not allowed without explicit admin approval:
 
@@ -777,7 +786,7 @@ Raw SMS retention:
 
 - Raw bodies may be stored in `SmsMessage.body`.
 - Raw bodies may be visible in authenticated admin ticket detail.
-- Raw bodies must not be included in CSR email alerts.
+- Raw bodies must not be included in admin email alerts.
 - Future retention/minimization policy should be explicit before scale.
 
 PHI minimization:
@@ -792,9 +801,9 @@ PHI minimization:
 Ambiguous identity:
 
 - If multiple submissions match a phone, do not run automation until customer provides short ref or
-  CSR links the ticket.
+  admin links the ticket.
 - If phone is not linked to any submission, support can open, but automation is blocked.
-- If submitted ref does not match the phone relationship, route to CSR.
+- If submitted ref does not match the phone relationship, route to admin.
 
 Provider compliance:
 
@@ -873,7 +882,7 @@ Unit:
 - START does not open or advance support state.
 - Intro menu routes 1/2/3 correctly.
 - Invalid menu reply gets retry message.
-- Multiple invalid replies eventually route to CSR.
+- Multiple invalid replies eventually route to admin.
 - Date parsing accepts strict valid date-only input.
 - Date parsing rejects invalid, impossible, future/unsupported, and over-limit ranges.
 - DOB correction accepts strict valid input only.
@@ -881,7 +890,7 @@ Unit:
 - DOB correction blocks if adult/minor/guardian assumptions change.
 - Purpose mapping works for work/school/both/travel.
 - Legal purpose cannot be selected.
-- Diagnosis/symptom path always routes to CSR.
+- Diagnosis/symptom path always routes to admin.
 
 Route/action:
 
@@ -890,7 +899,7 @@ Route/action:
 - Telnyx webhook returns quickly after queueing automation.
 - Multiple submissions for one phone blocks automation until disambiguated.
 - Admin can create a manual support ticket from a submission.
-- CSR email alert sends once per actionable state.
+- Admin email alert sends once per actionable state.
 - Raw inbound body is visible in admin detail but absent from email alert.
 
 Automation:
@@ -944,7 +953,7 @@ Slice 3: admin support UI
 3. Add raw SMS ledger, collected data, ticket actions.
 4. Add "Open Support Ticket" from submission detail.
 
-Slice 4: CSR alerts
+Slice 4: admin alerts
 
 1. Add alert email.
 2. Add alert send helper.
@@ -961,8 +970,8 @@ Slice 6: automated changes
 
 1. Add DOB automation.
 2. Add purpose automation.
-3. Route first/last day off to CSR/email guidance.
-4. Add failure handling, CSR escalation, and admin retry/run-now.
+3. Route first/last day off to admin/email guidance.
+4. Add failure handling, admin escalation, and admin retry/run-now.
 
 Slice 7: legal/provider readiness
 
@@ -991,7 +1000,7 @@ Future slice: support link entrypoint
 2. Retry behavior for automation jobs.
    - Current direction: no scheduled retries; immediate failure becomes `NEEDS_CSR`, and admin can
      retry explicitly from the ticket.
-3. How many invalid SMS replies before CSR escalation.
+3. How many invalid SMS replies before admin escalation.
    - Recommendation: 2 invalid replies in the same state.
 4. Whether support SMS consent text should be updated before or in the same release as code.
    - Recommendation: same release, before enabling the webhook path in production.

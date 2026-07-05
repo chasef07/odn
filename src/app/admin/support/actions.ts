@@ -336,7 +336,7 @@ export async function markSupportTicketNeedsCsr(ticketId: string) {
     const cancelResult = await cancelCancellableSupportJobs({
       ticketId,
       now: new Date(),
-      lastError: 'Ticket escalated to CSR by staff before automation ran',
+      lastError: 'Ticket escalated to admin by staff before automation ran',
     })
     if (!cancelResult.success) return cancelResult
 
@@ -353,8 +353,8 @@ export async function markSupportTicketNeedsCsr(ticketId: string) {
     revalidateSupportPaths(ticketId, ticket.submissionId)
     return { success: true }
   } catch (error) {
-    console.error('Failed to mark support ticket for CSR:', error)
-    return { success: false, error: 'Failed to mark support ticket for CSR' }
+    console.error('Failed to mark support ticket for admin review:', error)
+    return { success: false, error: 'Failed to mark support ticket for admin review' }
   }
 }
 

@@ -139,7 +139,7 @@ describe('createSupportTicketFromSubmission', () => {
     expect(mockSmsSupportTicketCreate).not.toHaveBeenCalled()
   })
 
-  it('cancels queued automation jobs when staff escalates a ticket to CSR', async () => {
+  it('cancels queued automation jobs when staff escalates a ticket to admin', async () => {
     const result = await markSupportTicketNeedsCsr('ticket_123')
 
     expect(result).toEqual({ success: true })
@@ -158,7 +158,7 @@ describe('createSupportTicketFromSubmission', () => {
       },
       data: expect.objectContaining({
         status: 'FAILED',
-        lastError: 'Ticket escalated to CSR by staff before automation ran',
+        lastError: 'Ticket escalated to admin by staff before automation ran',
       }),
     })
   })

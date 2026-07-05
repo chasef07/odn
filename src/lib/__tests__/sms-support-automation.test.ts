@@ -234,7 +234,7 @@ describe('runSupportTicketAutomation', () => {
     })
   })
 
-  it('does not run queued automation after staff escalates the ticket to CSR', async () => {
+  it('does not run queued automation after staff escalates the ticket to admin', async () => {
     mockJobFindUnique.mockResolvedValue(
       supportJob({
         status: SMS_SUPPORT_STATUS.NEEDS_CSR,

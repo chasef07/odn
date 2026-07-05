@@ -32,8 +32,9 @@ describe('sms support templates', () => {
   it('uses numbered SMS menus instead of unsupported dropdown wording', () => {
     const body = supportIntroMenuSms()
 
-    expect(body).toContain('\n1 Note not received')
-    expect(body).toContain('\n2 Change note')
+    expect(body).toContain('How can we help? Reply with a number.')
+    expect(body).toContain('\n1 I did not receive my note')
+    expect(body).toContain('\n2 I need to change my note')
     expect(body).toContain('\n3 Other')
     expect(body).not.toContain('\n4 Diagnosis')
     expect(body).toContain('STOP to opt out')
@@ -45,8 +46,9 @@ describe('sms support templates', () => {
 
     expect(body).toContain('\n1 Issue/evaluation date')
     expect(body).toContain('\n2 First/last day off')
-    expect(body).toContain('\n3 Birthday')
-    expect(body).toContain('\n6 Work/school/travel purpose')
+    expect(body).toContain('\n3 Date of birth')
+    expect(body).toContain('\n6 Change purpose to work/school/travel')
+    expect(body).toContain('\n8 Need restrictions/accommodations')
     expect(body).toContain('\n9 Other')
   })
 

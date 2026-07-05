@@ -111,7 +111,7 @@ export function supportStatusLabel(status: string): string {
     case SMS_SUPPORT_STATUS.RUNNING_AUTOMATION:
       return 'Running Automation'
     case SMS_SUPPORT_STATUS.NEEDS_CSR:
-      return 'Needs CSR'
+      return 'Needs Admin'
     case SMS_SUPPORT_STATUS.CLOSED:
       return 'Closed'
     default:
