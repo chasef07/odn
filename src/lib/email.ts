@@ -7,8 +7,27 @@ import BounceAlertEmail from '@/emails/BounceAlertEmail'
 import MaybeEmail from '@/emails/MaybeEmail'
 import type { MaybeApprovedDays, MaybeReason } from '@/lib/maybe-reasons'
 
-// Initialize Resend client with API key from environment
-export const resend = new Resend(process.env.RESEND_API_KEY)
+let resendClient: Resend | null = null
+
+function getResendClient(): Resend {
+  const apiKey =
+    process.env.RESEND_API_KEY || (process.env.NODE_ENV === 'test' ? 're_test_key' : '')
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is required to use Resend email')
+  }
+
+  resendClient ??= new Resend(apiKey)
+  return resendClient
+}
+
+export const resend = {
+  get emails(): Resend['emails'] {
+    return getResendClient().emails
+  },
+  get webhooks(): Resend['webhooks'] {
+    return getResendClient().webhooks
+  },
+}
 
 // Email configuration
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@onlinedoctornote.com'
