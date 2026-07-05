@@ -17,14 +17,7 @@ export function withSupportStopCopy(body: string): string {
 
 export function supportIntroMenuSms(): string {
   return withSupportStopCopy(
-    [
-      'OnlineDoctorNote support:',
-      '1 Note not received',
-      '2 Change note',
-      '3 Refund',
-      '4 Diagnosis/symptoms',
-      '5 Other',
-    ].join('\n')
+    ['OnlineDoctorNote support:', '1 Note not received', '2 Change note', '3 Other'].join('\n')
   )
 }
 
@@ -32,12 +25,22 @@ export function changeNoteMenuSms(): string {
   return withSupportStopCopy(
     [
       'What needs changing?',
-      '1 Birthday',
-      '2 Absence dates',
-      '3 Work/school purpose',
-      '4 Return date question',
-      '5 Other',
+      '1 Issue/evaluation date',
+      '2 First/last day off',
+      '3 Birthday',
+      '4 Return date',
+      '5 Diagnosis/symptoms',
+      '6 Work/school/travel purpose',
+      '7 Name misspelled',
+      '8 Restrictions/accommodations',
+      '9 Other',
     ].join('\n')
+  )
+}
+
+export function otherMenuSms(): string {
+  return withSupportStopCopy(
+    ['What else do you need?', '1 Additional form', '2 Refund', '3 Other'].join('\n')
   )
 }
 
@@ -53,13 +56,37 @@ export function askDobSms(): string {
   )
 }
 
-export function askFirstDayOffSms(): string {
-  return withSupportStopCopy('Reply with the first day off as MM/DD/YYYY.')
+export function dateChangeManualSms(): string {
+  return withSupportStopCopy(
+    'First/last day off changes need staff review. Email hello@onlinedoctornote.com with the correct dates.'
+  )
 }
 
-export function askLastDayOffSms(): string {
+export function issueDateManualSms(): string {
   return withSupportStopCopy(
-    'Reply with the last day off as MM/DD/YYYY. If valid, we will email a new note.'
+    'The issue/evaluation date cannot be changed by text. Email hello@onlinedoctornote.com if you still need staff help.'
+  )
+}
+
+export function returnDateInfoSms(): string {
+  return withSupportStopCopy(
+    'Notes show a return date of after the last day off. Email hello@onlinedoctornote.com if you still need staff help.'
+  )
+}
+
+export function diagnosisSymptomsConfirmSms(): string {
+  return withSupportStopCopy(
+    'Diagnosis/symptom changes may involve protected health information. Reply 1 if you still want staff to review this request.'
+  )
+}
+
+export function nameCorrectionPromptSms(): string {
+  return withSupportStopCopy('Reply with the correct spelling of the first and last name.')
+}
+
+export function restrictionsConfirmSms(): string {
+  return withSupportStopCopy(
+    'We cannot add restrictions or accommodations. Reply 1 if you want staff to review removing "no restrictions."'
   )
 }
 
@@ -79,6 +106,18 @@ export function askPurposeSms(): string {
 export function noteNotReceivedSms(): string {
   return withSupportStopCopy(
     'Please check spam/promotions first. If still missing, reply with the correct email address and staff will help.'
+  )
+}
+
+export function additionalFormManualSms(): string {
+  return withSupportStopCopy(
+    'Email the form as a PDF to hello@onlinedoctornote.com. Staff will review it as soon as possible.'
+  )
+}
+
+export function refundManualSms(): string {
+  return withSupportStopCopy(
+    'Email hello@onlinedoctornote.com and staff will review the refund request.'
   )
 }
 

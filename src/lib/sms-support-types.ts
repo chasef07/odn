@@ -10,12 +10,16 @@ export type SmsSupportStatus = (typeof SMS_SUPPORT_STATUS)[keyof typeof SMS_SUPP
 
 export const SMS_SUPPORT_CATEGORY = {
   NOTE_NOT_RECEIVED: 'NOTE_NOT_RECEIVED',
+  ISSUE_DATE: 'ISSUE_DATE',
   CHANGE_DOB: 'CHANGE_DOB',
   CHANGE_DATES: 'CHANGE_DATES',
   CHANGE_PURPOSE: 'CHANGE_PURPOSE',
   REFUND: 'REFUND',
   DIAGNOSIS_SYMPTOMS: 'DIAGNOSIS_SYMPTOMS',
   RETURN_DATE: 'RETURN_DATE',
+  ADDITIONAL_FORM: 'ADDITIONAL_FORM',
+  NAME_CORRECTION: 'NAME_CORRECTION',
+  RESTRICTIONS_ACCOMMODATIONS: 'RESTRICTIONS_ACCOMMODATIONS',
   OTHER: 'OTHER',
 } as const
 
@@ -32,12 +36,16 @@ export type SmsSupportSource = (typeof SMS_SUPPORT_SOURCE)[keyof typeof SMS_SUPP
 export const SMS_SUPPORT_STATE = {
   INTRO_MENU: 'INTRO_MENU',
   CHANGE_NOTE_MENU: 'CHANGE_NOTE_MENU',
+  OTHER_MENU: 'OTHER_MENU',
   COLLECT_SUBMISSION_REF: 'COLLECT_SUBMISSION_REF',
   NOTE_NOT_RECEIVED_COLLECT_EMAIL: 'NOTE_NOT_RECEIVED_COLLECT_EMAIL',
   CHANGE_DOB_COLLECT: 'CHANGE_DOB_COLLECT',
   CHANGE_DATES_COLLECT_FIRST: 'CHANGE_DATES_COLLECT_FIRST',
   CHANGE_DATES_COLLECT_LAST: 'CHANGE_DATES_COLLECT_LAST',
   CHANGE_PURPOSE_COLLECT: 'CHANGE_PURPOSE_COLLECT',
+  DIAGNOSIS_SYMPTOMS_CONFIRM: 'DIAGNOSIS_SYMPTOMS_CONFIRM',
+  NAME_CORRECTION_COLLECT: 'NAME_CORRECTION_COLLECT',
+  RESTRICTIONS_CONFIRM: 'RESTRICTIONS_CONFIRM',
   REFUND_COLLECT_REASON: 'REFUND_COLLECT_REASON',
   OTHER_COLLECT_MESSAGE: 'OTHER_COLLECT_MESSAGE',
   CSR_REVIEW: 'CSR_REVIEW',
@@ -48,7 +56,6 @@ export type SmsSupportState = (typeof SMS_SUPPORT_STATE)[keyof typeof SMS_SUPPOR
 
 export const SMS_SUPPORT_AUTOMATION_KIND = {
   UPDATE_DOB_REISSUE_NOTE: 'UPDATE_DOB_REISSUE_NOTE',
-  UPDATE_DATES_REISSUE_NOTE: 'UPDATE_DATES_REISSUE_NOTE',
   UPDATE_PURPOSE_REISSUE_NOTE: 'UPDATE_PURPOSE_REISSUE_NOTE',
 } as const
 
@@ -88,8 +95,6 @@ export type SmsSupportCollectedData = {
   pendingState?: SmsSupportState
   submissionReference?: string
   patientDateOfBirth?: string
-  firstDayOff?: string
-  lastDayOff?: string
   notePurpose?: string
   otherNotePurpose?: string | null
   correctedEmail?: string
@@ -120,6 +125,8 @@ export function supportCategoryLabel(category: string | null | undefined): strin
   switch (category) {
     case SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED:
       return 'Note Not Received'
+    case SMS_SUPPORT_CATEGORY.ISSUE_DATE:
+      return 'Issue/Evaluation Date'
     case SMS_SUPPORT_CATEGORY.CHANGE_DOB:
       return 'Change Birthday'
     case SMS_SUPPORT_CATEGORY.CHANGE_DATES:
@@ -132,6 +139,12 @@ export function supportCategoryLabel(category: string | null | undefined): strin
       return 'Diagnosis/Symptoms'
     case SMS_SUPPORT_CATEGORY.RETURN_DATE:
       return 'Return Date'
+    case SMS_SUPPORT_CATEGORY.ADDITIONAL_FORM:
+      return 'Additional Form'
+    case SMS_SUPPORT_CATEGORY.NAME_CORRECTION:
+      return 'Name Correction'
+    case SMS_SUPPORT_CATEGORY.RESTRICTIONS_ACCOMMODATIONS:
+      return 'Restrictions/Accommodations'
     case SMS_SUPPORT_CATEGORY.OTHER:
       return 'Other'
     default:

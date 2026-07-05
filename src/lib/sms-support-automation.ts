@@ -29,8 +29,6 @@ export type SupportAutomationPayload = {
   category: SmsSupportCategory
   updates: {
     patientDateOfBirth?: string
-    firstDayOff?: string
-    lastDayOff?: string
     notePurpose?: string
     otherNotePurpose?: string | null
   }
@@ -313,8 +311,6 @@ function buildSubmissionUpdateData(
 
   const pdfUpdates = updateDataForPdf(updates)
   if (pdfUpdates.patientDateOfBirth) data.patientDateOfBirth = pdfUpdates.patientDateOfBirth
-  if (pdfUpdates.firstDayOff) data.firstDayOff = pdfUpdates.firstDayOff
-  if (pdfUpdates.lastDayOff) data.lastDayOff = pdfUpdates.lastDayOff
   if (pdfUpdates.notePurpose) data.notePurpose = pdfUpdates.notePurpose
   if ('otherNotePurpose' in pdfUpdates) data.otherNotePurpose = pdfUpdates.otherNotePurpose
 
@@ -328,18 +324,6 @@ function updateDataForPdf(updates: SupportAutomationPayload['updates']): Partial
     const date = parseIsoDateOnlyAsUTCDate(updates.patientDateOfBirth)
     if (!date) throw new Error('Invalid patient birthday')
     data.patientDateOfBirth = date
-  }
-
-  if (updates.firstDayOff) {
-    const date = parseIsoDateOnlyAsUTCDate(updates.firstDayOff)
-    if (!date) throw new Error('Invalid first day off')
-    data.firstDayOff = date
-  }
-
-  if (updates.lastDayOff) {
-    const date = parseIsoDateOnlyAsUTCDate(updates.lastDayOff)
-    if (!date) throw new Error('Invalid last day off')
-    data.lastDayOff = date
   }
 
   if (updates.notePurpose) {
@@ -370,15 +354,11 @@ export function parseAutomationPayload(payload: Prisma.JsonValue): SupportAutoma
 export function automationPayloadForCollectedData({
   category,
   patientDateOfBirth,
-  firstDayOff,
-  lastDayOff,
   notePurpose,
   otherNotePurpose,
 }: {
   category: SmsSupportCategory
   patientDateOfBirth?: string
-  firstDayOff?: string
-  lastDayOff?: string
   notePurpose?: string
   otherNotePurpose?: string | null
 }): SupportAutomationPayload {
@@ -387,14 +367,6 @@ export function automationPayloadForCollectedData({
       kind: SMS_SUPPORT_AUTOMATION_KIND.UPDATE_DOB_REISSUE_NOTE,
       category,
       updates: { patientDateOfBirth },
-    }
-  }
-
-  if (category === SMS_SUPPORT_CATEGORY.CHANGE_DATES && firstDayOff && lastDayOff) {
-    return {
-      kind: SMS_SUPPORT_AUTOMATION_KIND.UPDATE_DATES_REISSUE_NOTE,
-      category,
-      updates: { firstDayOff, lastDayOff },
     }
   }
 
@@ -412,9 +384,6 @@ export function automationPayloadForCollectedData({
 export function automationSummary(payload: SupportAutomationPayload): string {
   if (payload.kind === SMS_SUPPORT_AUTOMATION_KIND.UPDATE_DOB_REISSUE_NOTE) {
     return `Change birthday to ${payload.updates.patientDateOfBirth}`
-  }
-  if (payload.kind === SMS_SUPPORT_AUTOMATION_KIND.UPDATE_DATES_REISSUE_NOTE) {
-    return `Change absence dates to ${payload.updates.firstDayOff} - ${payload.updates.lastDayOff}`
   }
   if (payload.kind === SMS_SUPPORT_AUTOMATION_KIND.UPDATE_PURPOSE_REISSUE_NOTE) {
     return `Change note purpose to ${payload.updates.notePurpose}`

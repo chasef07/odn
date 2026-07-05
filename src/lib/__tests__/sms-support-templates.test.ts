@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  additionalFormManualSms,
   adminSupportReplySms,
   askDobSms,
-  askFirstDayOffSms,
-  askLastDayOffSms,
   askOtherMessageSms,
   askPurposeSms,
   askRefundReasonSms,
@@ -14,9 +13,17 @@ import {
   automationSuccessSms,
   changeNoteMenuSms,
   csrQueuedSms,
+  dateChangeManualSms,
+  diagnosisSymptomsConfirmSms,
   invalidDateSms,
   invalidPurposeSms,
+  issueDateManualSms,
+  nameCorrectionPromptSms,
   noteNotReceivedSms,
+  otherMenuSms,
+  refundManualSms,
+  restrictionsConfirmSms,
+  returnDateInfoSms,
   supportIntroMenuSms,
 } from '../sms-support-templates'
 import { SMS_SUPPORT_CATEGORY } from '../sms-support-types'
@@ -27,8 +34,20 @@ describe('sms support templates', () => {
 
     expect(body).toContain('\n1 Note not received')
     expect(body).toContain('\n2 Change note')
+    expect(body).toContain('\n3 Other')
+    expect(body).not.toContain('\n4 Diagnosis')
     expect(body).toContain('STOP to opt out')
     expect(body).not.toMatch(/dropdown|select from the menu/i)
+  })
+
+  it('keeps the expanded change-note paths behind the short intro menu', () => {
+    const body = changeNoteMenuSms()
+
+    expect(body).toContain('\n1 Issue/evaluation date')
+    expect(body).toContain('\n2 First/last day off')
+    expect(body).toContain('\n3 Birthday')
+    expect(body).toContain('\n6 Work/school/travel purpose')
+    expect(body).toContain('\n9 Other')
   })
 
   it('collects DOB and purpose changes with constrained prompts', () => {
@@ -46,12 +65,19 @@ describe('sms support templates', () => {
     const bodies = [
       supportIntroMenuSms(),
       changeNoteMenuSms(),
+      otherMenuSms(),
       askSubmissionReferenceSms(),
       askDobSms(),
-      askFirstDayOffSms(),
-      askLastDayOffSms(),
       askPurposeSms(),
       noteNotReceivedSms(),
+      additionalFormManualSms(),
+      dateChangeManualSms(),
+      issueDateManualSms(),
+      returnDateInfoSms(),
+      diagnosisSymptomsConfirmSms(),
+      nameCorrectionPromptSms(),
+      restrictionsConfirmSms(),
+      refundManualSms(),
       askRefundReasonSms(),
       askOtherMessageSms(),
       automationQueuedSms(),

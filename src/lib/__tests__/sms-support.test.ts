@@ -198,7 +198,7 @@ describe('handleInboundSupportSms', () => {
     })
   })
 
-  it('routes return-date menu replies to CSR before generic date automation', async () => {
+  it('routes return-date menu replies to CSR', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
       category: null,
@@ -310,40 +310,99 @@ describe('handleInboundSupportSms', () => {
     expect(mockSendSupportSms).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
-        body: expect.stringContaining('1 birthday'),
+        body: expect.stringContaining('3 Birthday'),
       })
     )
   })
 
-  it('keeps collecting the first date when the first day is outside policy', async () => {
+  it('keeps refund and form requests behind the shortened other menu', async () => {
     const activeTicket = supportTicket({
-      state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST,
-      category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+      category: null,
     })
     const touchedTicket = supportTicket({
-      state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST,
-      category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+      category: null,
+    })
+    const otherMenuTicket = supportTicket({
+      status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+      state: SMS_SUPPORT_STATE.OTHER_MENU,
+      category: SMS_SUPPORT_CATEGORY.OTHER,
     })
 
     mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
-    mockSmsSupportTicketUpdate.mockResolvedValueOnce(touchedTicket)
+    mockSmsSupportTicketUpdate
+      .mockResolvedValueOnce(touchedTicket)
+      .mockResolvedValueOnce(otherMenuTicket)
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
-      body: '01/01/2020',
+      body: '3',
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockSmsSupportTicketUpdate).toHaveBeenCalledTimes(1)
+    expect(mockSmsSupportTicketUpdate).toHaveBeenLastCalledWith({
+      where: { id: 'ticket_123' },
+      data: expect.objectContaining({
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.OTHER_MENU,
+        category: SMS_SUPPORT_CATEGORY.OTHER,
+      }),
+    })
     expect(mockSendSupportSms).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
-        body: expect.stringContaining('First day off cannot be more than'),
+        body: expect.stringContaining('1 Additional form'),
       })
     )
   })
 
-  it('resets date collection when an invalid first day was already stored', async () => {
+  it('routes first/last date changes to CSR instead of automation', async () => {
+    const activeTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
+      category: null,
+    })
+    const touchedTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
+      category: null,
+    })
+    const csrTicket = supportTicket({
+      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+      state: SMS_SUPPORT_STATE.CSR_REVIEW,
+      category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
+      adminSummary: 'Customer asked to change first/last day off by SMS.',
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
+    mockSmsSupportTicketUpdate.mockResolvedValueOnce(touchedTicket).mockResolvedValueOnce(csrTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: '2',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockEnqueueSupportAutomationJob).not.toHaveBeenCalled()
+    expect(mockProcessSmsSupportJobNow).not.toHaveBeenCalled()
+    expect(mockSmsSupportTicketUpdate).toHaveBeenLastCalledWith({
+      where: { id: 'ticket_123' },
+      data: expect.objectContaining({
+        status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+        state: SMS_SUPPORT_STATE.CSR_REVIEW,
+        category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
+        adminSummary: 'Customer asked to change first/last day off by SMS.',
+      }),
+    })
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketId: 'ticket_123',
+        type: 'SUPPORT_CSR_ALERT',
+        body: expect.stringContaining('Email hello@onlinedoctornote.com'),
+      })
+    )
+  })
+
+  it('escalates stale date collection tickets to CSR instead of continuing automation', async () => {
     const activeTicket = supportTicket({
       state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_LAST,
       category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
@@ -353,16 +412,15 @@ describe('handleInboundSupportSms', () => {
       ...activeTicket,
       lastInboundAt: new Date('2026-06-29T12:05:00Z'),
     })
-    const resetTicket = supportTicket({
-      state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST,
+    const csrTicket = supportTicket({
+      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+      state: SMS_SUPPORT_STATE.CSR_REVIEW,
       category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
-      collectedData: {},
+      adminSummary: 'Customer asked to change first/last day off by SMS.',
     })
 
     mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
-    mockSmsSupportTicketUpdate
-      .mockResolvedValueOnce(touchedTicket)
-      .mockResolvedValueOnce(resetTicket)
+    mockSmsSupportTicketUpdate.mockResolvedValueOnce(touchedTicket).mockResolvedValueOnce(csrTicket)
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -373,17 +431,12 @@ describe('handleInboundSupportSms', () => {
     expect(mockSmsSupportTicketUpdate).toHaveBeenLastCalledWith({
       where: { id: 'ticket_123' },
       data: expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST,
-        collectedData: {},
+        status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+        state: SMS_SUPPORT_STATE.CSR_REVIEW,
+        category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
       }),
     })
-    expect(mockSendSupportSms).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ticketId: 'ticket_123',
-        body: expect.stringContaining('Please send the first day off again'),
-      })
-    )
+    expect(mockEnqueueSupportAutomationJob).not.toHaveBeenCalled()
   })
 
   it('keeps already escalated CSR tickets in the CSR queue when customers ask for help', async () => {

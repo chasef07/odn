@@ -1,15 +1,13 @@
 import { Prisma, SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
-import { validateAbsenceDates } from '@/lib/date-validators'
 import { isAtLeastAge, isIsoDateOnlyInSaneRange } from '@/lib/date-only'
 import { formatDateUTC } from '@/lib/utils'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { normalizeMedicalRecordNumber } from '@/lib/note-verification'
 import { normalizeSmsKeyword } from '@/lib/telnyx'
 import {
+  additionalFormManualSms,
   askDobSms,
-  askFirstDayOffSms,
-  askLastDayOffSms,
   askOtherMessageSms,
   askPurposeSms,
   askRefundReasonSms,
@@ -19,9 +17,17 @@ import {
   automationStillRunningSms,
   changeNoteMenuSms,
   csrQueuedSms,
+  dateChangeManualSms,
+  diagnosisSymptomsConfirmSms,
   invalidDateSms,
   invalidPurposeSms,
+  issueDateManualSms,
+  nameCorrectionPromptSms,
   noteNotReceivedSms,
+  otherMenuSms,
+  refundManualSms,
+  restrictionsConfirmSms,
+  returnDateInfoSms,
   supportIntroMenuSms,
 } from '@/lib/sms-support-templates'
 import { sendSupportSms } from '@/lib/sms-support-sms'
@@ -143,6 +149,9 @@ async function routeByState(
     case SMS_SUPPORT_STATE.CHANGE_NOTE_MENU:
       await routeChangeNoteMenu(ticket, body)
       return
+    case SMS_SUPPORT_STATE.OTHER_MENU:
+      await routeOtherMenu(ticket, body)
+      return
     case SMS_SUPPORT_STATE.COLLECT_SUBMISSION_REF:
       await handleSubmissionReference(ticket, body, providerMessageId)
       return
@@ -153,13 +162,24 @@ async function routeByState(
       await collectDob(ticket, body)
       return
     case SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST:
-      await collectFirstDayOff(ticket, body)
-      return
     case SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_LAST:
-      await collectLastDayOff(ticket, body)
+      await moveToCsr(ticket, {
+        category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
+        summary: 'Customer asked to change first/last day off by SMS.',
+        replyBody: dateChangeManualSms(),
+      })
       return
     case SMS_SUPPORT_STATE.CHANGE_PURPOSE_COLLECT:
       await collectPurpose(ticket, body)
+      return
+    case SMS_SUPPORT_STATE.DIAGNOSIS_SYMPTOMS_CONFIRM:
+      await collectDiagnosisSymptomsConfirmation(ticket, body)
+      return
+    case SMS_SUPPORT_STATE.NAME_CORRECTION_COLLECT:
+      await collectNameCorrection(ticket, body)
+      return
+    case SMS_SUPPORT_STATE.RESTRICTIONS_CONFIRM:
+      await collectRestrictionsConfirmation(ticket, body)
       return
     case SMS_SUPPORT_STATE.REFUND_COLLECT_REASON:
       await collectRefundReason(ticket, body)
@@ -215,7 +235,11 @@ async function routeIntroMenu(ticket: ConcreteSupportTicket, body: string): Prom
   }
 
   if (category === SMS_SUPPORT_CATEGORY.CHANGE_DATES) {
-    await startAutomationCategory(ticket, SMS_SUPPORT_CATEGORY.CHANGE_DATES)
+    await moveToCsr(ticket, {
+      category,
+      summary: 'Customer asked to change first/last day off by SMS.',
+      replyBody: dateChangeManualSms(),
+    })
     return
   }
 
@@ -224,25 +248,34 @@ async function routeIntroMenu(ticket: ConcreteSupportTicket, body: string): Prom
     return
   }
 
+  if (category === SMS_SUPPORT_CATEGORY.ISSUE_DATE) {
+    await moveToCsr(ticket, {
+      category,
+      summary: 'Customer asked to change the issue/evaluation date by SMS.',
+      replyBody: issueDateManualSms(),
+    })
+    return
+  }
+
   if (category === SMS_SUPPORT_CATEGORY.REFUND) {
-    await updateTicketAndReply(
-      ticket.id,
-      {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.REFUND_COLLECT_REASON,
-        category,
-      },
-      askRefundReasonSms()
-    )
+    await moveToCsr(ticket, {
+      category,
+      summary: 'Customer asked about a refund by SMS.',
+      replyBody: refundManualSms(),
+    })
     return
   }
 
   if (category === SMS_SUPPORT_CATEGORY.DIAGNOSIS_SYMPTOMS) {
-    await moveToCsr(ticket, {
-      category,
-      summary: 'Customer asked to change diagnosis or symptoms by SMS.',
-      replyBody: csrQueuedSms(),
-    })
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.DIAGNOSIS_SYMPTOMS_CONFIRM,
+        category,
+      },
+      diagnosisSymptomsConfirmSms()
+    )
     return
   }
 
@@ -250,8 +283,43 @@ async function routeIntroMenu(ticket: ConcreteSupportTicket, body: string): Prom
     await moveToCsr(ticket, {
       category,
       summary: 'Customer asked a return-date question by SMS.',
-      replyBody: csrQueuedSms(),
+      replyBody: returnDateInfoSms(),
     })
+    return
+  }
+
+  if (category === SMS_SUPPORT_CATEGORY.ADDITIONAL_FORM) {
+    await moveToCsr(ticket, {
+      category,
+      summary: 'Customer asked for an additional form by SMS.',
+      replyBody: additionalFormManualSms(),
+    })
+    return
+  }
+
+  if (category === SMS_SUPPORT_CATEGORY.NAME_CORRECTION) {
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.NAME_CORRECTION_COLLECT,
+        category,
+      },
+      nameCorrectionPromptSms()
+    )
+    return
+  }
+
+  if (category === SMS_SUPPORT_CATEGORY.RESTRICTIONS_ACCOMMODATIONS) {
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.RESTRICTIONS_CONFIRM,
+        category,
+      },
+      restrictionsConfirmSms()
+    )
     return
   }
 
@@ -260,10 +328,10 @@ async function routeIntroMenu(ticket: ConcreteSupportTicket, body: string): Prom
       ticket.id,
       {
         status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.OTHER_COLLECT_MESSAGE,
+        state: SMS_SUPPORT_STATE.OTHER_MENU,
         category,
       },
-      askOtherMessageSms()
+      otherMenuSms()
     )
     return
   }
@@ -281,7 +349,16 @@ async function routeIntroMenu(ticket: ConcreteSupportTicket, body: string): Prom
 async function routeChangeNoteMenu(ticket: ConcreteSupportTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
-  if (normalized === '1' || normalized.includes('BIRTH') || normalized.includes('DOB')) {
+  if (normalized === '1' || normalized.includes('ISSUE') || normalized.includes('EVALUATION')) {
+    await moveToCsr(ticket, {
+      category: SMS_SUPPORT_CATEGORY.ISSUE_DATE,
+      summary: 'Customer asked to change the issue/evaluation date by SMS.',
+      replyBody: issueDateManualSms(),
+    })
+    return
+  }
+
+  if (normalized === '3' || normalized.includes('BIRTH') || normalized.includes('DOB')) {
     await startAutomationCategory(ticket, SMS_SUPPORT_CATEGORY.CHANGE_DOB)
     return
   }
@@ -290,18 +367,42 @@ async function routeChangeNoteMenu(ticket: ConcreteSupportTicket, body: string):
     await moveToCsr(ticket, {
       category: SMS_SUPPORT_CATEGORY.RETURN_DATE,
       summary: 'Customer asked a return-date question by SMS.',
-      replyBody: csrQueuedSms(),
+      replyBody: returnDateInfoSms(),
     })
     return
   }
 
-  if (normalized === '2' || normalized.includes('DATE') || normalized.includes('DAY')) {
-    await startAutomationCategory(ticket, SMS_SUPPORT_CATEGORY.CHANGE_DATES)
+  if (
+    normalized === '2' ||
+    normalized.includes('FIRST') ||
+    normalized.includes('LAST') ||
+    normalized.includes('DATE') ||
+    normalized.includes('DAY') ||
+    normalized.includes('ABSENCE')
+  ) {
+    await moveToCsr(ticket, {
+      category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
+      summary: 'Customer asked to change first/last day off by SMS.',
+      replyBody: dateChangeManualSms(),
+    })
+    return
+  }
+
+  if (normalized === '5' || normalized.includes('DIAGNOSIS') || normalized.includes('SYMPTOM')) {
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.DIAGNOSIS_SYMPTOMS_CONFIRM,
+        category: SMS_SUPPORT_CATEGORY.DIAGNOSIS_SYMPTOMS,
+      },
+      diagnosisSymptomsConfirmSms()
+    )
     return
   }
 
   if (
-    normalized === '3' ||
+    normalized === '6' ||
     normalized.includes('PURPOSE') ||
     normalized.includes('WORK') ||
     normalized.includes('SCHOOL') ||
@@ -311,7 +412,37 @@ async function routeChangeNoteMenu(ticket: ConcreteSupportTicket, body: string):
     return
   }
 
-  if (normalized === '5' || normalized.includes('OTHER')) {
+  if (normalized === '7' || normalized.includes('NAME') || normalized.includes('SPELL')) {
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.NAME_CORRECTION_COLLECT,
+        category: SMS_SUPPORT_CATEGORY.NAME_CORRECTION,
+      },
+      nameCorrectionPromptSms()
+    )
+    return
+  }
+
+  if (
+    normalized === '8' ||
+    normalized.includes('RESTRICTION') ||
+    normalized.includes('ACCOMMODATION')
+  ) {
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.RESTRICTIONS_CONFIRM,
+        category: SMS_SUPPORT_CATEGORY.RESTRICTIONS_ACCOMMODATIONS,
+      },
+      restrictionsConfirmSms()
+    )
+    return
+  }
+
+  if (normalized === '9' || normalized.includes('OTHER')) {
     await updateTicketAndReply(
       ticket.id,
       {
@@ -325,6 +456,43 @@ async function routeChangeNoteMenu(ticket: ConcreteSupportTicket, body: string):
   }
 
   await reply(ticket, changeNoteMenuSms())
+}
+
+async function routeOtherMenu(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+  const normalized = normalizeSmsKeyword(body)
+
+  if (normalized === '1' || normalized.includes('FORM')) {
+    await moveToCsr(ticket, {
+      category: SMS_SUPPORT_CATEGORY.ADDITIONAL_FORM,
+      summary: 'Customer asked for an additional form by SMS.',
+      replyBody: additionalFormManualSms(),
+    })
+    return
+  }
+
+  if (normalized === '2' || normalized.includes('REFUND')) {
+    await moveToCsr(ticket, {
+      category: SMS_SUPPORT_CATEGORY.REFUND,
+      summary: 'Customer asked about a refund by SMS.',
+      replyBody: refundManualSms(),
+    })
+    return
+  }
+
+  if (normalized === '3' || normalized.includes('OTHER')) {
+    await updateTicketAndReply(
+      ticket.id,
+      {
+        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        state: SMS_SUPPORT_STATE.OTHER_COLLECT_MESSAGE,
+        category: SMS_SUPPORT_CATEGORY.OTHER,
+      },
+      askOtherMessageSms()
+    )
+    return
+  }
+
+  await reply(ticket, otherMenuSms())
 }
 
 async function startAutomationCategory(
@@ -464,90 +632,6 @@ async function collectDob(ticket: ConcreteSupportTicket, body: string): Promise<
   })
 }
 
-async function collectFirstDayOff(ticket: ConcreteSupportTicket, body: string): Promise<void> {
-  const isoDate = parseUsDateToIso(body)
-  if (!isoDate) {
-    await reply(ticket, invalidDateSms())
-    return
-  }
-
-  const firstDayErrors = validateAbsenceDates({
-    firstDayOff: isoDate,
-    lastDayOff: isoDate,
-  }).filter((error) => error.field === 'firstDayOff')
-
-  if (firstDayErrors[0]) {
-    await reply(ticket, firstDayErrors[0].message)
-    return
-  }
-
-  await updateTicketAndReply(
-    ticket.id,
-    {
-      status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-      state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_LAST,
-      collectedData: prismaJson({
-        ...ticketCollectedData(ticket),
-        firstDayOff: isoDate,
-      }),
-    },
-    askLastDayOffSms()
-  )
-}
-
-async function collectLastDayOff(ticket: ConcreteSupportTicket, body: string): Promise<void> {
-  const isoDate = parseUsDateToIso(body)
-  if (!isoDate) {
-    await reply(ticket, invalidDateSms())
-    return
-  }
-
-  const data = ticketCollectedData(ticket)
-  if (!data.firstDayOff) {
-    await updateTicketAndReply(
-      ticket.id,
-      {
-        state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST,
-        collectedData: prismaJson({}),
-      },
-      askFirstDayOffSms()
-    )
-    return
-  }
-
-  const errors = validateAbsenceDates({
-    firstDayOff: data.firstDayOff,
-    lastDayOff: isoDate,
-  })
-
-  if (errors.length > 0) {
-    const firstDayError = errors.find((error) => error.field === 'firstDayOff')
-    if (firstDayError) {
-      await updateTicketAndReply(
-        ticket.id,
-        {
-          status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-          state: SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST,
-          collectedData: prismaJson({}),
-        },
-        `${firstDayError.message}. Please send the first day off again.`
-      )
-      return
-    }
-
-    await reply(ticket, errors[0].message)
-    return
-  }
-
-  await queueAutomation(ticket, {
-    category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
-    data: {
-      firstDayOff: data.firstDayOff,
-      lastDayOff: isoDate,
-    },
-  })
-}
-
 async function collectPurpose(ticket: ConcreteSupportTicket, body: string): Promise<void> {
   if (isLegalPurposeReply(body)) {
     await moveToCsr(ticket, {
@@ -567,6 +651,54 @@ async function collectPurpose(ticket: ConcreteSupportTicket, body: string): Prom
   await queueAutomation(ticket, {
     category: SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE,
     data: { notePurpose: purpose, otherNotePurpose: null },
+  })
+}
+
+async function collectDiagnosisSymptomsConfirmation(
+  ticket: ConcreteSupportTicket,
+  body: string
+): Promise<void> {
+  if (!isConfirmReply(body)) {
+    await reply(ticket, diagnosisSymptomsConfirmSms())
+    return
+  }
+
+  await moveToCsr(ticket, {
+    category: SMS_SUPPORT_CATEGORY.DIAGNOSIS_SYMPTOMS,
+    summary: 'Customer confirmed they want staff review for a diagnosis/symptom change.',
+    replyBody: csrQueuedSms(),
+  })
+}
+
+async function collectNameCorrection(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+  const correctedName = body.trim().slice(0, 200)
+  if (!correctedName) {
+    await reply(ticket, nameCorrectionPromptSms())
+    return
+  }
+
+  await moveToCsr(ticket, {
+    category: SMS_SUPPORT_CATEGORY.NAME_CORRECTION,
+    summary: `Name spelling correction requested: ${correctedName}`,
+    alertSummary: 'Customer requested a name spelling correction. Details are in the ticket.',
+    collectedData: { freeformMessage: correctedName },
+    replyBody: csrQueuedSms(),
+  })
+}
+
+async function collectRestrictionsConfirmation(
+  ticket: ConcreteSupportTicket,
+  body: string
+): Promise<void> {
+  if (!isConfirmReply(body)) {
+    await reply(ticket, restrictionsConfirmSms())
+    return
+  }
+
+  await moveToCsr(ticket, {
+    category: SMS_SUPPORT_CATEGORY.RESTRICTIONS_ACCOMMODATIONS,
+    summary: 'Customer wants staff review to remove "no restrictions" language.',
+    replyBody: csrQueuedSms(),
   })
 }
 
@@ -822,16 +954,32 @@ function categoryFromMessage(body: string): SmsSupportCategory | null {
     return SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED
   }
 
-  if (normalized === '3' || normalized.includes('REFUND') || normalized.includes('MONEY')) {
+  if (normalized === '3' || normalized.includes('OTHER') || normalized.includes('AGENT')) {
+    return SMS_SUPPORT_CATEGORY.OTHER
+  }
+
+  if (normalized.includes('REFUND') || normalized.includes('MONEY')) {
     return SMS_SUPPORT_CATEGORY.REFUND
   }
 
-  if (normalized === '4' || normalized.includes('DIAGNOSIS') || normalized.includes('SYMPTOM')) {
+  if (normalized.includes('FORM')) {
+    return SMS_SUPPORT_CATEGORY.ADDITIONAL_FORM
+  }
+
+  if (normalized.includes('ISSUE') || normalized.includes('EVALUATION')) {
+    return SMS_SUPPORT_CATEGORY.ISSUE_DATE
+  }
+
+  if (normalized.includes('DIAGNOSIS') || normalized.includes('SYMPTOM')) {
     return SMS_SUPPORT_CATEGORY.DIAGNOSIS_SYMPTOMS
   }
 
-  if (normalized === '5' || normalized.includes('OTHER') || normalized.includes('AGENT')) {
-    return SMS_SUPPORT_CATEGORY.OTHER
+  if (normalized.includes('NAME') || normalized.includes('SPELL')) {
+    return SMS_SUPPORT_CATEGORY.NAME_CORRECTION
+  }
+
+  if (normalized.includes('RESTRICTION') || normalized.includes('ACCOMMODATION')) {
+    return SMS_SUPPORT_CATEGORY.RESTRICTIONS_ACCOMMODATIONS
   }
 
   if (normalized.includes('BIRTH') || normalized.includes('DOB')) {
@@ -864,9 +1012,6 @@ function categoryFromMessage(body: string): SmsSupportCategory | null {
 
 function stateForAutomationCategory(category: SmsSupportCategory): SmsSupportState | null {
   if (category === SMS_SUPPORT_CATEGORY.CHANGE_DOB) return SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT
-  if (category === SMS_SUPPORT_CATEGORY.CHANGE_DATES) {
-    return SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST
-  }
   if (category === SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE) {
     return SMS_SUPPORT_STATE.CHANGE_PURPOSE_COLLECT
   }
@@ -875,8 +1020,6 @@ function stateForAutomationCategory(category: SmsSupportCategory): SmsSupportSta
 
 function promptForState(state: SmsSupportState): string {
   if (state === SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT) return askDobSms()
-  if (state === SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_FIRST) return askFirstDayOffSms()
-  if (state === SMS_SUPPORT_STATE.CHANGE_DATES_COLLECT_LAST) return askLastDayOffSms()
   if (state === SMS_SUPPORT_STATE.CHANGE_PURPOSE_COLLECT) return askPurposeSms()
   return supportIntroMenuSms()
 }
@@ -897,6 +1040,11 @@ function parsePurpose(body: string): string | null {
 function isLegalPurposeReply(body: string): boolean {
   const normalized = normalizeSmsKeyword(body)
   return includesAny(normalized, ['LEGAL', 'JURY', 'COURT', 'PROBATION', 'ATTORNEY', 'LAWYER'])
+}
+
+function isConfirmReply(body: string): boolean {
+  const normalized = normalizeSmsKeyword(body)
+  return normalized === '1' || normalized === 'YES' || normalized === 'Y'
 }
 
 function parseUsDateToIso(value: string): string | null {

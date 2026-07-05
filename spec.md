@@ -15,8 +15,6 @@ The system must support:
 3. A first-class admin support ticket queue.
 4. Automated approved-note updates for safe customer corrections:
    - patient date of birth
-   - first day off
-   - last day off
    - note purpose
 5. Future agent assistance inside the ticket/admin boundary.
 
@@ -40,7 +38,7 @@ Chase has approved these decisions for this spec:
 - Customer-service SMS is allowed.
 - Raw inbound and outbound SMS bodies may be retained in the SMS/support ledger.
 - DOB correction should be automated after strict validation.
-- Date changes should be automated after strict validation.
+- First/last day off changes should not be automated in v1; they route to CSR/email.
 - Purpose changes should be automated after strict validation.
 - Ticketing admin UI is required in the first complete build.
 
@@ -139,7 +137,7 @@ MVP includes:
 7. Deterministic SMS state machine.
 8. CSR email alert for new/actionable tickets.
 9. Automated DOB correction.
-10. Automated first/last day off correction.
+10. Manual CSR/email path for first/last day off changes.
 11. Automated purpose correction.
 12. Audit trail and failure visibility.
 13. Agent-ready ticket actions, without autonomous AI writes in MVP.
@@ -234,7 +232,7 @@ Recommended string values:
   `NEEDS_CSR`, `CLOSED`
 - Ticket `category`: `NOTE_NOT_RECEIVED`, `CHANGE_NOTE`, `REFUND`, `FORM`, `OTHER`
 - Ticket `source`: `SMS_HELP`, `SUPPORT_LINK`, `ADMIN_CREATED`, `BOUNCE_ESCALATION`
-- `automationKind`: `UPDATE_DATES`, `UPDATE_DOB`, `UPDATE_PURPOSE`
+- `automationKind`: `UPDATE_DOB`, `UPDATE_PURPOSE`
 - `automationStatus`: `NOT_ELIGIBLE`, `ELIGIBLE`, `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`,
   `BLOCKED`
 - Job `kind`: `RUN_SUPPORT_AUTOMATION`, `SEND_SUPPORT_SMS`, `SEND_CSR_ALERT`
@@ -288,7 +286,7 @@ Intro:
 OnlineDoctorNote: How can we assist you? Reply with a number:
 1 Note not received
 2 Change my note
-3 Refund, form, or other
+3 Other
 STOP to opt out
 ```
 
@@ -358,8 +356,10 @@ OnlineDoctorNote: What needs changed?
 3 Date of birth
 4 Return date
 5 Add diagnosis/symptoms
-6 Purpose
-7 Other
+6 Work/school/travel purpose
+7 Name misspelled
+8 Restrictions/accommodations
+9 Other
 STOP to opt out
 ```
 
@@ -375,53 +375,18 @@ Default:
 
 - Close unless customer replies for staff help.
 
-### 2.2 First/Last Day Off Automation
-
-State sequence:
-
-1. `CHANGE_DATES_COLLECT_FIRST`
-2. `CHANGE_DATES_COLLECT_LAST`
-3. `CHANGE_DATES_VALIDATE`
-4. `READY_FOR_AUTOMATION`
-5. `RUNNING_AUTOMATION`
-6. `CLOSED` or `NEEDS_CSR`
-
-Prompts:
+### 2.2 First/Last Day Off
 
 ```text
-OnlineDoctorNote: Reply with the correct first day off in MM/DD/YYYY format. STOP to opt out.
+OnlineDoctorNote: First/last day off changes need staff review. Email hello@onlinedoctornote.com with the correct dates. STOP to opt out.
 ```
 
-```text
-OnlineDoctorNote: Reply with the correct last day off in MM/DD/YYYY format. STOP to opt out.
-```
+Then:
 
-Validation:
-
-- Parse dates as strict US date-only values.
-- Reject impossible dates.
-- Reject date range where last day is before first day.
-- Reject absence period over current business limit.
-- Reject if linked submission is missing.
-- Reject if submission status is not `APPROVED`.
-- Reject if the change would require diagnosis/symptom/legal/doctor judgment.
-
-If valid:
-
-- Set `automationKind='UPDATE_DATES'`.
-- Set `automationStatus='QUEUED'`.
-- Set `status='RUNNING_AUTOMATION'`.
-- Create `SmsSupportJob(kind='RUN_SUPPORT_AUTOMATION')`.
-- Send a short acknowledgement that the update is being processed.
-
-Automation result:
-
-- Update `Submission.firstDayOff` and/or `Submission.lastDayOff`.
-- Regenerate the note through the support automation service.
-- Revoke older active verifier records.
-- Email the updated PDF.
-- Send SMS success after email succeeds.
-- Mark ticket `CLOSED`.
+- Set `category='CHANGE_DATES'`.
+- Set `status='NEEDS_CSR'`.
+- Alert CSR.
+- Do not collect dates by SMS automation and do not create an automation job.
 
 ### 2.3 Date Of Birth Automation
 
@@ -474,8 +439,7 @@ Send:
 OnlineDoctorNote: The note says the patient may return after the last day off. Reply 1 to change first/last day off or 7 for staff help. STOP to opt out.
 ```
 
-Customer `1` routes to date automation.
-Customer `7` routes to CSR.
+Customer `1` or any return-date question routes to CSR/email guidance.
 
 ### 2.5 Diagnosis Or Symptoms
 
@@ -931,8 +895,6 @@ Route/action:
 
 Automation:
 
-- `UPDATE_DATES` updates the submission, regenerates PDF, revokes old verifier, emails PDF, sends
-  SMS success, closes ticket.
 - `UPDATE_DOB` updates the submission, regenerates PDF, revokes old verifier, emails PDF, sends
   SMS success, closes ticket.
 - `UPDATE_PURPOSE` updates the submission, regenerates PDF, revokes old verifier, emails PDF,
@@ -997,9 +959,9 @@ Slice 5: automation foundation
 
 Slice 6: automated changes
 
-1. Add date automation.
-2. Add DOB automation.
-3. Add purpose automation.
+1. Add DOB automation.
+2. Add purpose automation.
+3. Route first/last day off to CSR/email guidance.
 4. Add failure handling, CSR escalation, and admin retry/run-now.
 
 Slice 7: legal/provider readiness
