@@ -60,6 +60,13 @@ describe('sms support templates', () => {
     expect(askPurposeSms()).toContain('Legal notes need admin review')
   })
 
+  it('keeps the issue-date response in one SMS segment with the required footer', () => {
+    const body = issueDateManualSms()
+
+    expect(body).toContain("We can't change the date")
+    expect(body.length).toBeLessThanOrEqual(160)
+  })
+
   it('sets the right expectation for queued automation', () => {
     expect(automationQueuedSms()).toContain('updating your approved note')
     expect(automationQueuedSms()).toContain('new email')

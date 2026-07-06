@@ -372,7 +372,7 @@ STOP to opt out.
 Send:
 
 ```text
-OnlineDoctorNote: The evaluation date cannot be changed after review. Reply 7 if you still need admin help. STOP to opt out.
+OnlineDoctorNote: We can't change the date; it reflects your request and doctor review. We can verify if needed. STOP to opt out.
 ```
 
 Default:

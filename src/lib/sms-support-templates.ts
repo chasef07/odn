@@ -69,7 +69,7 @@ export function dateChangeManualSms(): string {
 
 export function issueDateManualSms(): string {
   return withSupportStopCopy(
-    'The issue/evaluation date cannot be changed by text. Email hello@onlinedoctornote.com if you still need admin help.'
+    "We can't change the date; it reflects your request and doctor review. We can verify if needed."
   )
 }
 

@@ -93,6 +93,14 @@ Admin review is required when:
 - SMS delivery fails.
 - PDF generation, email delivery, note verification cleanup, or any automation job fails.
 
+Issue/evaluation date SMS:
+
+```text
+We can't change the date; it reflects your request and doctor review. We can verify if needed.
+Reply HELP for note changes or customer support.
+STOP to opt out.
+```
+
 ## What Admin Sees In The Admin Portal
 
 Use the support queue in the admin portal.
