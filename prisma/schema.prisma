@@ -169,9 +169,14 @@ model Submission {
   approvalEmailSentAt DateTime? @map("approval_email_sent_at")
   denialEmailSentAt   DateTime? @map("denial_email_sent_at")
 
+  // PDF approval render options used when a support automation reissues a note
+  approvalDiagnosis        String?  @map("approval_diagnosis") @db.Text
+  approvalWithRestrictions Boolean? @map("approval_with_restrictions")
+
   // Public note verification snapshot
   noteVerifications NoteVerification[]
   smsMessages       SmsMessage[]
+  smsSupportTickets SmsSupportTicket[]
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -199,35 +204,95 @@ model SmsPhoneState {
 }
 
 model SmsMessage {
-  id                String      @id @default(uuid())
-  submissionId      String?     @map("submission_id")
-  submission        Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  id                String            @id @default(uuid())
+  submissionId      String?           @map("submission_id")
+  submission        Submission?       @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  supportTicketId   String?           @map("support_ticket_id")
+  supportTicket     SmsSupportTicket? @relation(fields: [supportTicketId], references: [id], onDelete: SetNull)
   type              String
   direction         String
   to                String?
   from              String?
-  body              String      @db.Text
-  providerMessageId String?     @unique @map("provider_message_id")
-  providerStatus    String?     @map("provider_status")
-  errorCode         String?     @map("error_code")
-  errorMessage      String?     @map("error_message") @db.Text
-  sentAt            DateTime?   @map("sent_at")
-  receivedAt        DateTime?   @map("received_at")
-  finalizedAt       DateTime?   @map("finalized_at")
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+  body              String            @db.Text
+  providerMessageId String?           @unique @map("provider_message_id")
+  providerStatus    String?           @map("provider_status")
+  errorCode         String?           @map("error_code")
+  errorMessage      String?           @map("error_message") @db.Text
+  supportHandledAt  DateTime?         @map("support_handled_at")
+  sentAt            DateTime?         @map("sent_at")
+  receivedAt        DateTime?         @map("received_at")
+  finalizedAt       DateTime?         @map("finalized_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
 
   @@index([submissionId])
+  @@index([supportTicketId])
   @@index([type])
   @@index([providerStatus])
   @@index([createdAt])
   @@map("sms_messages")
 }
 
+model SmsSupportTicket {
+  id               String      @id @default(uuid())
+  phoneE164        String      @map("phone_e164")
+  submissionId     String?     @map("submission_id")
+  submission       Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  status           String
+  category         String?
+  state            String
+  source           String
+  automationKind   String?     @map("automation_kind")
+  automationStatus String?     @map("automation_status")
+  collectedData    Json?       @map("collected_data")
+  adminSummary     String?     @map("admin_summary") @db.Text
+  failureReason    String?     @map("failure_reason") @db.Text
+  retryCount       Int         @default(0) @map("retry_count")
+  csrAlertedAt     DateTime?   @map("csr_alerted_at")
+  lastInboundAt    DateTime?   @map("last_inbound_at")
+  lastOutboundAt   DateTime?   @map("last_outbound_at")
+  closedAt         DateTime?   @map("closed_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  messages SmsMessage[]
+  jobs     SmsSupportJob[]
+
+  @@index([phoneE164])
+  @@index([submissionId])
+  @@index([status, updatedAt])
+  @@index([category])
+  @@index([automationStatus])
+  @@map("sms_support_tickets")
+}
+
+model SmsSupportJob {
+  id          String           @id @default(uuid())
+  ticketId    String           @map("ticket_id")
+  ticket      SmsSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  kind        String
+  status      String
+  payload     Json?
+  attempts    Int              @default(0)
+  lockedAt    DateTime?        @map("locked_at")
+  lockedBy    String?          @map("locked_by")
+  lastError   String?          @map("last_error") @db.Text
+  runAfter    DateTime         @default(now()) @map("run_after")
+  completedAt DateTime?        @map("completed_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([status, runAfter])
+  @@index([ticketId])
+  @@map("sms_support_jobs")
+}
+
 model TelnyxWebhookEvent {
   id          String   @id
   eventType   String   @map("event_type")
   occurredAt  DateTime @map("occurred_at")
+  status      String   @default("PROCESSED")
+  lastError   String?  @map("last_error") @db.Text
   processedAt DateTime @default(now()) @map("processed_at")
 
   @@map("telnyx_webhook_events")

@@ -290,7 +290,9 @@ describe('approveSubmission - Approval Automation', () => {
           smsOptIn: true,
         }),
         type: 'APPROVAL_SENT',
-        body: "OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam. STOP to opt out.",
+        body: expect.stringMatching(
+          /doctor's note was sent[\s\S]*Reply HELP[\s\S]*STOP to opt out/
+        ),
       })
     })
 
@@ -912,7 +914,7 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
         smsOptIn: true,
       }),
       type: 'APPROVAL_SENT',
-      body: "OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam. STOP to opt out.",
+      body: expect.stringMatching(/doctor's note was sent[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
     })
   })
 

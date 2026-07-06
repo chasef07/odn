@@ -307,7 +307,7 @@ describe('POST /api/webhooks/resend', () => {
         smsOptIn: true,
       }),
       type: 'EMAIL_BOUNCE',
-      body: 'OnlineDoctorNote: Your email bounced. Please email your correct email address to hello@onlinedoctornote.com. STOP to opt out.',
+      body: expect.stringMatching(/email bounced[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
     })
     expect(mockSendBounceAlertEmail).toHaveBeenCalled()
   })

@@ -53,6 +53,7 @@ import {
   type BusinessAnalyticsOptions,
   type BusinessAnalyticsRange,
 } from '@/lib/business-analytics'
+import { SMS_SUPPORT_STATUS } from '@/lib/sms-support-types'
 
 // Export shared submission types for components
 export type MaybeSubmission = Awaited<ReturnType<typeof getMaybeSubmissions>>['submissions'][number]
@@ -126,6 +127,23 @@ async function getLimitedSubmissionCount(where: Prisma.SubmissionWhereInput): Pr
   }
 }
 
+async function getLimitedSupportTicketCount(
+  where: Prisma.SmsSupportTicketWhereInput
+): Promise<number> {
+  try {
+    const rows = await prisma.smsSupportTicket.findMany({
+      where,
+      select: { id: true },
+      take: DASHBOARD_COUNT_LIMIT + 1,
+    })
+
+    return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
+  } catch (error) {
+    console.error('Error fetching limited support ticket count:', error)
+    return 0
+  }
+}
+
 function businessAnalyticsFetchStart(range: BusinessAnalyticsRange, referenceDate: Date): Date {
   if (range === '7d') return daysBefore(referenceDate, 14)
   if (range === '30d' || range === '90d') return daysBefore(referenceDate, 180)
@@ -167,7 +185,14 @@ export async function getDashboardStats() {
   try {
     // Business day starts at 6am ET (not midnight UTC)
     const today = getBusinessDayStart()
-    const [pendingCount, approvedToday, deniedToday, maybeCount, manualCount] = await Promise.all([
+    const [
+      pendingCount,
+      approvedToday,
+      deniedToday,
+      maybeCount,
+      manualCount,
+      needsAdminSupportCount,
+    ] = await Promise.all([
       // Pending reviews
       getLimitedSubmissionCount({ status: SubmissionStatus.PENDING_REVIEW }),
 
@@ -188,6 +213,9 @@ export async function getDashboardStats() {
 
       // Manual (all time)
       getLimitedSubmissionCount({ status: SubmissionStatus.MANUAL }),
+
+      // SMS support tickets requiring admin attention
+      getLimitedSupportTicketCount({ status: SMS_SUPPORT_STATUS.NEEDS_CSR }),
     ])
 
     return {
@@ -198,6 +226,7 @@ export async function getDashboardStats() {
         deniedToday,
         maybeCount,
         manualCount,
+        needsAdminSupportCount,
       },
     }
   } catch (error) {
@@ -799,6 +828,8 @@ export async function approveSubmission(
           reviewedAt: now,
           denialReason: null,
           approvalEmailSentAt: null, // No email sent for manual approvals
+          approvalDiagnosis: null,
+          approvalWithRestrictions: null,
         },
       })
 
@@ -859,6 +890,8 @@ export async function approveSubmission(
         reviewedByAdminId: doctorId,
         reviewedAt: now,
         denialReason: null,
+        approvalDiagnosis: diagnosis || null,
+        approvalWithRestrictions: withRestrictions,
       },
     })
     if (approvalUpdate.count !== 1) {
@@ -1906,6 +1939,8 @@ export async function reApproveSubmission(
         reviewedByAdminId: doctorId,
         reviewedAt: now,
         denialReason: null,
+        approvalDiagnosis: diagnosis || null,
+        approvalWithRestrictions: withRestrictions,
         updatedAt: now,
       },
     })

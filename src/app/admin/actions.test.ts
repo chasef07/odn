@@ -394,7 +394,7 @@ describe('denySubmission - Denial Automation', () => {
           smsPhoneE164: '+15551234567',
         }),
         type: 'DENIAL_SENT',
-        body: 'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details. STOP to opt out.',
+        body: expect.stringMatching(/denied and refunded[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
       })
 
       // Verify database was updated with real refund ID and email timestamp
@@ -777,7 +777,7 @@ describe('changeSubmissionStatus - Denial SMS', () => {
         smsOptIn: true,
       }),
       type: 'DENIAL_SENT',
-      body: 'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details. STOP to opt out.',
+      body: expect.stringMatching(/denied and refunded[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
     })
   })
 
@@ -806,7 +806,7 @@ describe('changeSubmissionStatus - Denial SMS', () => {
         smsOptIn: true,
       }),
       type: 'DENIAL_SENT',
-      body: 'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details. STOP to opt out.',
+      body: expect.stringMatching(/denied and refunded[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
     })
   })
 })
@@ -900,7 +900,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
         smsOptIn: true,
       }),
       type: 'MAYBE_UPDATE',
-      body: 'OnlineDoctorNote: Your request needs extra review. Please check your email for details. STOP to opt out.',
+      body: expect.stringMatching(/extra review[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
     })
   })
 

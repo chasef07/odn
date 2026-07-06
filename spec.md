@@ -1,536 +1,1008 @@
-# Telnyx Transactional SMS Implementation Spec
+# SMS Support Automation And Admin Ticketing Spec
 
-Status: draft
-Date: 2026-06-16
+Status: draft rewrite
+Date: 2026-06-29
 
 ## Goal
 
-Add transactional SMS alongside existing customer emails using the existing Telnyx toll-free number.
+Build a complete SMS customer-service system on top of the existing Telnyx transactional SMS
+stack.
 
-Primary touchpoints:
+The system must support:
 
-1. Purchase confirmation
-2. Email bounce / bad email recovery
-3. Maybe status update
-4. Approval / note sent
+1. Customer-initiated SMS support via `HELP`.
+2. Deterministic SMS menus and data collection.
+3. A first-class admin support ticket queue.
+4. Automated approved-note updates for safe customer corrections:
+   - patient date of birth
+   - note purpose
+5. Future agent assistance inside the ticket/admin boundary.
 
-## Plan Review
+Primary product rule: the admin portal is the source of truth for every support ticket and
+automation result. Email alerts are secondary notifications that link admin back into the admin
+ticket.
 
-Cleanest phase 1:
+MVP customer/admin entrypoints:
 
-- Add a thin Telnyx send wrapper, SMS templates, and SMS delivery logging.
-- Store a normalized SMS phone number (`+15551234567`) for send/webhook matching.
-- Send transactional outbound SMS from the same code paths that already send emails.
-- Include Telnyx delivery webhook handling in phase 1 so we can observe accepted/delivered/failed state.
-- Keep email as the source of detailed communication.
-- Keep bounce recovery manual: SMS tells the customer to email support with the corrected email.
-- Keep current admin tools and current Resend bounce alert email.
-- Add only a minimal Telnyx webhook for signature verification, idempotency, STOP/START state, inbound logging, and delivery receipts.
+1. Customer texts `HELP`.
+2. Admin opens a support ticket from the admin portal for an existing submission.
 
-Do not add:
+Future entrypoint:
 
-- SMS conversation state
-- AI reply interpretation
-- New bounce-correction admin UI
-- New email correction tables
-- SMS links to notes/PDFs/verifiers
+- Customer uses a support/chat link that starts the same ticket state machine.
 
-Out of scope for first release:
+## Locked Product Decisions
 
-- Marketing SMS
-- AI-managed email correction
-- Inbound SMS reply parsing for email correction
-- New admin UI for bounce correction
-- Sending doctor's notes, PDFs, diagnoses, symptoms, DOB, or other PHI by SMS
-- Auto-updating customer email from an inbound text without admin review
+Chase has approved these decisions for this spec:
 
-## Current Repo State
+- Customer-service SMS is allowed.
+- Raw inbound and outbound SMS bodies may be retained in the SMS/support ledger.
+- DOB correction should be automated after strict validation.
+- First/last day off changes should not be automated in v1; they route to admin/email.
+- Purpose changes should be automated after strict validation.
+- Ticketing admin UI is required in the first complete build.
 
-Current email senders live in `src/lib/email.ts`.
+These decisions do not remove the need for privacy/terms/consent copy updates before launch.
 
-Current customer-facing email triggers:
+## Telnyx Workflow Fit
 
-- Purchase confirmation: `src/app/api/webhooks/stripe-prod3/route.ts`
-- Maybe update: `moveSubmissionToMaybe` in `src/app/admin/actions.ts`
-- Approval note delivery: `approveSubmission` and `reApproveSubmission` in `src/app/admin/actions.ts`
-- Denial/refund: `denySubmission` and `changeSubmissionStatus` in `src/app/admin/actions.ts`
-- Resend bounce alert: `src/app/api/webhooks/resend/route.ts`
+Telnyx can support this workflow through normal inbound messaging webhooks:
 
-Existing SMS data:
+1. Customer texts the Telnyx toll-free number.
+2. Telnyx sends a `message.received` webhook to the configured messaging profile webhook URL.
+3. The app verifies the Telnyx signature, stores the webhook idempotently, logs the inbound
+   `SmsMessage`, handles STOP/START first, then routes non-opt-out messages into support.
+4. If the body is `HELP`, the support state machine opens or resumes the customer ticket.
+5. The app sends the next numbered SMS menu as an ordinary outbound SMS.
 
-- `Submission.smsOptIn` exists in `prisma/schema.prisma`.
-- Consent is captured on review page: `src/app/review/page.tsx`.
-- No Telnyx package, wrapper, webhook route, SMS log table, or SMS delivery state exists.
+Important UI clarification:
 
-Important boundary:
+- SMS does not provide a native dropdown menu.
+- The MVP menu is a numbered text menu: "Reply 1, 2, or 3".
+- Rich buttons, suggested replies, or dropdown-like interactions are a future RCS channel, not
+  the toll-free SMS baseline.
 
-- Purchase confirmation currently uses a short reference number based on `Submission.id`.
-- True Medical Record # is created later by `createNoteVerification` during approval.
-- Purchase SMS must say `Ref #`, not `Medical Record #`, unless the MR lifecycle is changed.
+Webhook timing rule:
 
-## Telnyx Facts To Design Around
+- Telnyx webhooks should return a fast 2xx response.
+- The webhook may send simple menu replies immediately.
+- PDF generation, note regeneration, and email delivery must be queued and processed outside the
+  webhook response.
 
-Outbound send:
+## Current Code To Reuse
 
-- Use Telnyx Messaging API: `POST https://api.telnyx.com/v2/messages`
-- Body shape: `{ "from": "+1...", "to": "+1...", "text": "..." }`
-- Auth: `Authorization: Bearer TELNYX_API_KEY`
+Existing SMS infrastructure:
 
-Webhooks:
+- `prisma/schema.prisma`
+  - `Submission.smsOptIn`, `smsOptInAt`, `smsConsentVersion`, `smsPhoneE164`
+  - `SmsPhoneState`
+  - `SmsMessage`
+  - `TelnyxWebhookEvent`
+- `src/lib/telnyx.ts`
+  - `verifyTelnyxWebhookSignature`
+  - `isLocalOptOut`
+  - `isOptInKeyword`
+  - `sendTelnyxSms`
+  - `sendTransactionalSmsForSubmission`
+- `src/app/api/webhooks/telnyx/route.ts`
+- `src/lib/sms-templates.ts`
+- `src/lib/sms-status.ts`
+- `src/lib/phone-utils.ts`
+- `src/lib/email.ts`
+- `src/app/admin/actions.ts`
+  - `updateSubmission(...)`
+  - `reApproveSubmission(...)`
+- `src/components/admin/SearchSubmissionDetail.tsx`
 
-- Messaging events include `message.received`, `message.sent`, and `message.finalized`.
-- Telnyx can send duplicate and out-of-order events.
-- Use `data.id` as webhook idempotency key.
-- Use `data.occurred_at` when reconciling event order.
-- Verify signature against raw body using `telnyx-signature-ed25519`, `telnyx-timestamp`, and `TELNYX_PUBLIC_KEY`.
-- Return `2xx` quickly; do not block webhook acknowledgement on slow work.
+Existing behavior:
 
-Toll-free opt-out:
+- Inbound SMS is logged as `SmsMessage(type='INBOUND')`.
+- STOP/START state is phone-level in `SmsPhoneState`.
+- Inbound SMS currently links to the latest submission with matching `smsPhoneE164`.
+- Admins can edit submission fields.
+- Reapproval generates a new PDF, creates a new verification snapshot, revokes older active
+  verifier records, sends the updated note by email, and sends approval SMS.
 
-- For Telnyx toll-free numbers, carrier/network opt-out recognizes `STOP`.
-- Toll-free opt-in keywords are `START` and `UNSTOP`.
-- Telnyx/network sends fixed toll-free auto-responses; do not duplicate the STOP confirmation.
-- Still locally treat `UNSUBSCRIBE`, `CANCEL`, `END`, `QUIT`, `STOPALL`, and natural-language stop requests as opt-out if they arrive in the inbound webhook.
+Current mismatch to fix:
 
-Compliance / verification:
+- `reApproveSubmission(...)` fetches and renders the submission before any support automation
+  edits. Support automation must use a single service that applies changes, refetches the updated
+  row, generates the new PDF/snapshot, emails it, and records the automation result.
 
-- Toll-free number must be verified before production outbound.
-- SMS opt-in checkbox must be optional, unchecked by default, branded, separate from terms/email consent, and include STOP, rates, frequency, Terms, and Privacy references.
-- Telnyx toll-free verification examples include a customer-support keyword in the opt-in disclosure. If the number is not already verified, confirm with Telnyx that the shorter disclosure is acceptable.
+## System Ownership
 
-Sources verified 2026-06-16:
+One owner for each state:
 
-- https://developers.telnyx.com/docs/messaging/messages/send-message
-- https://developers.telnyx.com/docs/messaging/messages/receiving-webhooks
-- https://developers.telnyx.com/docs/messaging/messages/receive-message
-- https://support.telnyx.com/en/articles/6989758-toll-free-opt-out-words
-- https://support.telnyx.com/en/articles/10729979-toll-free-verification-request-guide
+- Phone-level SMS consent/opt-out: `SmsPhoneState`.
+- Submission-level consent provenance: `Submission.smsOptIn`, `smsOptInAt`,
+  `smsConsentVersion`, `smsPhoneE164`.
+- SMS message ledger: `SmsMessage`.
+- Support workflow state: `SmsSupportTicket`.
+- Async automation execution: `SmsSupportJob`.
+- Issued-document public verification data: `NoteVerification` snapshots.
+
+No client flow may mutate a submission and then separately trigger reapproval for automation.
+Support automation must go through one server-side service.
+
+## Product Scope
+
+MVP includes:
+
+1. `SmsSupportTicket` model.
+2. `SmsSupportJob` model for queued automation work.
+3. Admin support queue.
+4. Admin ticket detail view.
+5. Inbound `HELP` support routing.
+6. Admin-created support tickets from submission detail.
+7. Deterministic SMS state machine.
+8. Admin email alert for new/actionable tickets.
+9. Automated DOB correction.
+10. Manual admin/email path for first/last day off changes.
+11. Automated purpose correction.
+12. Audit trail and failure visibility.
+13. Agent-ready ticket actions, without autonomous AI writes in MVP.
+
+MVP excludes:
+
+- AI interpretation of freeform text.
+- Automatic diagnosis or symptom rewriting.
+- Automatic refunds.
+- Sending PDFs, note links, diagnosis, symptoms, full DOB, raw note contents, or Medical Record #
+  over SMS.
+- Customer-visible raw ticket transcript page.
+- RCS rich buttons.
 
 ## Data Model
 
-Extend `Submission`:
+Add `SmsSupportTicket`.
 
 ```prisma
-smsOptIn          Boolean   @default(false) @map("sms_opt_in")
-smsOptInAt        DateTime? @map("sms_opt_in_at")
-smsConsentVersion String?   @map("sms_consent_version")
-smsPhoneE164      String?   @map("sms_phone_e164")
-smsMessages       SmsMessage[]
-```
-
-Add phone-level SMS state:
-
-```prisma
-model SmsPhoneState {
-  phoneE164   String    @id @map("phone_e164")
-  optedOutAt  DateTime? @map("opted_out_at")
-  lastOptInAt DateTime? @map("last_opt_in_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  @@map("sms_phone_states")
-}
-```
-
-Add `SmsMessage`:
-
-```prisma
-model SmsMessage {
-  id                  String    @id @default(uuid())
-  submissionId         String?   @map("submission_id")
+model SmsSupportTicket {
+  id                  String      @id @default(uuid())
+  phoneE164            String      @map("phone_e164")
+  submissionId         String?     @map("submission_id")
   submission           Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
-  type                String
-  direction           String    // outbound | inbound
-  to                  String?   // E.164
-  from                String?   // E.164
-  body                String    @db.Text
-  providerMessageId   String?   @unique @map("provider_message_id")
-  providerStatus      String?   @map("provider_status")
-  errorCode           String?   @map("error_code")
-  errorMessage        String?   @map("error_message") @db.Text
-  sentAt              DateTime? @map("sent_at")
-  receivedAt          DateTime? @map("received_at")
-  finalizedAt         DateTime? @map("finalized_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
 
+  status               String
+  category             String?
+  state                String
+  source               String
+  automationKind       String?     @map("automation_kind")
+  automationStatus     String?     @map("automation_status")
+  collectedData        Json?       @map("collected_data")
+  adminSummary         String?     @map("admin_summary") @db.Text
+  failureReason        String?     @map("failure_reason") @db.Text
+  retryCount           Int         @default(0) @map("retry_count")
+  csrAlertedAt         DateTime?   @map("csr_alerted_at")
+  lastInboundAt        DateTime?   @map("last_inbound_at")
+  lastOutboundAt       DateTime?   @map("last_outbound_at")
+  closedAt             DateTime?   @map("closed_at")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  messages             SmsMessage[]
+  jobs                 SmsSupportJob[]
+
+  @@index([phoneE164])
   @@index([submissionId])
-  @@index([type])
-  @@index([providerStatus])
-  @@index([createdAt])
-  @@map("sms_messages")
+  @@index([status, updatedAt])
+  @@index([category])
+  @@index([automationStatus])
+  @@map("sms_support_tickets")
 }
 ```
 
-Add `TelnyxWebhookEvent` for idempotency:
+Extend `SmsMessage`.
 
 ```prisma
-model TelnyxWebhookEvent {
-  id          String   @id // Telnyx data.id
-  eventType   String   @map("event_type")
-  occurredAt  DateTime @map("occurred_at")
-  processedAt DateTime @default(now()) @map("processed_at")
+supportTicketId String?           @map("support_ticket_id")
+supportTicket   SmsSupportTicket? @relation(fields: [supportTicketId], references: [id], onDelete: SetNull)
 
-  @@map("telnyx_webhook_events")
+@@index([supportTicketId])
+```
+
+Add `SmsSupportJob`.
+
+```prisma
+model SmsSupportJob {
+  id              String            @id @default(uuid())
+  ticketId         String            @map("ticket_id")
+  ticket           SmsSupportTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  kind             String
+  status           String
+  payload          Json?
+  attempts         Int               @default(0)
+  lockedAt         DateTime?         @map("locked_at")
+  lockedBy         String?           @map("locked_by")
+  lastError        String?           @map("last_error") @db.Text
+  runAfter         DateTime          @default(now()) @map("run_after")
+  completedAt      DateTime?         @map("completed_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  @@index([status, runAfter])
+  @@index([ticketId])
+  @@map("sms_support_jobs")
 }
 ```
 
-No new bounce-correction table in phase 1. Keep the existing Resend bounce alert email and use manual admin handling.
+Recommended string values:
 
-Observability rule:
+- Ticket `status`: `OPEN`, `WAITING_FOR_CUSTOMER`, `READY_FOR_AUTOMATION`, `RUNNING_AUTOMATION`,
+  `NEEDS_CSR`, `CLOSED`
+- Ticket `category`: `NOTE_NOT_RECEIVED`, `CHANGE_NOTE`, `REFUND`, `FORM`, `OTHER`
+- Ticket `source`: `SMS_HELP`, `SUPPORT_LINK`, `ADMIN_CREATED`, `BOUNCE_ESCALATION`
+- `automationKind`: `UPDATE_DOB`, `UPDATE_PURPOSE`
+- `automationStatus`: `NOT_ELIGIBLE`, `ELIGIBLE`, `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`,
+  `BLOCKED`
+- Job `kind`: `RUN_SUPPORT_AUTOMATION`, `SEND_SUPPORT_SMS`, `SEND_CSR_ALERT`
+- Job `status`: `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`
 
-- `SmsMessage.providerMessageId` identifies the Telnyx message.
-- `TelnyxWebhookEvent.id` dedupes each Telnyx webhook event.
-- `SmsPhoneState.phoneE164` is the source of truth for STOP/START state.
-- Do not store `providerEventId` on `SmsMessage`; many webhook events can apply to one message.
-- `providerStatus`, `sentAt`, `finalizedAt`, `errorCode`, and `errorMessage` are the admin-facing send/delivery state.
+Use string values, not Prisma enums, during early iteration.
+`NEEDS_CSR`, `CSR_REVIEW`, and `SEND_CSR_ALERT` are internal compatibility names only; admin-facing
+copy should say `Needs Admin`, `admin review`, and `admin alert`.
 
-## Environment
+## State Machine Files
 
-Add to `.env.example`:
+Add:
 
-```bash
-TELNYX_API_KEY=
-TELNYX_FROM_NUMBER=
-TELNYX_PUBLIC_KEY=
-TELNYX_WEBHOOK_ENABLED=true
-```
+- `src/lib/sms-support.ts`
+- `src/lib/sms-support-types.ts`
+- `src/lib/sms-support-templates.ts`
+- `src/lib/sms-support-automation.ts`
+- `src/lib/sms-support-jobs.ts`
 
-Do not print these values in logs or tests.
-
-## Library/API Design
-
-Add `src/lib/phone-utils.ts` helpers or a new `src/lib/sms-phone.ts`:
-
-- `toE164UsPhone(phone: string): string | null`
-- Accept existing stored format `(555) 123-4567`.
-- Reject anything not exactly 10 US digits after stripping punctuation.
-
-Add `src/lib/sms-templates.ts`:
-
-- Pure functions.
-- No provider calls.
-- Unit tested for exact text and no PHI.
-- Return body strings under 160 chars where practical.
-
-Add `src/lib/telnyx.ts`:
-
-- `sendTelnyxSms(input)`
-- Uses `fetch`, no SDK required.
-- Writes `SmsMessage` before/after provider call.
-- Never throws into payment/admin workflows unless explicitly requested.
-- Returns `{ success, providerMessageId?, error? }`.
-
-Suggested signature:
+Core entrypoint:
 
 ```ts
-type SendTelnyxSmsInput = {
-  submissionId?: string
-  type: 'PURCHASE_CONFIRMATION' | 'MAYBE_UPDATE' | 'APPROVAL_SENT' | 'EMAIL_BOUNCE'
-  toPhone: string
-  body: string
-}
+handleInboundSupportSms({
+  fromPhoneE164,
+  toPhoneE164,
+  body,
+  providerMessageId,
+  occurredAt,
+})
 ```
 
-Add helper:
+Core rules:
+
+1. Telnyx webhook verifies signature and webhook idempotency first.
+2. Inbound `SmsMessage` is always logged first.
+3. STOP/START are handled before support routing.
+4. STOP/START never create or advance support tickets.
+5. `HELP` opens or resumes the latest non-closed ticket for that phone.
+6. If no active ticket exists, create one and send the intro menu.
+7. If an active ticket exists, route the reply according to ticket `state`.
+8. If multiple submissions match the phone, collect a short ref before automation.
+9. If one recent submission matches the phone, link it automatically but allow admin correction.
+10. If no submission matches, support can continue, but automation is blocked until admin/customer
+    links a submission.
+
+## SMS Menu Copy
+
+All outbound support SMS should be short, branded, and avoid PHI.
+
+Intro:
+
+```text
+OnlineDoctorNote: How can we help? Reply with a number.
+1 I did not receive my note
+2 I need to change my note
+3 Other
+Reply HELP for note changes or customer support.
+STOP to opt out.
+```
+
+Invalid menu reply:
+
+```text
+OnlineDoctorNote: Please reply with one of the listed numbers. Reply HELP to restart. STOP to opt out.
+```
+
+Automation success:
+
+```text
+OnlineDoctorNote: Your updated note was emailed. Please check inbox/spam. STOP to opt out.
+```
+
+Automation blocked:
+
+```text
+OnlineDoctorNote: Admin needs to review this before we can update your note. We will follow up soon. STOP to opt out.
+```
+
+Never include:
+
+- full DOB
+- diagnosis
+- symptoms
+- PDF links
+- verification URLs
+- Medical Record #
+- full note contents
+
+## Flow 1: Note Not Received
+
+State: `NOTE_NOT_RECEIVED_SPAM_CHECK`
+
+Send:
+
+```text
+OnlineDoctorNote: Please check your spam/junk folder. Reply 1 if you found it or 2 if you still cannot find it. STOP to opt out.
+```
+
+Customer `1`:
+
+- Send polite close.
+- Set `status='CLOSED'`.
+
+Customer `2`:
+
+- Ask for corrected email.
+- Validate email format.
+- Store `collectedData.correctedEmail`.
+- Set `status='NEEDS_CSR'`.
+- Send admin alert.
+
+No automatic email update in MVP. Email correction remains admin handled.
+
+## Flow 2: Change My Note
+
+State: `CHANGE_NOTE_MENU`
+
+Send:
+
+```text
+OnlineDoctorNote: Reply with a number.
+1 Issue/evaluation date
+2 First/last day off
+3 Date of birth
+4 Return date
+5 Add diagnosis/symptoms
+6 Change purpose to work/school/travel
+7 Name misspelled
+8 Need restrictions/accommodations
+9 Other
+Reply HELP for note changes or customer support.
+STOP to opt out.
+```
+
+### 2.1 Issue/Evaluation Date
+
+Send:
+
+```text
+OnlineDoctorNote: Unfortunately, we cannot change the date as it is based on when your request was made and the doctor's review of your chart. STOP to opt out.
+```
+
+Default:
+
+- Close unless customer replies for admin help.
+
+### 2.2 First/Last Day Off
+
+```text
+OnlineDoctorNote: First/last day off changes need admin review. Email hello@onlinedoctornote.com with the correct dates. STOP to opt out.
+```
+
+Then:
+
+- Set `category='CHANGE_DATES'`.
+- Set `status='NEEDS_CSR'`.
+- Alert admin.
+- Do not collect dates by SMS automation and do not create an automation job.
+
+### 2.3 Date Of Birth Automation
+
+State sequence:
+
+1. `CHANGE_DOB_COLLECT`
+2. `CHANGE_DOB_VALIDATE`
+3. `RUNNING_AUTOMATION`
+4. `CLOSED` or `NEEDS_CSR`
+
+Prompt:
+
+```text
+OnlineDoctorNote: Reply with the correct birthday in MM/DD/YYYY format. Example: 03/14/1990. STOP to opt out.
+```
+
+Validation:
+
+- Accept only strict `MM/DD/YYYY`.
+- Reject ISO dates, words, partial dates, and ambiguous short dates.
+- Reject future DOB.
+- Reject implausibly old DOB using the existing age/date validation boundary.
+- Require linked submission.
+- Require submission status `APPROVED`.
+- If corrected DOB changes adult/minor/guardian assumptions, set `NEEDS_CSR`.
+- Do not echo full DOB in outbound SMS.
+
+If valid:
+
+- Store corrected DOB only in `collectedData.correctedDobIso`.
+- Set `automationKind='UPDATE_DOB'`.
+- Set `automationStatus='QUEUED'`.
+- Set `status='RUNNING_AUTOMATION'`.
+- Create `SmsSupportJob(kind='RUN_SUPPORT_AUTOMATION')`.
+
+Automation result:
+
+- Update `Submission.patientDateOfBirth`.
+- Regenerate the note through the support automation service.
+- Revoke older active verifier records.
+- Email the updated PDF.
+- Send SMS success after email succeeds.
+- Mark ticket `CLOSED`.
+
+### 2.4 Return Date
+
+Send:
+
+```text
+OnlineDoctorNote: The note says the patient may return after the last day off. Reply 1 to change first/last day off or 7 for admin help. STOP to opt out.
+```
+
+Customer `1` or any return-date question routes to admin/email guidance.
+
+### 2.5 Diagnosis Or Symptoms
+
+Send:
+
+```text
+OnlineDoctorNote: Diagnosis or symptom changes require admin review. Reply 1 if you want admin to review this request. STOP to opt out.
+```
+
+Customer `1`:
+
+- Set `category='CHANGE_NOTE'`.
+- Set `status='NEEDS_CSR'`.
+- Alert admin.
+
+No automated diagnosis/symptom note generation in MVP.
+
+### 2.6 Purpose Automation
+
+State sequence:
+
+1. `CHANGE_PURPOSE_COLLECT`
+2. `CHANGE_PURPOSE_VALIDATE`
+3. `RUNNING_AUTOMATION`
+4. `CLOSED` or `NEEDS_CSR`
+
+Prompt:
+
+```text
+OnlineDoctorNote: Reply 1 for work, 2 for school, 3 for work and school, 4 for travel. STOP to opt out.
+```
+
+Map:
+
+- `1` -> `work`
+- `2` -> `school`
+- `3` -> `both`
+- `4` -> `travel`
+
+Validation:
+
+- Require linked submission.
+- Require submission status `APPROVED`.
+- Reject `legal`; legal notes are not supported.
+- For `travel`, preserve current product behavior: travel is a first-class `notePurpose` and the
+  PDF omits return-to-work style copy.
+
+If valid:
+
+- Store `collectedData.notePurpose`.
+- Set `automationKind='UPDATE_PURPOSE'`.
+- Set `automationStatus='QUEUED'`.
+- Set `status='RUNNING_AUTOMATION'`.
+- Create `SmsSupportJob(kind='RUN_SUPPORT_AUTOMATION')`.
+
+Automation result:
+
+- Update `Submission.notePurpose` and clear `otherNotePurpose`.
+- Regenerate the note through the support automation service.
+- Revoke older active verifier records.
+- Email the updated PDF.
+- Send SMS success after email succeeds.
+- Mark ticket `CLOSED`.
+
+### 2.7 Other
+
+Collect one freeform message.
+
+Then:
+
+- Store raw body in `SmsMessage`.
+- Store a short admin summary if deterministic.
+- Set `status='NEEDS_CSR'`.
+- Alert admin.
+
+## Flow 3: Refund, Form, Or Other
+
+State: `OTHER_MENU`
+
+Send:
+
+```text
+OnlineDoctorNote: Reply with a number.
+1 Need an additional form
+2 Need refund
+3 Other
+Reply HELP for note changes or customer support.
+STOP to opt out.
+```
+
+### 3.1 Additional Form
+
+Send:
+
+```text
+OnlineDoctorNote: Please email the PDF form to hello@onlinedoctornote.com. Admin will review whether it can be completed. STOP to opt out.
+```
+
+Then:
+
+- Set `status='NEEDS_CSR'`.
+- Alert admin.
+
+### 3.2 Refund
+
+Ask:
+
+```text
+OnlineDoctorNote: What is the refund reason? Reply 1 form denied, 2 did not use note, 3 other. STOP to opt out.
+```
+
+Map:
+
+- `1` -> `Refund (Denial)`
+- `2` -> `Refund (Customer)`
+- `3` -> `Refund (Customer)` plus freeform reason
+
+Then:
+
+- Set `status='NEEDS_CSR'`.
+- Alert admin.
+
+No automatic refund in MVP. Refund decisions remain admin/Stripe-controlled.
+
+### 3.3 Other Freeform
+
+Collect one freeform message.
+
+Then:
+
+- Store raw body in `SmsMessage`.
+- Set `status='NEEDS_CSR'`.
+- Alert admin.
+
+## Automation Service
+
+Add a shared service:
+
+- `src/lib/sms-support-automation.ts`
+
+Core API:
 
 ```ts
-shouldSendTransactionalSms(submission): boolean
+runSupportTicketAutomation(ticketId: string, options?: { actor: 'job' | 'admin'; actorId?: string })
 ```
 
 Rules:
 
-- `submission.smsOptIn === true`
-- no `SmsPhoneState.optedOutAt` exists for the destination phone
-- `submission.smsPhoneE164` exists, or `submission.phone` normalizes to E.164
-- `TELNYX_API_KEY` and `TELNYX_FROM_NUMBER` exist
+1. Load ticket and linked submission.
+2. Ticket must be automation-eligible.
+3. Ticket must have exactly one linked submission.
+4. Submission must be `APPROVED`.
+5. Automation data must pass server-side validation.
+6. Apply submission field updates in one server-side flow.
+7. Refetch the updated submission.
+8. Create a new verification snapshot from the updated data.
+9. Generate the updated PDF from the updated data.
+10. Revoke older active note verification records only after the new PDF/snapshot path succeeds.
+11. Email the updated PDF.
+12. Send SMS success only after email succeeds.
+13. Mark ticket `CLOSED` on success.
+14. Mark ticket `NEEDS_CSR` or `FAILED` on failure with `failureReason`.
 
-## Consent UI
+Do not call the current `updateSubmission(...)` and then `reApproveSubmission(...)` as two
+separate actions for automation. That can render the PDF from stale data or race with admin edits.
 
-Keep SMS optional and unchecked.
+Recommended internal helper:
 
-Update checkbox copy in `src/app/review/page.tsx`:
-
-```text
-By checking this box, you agree to receive transactional SMS Healthcare Alerts about your note from OnlineDoctorNote at the phone number provided. Message frequency may vary. Message and data rates may apply. STOP to opt out. View our Terms of Service and Privacy Policy. We will not share mobile information with third parties for promotional or marketing purposes.
+```ts
+regenerateApprovedSubmission({
+  submissionId,
+  updates,
+  source: 'sms_support',
+  ticketId,
+})
 ```
 
-Persist:
+This helper should own the full approved-note regeneration boundary and can later replace shared
+parts of `reApproveSubmission(...)`.
 
-- `smsOptIn=true`
-- `smsOptInAt=now`
-- `smsPhoneE164=toE164UsPhone(formData.phone)`
-- `smsConsentVersion='transactional-sms-2026-06-16'`
+## Job Execution
 
-When unchecked:
+Support automation should still use durable jobs, but production should not depend on a scheduled
+SMS cron.
 
-- `smsOptIn=false`
-- `smsOptInAt=null`
-- `smsPhoneE164=null`
-- `smsConsentVersion=null`
+Add:
 
-## Touchpoints
-
-### A. Purchase Confirmation
-
-Hook:
-
-- `src/app/api/webhooks/stripe-prod3/route.ts`
-- After permanent `Submission` is created.
-- Near existing `sendPaymentConfirmationEmail`.
-
-Send:
-
-```text
-OnlineDoctorNote: Request received. Ref #78A58D67. Watch your email soon and check spam. STOP to opt out.
-```
-
-Notes:
-
-- Use reference number from `submission.id.substring(0, 8).toUpperCase()`.
-- Do not call it Medical Record #.
-- SMS failure must not fail Stripe webhook.
-- Prefer `await sendTransactionalSms(...).catch(...)` before returning webhook response, not untracked fire-and-forget.
-
-### B. Email Bounce / Bad Email Recovery
-
-Hook:
-
-- `src/app/api/webhooks/resend/route.ts`
-- After bounced email, email type, and most recent submission are resolved.
-
-Intent:
-
-- If an email bounces, automatically text the submission phone number.
-- The text tells the customer the email bounced.
-- The customer sends the corrected email address to `hello@onlinedoctornote.com`.
-- Staff updates the submission email and resends the relevant email.
-
-Send:
-
-```text
-OnlineDoctorNote: Your email bounced. Please email your correct email address to hello@onlinedoctornote.com. STOP to opt out.
-```
+- `src/lib/sms-support-jobs.ts`
 
 Behavior:
 
-1. Send SMS if opted in.
-2. Keep current admin bounce alert email.
-3. Do not auto-update `Submission.email`.
-4. Customer emails `hello@onlinedoctornote.com` with the corrected email.
-5. Staff updates the submission and resends the relevant email manually.
+1. Telnyx webhook collects the final valid DOB/date/purpose answer.
+2. The SMS flow creates a queued job, updates the ticket to `RUNNING_AUTOMATION`, and sends the
+   customer the "working on it" SMS.
+3. If that SMS prompt is delivered, the same flow immediately claims that specific queued job.
+4. Runner sets job `status='RUNNING'`, `lockedAt`, `lockedBy`.
+5. Runner calls `runSupportTicketAutomation(...)`.
+6. Success sets job `SUCCEEDED` and ticket `CLOSED`.
+7. Failure sets job `FAILED`, ticket `NEEDS_CSR`, stores `failureReason`, and sends admin alert.
 
-Why manual first:
+The admin queue can still include "Run jobs" or "Retry" controls for manual recovery of leftover
+queued or failed jobs. There should be no Vercel cron for SMS support jobs in the MVP.
 
-- The phone number may be wrong.
-- Customer-service email gives staff a normal support trail and avoids SMS parsing.
-- The bounced email might correspond to an older submission if emails are reused.
+## Admin Portal
 
-### C. Maybe Status
+Add `/admin/support`.
 
-Hook:
+Queue tabs:
 
-- `moveSubmissionToMaybe` in `src/app/admin/actions.ts`
-- Use same gate as `shouldSendEmail`.
+- New
+- Waiting for customer
+- Running automation
+- Needs Admin review
+- Closed
 
-Send:
+Ticket row fields:
+
+- created time
+- latest activity time
+- category
+- state
+- linked submission short ref
+- patient name
+- submission status
+- automation kind/status
+- latest outbound/inbound delivery status
+- failure indicator
+
+Ticket detail sections:
+
+- ticket metadata
+- linked submission card
+- raw SMS ledger
+- collected data
+- automation validation result
+- automation/job history
+- admin actions
+- Admin notes
+
+Admin actions:
+
+- Link/unlink submission.
+- Send canned SMS reply.
+- Mark as needs admin review.
+- Mark closed.
+- Retry failed automation.
+- Run queued automation now.
+- Open a new ticket from submission detail.
+- Add internal note.
+- Future: ask an internal agent to draft a summary or recommended action.
+
+Add "Open Support Ticket" to:
+
+- `src/components/admin/SearchSubmissionDetail.tsx`
+
+Optional later:
+
+- review cards
+- maybe cards
+- approved cards
+- denied cards
+
+## Admin Email Alerts
+
+Add:
+
+- `src/emails/SmsSupportTicketAlertEmail.tsx`
+- send helper in `src/lib/email.ts`
+
+Send admin email when:
+
+- ticket is created and needs admin awareness
+- ticket enters `NEEDS_CSR`
+- automation fails permanently
+
+Email subject:
 
 ```text
-OnlineDoctorNote: Your request needs extra review. Please check your email for details. STOP to opt out.
+SMS support: {category} - Ref #{shortRef}
 ```
 
-Rules:
+Email body:
 
-- Send only when `reasonConfig.sendsEmail === true`.
-- Do not send for `INTERNAL_ONLY`.
-- If maybe email fails, still send SMS only if copy remains true. Safer default: send SMS after successful maybe email.
+- link to `/admin/support/[ticketId]`
+- category
+- short ref if linked
+- high-level reason
 
-### D. Approval / Note Sent
+Email body must not include:
 
-Hooks:
+- raw inbound SMS body
+- DOB
+- diagnosis
+- symptoms
+- full note details
+- PDF or verification links
 
-- `approveSubmission` in `src/app/admin/actions.ts`
-- `reApproveSubmission` in `src/app/admin/actions.ts`
+## Future Agent Boundary
 
-Send:
+The system should be agent-ready without letting agents mutate production state directly.
 
-```text
-OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam. STOP to opt out.
-```
+Allowed future agent actions:
 
-Rules:
+- summarize raw SMS ledger for admin
+- suggest category/state
+- draft a canned SMS reply
+- identify likely linked submission candidates
+- explain why automation is blocked
+- prepare an admin decision packet
 
-- Send after approval email succeeds.
-- If approval email fails, do not send "was sent"; optionally send a staff-only/admin warning later.
-- Do not include Medical Record # in SMS.
-- Do not link directly to the note/PDF by SMS.
+Not allowed without explicit admin approval:
 
-### Denial / Refund
+- send SMS
+- edit a submission
+- run note regeneration
+- issue refund
+- close a ticket
+- change opt-out state
 
-Not part of initial customer note, but email parity suggests adding in phase 2.
+Agent outputs should be stored as suggestions/audit records, not as source-of-truth ticket state.
 
-Phase 2 copy:
+## Compliance And Safety
 
-```text
-OnlineDoctorNote: Your request was not approved and a refund was started. Please check your email for details. STOP to opt out.
-```
+STOP/START:
 
-## Inbound Telnyx Webhook
+- STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT, and natural-language stop requests remain
+  phone-level opt-out.
+- Support automation must not send after opt-out.
+- START/UNSTOP only clears local opt-out if prior opt-in/relationship exists.
+- STOP/START are not routed into support state.
 
-Add route:
+Consent:
+
+- Existing transactional opt-in covers transactional note updates.
+- Customer-initiated `HELP` starts a support conversation.
+- Support SMS must remain customer care, not marketing.
+- Update review-page SMS consent, terms, and privacy copy before launch.
+
+Raw SMS retention:
+
+- Raw bodies may be stored in `SmsMessage.body`.
+- Raw bodies may be visible in authenticated admin ticket detail.
+- Raw bodies must not be included in admin email alerts.
+- Future retention/minimization policy should be explicit before scale.
+
+PHI minimization:
+
+- SMS may mention generic status and requested field type.
+- SMS must not include diagnosis, symptoms, note contents, PDF links, verification URLs, raw DOB
+  echo, or full Medical Record #.
+- DOB may be collected for correction, but only as structured ticket data and raw inbound SMS
+  ledger.
+- Admin portal may show collected DOB to authenticated admin.
+
+Ambiguous identity:
+
+- If multiple submissions match a phone, do not run automation until customer provides short ref or
+  admin links the ticket.
+- If phone is not linked to any submission, support can open, but automation is blocked.
+- If submitted ref does not match the phone relationship, route to admin.
+
+Provider compliance:
+
+- Confirm the toll-free verification/use case covers customer-care support and automated note
+  update messages.
+- Keep sample messages aligned with the actual SMS menus.
+- Keep opt-out language in support messages.
+- Avoid high-frequency loops and automated reply loops.
+
+## Files Likely Touched
+
+Schema/migration:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/.../migration.sql`
+
+SMS/support:
 
 - `src/app/api/webhooks/telnyx/route.ts`
+- `src/lib/telnyx.ts`
+- `src/lib/sms-support.ts`
+- `src/lib/sms-support-types.ts`
+- `src/lib/sms-support-templates.ts`
+- `src/lib/sms-support-automation.ts`
+- `src/lib/sms-support-jobs.ts`
+- `src/lib/sms-templates.ts`
 
-Process:
+Admin:
 
-1. Read raw body.
-2. Verify `telnyx-signature-ed25519` and `telnyx-timestamp`.
-3. Parse event.
-4. Insert `TelnyxWebhookEvent` by `data.id`; if duplicate, return 200.
-5. Switch on `data.event_type`.
+- `src/app/admin/support/page.tsx`
+- `src/app/admin/support/[id]/page.tsx`
+- `src/app/admin/support/actions.ts`
+- `src/components/admin/SupportTicketQueue.tsx`
+- `src/components/admin/SupportTicketDetail.tsx`
+- `src/components/admin/SearchSubmissionDetail.tsx`
 
-`message.received`:
+Future customer support link:
 
-- Store inbound `SmsMessage`.
-- Normalize inbound body.
-- If body is `STOP`: set `SmsPhoneState.optedOutAt=now`; do not send custom STOP reply for toll-free.
-- If body is other local opt-out wording: set `SmsPhoneState.optedOutAt=now`; do not send a custom confirmation in phase 1.
-- If body is `START` or `UNSTOP`: clear `SmsPhoneState.optedOutAt` only if prior opt-in exists.
-- Else store inbound only. Do not parse customer replies for workflow changes in phase 1.
+- `src/app/support/page.tsx`
+- `src/app/support/actions.ts`
+- `src/components/support/SupportTicketFlow.tsx`
 
-`message.finalized`:
+Manual recovery:
 
-- Locate `SmsMessage` by provider message id.
-- Update delivery/failure status, error code, finalized timestamp.
-- Do not retry immediately from webhook. Retry policy should be explicit/manual.
+- `src/lib/sms-support-jobs.ts`
 
-## Admin UI
+Email:
 
-Add basic SMS observability in phase 1.
+- `src/lib/email.ts`
+- `src/emails/SmsSupportTicketAlertEmail.tsx`
 
-Minimum admin visibility:
+Legal/product copy:
 
-- On submission detail/search result, show latest SMS state per touchpoint:
-  - type
-  - sent time
-  - Telnyx status
-  - finalized time
-  - failure/error text
-- On admin dashboard or search detail, include a compact "SMS log" section with all `SmsMessage` rows for the submission.
-- Use simple labels:
-  - `Not opted in`
-  - `Queued`
-  - `Sent`
-  - `Delivered`
-  - `Failed`
-  - `Opted out`
+- `src/app/review/page.tsx`
+- `src/app/privacy-policy/page.tsx`
+- `src/app/terms-of-service/page.tsx`
 
-Use current admin surfaces:
+Tests:
 
-- Existing Resend bounce alert email tells staff which submission/email bounced.
-- Staff uses existing submission edit/search flows to update email.
-- Staff uses existing resend/re-approval paths where available.
-- SMS observability is display-only in phase 1; no resend button.
+- `src/lib/__tests__/sms-support.test.ts`
+- `src/lib/__tests__/sms-support-templates.test.ts`
+- `src/lib/__tests__/sms-support-automation.test.ts`
+- `src/lib/__tests__/sms-support-jobs.test.ts`
+- `src/app/api/webhooks/telnyx/__tests__/route.test.ts`
+- `src/app/admin/support/__tests__/actions.test.ts`
+- `src/components/admin/__tests__/SupportTicketQueue.test.tsx`
+- existing admin action tests for reapproval regression coverage
 
-Failure handling:
-
-- Treat Telnyx terminal failed/undelivered state as a failed SMS delivery, not an email bounce.
-- Show failure in the SMS log.
-- Do not auto-retry from the webhook.
-- Staff can use the visible error to decide whether to call/email manually.
-
-Resend behavior:
-
-- If last bounced email type was `payment_confirmation`, resend payment confirmation.
-- If `approval`, resend approval email with existing or regenerated PDF using current approval path.
-- If `denial`, resend denial email only if refund already exists.
-- If `maybe`, resend maybe email if reason still sends email.
-
-Do not expose patient transcript/log data in public GitHub comments or issue bodies.
-
-## Message Safety Rules
-
-SMS may include:
-
-- Brand name
-- First name only if desired
-- Submission reference number
-- Generic status
-- Email/spam check instruction
-- STOP language
-
-SMS must not include:
-
-- Symptoms
-- Diagnosis
-- Date of birth
-- Full doctor's note contents
-- PDF link
-- Verification URL
-- Detailed denial reason
-- Full Medical Record # unless product/legal explicitly approves
-
-Bounce SMS:
-
-- Prefer masked bounced email.
-- Full bounced email can remain in admin email/portal.
-
-## Implementation Order
-
-1. DB migration for consent metadata, normalized SMS phone, SMS logs, and webhook idempotency.
-2. `toE164UsPhone` helper and tests.
-3. SMS template functions and tests.
-4. Telnyx send wrapper with mocked tests.
-5. Minimal Telnyx webhook for STOP/START/UNSTOP, inbound logging, and delivery receipts.
-6. Consent persistence in Stripe webhook create path.
-7. Purchase SMS touchpoint.
-8. Maybe SMS touchpoint.
-9. Approval/re-approval SMS touchpoints.
-10. Resend bounce sends email-correction SMS and keeps current admin alert.
-11. Admin SMS observability on submission detail/search.
-12. Add operational docs/env notes.
-
-Ship phase 1 only after step 11 so outbound sends are observable in the admin portal.
-
-## Tests
+## Test Plan
 
 Unit:
 
-- `toE164UsPhone`
-- SMS templates
-- opt-out parser
-- masked email helper
-- SMS status label mapper
+- HELP opens a new ticket.
+- HELP resumes an existing open ticket.
+- STOP does not open or advance support state.
+- START does not open or advance support state.
+- Intro menu routes 1/2/3 correctly.
+- Invalid menu reply gets retry message.
+- Multiple invalid replies eventually route to admin.
+- Date parsing accepts strict valid date-only input.
+- Date parsing rejects invalid, impossible, future/unsupported, and over-limit ranges.
+- DOB correction accepts strict valid input only.
+- DOB correction rejects future/implausible dates.
+- DOB correction blocks if adult/minor/guardian assumptions change.
+- Purpose mapping works for work/school/both/travel.
+- Legal purpose cannot be selected.
+- Diagnosis/symptom path always routes to admin.
 
 Route/action:
 
-- Stripe webhook creates submission and sends purchase SMS when opted in.
-- Stripe webhook does not send SMS when opted out.
-- Stripe webhook stores `smsPhoneE164` when opted in.
-- Maybe action sends SMS only when maybe email would send.
-- Approval action sends SMS only after approval email success.
-- Resend bounce sends bounce SMS when opted in.
-- Telnyx webhook rejects invalid signature.
-- Telnyx webhook dedupes by `data.id`.
-- Telnyx inbound STOP sets `SmsPhoneState.optedOutAt`.
-- Telnyx `message.finalized` updates `SmsMessage`.
-- Admin submission detail exposes SMS sent time and terminal failure state.
+- Telnyx inbound HELP creates `SmsSupportTicket` and links `SmsMessage`.
+- Telnyx duplicate event does not create duplicate ticket.
+- Telnyx webhook returns quickly after queueing automation.
+- Multiple submissions for one phone blocks automation until disambiguated.
+- Admin can create a manual support ticket from a submission.
+- Admin email alert sends once per actionable state.
+- Raw inbound body is visible in admin detail but absent from email alert.
 
-Manual production checks:
+Automation:
 
-- Toll-free number is verified in Telnyx.
-- Telnyx Messaging Profile webhook URL points to `/api/webhooks/telnyx`.
-- Resend webhook still receives bounces.
-- Test opt-in purchase sends one SMS and one email.
-- Test STOP blocks future SMS.
-- Test bounced email sends customer email-correction SMS and current admin alert still sends.
-- Confirm admin portal shows SMS sent time/status and failed Telnyx deliveries.
+- `UPDATE_DOB` updates the submission, regenerates PDF, revokes old verifier, emails PDF, sends
+  SMS success, closes ticket.
+- `UPDATE_PURPOSE` updates the submission, regenerates PDF, revokes old verifier, emails PDF,
+  sends SMS success, closes ticket.
+- Automation does not run for non-approved submissions.
+- Automation does not run without exactly one linked submission.
+- PDF failure does not mark automation succeeded.
+- Email failure leaves ticket visible and actionable.
+- Opted-out phone does not receive outbound support SMS.
+
+Validation commands:
+
+```bash
+npx prisma format --schema prisma/schema.prisma
+npx prisma validate --schema prisma/schema.prisma
+npx prisma generate --no-engine --schema prisma/schema.prisma
+npm test -- --run src/lib/__tests__/sms-support.test.ts
+npm test -- --run src/lib/__tests__/sms-support-automation.test.ts
+npm test -- --run src/app/api/webhooks/telnyx/__tests__/route.test.ts
+npm test -- --run src/app/admin/support/__tests__/actions.test.ts
+npm test -- --run
+npm run lint
+npm run format:check
+git diff --check
+```
+
+## Implementation Slices
+
+Slice 1: schema and constants
+
+1. Add `SmsSupportTicket`.
+2. Add `SmsSupportJob`.
+3. Link `SmsMessage` to support tickets.
+4. Add type constants and template tests.
+
+Slice 2: inbound HELP and ticket state
+
+1. Add `sms-support.ts`.
+2. Route Telnyx inbound non-STOP/START messages into support.
+3. Implement intro menu, note-not-received, refund/form/other paths.
+4. Add route tests.
+
+Slice 3: admin support UI
+
+1. Add `/admin/support`.
+2. Add ticket detail.
+3. Add raw SMS ledger, collected data, ticket actions.
+4. Add "Open Support Ticket" from submission detail.
+
+Slice 4: admin alerts
+
+1. Add alert email.
+2. Add alert send helper.
+3. Trigger alerts for `NEEDS_CSR` and permanent failures.
+
+Slice 5: automation foundation
+
+1. Add `sms-support-automation.ts`.
+2. Extract approved-note regeneration helper.
+3. Add job model helpers.
+4. Add immediate job execution from the completed SMS flow.
+
+Slice 6: automated changes
+
+1. Add DOB automation.
+2. Add purpose automation.
+3. Route first/last day off to admin/email guidance.
+4. Add failure handling, admin escalation, and admin retry/run-now.
+
+Slice 7: legal/provider readiness
+
+1. Update review SMS consent copy.
+2. Update terms SMS/customer-care language.
+3. Update privacy/support/SMS/automation language.
+4. Confirm Telnyx toll-free use-case/sample-message alignment.
+
+Slice 8: future agent readiness
+
+1. Add internal suggestion/audit model if needed.
+2. Let agents draft summaries/replies only.
+3. Keep all sends and mutations admin or deterministic-service controlled.
+
+Future slice: support link entrypoint
+
+1. Add `/support`.
+2. Let customer start or resume the same ticket state machine.
+3. Keep SMS as the notification/reply channel when the customer provides the consented phone.
 
 ## Open Decisions
 
-1. Should SMS include first name? Safer default: no, except purchase could say `Hi Jason` if product wants it.
-2. Should bounce SMS show full email or masked email? Safer default: masked.
-3. Should approval SMS send if approval email fails? Safer default: no.
-4. Should denial/refund SMS be phase 1? Safer default: phase 2.
-5. Should we use Telnyx SDK or raw `fetch`? Safer default: raw `fetch` to avoid dependency unless SDK signature verification is needed.
-6. If toll-free verification is not already approved, confirm with Telnyx whether the shorter support-free disclosure is acceptable.
+1. Raw SMS retention duration.
+   - Current approved direction: raw bodies may be stored.
+   - Remaining decision: keep forever or set a retention period.
+2. Retry behavior for automation jobs.
+   - Current direction: no scheduled retries; immediate failure becomes `NEEDS_CSR`, and admin can
+     retry explicitly from the ticket.
+3. How many invalid SMS replies before admin escalation.
+   - Recommendation: 2 invalid replies in the same state.
+4. Whether support SMS consent text should be updated before or in the same release as code.
+   - Recommendation: same release, before enabling the webhook path in production.
+5. Whether to add RCS later for real buttons/dropdowns.
+   - Recommendation: defer until SMS flow is stable.

@@ -199,7 +199,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
         smsOptIn: true,
       }),
       type: 'PURCHASE_CONFIRMATION',
-      body: 'OnlineDoctorNote: Request received. Ref #78A58D67. Watch your email soon and check spam. STOP to opt out.',
+      body: expect.stringMatching(/Ref #78A58D67[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
     })
   })
 

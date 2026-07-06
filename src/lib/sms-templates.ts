@@ -6,29 +6,58 @@ export type SmsMessageType =
   | 'APPROVAL_SENT'
   | 'DENIAL_SENT'
   | 'EMAIL_BOUNCE'
+  | 'INBOUND'
+  | 'SUPPORT_REPLY'
+  | 'SUPPORT_AUTOMATION_UPDATE'
+  | 'SUPPORT_CSR_ALERT'
 
 export function submissionReference(submissionId: string): string {
   return submissionId.slice(0, 8).toUpperCase()
 }
 
+const HELP_COPY = 'Reply HELP for note changes or customer support.'
+const STOP_COPY = 'STOP to opt out.'
+
+function withSmsFooter(body: string): string {
+  const hasHelpCopy = /\bHELP\b/.test(body)
+  const hasStopCopy = /STOP to opt out\./i.test(body)
+  if (hasHelpCopy && hasStopCopy) return body.trim()
+
+  const cleanBody = body.trim().replace(/\s*STOP to opt out\.\s*$/i, '')
+  const parts = [cleanBody]
+  if (!hasHelpCopy) parts.push(HELP_COPY)
+  parts.push(STOP_COPY)
+  return parts.join('\n')
+}
+
 export function purchaseConfirmationSms(submissionId: string): string {
-  return `OnlineDoctorNote: Request received. Ref #${submissionReference(
-    submissionId
-  )}. Watch your email soon and check spam. STOP to opt out.`
+  return withSmsFooter(
+    `OnlineDoctorNote: Request received. Ref #${submissionReference(
+      submissionId
+    )}. Watch email/spam.`
+  )
 }
 
 export function emailBounceSms(): string {
-  return 'OnlineDoctorNote: Your email bounced. Please email your correct email address to hello@onlinedoctornote.com. STOP to opt out.'
+  return withSmsFooter(
+    'OnlineDoctorNote: Your email bounced. Email your correct address to hello@onlinedoctornote.com.'
+  )
 }
 
 export function maybeUpdateSms(): string {
-  return 'OnlineDoctorNote: Your request needs extra review. Please check your email for details. STOP to opt out.'
+  return withSmsFooter(
+    'OnlineDoctorNote: Your request needs extra review. Please check your email for details.'
+  )
 }
 
 export function approvalSentSms(): string {
-  return "OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam. STOP to opt out."
+  return withSmsFooter(
+    "OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam."
+  )
 }
 
 export function denialSentSms(): string {
-  return 'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details. STOP to opt out.'
+  return withSmsFooter(
+    'OnlineDoctorNote: Your request was denied and refunded. Please check your email for details.'
+  )
 }

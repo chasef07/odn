@@ -6,7 +6,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { BarChart3, HeartHandshake, Search } from 'lucide-react'
+import { BarChart3, HeartHandshake, MessageSquare, Search } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { AdminStats } from '@/components/admin/AdminStats'
 import { Button } from '@/components/ui/button'
@@ -52,7 +52,14 @@ export default async function AdminDashboardPage() {
     )
   }
 
-  const { pendingCount, approvedToday, deniedToday, maybeCount, manualCount } = statsResult.data
+  const {
+    pendingCount,
+    approvedToday,
+    deniedToday,
+    maybeCount,
+    manualCount,
+    needsAdminSupportCount = 0,
+  } = statsResult.data
 
   return (
     <div>
@@ -94,6 +101,20 @@ export default async function AdminDashboardPage() {
                 <Button variant="outline" className="w-full gap-2 sm:w-auto">
                   <Search data-icon="inline-start" />
                   Search All Submissions
+                </Button>
+              </Link>
+              <Link href="/admin/support">
+                <Button variant="outline" className="relative w-full gap-2 sm:w-auto">
+                  <MessageSquare data-icon="inline-start" />
+                  SMS Support
+                  {needsAdminSupportCount > 0 && (
+                    <span
+                      aria-label={`${needsAdminSupportCount} support tickets need admin attention`}
+                      className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-semibold text-white"
+                    >
+                      {needsAdminSupportCount > 99 ? '99+' : needsAdminSupportCount}
+                    </span>
+                  )}
                 </Button>
               </Link>
             </div>
