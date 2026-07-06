@@ -372,7 +372,7 @@ STOP to opt out.
 Send:
 
 ```text
-OnlineDoctorNote: We can't change the date; it reflects your request and doctor review. We can verify if needed. STOP to opt out.
+OnlineDoctorNote: Unfortunately, we cannot change the date as it is based on when your request was made and the doctor's review of your chart. STOP to opt out.
 ```
 
 Default:

@@ -69,7 +69,7 @@ export function dateChangeManualSms(): string {
 
 export function issueDateManualSms(): string {
   return withSupportStopCopy(
-    "We can't change the date; it reflects your request and doctor review. We can verify if needed."
+    "Unfortunately, we cannot change the date as it is based on when your request was made and the doctor's review of your chart."
   )
 }
 

@@ -96,7 +96,7 @@ Admin review is required when:
 Issue/evaluation date SMS:
 
 ```text
-We can't change the date; it reflects your request and doctor review. We can verify if needed.
+Unfortunately, we cannot change the date as it is based on when your request was made and the doctor's review of your chart.
 Reply HELP for note changes or customer support.
 STOP to opt out.
 ```

@@ -60,11 +60,14 @@ describe('sms support templates', () => {
     expect(askPurposeSms()).toContain('Legal notes need admin review')
   })
 
-  it('keeps the issue-date response in one SMS segment with the required footer', () => {
+  it('uses the requested issue-date response with the required footer', () => {
     const body = issueDateManualSms()
 
-    expect(body).toContain("We can't change the date")
-    expect(body.length).toBeLessThanOrEqual(160)
+    expect(body).toContain(
+      "Unfortunately, we cannot change the date as it is based on when your request was made and the doctor's review of your chart."
+    )
+    expect(body).toContain('Reply HELP for note changes or customer support.')
+    expect(body).toContain('STOP to opt out.')
   })
 
   it('sets the right expectation for queued automation', () => {
