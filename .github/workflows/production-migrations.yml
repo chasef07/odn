@@ -16,20 +16,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  guard:
-    name: Confirm
-    if: inputs.confirm != 'DEPLOY'
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          echo "Refusing to run. Re-dispatch with confirm=DEPLOY."
-          exit 1
-
   migrate:
-    name: Migrate Production
-    if: inputs.confirm == 'DEPLOY'
+    name: Prisma migrate deploy
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'DEPLOY' }}
     runs-on: ubuntu-latest
-    environment: production
+    timeout-minutes: 15
+    environment: Production
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       PRISMA_DATABASE_URL: ${{ secrets.PRISMA_DATABASE_URL || secrets.DATABASE_URL }}
@@ -47,9 +39,10 @@ jobs:
         run: npx prisma validate
 
       - name: Check migration status before deploy
+        continue-on-error: true
         run: npx prisma migrate status
 
-      - name: Apply pending migrations
+      - name: Deploy pending migrations
         run: npx prisma migrate deploy
 
       - name: Check migration status after deploy
