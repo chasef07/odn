@@ -13,10 +13,6 @@ import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { INTERNAL_ONLY_MAYBE_REASON } from '@/lib/maybe-reasons'
 import { revalidatePath } from 'next/cache'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-02-25.clover',
-})
-
 export async function POST(request: NextRequest) {
   let event: Stripe.Event
 
