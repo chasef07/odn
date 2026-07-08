@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
+import { stripe } from '@/lib/stripe'
+import { logger } from '@/lib/logger'
 import { FormData } from '@/lib/form-storage'
 import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { getCachedPrice } from '@/lib/stripe-price'
 import { getOfferConfig, normalizeOfferCode, type PriceType } from '@/lib/offer-codes'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-02-25.clover',
-})
 
 /**
  * Attempts to cancel a Stripe payment intent with retries and exponential backoff
@@ -25,12 +23,10 @@ async function cancelPaymentIntentWithRetry(
   for (let i = 0; i < maxRetries; i++) {
     try {
       await stripe.paymentIntents.cancel(paymentIntentId)
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`Payment intent canceled successfully on attempt ${i + 1}:`, paymentIntentId)
-      }
+      logger.info(`Payment intent canceled successfully on attempt ${i + 1}:`, paymentIntentId)
       return true
     } catch (error) {
-      console.error(`Failed to cancel payment intent (attempt ${i + 1}/${maxRetries}):`, error)
+      logger.error(`Failed to cancel payment intent (attempt ${i + 1}/${maxRetries}):`, error)
 
       if (i < maxRetries - 1) {
         // Wait before retry with exponential backoff: 100ms, 200ms, 400ms
@@ -40,7 +36,7 @@ async function cancelPaymentIntentWithRetry(
   }
 
   // All retries failed
-  console.error('CRITICAL: Failed to cancel payment intent after all retries', {
+  logger.error('CRITICAL: Failed to cancel payment intent after all retries', {
     paymentIntentId,
   })
   return false
@@ -66,7 +62,7 @@ export async function POST(request: NextRequest) {
     const offerPriceId = offerConfig ? process.env[offerConfig.priceEnvVar]?.trim() : null
 
     if (offerConfig && !offerPriceId) {
-      console.error(offerConfig.missingConfigLog)
+      logger.error(offerConfig.missingConfigLog)
       return NextResponse.json({ error: offerConfig.missingConfigError }, { status: 500 })
     }
 
@@ -79,7 +75,7 @@ export async function POST(request: NextRequest) {
     try {
       price = await getCachedPrice(selectedPriceId)
     } catch (priceError) {
-      console.error('Failed to fetch Stripe price:', priceError)
+      logger.error('Failed to fetch Stripe price:', priceError)
       return NextResponse.json(
         { error: 'Unable to fetch pricing information. Please try again.' },
         { status: 500 }
@@ -88,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     // Validate price has required fields
     if (!price.unit_amount || !price.currency) {
-      console.error('Invalid price object - missing unit_amount or currency:', price)
+      logger.error('Invalid price object - missing unit_amount or currency:', price)
       return NextResponse.json(
         { error: 'Invalid pricing configuration. Please contact support.' },
         { status: 500 }
@@ -109,11 +105,9 @@ export async function POST(request: NextRequest) {
       })
       tempSubmissionId = tempSubmission.id
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info('TemporarySubmission created:', tempSubmissionId)
-      }
+      logger.info('TemporarySubmission created:', tempSubmissionId)
     } catch (dbError) {
-      console.error('Database error creating TemporarySubmission:', dbError)
+      logger.error('Database error creating TemporarySubmission:', dbError)
       return NextResponse.json(
         { error: 'Unable to process your request. Please try again.' },
         { status: 500 }
@@ -143,22 +137,18 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info('PaymentIntent created:', paymentIntent.id)
-      }
+      logger.info('PaymentIntent created:', paymentIntent.id)
     } catch (stripeError) {
-      console.error('Stripe API error:', stripeError)
+      logger.error('Stripe API error:', stripeError)
 
       // Cleanup: Delete the temporary submission we just created
       try {
         await prisma.temporarySubmission.delete({
           where: { id: tempSubmissionId },
         })
-        if (process.env.NODE_ENV === 'development') {
-          console.info('Cleaned up TemporarySubmission after Stripe error:', tempSubmissionId)
-        }
+        logger.info('Cleaned up TemporarySubmission after Stripe error:', tempSubmissionId)
       } catch (cleanupError) {
-        console.error('Failed to cleanup TemporarySubmission:', cleanupError)
+        logger.error('Failed to cleanup TemporarySubmission:', cleanupError)
       }
 
       return NextResponse.json(
@@ -177,14 +167,12 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info('TemporarySubmission updated with PaymentIntent ID:', paymentIntent.id)
-      }
+      logger.info('TemporarySubmission updated with PaymentIntent ID:', paymentIntent.id)
     } catch (updateError) {
-      console.error('Failed to update TemporarySubmission with payment intent ID:', updateError)
+      logger.error('Failed to update TemporarySubmission with payment intent ID:', updateError)
 
       // CRITICAL: We have a payment intent AND a temp submission, but they're not linked
-      console.error('CRITICAL: Payment intent created but update failed', {
+      logger.error('CRITICAL: Payment intent created but update failed', {
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmissionId,
         email: formData.email,
@@ -198,17 +186,15 @@ export async function POST(request: NextRequest) {
         await prisma.temporarySubmission.delete({
           where: { id: tempSubmissionId },
         })
-        if (process.env.NODE_ENV === 'development') {
-          console.info('Cleaned up TemporarySubmission after update failure:', tempSubmissionId)
-        }
+        logger.info('Cleaned up TemporarySubmission after update failure:', tempSubmissionId)
       } catch (cleanupError) {
-        console.error('Failed to cleanup TemporarySubmission after update failure:', cleanupError)
+        logger.error('Failed to cleanup TemporarySubmission after update failure:', cleanupError)
       }
 
       if (!cancelSucceeded) {
         // Payment intent exists but couldn't be canceled - webhook might still process it
         // The metadata.temporarySubmissionId will allow webhook to find the temp submission
-        console.error(
+        logger.error(
           'CRITICAL: PaymentIntent may still be active, webhook can use metadata fallback'
         )
       }
@@ -230,7 +216,7 @@ export async function POST(request: NextRequest) {
       offerCode: offerConfig?.code ?? null,
     })
   } catch (error) {
-    console.error('Unexpected error in create-payment-intent:', error)
+    logger.error('Unexpected error in create-payment-intent:', error)
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' },
       { status: 500 }

@@ -10,12 +10,11 @@ import { FormCard } from '@/components/form/FormCard'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
+import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { page3Schema } from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
 import { PHONE_VALIDATION } from '@/lib/validation-constants'
 import { useState } from 'react'
-
-// Step number will be dynamic based on recipient
 
 type FormData = {
   email: string
@@ -47,15 +46,14 @@ export default function ContactInfoPage() {
     setValue('phone', formatted)
   }
 
+  const currentStep = getStepNumber('/contact-info', recipient)
+  const backRoute = getBackRoute('/contact-info', recipient)!
+
   const onSubmit = (data: FormData) => {
     saveFormData(data)
 
-    router.push('/note-purpose')
+    router.push(getNextRoute('/contact-info', recipient)!)
   }
-
-  // Dynamic back route and step based on recipient
-  const backRoute = recipient === 'someone_else' ? '/guardian-info' : '/basic-info'
-  const currentStep = recipient === 'someone_else' ? 5 : 4
 
   return (
     <FormLayout

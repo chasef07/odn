@@ -18,10 +18,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { saveFormData, getFormData } from '@/lib/form-storage'
+import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { LEGAL_NOTE_PURPOSE_ERROR, page5Schema } from '@/lib/validation-schemas'
 import { NOTE_PURPOSES } from '@/lib/form-constants'
-
-// Step number will be dynamic based on recipient
 
 const NOTE_PURPOSE_OPTIONS = [
   {
@@ -62,7 +61,7 @@ export default function NotePurposePage() {
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
   const patientFirstName = savedData.patientFirstName || ''
-  const currentStep = recipient === 'someone_else' ? 6 : 5
+  const currentStep = getStepNumber('/note-purpose', recipient)
   const [showLegalMatterDialog, setShowLegalMatterDialog] = useState(
     savedData.notePurpose === 'legal'
   )
@@ -114,7 +113,7 @@ export default function NotePurposePage() {
 
     saveFormData(data)
 
-    router.push('/absence-dates')
+    router.push(getNextRoute('/note-purpose', recipient)!)
   }
 
   const title = patientFirstName
@@ -154,7 +153,10 @@ export default function NotePurposePage() {
           </div>
         )}
 
-        <FormNavigation backRoute="/contact-info" isSubmitting={isSubmitting} />
+        <FormNavigation
+          backRoute={getBackRoute('/note-purpose', recipient)!}
+          isSubmitting={isSubmitting}
+        />
       </form>
 
       <Dialog open={showLegalMatterDialog} onOpenChange={handleLegalMatterDialogChange}>

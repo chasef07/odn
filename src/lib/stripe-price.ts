@@ -1,9 +1,5 @@
 import { unstable_cache } from 'next/cache'
-import Stripe from 'stripe'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-02-25.clover',
-})
+import { stripe } from '@/lib/stripe'
 
 export const getCachedPrice = unstable_cache(
   async (priceId: string) => {

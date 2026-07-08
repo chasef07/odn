@@ -9,10 +9,9 @@ import { FormCard } from '@/components/form/FormCard'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
+import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { page6Schema } from '@/lib/validation-schemas'
 import { validateAbsenceDates } from '@/lib/date-validators'
-
-// Step number will be dynamic based on recipient
 
 type FormData = {
   firstDayOff: string
@@ -25,7 +24,7 @@ export default function AbsenceDatesPage() {
   const today = format(new Date(), 'yyyy-MM-dd')
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
-  const currentStep = recipient === 'someone_else' ? 7 : 6
+  const currentStep = getStepNumber('/absence-dates', recipient)
 
   const {
     register,
@@ -62,7 +61,7 @@ export default function AbsenceDatesPage() {
 
     saveFormData(data)
 
-    router.push('/absence-reason')
+    router.push(getNextRoute('/absence-dates', recipient)!)
   }
 
   return (
@@ -95,7 +94,10 @@ export default function AbsenceDatesPage() {
           </div>
         </FormCard>
 
-        <FormNavigation backRoute="/note-purpose" isSubmitting={isSubmitting} />
+        <FormNavigation
+          backRoute={getBackRoute('/absence-dates', recipient)!}
+          isSubmitting={isSubmitting}
+        />
       </form>
     </FormLayout>
   )

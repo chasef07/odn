@@ -15,6 +15,7 @@ import { FormEditableSection } from '@/components/form/FormEditableSection'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { getFormData, saveFormData } from '@/lib/form-storage'
+import { getBackRoute, getStepNumber } from '@/lib/form-steps'
 import {
   page2Schema,
   guardianSchema,
@@ -26,8 +27,6 @@ import { formatPhoneNumber } from '@/lib/phone-utils'
 import { validateAbsenceDates } from '@/lib/date-validators'
 import { isAgeValid } from '@/lib/age-validators'
 import { UI_TIMING } from '@/lib/validation-constants'
-
-// Step number will be dynamic based on recipient
 
 type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 
@@ -60,7 +59,7 @@ export default function ReviewPage() {
   const router = useRouter()
   const [formData, setFormData] = useState(getFormData())
   const recipient = formData.recipient || 'myself'
-  const currentStep = recipient === 'someone_else' ? 11 : 10
+  const currentStep = getStepNumber('/review', recipient)
   const [editingSection, setEditingSection] = useState<EditSection>(null)
   const [phoneDisplay, setPhoneDisplay] = useState(formData.phone || '')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -612,7 +611,7 @@ export default function ReviewPage() {
         </div>
 
         <FormNavigation
-          backRoute="/additional-info"
+          backRoute={getBackRoute('/review', recipient)!}
           submitText="Continue to Payment"
           isSubmitting={isSubmitting}
         />
