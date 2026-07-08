@@ -8,10 +8,9 @@ import { FormRadioGroup } from '@/components/form/FormRadioGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { Input } from '@/components/ui/input'
 import { saveFormData, getFormData } from '@/lib/form-storage'
+import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { page7Schema } from '@/lib/validation-schemas'
 import { ABSENCE_REASONS } from '@/lib/form-constants'
-
-// Step number will be dynamic based on recipient
 
 type FormData = {
   absenceReason: string | null
@@ -23,7 +22,7 @@ export default function AbsenceReasonPage() {
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
   const patientFirstName = savedData.patientFirstName || ''
-  const currentStep = recipient === 'someone_else' ? 8 : 7
+  const currentStep = getStepNumber('/absence-reason', recipient)
 
   const {
     register,
@@ -49,11 +48,11 @@ export default function AbsenceReasonPage() {
       saveFormData(data)
     }
 
-    // Skip symptoms page for Doctor's appointment and Other
+    // Skip symptoms page for Doctor's appointment and Other (go to the step after symptoms)
     if (data.absenceReason === "Doctor's appointment" || data.absenceReason === 'Other') {
-      router.push('/additional-info')
+      router.push(getNextRoute('/symptoms', recipient)!)
     } else {
-      router.push('/symptoms')
+      router.push(getNextRoute('/absence-reason', recipient)!)
     }
   }
 
@@ -95,7 +94,10 @@ export default function AbsenceReasonPage() {
           </div>
         )}
 
-        <FormNavigation backRoute="/absence-dates" isSubmitting={isSubmitting} />
+        <FormNavigation
+          backRoute={getBackRoute('/absence-reason', recipient)!}
+          isSubmitting={isSubmitting}
+        />
       </form>
     </FormLayout>
   )

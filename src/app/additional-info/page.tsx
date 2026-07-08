@@ -7,9 +7,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { FormLayout } from '@/components/form-layout'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
+import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { page9Schema } from '@/lib/validation-schemas'
-
-// Step number will be dynamic based on recipient
 
 type FormData = {
   additionalInformation?: string
@@ -19,14 +18,14 @@ export default function AdditionalInfoPage() {
   const router = useRouter()
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
-  const currentStep = recipient === 'someone_else' ? 10 : 9
+  const currentStep = getStepNumber('/additional-info', recipient)
   const absenceReason = savedData.absenceReason || ''
 
   // Dynamic back route: skip symptoms page for Doctor's appointment and Other
   const backRoute =
     absenceReason === "Doctor's appointment" || absenceReason === 'Other'
-      ? '/absence-reason'
-      : '/symptoms'
+      ? getBackRoute('/symptoms', recipient)!
+      : getBackRoute('/additional-info', recipient)!
 
   const {
     register,
@@ -42,7 +41,7 @@ export default function AdditionalInfoPage() {
   const onSubmit = (data: FormData) => {
     saveFormData(data)
 
-    router.push('/review')
+    router.push(getNextRoute('/additional-info', recipient)!)
   }
 
   const isAppointment = absenceReason === "Doctor's appointment"

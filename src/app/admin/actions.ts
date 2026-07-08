@@ -12,6 +12,8 @@ import { revalidatePath } from 'next/cache'
 import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
 import prisma from '@/lib/prisma'
 import Stripe from 'stripe'
+import { stripe } from '@/lib/stripe'
+import { logger } from '@/lib/logger'
 import { sendDenialEmail, sendApprovalEmail, sendMaybeEmail } from '@/lib/email'
 import { approvalSentSms, denialSentSms, maybeUpdateSms } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
@@ -80,11 +82,6 @@ export type FormattedSmsMessage = {
   createdAt: Date | null
 }
 
-// Initialize Stripe client
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-02-25.clover',
-})
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const DASHBOARD_COUNT_LIMIT = 1000
 const DASHBOARD_TODAY_LIST_LIMIT = 250
@@ -122,7 +119,7 @@ async function getLimitedSubmissionCount(where: Prisma.SubmissionWhereInput): Pr
 
     return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
   } catch (error) {
-    console.error('Error fetching limited dashboard count:', error)
+    logger.error('Error fetching limited dashboard count:', error)
     return 0
   }
 }
@@ -139,7 +136,7 @@ async function getLimitedSupportTicketCount(
 
     return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
   } catch (error) {
-    console.error('Error fetching limited support ticket count:', error)
+    logger.error('Error fetching limited support ticket count:', error)
     return 0
   }
 }
@@ -172,7 +169,7 @@ export async function getSubmissionsForReview() {
 
     return { success: true, data: submissions }
   } catch (error) {
-    console.error('Error fetching submissions:', error)
+    logger.error('Error fetching submissions:', error)
     return { success: false, error: 'Failed to fetch submissions' }
   }
 }
@@ -230,7 +227,7 @@ export async function getDashboardStats() {
       },
     }
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error)
+    logger.error('Error fetching dashboard stats:', error)
     return { success: false, error: 'Failed to fetch dashboard stats' }
   }
 }
@@ -304,7 +301,7 @@ export async function getFriendsFamilyAnalytics(
 
     return { success: true, data: buildFriendsFamilyAnalytics(submissions, referenceDate, options) }
   } catch (error) {
-    console.error('Error fetching friends and family analytics:', error)
+    logger.error('Error fetching friends and family analytics:', error)
     return { success: false, error: 'Failed to fetch friends and family analytics' }
   }
 }
@@ -330,7 +327,7 @@ export async function exportFriendsFamilyCustomers(options: {
     })
     return { success: true, data: result.customers }
   } catch (error) {
-    console.error('Error exporting friends and family customers:', error)
+    logger.error('Error exporting friends and family customers:', error)
     return { success: false, error: 'Failed to export customer list' }
   }
 }
@@ -449,7 +446,7 @@ export async function getFriendsFamilyCustomerDetail(customerKey: string): Promi
 
     return { success: true, data: customer }
   } catch (error) {
-    console.error('Error fetching friends and family customer detail:', error)
+    logger.error('Error fetching friends and family customer detail:', error)
     return { success: false, error: 'Failed to fetch customer detail' }
   }
 }
@@ -522,7 +519,7 @@ export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {
       }),
     }
   } catch (error) {
-    console.error('Error fetching business analytics:', error)
+    logger.error('Error fetching business analytics:', error)
     return { success: false, error: 'Failed to fetch business analytics' }
   }
 }
@@ -555,7 +552,7 @@ export async function getApprovedSubmissionsForToday() {
 
     return { success: true, data: submissions }
   } catch (error) {
-    console.error('Error fetching approved submissions:', error)
+    logger.error('Error fetching approved submissions:', error)
     return { success: false, error: 'Failed to fetch approved submissions' }
   }
 }
@@ -588,7 +585,7 @@ export async function getDeniedSubmissionsForToday() {
 
     return { success: true, data: submissions }
   } catch (error) {
-    console.error('Error fetching denied submissions:', error)
+    logger.error('Error fetching denied submissions:', error)
     return { success: false, error: 'Failed to fetch denied submissions' }
   }
 }
@@ -621,7 +618,7 @@ export async function getMonthlyLimitData(
 
     return { success: true, data: result }
   } catch (error) {
-    console.error('Error getting monthly limit data:', error)
+    logger.error('Error getting monthly limit data:', error)
     return { success: false, error: 'Failed to calculate monthly limit' }
   }
 }
@@ -685,7 +682,7 @@ export async function removeGuardianFromAdultSubmission(submissionId: string) {
 
     return { success: true }
   } catch (error) {
-    console.error('Error removing guardian mode:', error)
+    logger.error('Error removing guardian mode:', error)
     return { success: false, error: 'Failed to remove guardian mode' }
   }
 }
@@ -771,7 +768,7 @@ export async function getPatientHistory(
 
     return { success: true, data: formatted }
   } catch (error) {
-    console.error('Error fetching patient history:', error)
+    logger.error('Error fetching patient history:', error)
     return { success: false, error: 'Failed to fetch patient history' }
   }
 }
@@ -838,9 +835,7 @@ export async function approveSubmission(
       revalidatePath('/admin/review')
       revalidatePath('/admin/maybe')
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`Manual approval completed for submission ${submissionId}`)
-      }
+      logger.info(`Manual approval completed for submission ${submissionId}`)
 
       return { success: true }
     }
@@ -862,13 +857,11 @@ export async function approveSubmission(
       })
       pdfFilename = generatePDFFilename(submission.id)
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`PDF generated: ${pdfFilename} for submission ${submissionId}`)
-      }
+      logger.info(`PDF generated: ${pdfFilename} for submission ${submissionId}`)
     } catch (pdfError) {
       await revokeNoteVerificationById(noteVerification.id)
       // PDF generation failed - DO NOT approve submission
-      console.error('PDF generation failed:', pdfError)
+      logger.error('PDF generation failed:', pdfError)
       return {
         success: false,
         error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`,
@@ -930,12 +923,10 @@ export async function approveSubmission(
         body: approvalSentSms(),
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`Approval email sent to ${submission.email} for submission ${submissionId}`)
-      }
+      logger.info(`Approval email sent to ${submission.email} for submission ${submissionId}`)
     } catch (emailError) {
       // Email failed but PDF generated successfully and the verifier exists.
-      console.error('Failed to send approval email:', emailError)
+      logger.error('Failed to send approval email:', emailError)
       emailWarning = 'Submission approved, but email notification failed to send'
     }
 
@@ -951,7 +942,7 @@ export async function approveSubmission(
 
     return { success: true }
   } catch (error) {
-    console.error('Error approving submission:', error)
+    logger.error('Error approving submission:', error)
     return {
       success: false,
       error: `Failed to approve submission: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -1027,9 +1018,7 @@ export async function denySubmission(submissionId: string, reason: string) {
       revalidatePath('/admin/maybe')
       revalidatePath('/admin/denied')
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`Manual denial completed for submission ${submissionId}`)
-      }
+      logger.info(`Manual denial completed for submission ${submissionId}`)
 
       return { success: true }
     }
@@ -1101,12 +1090,10 @@ export async function denySubmission(submissionId: string, reason: string) {
         }
       )
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`Refund processed: ${refund.id} for submission ${submissionId}`)
-      }
+      logger.info(`Refund processed: ${refund.id} for submission ${submissionId}`)
     } catch (stripeError) {
       // CRITICAL: Refund failed - rollback database status
-      console.error('Stripe refund failed:', stripeError)
+      logger.error('Stripe refund failed:', stripeError)
 
       await prisma.submission.update({
         where: { id: submissionId },
@@ -1156,12 +1143,10 @@ export async function denySubmission(submissionId: string, reason: string) {
         body: denialSentSms(),
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`Denial email sent to ${submission.email} for submission ${submissionId}`)
-      }
+      logger.info(`Denial email sent to ${submission.email} for submission ${submissionId}`)
     } catch (emailError) {
       // Email failed but refund succeeded - log error but continue
-      console.error('Failed to send denial email:', emailError)
+      logger.error('Failed to send denial email:', emailError)
       emailWarning = 'Submission denied and refunded, but email notification failed to send'
     }
 
@@ -1188,7 +1173,7 @@ export async function denySubmission(submissionId: string, reason: string) {
 
     return { success: true }
   } catch (error) {
-    console.error('Error denying submission:', error)
+    logger.error('Error denying submission:', error)
     return {
       success: false,
       error: `Failed to deny submission: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -1213,7 +1198,7 @@ export async function maybeSubmission(submissionId: string, input: MaybeSubmissi
       revalidatePaths: ['/admin', '/admin/review', '/admin/maybe'],
     })
   } catch (error) {
-    console.error('Error marking submission as maybe:', error)
+    logger.error('Error marking submission as maybe:', error)
     return { success: false, error: 'Failed to mark submission as maybe' }
   }
 }
@@ -1319,7 +1304,7 @@ async function moveSubmissionToMaybe({
         body: maybeUpdateSms(),
       })
     } catch (emailError) {
-      console.error('Failed to send maybe email:', emailError)
+      logger.error('Failed to send maybe email:', emailError)
       emailWarning = 'Submission moved to Maybe, but email notification failed to send'
     }
   }
@@ -1373,7 +1358,7 @@ export async function markAsManual(submissionId: string) {
 
     return { success: true }
   } catch (error) {
-    console.error('Error marking submission as manual:', error)
+    logger.error('Error marking submission as manual:', error)
     return { success: false, error: 'Failed to mark submission as manual' }
   }
 }
@@ -1433,7 +1418,7 @@ export async function getMaybeSubmissions() {
 
     return { success: true, submissions: formattedSubmissions }
   } catch (error) {
-    console.error('Error fetching maybe submissions:', error)
+    logger.error('Error fetching maybe submissions:', error)
     return { success: false, error: 'Failed to fetch maybe submissions', submissions: [] }
   }
 }
@@ -1477,7 +1462,7 @@ export async function getManualSubmissions() {
 
     return { success: true, submissions: formattedSubmissions }
   } catch (error) {
-    console.error('Error fetching manual submissions:', error)
+    logger.error('Error fetching manual submissions:', error)
     return { success: false, error: 'Failed to fetch manual submissions', submissions: [] }
   }
 }
@@ -1639,7 +1624,7 @@ export async function searchSubmissions({
 
     return { success: true, submissions: formattedSubmissions, total }
   } catch (error) {
-    console.error('Error searching submissions:', error)
+    logger.error('Error searching submissions:', error)
     return { success: false, error: 'Failed to search submissions' }
   }
 }
@@ -1728,7 +1713,7 @@ export async function getSubmissionById(
       submission: formattedSubmission,
     }
   } catch (error) {
-    console.error('Error fetching submission:', error)
+    logger.error('Error fetching submission:', error)
     return { success: false, error: 'Failed to fetch submission' }
   }
 }
@@ -1823,7 +1808,7 @@ export async function updateSubmission(
 
     return { success: true }
   } catch (error) {
-    console.error('Error updating submission:', error)
+    logger.error('Error updating submission:', error)
     return { success: false, error: 'Failed to update submission' }
   }
 }
@@ -1866,7 +1851,7 @@ export async function updateReviewClassification(
 
     return { success: true }
   } catch (error) {
-    console.error('Error updating review classification:', error)
+    logger.error('Error updating review classification:', error)
     return { success: false, error: 'Failed to update classification' }
   }
 }
@@ -1914,12 +1899,10 @@ export async function reApproveSubmission(
       })
       pdfFilename = generatePDFFilename(submission.id)
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`Re-approval: PDF generated: ${pdfFilename} for submission ${submissionId}`)
-      }
+      logger.info(`Re-approval: PDF generated: ${pdfFilename} for submission ${submissionId}`)
     } catch (pdfError) {
       await revokeNoteVerificationById(noteVerification.id)
-      console.error('Re-approval PDF generation failed:', pdfError)
+      logger.error('Re-approval PDF generation failed:', pdfError)
       return {
         success: false,
         error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`,
@@ -1980,11 +1963,9 @@ export async function reApproveSubmission(
         body: approvalSentSms(),
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info(`Re-approval email sent to ${submission.email} for submission ${submissionId}`)
-      }
+      logger.info(`Re-approval email sent to ${submission.email} for submission ${submissionId}`)
     } catch (emailError) {
-      console.error('Re-approval email failed:', emailError)
+      logger.error('Re-approval email failed:', emailError)
       emailWarning = 'Re-approval processed, but email notification failed to send'
     }
 
@@ -2000,7 +1981,7 @@ export async function reApproveSubmission(
 
     return { success: true }
   } catch (error) {
-    console.error('Error re-approving submission:', error)
+    logger.error('Error re-approving submission:', error)
     return {
       success: false,
       error: `Failed to re-approve submission: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -2130,7 +2111,7 @@ export async function changeSubmissionStatus(
             { idempotencyKey }
           )
         } catch (stripeError) {
-          console.error('Refund failed during status change:', stripeError)
+          logger.error('Refund failed during status change:', stripeError)
           return {
             success: false,
             error: `Failed to process refund: ${stripeError instanceof Error ? stripeError.message : 'Unknown error'}`,
@@ -2244,7 +2225,7 @@ export async function changeSubmissionStatus(
         return { success: false, error: `Unknown status: ${newStatus}` }
     }
   } catch (error) {
-    console.error('Error changing submission status:', error)
+    logger.error('Error changing submission status:', error)
     return {
       success: false,
       error: `Failed to change status: ${error instanceof Error ? error.message : 'Unknown error'}`,

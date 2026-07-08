@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
+import { stripe } from '@/lib/stripe'
+import { logger } from '@/lib/logger'
 import { FormData } from '@/lib/form-storage'
 import { sendPaymentConfirmationEmail } from '@/lib/email'
 import { purchaseConfirmationSms, SMS_CONSENT_VERSION } from '@/lib/sms-templates'
@@ -24,26 +26,24 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('stripe-signature')
 
     if (!signature) {
-      console.error('Missing Stripe signature header')
+      logger.error('Missing Stripe signature header')
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
     }
 
     try {
       event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
     } catch (signatureError) {
-      console.error('Webhook signature verification failed:', signatureError)
+      logger.error('Webhook signature verification failed:', signatureError)
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
     // 2. EARLY EXIT - Only process payment_intent.succeeded events (ignore all others)
     // This prevents abandoned checkouts, failed payments, and legacy events from causing errors
     if (event.type !== 'payment_intent.succeeded') {
-      if (process.env.NODE_ENV === 'development') {
-        console.info('Ignoring non-succeeded event:', {
-          eventId: event.id,
-          eventType: event.type,
-        })
-      }
+      logger.info('Ignoring non-succeeded event:', {
+        eventId: event.id,
+        eventType: event.type,
+      })
       // Return 200 OK to acknowledge receipt and stop Stripe from retrying
       return NextResponse.json({ received: true }, { status: 200 })
     }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     if (eventAge > MAX_EVENT_AGE) {
       if (existingSubmission) {
         // Already processed - safe to reject this duplicate/legacy retry
-        console.warn('Rejecting stale event (already processed):', {
+        logger.warn('Rejecting stale event (already processed):', {
           eventId: event.id,
           paymentIntentId: paymentIntent.id,
           submissionId: existingSubmission.id,
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       // - Abandoned checkout (user returned days later)
       // - Webhook retry after first attempt failed
       // Allow processing to continue
-      console.warn('Allowing stale event (never processed):', {
+      logger.warn('Allowing stale event (never processed):', {
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         ageMinutes: Math.floor(eventAge / 60000),
@@ -92,25 +92,21 @@ export async function POST(request: NextRequest) {
 
     // 6. Idempotency check for recent events (reuse existingSubmission from above)
     if (existingSubmission) {
-      if (process.env.NODE_ENV === 'development') {
-        console.info('Submission already processed (idempotent):', {
-          eventId: event.id,
-          paymentIntentId: paymentIntent.id,
-          submissionId: existingSubmission.id,
-        })
-      }
+      logger.info('Submission already processed (idempotent):', {
+        eventId: event.id,
+        paymentIntentId: paymentIntent.id,
+        submissionId: existingSubmission.id,
+      })
       return NextResponse.json({ received: true })
     }
 
     // 7. Log event for debugging and audit trail (Stripe best practice)
-    if (process.env.NODE_ENV === 'development') {
-      console.info('Webhook event received:', {
-        eventId: event.id,
-        eventType: event.type,
-        paymentIntentId: paymentIntent.id,
-        created: new Date(event.created * 1000).toISOString(),
-      })
-    }
+    logger.info('Webhook event received:', {
+      eventId: event.id,
+      eventType: event.type,
+      paymentIntentId: paymentIntent.id,
+      created: new Date(event.created * 1000).toISOString(),
+    })
 
     // 7. Retrieve form data from TemporarySubmission
     // Primary lookup by paymentIntentId
@@ -121,18 +117,14 @@ export async function POST(request: NextRequest) {
     // 7a. Fallback: If not found by paymentIntentId, try metadata.temporarySubmissionId
     // This handles race conditions where webhook fires during the update step
     if (!tempSubmission && paymentIntent.metadata?.temporarySubmissionId) {
-      if (process.env.NODE_ENV === 'development') {
-        console.info('Primary lookup failed, attempting fallback by metadata.temporarySubmissionId')
-      }
+      logger.info('Primary lookup failed, attempting fallback by metadata.temporarySubmissionId')
 
       const tempSubmissionById = await prisma.temporarySubmission.findUnique({
         where: { id: paymentIntent.metadata.temporarySubmissionId },
       })
 
       if (tempSubmissionById) {
-        if (process.env.NODE_ENV === 'development') {
-          console.info('FALLBACK SUCCESS: Found TemporarySubmission by metadata ID')
-        }
+        logger.info('FALLBACK SUCCESS: Found TemporarySubmission by metadata ID')
 
         // Update with correct payment intent ID to link them properly
         tempSubmission = await prisma.temporarySubmission.update({
@@ -140,20 +132,15 @@ export async function POST(request: NextRequest) {
           data: { paymentIntentId: paymentIntent.id },
         })
 
-        if (process.env.NODE_ENV === 'development') {
-          console.info(
-            'TemporarySubmission updated with correct paymentIntentId:',
-            paymentIntent.id
-          )
-        }
+        logger.info('TemporarySubmission updated with correct paymentIntentId:', paymentIntent.id)
       }
     }
 
     // 7b. If still not found after fallback, return 500 for Stripe to retry
     // This is a genuine error - no recovery submission created
     if (!tempSubmission) {
-      console.error('TemporarySubmission not found for payment:', paymentIntent.id)
-      console.error('CRITICAL: Payment succeeded but TemporarySubmission missing', {
+      logger.error('TemporarySubmission not found for payment:', paymentIntent.id)
+      logger.error('CRITICAL: Payment succeeded but TemporarySubmission missing', {
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         amount: paymentIntent.amount,
@@ -185,7 +172,7 @@ export async function POST(request: NextRequest) {
     const hasValidationFailure = validationReasons.length > 0
 
     if (!validation.canPersistSubmission) {
-      console.error('PAID SUBMISSION CANNOT BE PERSISTED - leaving webhook retryable', {
+      logger.error('PAID SUBMISSION CANNOT BE PERSISTED - leaving webhook retryable', {
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmission.id,
@@ -202,7 +189,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (hasValidationFailure) {
-      console.error('PAID SUBMISSION FAILED SERVER-SIDE VALIDATION - routing to MAYBE queue', {
+      logger.error('PAID SUBMISSION FAILED SERVER-SIDE VALIDATION - routing to MAYBE queue', {
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmission.id,
@@ -263,13 +250,11 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.info('Submission created successfully:', {
-          eventId: event.id,
-          submissionId: submission.id,
-          paymentIntentId: paymentIntent.id,
-        })
-      }
+      logger.info('Submission created successfully:', {
+        eventId: event.id,
+        submissionId: submission.id,
+        paymentIntentId: paymentIntent.id,
+      })
 
       // 9a. Revalidate admin dashboard cache (immediate update)
       revalidatePath('/admin')
@@ -285,13 +270,11 @@ export async function POST(request: NextRequest) {
         submissionId: submission.id,
       })
         .then(() => {
-          if (process.env.NODE_ENV === 'development') {
-            console.info('Payment confirmation email sent:', submission.email)
-          }
+          logger.info('Payment confirmation email sent:', submission.email)
         })
         .catch((emailError) => {
           // NON-BLOCKING: Log warning but don't fail webhook
-          console.warn('Failed to send payment confirmation email (non-critical):', emailError)
+          logger.warn('Failed to send payment confirmation email (non-critical):', emailError)
         })
 
       if (submission.smsOptIn) {
@@ -300,7 +283,7 @@ export async function POST(request: NextRequest) {
           type: 'PURCHASE_CONFIRMATION',
           body: purchaseConfirmationSms(submission.id),
         }).catch((smsError) => {
-          console.warn('Failed to send transactional SMS (non-critical):', {
+          logger.warn('Failed to send transactional SMS (non-critical):', {
             submissionId: submission.id,
             type: 'PURCHASE_CONFIRMATION',
             error: smsError instanceof Error ? smsError.message : 'Unknown SMS error',
@@ -308,11 +291,11 @@ export async function POST(request: NextRequest) {
         })
       }
     } catch (submissionError) {
-      console.error('Failed to create Submission:', submissionError)
+      logger.error('Failed to create Submission:', submissionError)
 
       // CRITICAL: Payment succeeded but Submission creation failed
       // TemporarySubmission still exists, can be recovered
-      console.error('CRITICAL: Submission creation failed', {
+      logger.error('CRITICAL: Submission creation failed', {
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmission.id,
@@ -327,19 +310,17 @@ export async function POST(request: NextRequest) {
       await prisma.temporarySubmission.delete({
         where: { id: tempSubmission.id },
       })
-      if (process.env.NODE_ENV === 'development') {
-        console.info('TemporarySubmission deleted:', tempSubmission.id)
-      }
+      logger.info('TemporarySubmission deleted:', tempSubmission.id)
     } catch (deleteError) {
       // Non-critical - Submission was created successfully
       // TemporarySubmission will be cleaned up by scheduled job
-      console.warn('Failed to delete TemporarySubmission (non-critical):', deleteError)
+      logger.warn('Failed to delete TemporarySubmission (non-critical):', deleteError)
     }
 
     // 11. Return success
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Unexpected webhook error:', error)
+    logger.error('Unexpected webhook error:', error)
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
   }
 }
