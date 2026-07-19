@@ -4,8 +4,8 @@ import { ShieldCheck } from 'lucide-react'
 import { VerificationLookupForm } from './VerificationLookupForm'
 
 export const metadata: Metadata = {
-  title: "Doctor's Note Verification | Platinum Health",
-  description: 'Verify a Platinum Health medical note by Medical Record #.',
+  title: "Doctor's Note Verification | Platinum Health Clinic",
+  description: 'Verify a Platinum Health Clinic medical note by Medical Record #.',
   robots: {
     index: false,
     follow: false,

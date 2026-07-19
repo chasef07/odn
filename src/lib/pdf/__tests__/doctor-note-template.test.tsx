@@ -373,6 +373,21 @@ describe('getConditionPhrase()', () => {
 })
 
 describe('DoctorNoteTemplate - verification block', () => {
+  it('uses the canonical clinic name and contact email', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={baseSubmissionData}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    const text = extractText(tree)
+
+    expect(text).toContain('Platinum Health Clinic')
+    expect(text).toContain('hello@platinumhealthclinic.com')
+    expect(hasLinkWithSrc(tree, 'mailto:hello@platinumhealthclinic.com')).toBe(true)
+  })
+
   it('renders QR-only verification copy with a clickable QR link when verification info is provided', async () => {
     const verificationUrl = 'https://onlinedoctornote.com/verify/v_test'
     const tree = (

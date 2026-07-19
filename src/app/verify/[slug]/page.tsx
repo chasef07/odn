@@ -10,7 +10,7 @@ type PageProps = {
 }
 
 export const metadata: Metadata = {
-  title: 'Document Verification | Platinum Health',
+  title: 'Document Verification | Platinum Health Clinic',
   robots: {
     index: false,
     follow: false,
@@ -67,7 +67,7 @@ function InvalidVerification() {
       <h1 className="text-foreground text-2xl font-semibold">We could not verify this document.</h1>
       <p className="text-muted-foreground mt-3 text-base leading-7">
         Please check the Medical Record # and try again. If you still need help, contact Platinum
-        Health.
+        Health Clinic.
       </p>
       <Link
         href="/verify"
@@ -149,8 +149,11 @@ export default async function VerifySlugPage({ params }: PageProps) {
               <div className="mt-6 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
                 <p>
                   For questions or concerns, please contact us via email at{' '}
-                  <a className="text-primary font-medium" href="mailto:hello@platinumhealth.com">
-                    hello@platinumhealth.com
+                  <a
+                    className="text-primary font-medium"
+                    href="mailto:hello@platinumhealthclinic.com"
+                  >
+                    hello@platinumhealthclinic.com
                   </a>
                   .
                 </p>

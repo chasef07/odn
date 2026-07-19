@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Review terms copy** - Updated the review-page authorization entity from Platinum Health to ODN LLC.
+- **Review terms copy** - Updated the review-page authorization entity from Platinum Health Clinic to ODN LLC.
 - **Maybe approval emails** - Added approved-day selection support for maybe approvals.
 
 ## [5.5.0] - 2026-05-04

@@ -2,7 +2,7 @@
 
 ## Objective
 
-Add a public verification experience for approved doctor's notes so an employer or school can scan a QR code on the PDF, or manually enter the Medical Record #, and confirm that the note was legitimately issued by Platinum Health.
+Add a public verification experience for approved doctor's notes so an employer or school can scan a QR code on the PDF, or manually enter the Medical Record #, and confirm that the note was legitimately issued by Platinum Health Clinic.
 
 The page should verify the document without exposing diagnosis, symptoms, date of birth, full patient name, contact information, payment information, or internal review notes.
 
@@ -18,7 +18,7 @@ The page should verify the document without exposing diagnosis, symptoms, date o
    - Plain text: `Scan the QR code or visit the secure URL to verify this note.`
 3. Scanning the QR code opens a public verification result page.
 4. Visiting `/verify` allows a verifier to manually enter the Medical Record #.
-5. A valid note shows a Platinum Health-branded verification result.
+5. A valid note shows a Platinum Health Clinic-branded verification result.
 6. Invalid, pending, denied, refunded, revoked, or unknown records all receive the same generic failure message.
 
 ### Public Result Page Fields
@@ -35,7 +35,7 @@ Show only:
 - Certifying physician name and credentials
 - State license number used on the note
 - NPI number, if configured
-- Platinum Health contact email for manual follow-up
+- Platinum Health Clinic contact email for manual follow-up
 
 Do not show:
 
@@ -58,7 +58,7 @@ The TrustMedical-style QR proves a physician license exists, but it does not pro
 
 Recommended visual direction:
 
-- Quiet, clinical, Platinum Health-branded.
+- Quiet, clinical, Platinum Health Clinic-branded.
 - Mobile-first, because many verifiers will scan on a phone.
 - No marketing hero.
 - No diagnosis or medical explanation copy.
@@ -81,7 +81,7 @@ Suggested failure copy:
 
 ```text
 We could not verify this document.
-Please check the Medical Record # and try again. If you still need help, contact Platinum Health.
+Please check the Medical Record # and try again. If you still need help, contact Platinum Health Clinic.
 ```
 
 ## Return Date Decision
@@ -538,7 +538,7 @@ Visual/manual QA:
 
 ## Open Questions for Customer Review
 
-1. Should the visible domain be `onlinedoctornote.com`, a Platinum Health domain, or a new dedicated verification domain?
+1. Should the visible domain be `onlinedoctornote.com`, a Platinum Health Clinic domain, or a new dedicated verification domain?
 2. What exact NPI should appear for Jason Buchwald, MD FACEP?
 3. Should employers see `Patient initials` or no patient identifier at all?
 4. Should the page show `May return after Last Day Off`, or does the doctor want to explicitly approve/store a separate return date?

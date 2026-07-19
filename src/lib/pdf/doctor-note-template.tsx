@@ -580,7 +580,7 @@ export function DoctorNoteTemplate({
           {/* Logo and Clinic Name (RIGHT) */}
           <View style={styles.headerRight}>
             <Image src={logoPath} style={styles.logo} />
-            <Text style={styles.clinicName}>Platinum Health</Text>
+            <Text style={styles.clinicName}>Platinum Health Clinic</Text>
           </View>
         </View>
 
