@@ -2,7 +2,20 @@ import prisma from '@/lib/prisma'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { sendTelnyxSms } from '@/lib/telnyx'
 import type { SmsMessageType } from '@/lib/sms-templates'
-import { withSupportStopCopy } from '@/lib/sms-support-templates'
+
+const SUPPORT_FOOTER = [
+  'Reply HELP for note changes or customer support.',
+  'STOP to opt out.',
+].join('\n')
+
+function supportSmsBody(body: string, includeFooter: boolean): string {
+  const trimmedBody = body.trim()
+  const content = trimmedBody.endsWith(SUPPORT_FOOTER)
+    ? trimmedBody.slice(0, -SUPPORT_FOOTER.length).trimEnd()
+    : trimmedBody
+
+  return includeFooter ? `${content}\n${SUPPORT_FOOTER}` : content
+}
 
 export async function sendSupportSms({
   ticketId,
@@ -29,12 +42,17 @@ export async function sendSupportSms({
     return { success: false, error: 'Phone number is opted out' }
   }
 
+  const ticket = await prisma.smsSupportTicket.findUnique({
+    where: { id: ticketId },
+    select: { lastOutboundAt: true },
+  })
+
   const result = await sendTelnyxSms({
     submissionId: submissionId || undefined,
     supportTicketId: ticketId,
     type,
     toPhone: to,
-    body: withSupportStopCopy(body),
+    body: supportSmsBody(body, !ticket?.lastOutboundAt),
   })
 
   if (result.success) {
