@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { sendSupportSms } from '@/lib/sms-support-sms'
-import { processQueuedSmsSupportJobs, retrySupportAutomationJob } from '@/lib/sms-support-jobs'
+import { retrySupportAutomationJob } from '@/lib/sms-support-jobs'
 import {
   SMS_SUPPORT_CATEGORY,
   SMS_SUPPORT_JOB_STATUS,
@@ -381,22 +381,6 @@ export async function retrySupportTicketAutomation(ticketId: string) {
   } catch (error) {
     console.error('Failed to retry support automation:', error)
     return { success: false, error: 'Failed to retry support automation' }
-  }
-}
-
-export async function runSupportTicketJobsNow() {
-  try {
-    await requireAdmin()
-    const result = await processQueuedSmsSupportJobs({
-      limit: 5,
-      workerId: `admin-${Date.now()}`,
-    })
-
-    revalidatePath('/admin/support')
-    return { success: true, result }
-  } catch (error) {
-    console.error('Failed to run support jobs:', error)
-    return { success: false, error: 'Failed to run support jobs' }
   }
 }
 

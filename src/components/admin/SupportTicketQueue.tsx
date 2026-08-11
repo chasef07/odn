@@ -1,11 +1,6 @@
-'use client'
-
-import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Play, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { runSupportTicketJobsNow, type SupportTicketListItem } from '@/app/admin/support/actions'
+import type { SupportTicketListItem } from '@/app/admin/support/actions'
 import { supportCategoryLabel, supportStatusLabel } from '@/lib/sms-support-types'
 
 const STATUS_FILTERS = [
@@ -24,25 +19,6 @@ export function SupportTicketQueue({
   tickets: SupportTicketListItem[]
   activeStatus?: string
 }) {
-  const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-  const [message, setMessage] = useState<string | null>(null)
-
-  const runJobs = () => {
-    setMessage(null)
-    startTransition(async () => {
-      const result = await runSupportTicketJobsNow()
-      if (result.success && result.result) {
-        setMessage(
-          `Processed ${result.result.processed}, succeeded ${result.result.succeeded}, failed ${result.result.failed}.`
-        )
-        router.refresh()
-      } else {
-        setMessage(result.error || 'Failed to run jobs.')
-      }
-    })
-  }
-
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -52,13 +28,8 @@ export function SupportTicketQueue({
             Customer-service texts, automation jobs, and admin handoff queue.
           </p>
         </div>
-        <Button onClick={runJobs} disabled={isPending} className="gap-2 sm:w-auto">
-          {isPending ? (
-            <RefreshCw data-icon="inline-start" className="animate-spin" />
-          ) : (
-            <Play data-icon="inline-start" />
-          )}
-          Run Jobs
+        <Button asChild className="sm:w-auto">
+          <Link href="/admin/search">Search All Submissions</Link>
         </Button>
       </div>
 
@@ -81,12 +52,6 @@ export function SupportTicketQueue({
           )
         })}
       </div>
-
-      {message && (
-        <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-700">
-          {message}
-        </div>
-      )}
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         {tickets.length === 0 ? (
