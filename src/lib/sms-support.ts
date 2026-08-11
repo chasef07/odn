@@ -80,7 +80,7 @@ export async function handleInboundSupportSms({
 
   let ticket = await findActiveTicket(phoneE164)
   if (!ticket) {
-    const matchedSubmission = await findSingleSubmissionForPhone(phoneE164)
+    const matchedSubmission = await findSafeSubmissionForPhone(phoneE164)
     ticket = await prisma.smsSupportTicket.create({
       data: {
         phoneE164,
@@ -92,9 +92,14 @@ export async function handleInboundSupportSms({
       },
     })
   } else {
+    const matchedSubmission =
+      ticket.submissionId || ticket.status === SMS_SUPPORT_STATUS.RUNNING_AUTOMATION
+        ? null
+        : await findSafeSubmissionForPhone(phoneE164)
     ticket = await prisma.smsSupportTicket.update({
       where: { id: ticket.id },
       data: {
+        ...(matchedSubmission ? { submissionId: matchedSubmission.id } : {}),
         lastInboundAt: receivedAt,
         closedAt: null,
       },
@@ -886,13 +891,33 @@ async function findActiveTicket(phoneE164: string) {
   })
 }
 
-async function findSingleSubmissionForPhone(phoneE164: string): Promise<{ id: string } | null> {
+async function findSafeSubmissionForPhone(phoneE164: string): Promise<{ id: string } | null> {
   const submissions = await prisma.submission.findMany({
-    where: { smsPhoneE164: phoneE164 },
-    select: { id: true },
+    where: {
+      smsPhoneE164: phoneE164,
+      smsOptIn: true,
+    },
+    select: {
+      id: true,
+      status: true,
+      smsMessages: {
+        where: {
+          direction: 'outbound',
+          to: phoneE164,
+        },
+        select: { id: true },
+        take: 1,
+      },
+    },
     orderBy: { createdAt: 'desc' },
-    take: 2,
   })
+
+  const approved = submissions.filter(({ status }) => status === SubmissionStatus.APPROVED)
+  if (approved.length === 1) return approved[0]
+  if (approved.length > 1) return null
+
+  const conversationMatches = submissions.filter(({ smsMessages }) => smsMessages.length > 0)
+  if (conversationMatches.length === 1) return conversationMatches[0]
 
   return submissions.length === 1 ? submissions[0] : null
 }

@@ -149,7 +149,9 @@ describe('handleInboundSupportSms', () => {
     const waitingTicket = supportTicket({ state: SMS_SUPPORT_STATE.INTRO_MENU })
 
     mockSmsSupportTicketFindFirst.mockResolvedValue(null)
-    mockSubmissionFindMany.mockResolvedValue([{ id: 'sub_123' }])
+    mockSubmissionFindMany.mockResolvedValue([
+      { id: 'sub_123', status: 'PENDING_REVIEW', smsMessages: [] },
+    ])
     mockSmsSupportTicketCreate.mockResolvedValue(createdTicket)
     mockSmsSupportTicketUpdate.mockResolvedValue(waitingTicket)
 
@@ -165,9 +167,177 @@ describe('handleInboundSupportSms', () => {
         submissionId: 'sub_123',
       }),
     })
+    expect(mockSubmissionFindMany).toHaveBeenCalledWith({
+      where: {
+        smsPhoneE164: '+15551234567',
+        smsOptIn: true,
+      },
+      select: {
+        id: true,
+        status: true,
+        smsMessages: {
+          where: {
+            direction: 'outbound',
+            to: '+15551234567',
+          },
+          select: { id: true },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
   })
 
-  it('clears provisional submission links for ambiguous inbound support SMS', async () => {
+  it('links a new inbound ticket when one approved submission shares the phone with an old denial', async () => {
+    const createdTicket = supportTicket({ state: SMS_SUPPORT_STATE.INTRO_MENU })
+    const waitingTicket = supportTicket({ state: SMS_SUPPORT_STATE.INTRO_MENU })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(null)
+    mockSubmissionFindMany.mockResolvedValue([
+      { id: 'sub_approved', status: 'APPROVED', smsMessages: [] },
+      { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
+    ])
+    mockSmsSupportTicketCreate.mockResolvedValue(createdTicket)
+    mockSmsSupportTicketUpdate.mockResolvedValue(waitingTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: 'HELP',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockSmsSupportTicketCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        phoneE164: '+15551234567',
+        submissionId: 'sub_approved',
+      }),
+    })
+  })
+
+  it('re-evaluates an active unassigned ticket when a later message has one approved match', async () => {
+    const activeTicket = supportTicket({
+      submissionId: null,
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+      category: null,
+    })
+    const linkedTicket = supportTicket({
+      submissionId: 'sub_approved',
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+      category: null,
+      lastInboundAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
+    mockSubmissionFindMany.mockResolvedValue([
+      { id: 'sub_approved', status: 'APPROVED', smsMessages: [] },
+      { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
+    ])
+    mockSmsSupportTicketUpdate
+      .mockResolvedValueOnce(linkedTicket)
+      .mockResolvedValueOnce(linkedTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: 'HELP',
+      providerMessageId: 'msg_later',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockSmsSupportTicketUpdate).toHaveBeenNthCalledWith(1, {
+      where: { id: 'ticket_123' },
+      data: {
+        submissionId: 'sub_approved',
+        lastInboundAt: new Date('2026-06-29T12:05:00Z'),
+        closedAt: null,
+      },
+    })
+    expect(mockSmsMessageUpdateMany).toHaveBeenCalledWith({
+      where: { providerMessageId: 'msg_later' },
+      data: {
+        supportTicketId: 'ticket_123',
+        submissionId: 'sub_approved',
+      },
+    })
+  })
+
+  it('does not relink an unassigned ticket while automation is running', async () => {
+    const runningTicket = supportTicket({
+      submissionId: null,
+      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      state: SMS_SUPPORT_STATE.CSR_REVIEW,
+    })
+    const touchedTicket = supportTicket({
+      ...runningTicket,
+      lastInboundAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(runningTicket)
+    mockSubmissionFindMany.mockResolvedValue([
+      { id: 'sub_approved', status: 'APPROVED', smsMessages: [] },
+    ])
+    mockSmsSupportTicketUpdate.mockResolvedValueOnce(touchedTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: 'HELP',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockSubmissionFindMany).not.toHaveBeenCalled()
+    expect(mockSmsSupportTicketUpdate).toHaveBeenCalledWith({
+      where: { id: 'ticket_123' },
+      data: {
+        lastInboundAt: new Date('2026-06-29T12:05:00Z'),
+        closedAt: null,
+      },
+    })
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SUPPORT_AUTOMATION_UPDATE' })
+    )
+  })
+
+  it('links a ticket when one matching submission owns the prior outbound SMS conversation', async () => {
+    const createdTicket = supportTicket({
+      submissionId: 'sub_pending',
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+    })
+    const waitingTicket = supportTicket({
+      submissionId: 'sub_pending',
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(null)
+    mockSubmissionFindMany.mockResolvedValue([
+      {
+        id: 'sub_pending',
+        status: 'PENDING_REVIEW',
+        smsMessages: [{ id: 'sms_purchase_confirmation' }],
+      },
+      { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
+    ])
+    mockSmsSupportTicketCreate.mockResolvedValue(createdTicket)
+    mockSmsSupportTicketUpdate.mockResolvedValue(waitingTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: 'HELP',
+      providerMessageId: 'msg_current_inbound',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockSmsSupportTicketCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ submissionId: 'sub_pending' }),
+    })
+    expect(mockSmsMessageUpdateMany).toHaveBeenCalledWith({
+      where: { providerMessageId: 'msg_current_inbound' },
+      data: {
+        supportTicketId: 'ticket_123',
+        submissionId: 'sub_pending',
+      },
+    })
+  })
+
+  it('clears provisional submission links when multiple approved submissions remain ambiguous', async () => {
     const createdTicket = supportTicket({
       submissionId: null,
       state: SMS_SUPPORT_STATE.INTRO_MENU,
@@ -178,7 +348,14 @@ describe('handleInboundSupportSms', () => {
     })
 
     mockSmsSupportTicketFindFirst.mockResolvedValue(null)
-    mockSubmissionFindMany.mockResolvedValue([{ id: 'sub_latest' }, { id: 'sub_other' }])
+    mockSubmissionFindMany.mockResolvedValue([
+      {
+        id: 'sub_latest',
+        status: 'APPROVED',
+        smsMessages: [{ id: 'sms_approval' }],
+      },
+      { id: 'sub_other', status: 'APPROVED', smsMessages: [] },
+    ])
     mockSmsSupportTicketCreate.mockResolvedValue(createdTicket)
     mockSmsSupportTicketUpdate.mockResolvedValue(waitingTicket)
 
@@ -189,6 +366,9 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
+    expect(mockSmsSupportTicketCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ submissionId: undefined }),
+    })
     expect(mockSmsMessageUpdateMany).toHaveBeenCalledWith({
       where: { providerMessageId: 'msg_help' },
       data: {
@@ -629,7 +809,12 @@ describe('handleInboundSupportSms', () => {
         category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
       })
     )
-    mockSubmissionFindMany.mockResolvedValue([{ id: 'abc12345-submission' }])
+    mockSubmissionFindMany
+      .mockResolvedValueOnce([
+        { id: 'abc12345-submission', status: 'APPROVED', smsMessages: [] },
+        { id: 'def67890-submission', status: 'APPROVED', smsMessages: [] },
+      ])
+      .mockResolvedValueOnce([{ id: 'abc12345-submission' }])
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -683,6 +868,10 @@ describe('handleInboundSupportSms', () => {
     })
 
     mockSmsSupportTicketFindFirst.mockResolvedValue(activeTicket)
+    mockSubmissionFindMany.mockResolvedValue([
+      { id: 'abc12345-submission', status: 'APPROVED', smsMessages: [] },
+      { id: 'def67890-submission', status: 'APPROVED', smsMessages: [] },
+    ])
     mockSmsSupportTicketUpdate.mockResolvedValueOnce(touchedTicket)
 
     await handleInboundSupportSms({
@@ -692,7 +881,7 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockSubmissionFindMany).not.toHaveBeenCalled()
+    expect(mockSubmissionFindMany).toHaveBeenCalledTimes(1)
     expect(mockSmsSupportTicketUpdate).toHaveBeenCalledTimes(1)
     expect(mockSendSupportSms).toHaveBeenCalledWith(
       expect.objectContaining({
