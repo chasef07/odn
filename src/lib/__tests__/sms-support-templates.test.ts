@@ -34,12 +34,15 @@ describe('sms support templates', () => {
   it('uses numbered SMS menus instead of unsupported dropdown wording', () => {
     const body = supportIntroMenuSms()
 
-    expect(body).toContain('How can we help? Reply with a number.')
-    expect(body).toContain('\n1 I did not receive my note')
-    expect(body).toContain('\n2 I need to change my note')
-    expect(body).toContain('\n3 Other')
+    expect(body).toBe(
+      [
+        'How can we help? Reply with a number.',
+        '1 I did not receive my note',
+        '2 I need to change my note',
+        '3 Other',
+      ].join('\n')
+    )
     expect(body).not.toContain('\n4 Diagnosis')
-    expect(body).toContain('STOP to opt out')
     expect(body).not.toMatch(/dropdown|select from the menu/i)
   })
 
@@ -60,14 +63,12 @@ describe('sms support templates', () => {
     expect(askPurposeSms()).toContain('Legal notes need admin review')
   })
 
-  it('uses the requested issue-date response with the required footer', () => {
+  it('uses the requested issue-date response', () => {
     const body = issueDateManualSms()
 
-    expect(body).toContain(
+    expect(body).toBe(
       "Unfortunately, we cannot change the date as it is based on when your request was made and the doctor's review of your chart."
     )
-    expect(body).toContain('Reply HELP for note changes or customer support.')
-    expect(body).toContain('STOP to opt out.')
   })
 
   it('sets the right expectation for queued automation', () => {
@@ -82,7 +83,7 @@ describe('sms support templates', () => {
     expect(noteNotReceivedFoundSms()).toContain('No further action')
   })
 
-  it('keeps HELP and opt-out copy in every support prompt and reply template', () => {
+  it('leaves the ticket-level footer out of support prompt and reply templates', () => {
     const bodies = [
       supportIntroMenuSms(),
       changeNoteMenuSms(),
@@ -114,9 +115,8 @@ describe('sms support templates', () => {
     ]
 
     for (const body of bodies) {
-      expect(body).toMatch(/\bHELP\b/)
-      expect(body).toContain('note changes or customer support')
-      expect(body).toContain('STOP to opt out.')
+      expect(body).not.toContain('Reply HELP for note changes or customer support.')
+      expect(body).not.toContain('STOP to opt out.')
     }
   })
 })

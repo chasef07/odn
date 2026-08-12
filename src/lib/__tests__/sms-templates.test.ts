@@ -13,9 +13,25 @@ describe('sms templates', () => {
     const body = purchaseConfirmationSms('78a58d67-0000-0000-0000-000000000000')
 
     expect(submissionReference('78a58d67-0000-0000-0000-000000000000')).toBe('78A58D67')
-    expect(body).toContain('Ref #78A58D67')
+    expect(body).toBe(
+      [
+        'OnlineDoctorNote: Request received. Ref #78A58D67. Watch email/spam.',
+        'Reply HELP for support.',
+        'STOP to opt out.',
+      ].join('\n')
+    )
     expect(body).not.toMatch(/Medical Record/i)
     expect(body.length).toBeLessThanOrEqual(160)
+  })
+
+  it('ends the approval SMS with the short HELP line before STOP', () => {
+    expect(approvalSentSms()).toBe(
+      [
+        "OnlineDoctorNote: Your doctor's note was sent to your email. Check inbox/spam.",
+        'Reply HELP for support.',
+        'STOP to opt out.',
+      ].join('\n')
+    )
   })
 
   it('keeps bounce SMS support-email based', () => {
@@ -27,19 +43,12 @@ describe('sms templates', () => {
     expect(body.length).toBeLessThanOrEqual(320)
   })
 
-  it('includes HELP and opt-out copy in transactional SMS copy', () => {
-    const bodies = [
-      purchaseConfirmationSms('78a58d67-0000-0000-0000-000000000000'),
-      emailBounceSms(),
-      maybeUpdateSms(),
-      approvalSentSms(),
-      denialSentSms(),
-    ]
+  it('keeps the existing long HELP line on other transactional SMS copy', () => {
+    const bodies = [emailBounceSms(), maybeUpdateSms(), denialSentSms()]
 
     for (const body of bodies) {
-      expect(body).toMatch(/\bHELP\b/)
-      expect(body).toContain('note changes or customer support')
-      expect(body).toContain('STOP to opt out')
+      expect(body).toContain('Reply HELP for note changes or customer support.')
+      expect(body).toContain('\nSTOP to opt out.')
       expect(body.length).toBeLessThanOrEqual(320)
     }
   })
