@@ -904,6 +904,7 @@ async function findSafeSubmissionForPhone(phoneE164: string): Promise<{ id: stri
         where: {
           direction: 'outbound',
           to: phoneE164,
+          sentAt: { not: null },
         },
         select: { id: true },
         take: 1,

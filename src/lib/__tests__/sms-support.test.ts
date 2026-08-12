@@ -179,6 +179,7 @@ describe('handleInboundSupportSms', () => {
           where: {
             direction: 'outbound',
             to: '+15551234567',
+            sentAt: { not: null },
           },
           select: { id: true },
           take: 1,
@@ -311,7 +312,7 @@ describe('handleInboundSupportSms', () => {
       {
         id: 'sub_pending',
         status: 'PENDING_REVIEW',
-        smsMessages: [{ id: 'sms_purchase_confirmation' }],
+        smsMessages: [{ id: 'sms_purchase_confirmation', sentAt: new Date() }],
       },
       { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
     ])
@@ -333,6 +334,52 @@ describe('handleInboundSupportSms', () => {
       data: {
         supportTicketId: 'ticket_123',
         submissionId: 'sub_pending',
+      },
+    })
+  })
+
+  it('does not treat a failed outbound SMS as conversation evidence', async () => {
+    const createdTicket = supportTicket({
+      submissionId: null,
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+    })
+    const waitingTicket = supportTicket({
+      submissionId: null,
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+    })
+
+    mockSmsSupportTicketFindFirst.mockResolvedValue(null)
+    mockSubmissionFindMany.mockImplementation(
+      async (query: { select?: { smsMessages?: { where?: { sentAt?: { not?: null } } } } }) => {
+        const excludesUnsentMessages = query.select?.smsMessages?.where?.sentAt?.not === null
+        return [
+          {
+            id: 'sub_pending',
+            status: 'PENDING_REVIEW',
+            smsMessages: excludesUnsentMessages ? [] : [{ id: 'sms_sending_failed' }],
+          },
+          { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
+        ]
+      }
+    )
+    mockSmsSupportTicketCreate.mockResolvedValue(createdTicket)
+    mockSmsSupportTicketUpdate.mockResolvedValue(waitingTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: 'HELP',
+      providerMessageId: 'msg_current_inbound',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockSmsSupportTicketCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ submissionId: undefined }),
+    })
+    expect(mockSmsMessageUpdateMany).toHaveBeenCalledWith({
+      where: { providerMessageId: 'msg_current_inbound' },
+      data: {
+        supportTicketId: 'ticket_123',
+        submissionId: null,
       },
     })
   })
