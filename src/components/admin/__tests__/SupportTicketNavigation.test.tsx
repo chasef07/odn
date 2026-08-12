@@ -32,7 +32,7 @@ describe('SMS support navigation', () => {
     const searchLink = screen.getByRole('link', { name: 'Search All Submissions' })
     const needsAdminButton = screen.getByRole('button', { name: 'Needs Admin' })
 
-    expect(searchLink).toHaveAttribute('href', '/admin/search?type=phone&q=%2B15551234567')
+    expect(searchLink).toHaveAttribute('href', '/admin/search?type=phone&q=5551234567')
     expect(searchLink.parentElement).toContainElement(needsAdminButton)
   })
 })

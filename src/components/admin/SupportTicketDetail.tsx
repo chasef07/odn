@@ -68,6 +68,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
   const latestFailedJob = ticket.jobs.find((job) => job.status === 'FAILED')
   const canRetryAutomation =
     !!latestFailedJob && ticket.status === 'NEEDS_CSR' && ticket.automationStatus === 'FAILED'
+  const searchPhone = ticket.phoneE164.replace(/^\+1/, '')
 
   return (
     <div className="space-y-6">
@@ -109,7 +110,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
               </Button>
             )}
             <Button variant="outline" asChild className="gap-2">
-              <Link href={`/admin/search?type=phone&q=${encodeURIComponent(ticket.phoneE164)}`}>
+              <Link href={`/admin/search?type=phone&q=${encodeURIComponent(searchPhone)}`}>
                 <Search data-icon="inline-start" />
                 Search All Submissions
               </Link>
