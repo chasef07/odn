@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, CheckCircle, RotateCcw, Send } from 'lucide-react'
+import { AlertTriangle, CheckCircle, RotateCcw, Search, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -68,6 +68,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
   const latestFailedJob = ticket.jobs.find((job) => job.status === 'FAILED')
   const canRetryAutomation =
     !!latestFailedJob && ticket.status === 'NEEDS_CSR' && ticket.automationStatus === 'FAILED'
+  const searchPhone = ticket.phoneE164.replace(/^\+1/, '')
 
   return (
     <div className="space-y-6">
@@ -108,6 +109,12 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                 Retry
               </Button>
             )}
+            <Button variant="outline" asChild className="gap-2">
+              <Link href={`/admin/search?type=phone&q=${encodeURIComponent(searchPhone)}`}>
+                <Search data-icon="inline-start" />
+                Search All Submissions
+              </Link>
+            </Button>
             {ticket.status !== 'NEEDS_CSR' && ticket.status !== 'CLOSED' && (
               <Button
                 variant="outline"

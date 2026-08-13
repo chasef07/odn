@@ -66,7 +66,6 @@ vi.mock('@/lib/sms-support-sms', () => ({
 }))
 
 vi.mock('@/lib/sms-support-jobs', () => ({
-  processQueuedSmsSupportJobs: vi.fn(),
   retrySupportAutomationJob: vi.fn(),
 }))
 
