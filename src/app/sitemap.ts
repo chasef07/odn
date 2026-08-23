@@ -19,20 +19,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     const languages = { 'en-US': englishUrl, 'es-US': spanishUrl, 'x-default': englishUrl }
 
     return [
-    {
-      url: englishUrl,
-      lastModified: currentDate,
-      changeFrequency,
-      priority,
-      alternates: { languages },
-    },
-    {
-      url: spanishUrl,
-      lastModified: currentDate,
-      changeFrequency,
-      priority,
-      alternates: { languages },
-    },
+      {
+        url: englishUrl,
+        lastModified: currentDate,
+        changeFrequency,
+        priority,
+        alternates: { languages },
+      },
+      {
+        url: spanishUrl,
+        lastModified: currentDate,
+        changeFrequency,
+        priority,
+        alternates: { languages },
+      },
     ]
   }) satisfies MetadataRoute.Sitemap
 }

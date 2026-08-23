@@ -29,29 +29,29 @@ export function VerificationLookupForm() {
   return (
     <LocalizedPage>
       <form action={action} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="medicalRecordNumber">Medical Record #</Label>
-        <Input
-          id="medicalRecordNumber"
-          name="medicalRecordNumber"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="A7B3C9D2"
-          className="h-12 text-center font-mono text-base uppercase"
-          aria-describedby={state.error ? 'verification-error' : undefined}
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="medicalRecordNumber">Medical Record #</Label>
+          <Input
+            id="medicalRecordNumber"
+            name="medicalRecordNumber"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="A7B3C9D2"
+            className="h-12 text-center font-mono text-base uppercase"
+            aria-describedby={state.error ? 'verification-error' : undefined}
+          />
+        </div>
 
-      {state.error && (
-        <p
-          id="verification-error"
-          className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-        >
-          {t(state.error)}
-        </p>
-      )}
+        {state.error && (
+          <p
+            id="verification-error"
+            className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            {t(state.error)}
+          </p>
+        )}
 
-      <SubmitButton />
+        <SubmitButton />
       </form>
     </LocalizedPage>
   )

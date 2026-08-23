@@ -41,8 +41,7 @@ export default function VerifyPage({ locale = 'en' }: { locale?: Locale }) {
           <VerificationLookupForm />
         </section>
       </div>
-    </main>
-    ,
+    </main>,
     locale
   )
 }

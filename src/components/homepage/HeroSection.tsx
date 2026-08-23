@@ -9,7 +9,7 @@ const heroPhrases = ['From Your Phone', 'Within Minutes', 'For Only $24.95']
 
 export default function HeroSection() {
   const router = useRouter()
-  const { t, path } = useI18n()
+  const { t, path, locale } = useI18n()
 
   return (
     <section className="relative overflow-hidden bg-white px-5 py-10 md:px-6 md:py-16">
@@ -19,7 +19,11 @@ export default function HeroSection() {
           <div className="order-1 text-left">
             <h1 className="font-hero animate-fade-in-up mb-3 text-4xl leading-[1.1] font-bold tracking-tight text-gray-900 md:text-5xl lg:text-6xl">
               {t("Get a Doctor's Note")}
-              <span className="relative block whitespace-nowrap text-[#009ed9]">
+              <span
+                className={`relative block whitespace-nowrap text-[#009ed9] ${
+                  locale === 'es' ? 'text-[clamp(1.5rem,7.6vw,2.25rem)] sm:text-[inherit]' : ''
+                }`}
+              >
                 {/* Invisible placeholder to reserve line height */}
                 <span aria-hidden="true" className="invisible">
                   {t(heroPhrases[0])}
@@ -51,7 +55,9 @@ export default function HeroSection() {
                   </div>
                 </div>
               </div>
-              <p className="mt-1 text-sm text-gray-600">{t('Trusted by 80,000+ patients nationwide')}</p>
+              <p className="mt-1 text-sm text-gray-600">
+                {t('Trusted by 80,000+ patients nationwide')}
+              </p>
             </div>
 
             {/* CTA */}
@@ -64,7 +70,8 @@ export default function HeroSection() {
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
               <p className="mt-2 text-sm text-gray-500">
-                <span className="font-semibold text-gray-900">$24.95</span> · {t('Money-Back Guarantee')}
+                <span className="font-semibold text-gray-900">$24.95</span> ·{' '}
+                {t('Money-Back Guarantee')}
               </p>
             </div>
           </div>

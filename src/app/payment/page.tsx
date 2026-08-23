@@ -66,56 +66,56 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
   return (
     <LocalizedPage>
       <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Order Summary */}
-      <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
-        <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-foreground text-base font-medium">
-              Doctor&apos;s Note - Online Medical Documentation
-            </p>
-            {priceInfo?.offerApplied && (
-              <p className="mt-1 text-sm font-medium text-green-700">Discount applied</p>
-            )}
+        {/* Order Summary */}
+        <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
+          <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-foreground text-base font-medium">
+                Doctor&apos;s Note - Online Medical Documentation
+              </p>
+              {priceInfo?.offerApplied && (
+                <p className="mt-1 text-sm font-medium text-green-700">Discount applied</p>
+              )}
+            </div>
+            <span className="text-primary text-xl font-bold">
+              {priceInfo ? (
+                `$${priceInfo.formattedAmount}`
+              ) : (
+                <span className="text-base text-red-600">Price unavailable</span>
+              )}
+            </span>
           </div>
-          <span className="text-primary text-xl font-bold">
-            {priceInfo ? (
-              `$${priceInfo.formattedAmount}`
-            ) : (
-              <span className="text-base text-red-600">Price unavailable</span>
-            )}
-          </span>
         </div>
-      </div>
 
-      <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
-        <h3 className="text-foreground mb-4 text-sm font-semibold">Payment Details</h3>
-        <PaymentElement />
-      </div>
-
-      {message && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-600">{message}</p>
+        <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
+          <h3 className="text-foreground mb-4 text-sm font-semibold">Payment Details</h3>
+          <PaymentElement />
         </div>
-      )}
 
-      <div className="flex items-center justify-between pt-2">
-        <button
-          type="button"
-          onClick={() => router.push('/review')}
-          className="text-foreground hover:bg-accent inline-flex items-center justify-center rounded-lg p-2 transition-all"
-          aria-label="Back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading || !stripe || !elements}
-          className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isLoading ? 'Processing...' : 'Pay Now'}
-        </button>
-      </div>
+        {message && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+            <p className="text-sm text-red-600">{message}</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-2">
+          <button
+            type="button"
+            onClick={() => router.push('/review')}
+            className="text-foreground hover:bg-accent inline-flex items-center justify-center rounded-lg p-2 transition-all"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !stripe || !elements}
+            className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? 'Processing...' : 'Pay Now'}
+          </button>
+        </div>
       </form>
     </LocalizedPage>
   )

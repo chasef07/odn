@@ -2,12 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import {
-  localeFromPathname,
-  localizePath,
-  translate,
-  type Locale,
-} from '@/lib/i18n'
+import { localeFromPathname, localizePath, translate, type Locale } from '@/lib/i18n'
 
 type I18nContextValue = {
   locale: Locale

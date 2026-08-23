@@ -31,10 +31,16 @@ export default function Footer() {
 
           {/* Links */}
           <div className="flex flex-wrap justify-center gap-6 text-sm md:justify-end">
-            <Link href={path('/faq')} className="text-gray-600 transition-colors hover:text-gray-900">
+            <Link
+              href={path('/faq')}
+              className="text-gray-600 transition-colors hover:text-gray-900"
+            >
               {t('FAQ')}
             </Link>
-            <Link href={path('/blog')} className="text-gray-600 transition-colors hover:text-gray-900">
+            <Link
+              href={path('/blog')}
+              className="text-gray-600 transition-colors hover:text-gray-900"
+            >
               {t('Blog')}
             </Link>
             <Link
@@ -49,7 +55,10 @@ export default function Footer() {
             >
               {t('Terms')}
             </Link>
-            <Link href={path('/about')} className="text-gray-600 transition-colors hover:text-gray-900">
+            <Link
+              href={path('/about')}
+              className="text-gray-600 transition-colors hover:text-gray-900"
+            >
               {t('About')}
             </Link>
           </div>

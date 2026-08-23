@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
+import { englishAlternates } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'Payment',
+  alternates: englishAlternates('/payment'),
   robots: {
     index: false,
     follow: false,

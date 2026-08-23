@@ -22,7 +22,8 @@ export function localizePath(path: string, locale: Locale): string {
   const [pathnameAndQuery, hash = ''] = path.split('#', 2)
   const [pathname, query = ''] = pathnameAndQuery.split('?', 2)
   const unlocalized = stripLocale(pathname)
-  const localized = locale === 'es' ? (unlocalized === '/' ? '/es' : `/es${unlocalized}`) : unlocalized
+  const localized =
+    locale === 'es' ? (unlocalized === '/' ? '/es' : `/es${unlocalized}`) : unlocalized
   return `${localized}${query ? `?${query}` : ''}${hash ? `#${hash}` : ''}`
 }
 
@@ -33,7 +34,9 @@ export function switchLocalePath(pathname: string, locale: Locale): string {
 export function translate(locale: Locale, english: string): string {
   if (locale === 'en') return english
 
-  const emailSuggestion = english.match(/^Did you mean "([^"]+)"\? Please check your email address\.$/)
+  const emailSuggestion = english.match(
+    /^Did you mean "([^"]+)"\? Please check your email address\.$/
+  )
   if (emailSuggestion) {
     return `¿Quiso decir "${emailSuggestion[1]}"? Revise su dirección de correo electrónico.`
   }
@@ -79,10 +82,19 @@ const translatedProps = new Set(['alt', 'aria-label', 'placeholder', 'title'])
  * All translations are checked-in strings; this does not call a translation service at runtime.
  */
 export function translateReactTree(node: React.ReactNode, locale: Locale): React.ReactNode {
-  if (locale === 'en' || node === null || node === undefined || typeof node === 'boolean') return node
+  if (locale === 'en' || node === null || node === undefined || typeof node === 'boolean')
+    return node
   if (typeof node === 'string') return translateTextNode(locale, node)
   if (typeof node === 'number') return node
-  if (Array.isArray(node)) return node.map((child) => translateReactTree(child, locale))
+  if (Array.isArray(node)) {
+    return React.Children.map(node, (child, index) => {
+      const translatedChild = translateReactTree(child, locale)
+      if (React.isValidElement(translatedChild) && translatedChild.key === null) {
+        return React.cloneElement(translatedChild, { key: `i18n-${index}` })
+      }
+      return translatedChild
+    })
+  }
   if (!React.isValidElement<Record<string, unknown>>(node)) return node
 
   const props: Record<string, unknown> = { ...node.props }
@@ -92,7 +104,8 @@ export function translateReactTree(node: React.ReactNode, locale: Locale): React
     }
   }
   if (typeof props.href === 'string') props.href = localizePath(props.href, locale)
-  if ('children' in props) props.children = translateReactTree(props.children as React.ReactNode, locale)
+  if ('children' in props)
+    props.children = translateReactTree(props.children as React.ReactNode, locale)
 
   return React.cloneElement(node, props)
 }

@@ -12,7 +12,11 @@ type LanguageSwitchProps = {
   onNavigate?: () => void
 }
 
-export function LanguageSwitch({ compact = false, className = '', onNavigate }: LanguageSwitchProps) {
+export function LanguageSwitch({
+  compact = false,
+  className = '',
+  onNavigate,
+}: LanguageSwitchProps) {
   const pathname = usePathname()
   const { locale } = useI18n()
   const targetLocale = locale === 'es' ? 'en' : 'es'

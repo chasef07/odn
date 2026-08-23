@@ -255,9 +255,14 @@ export default function ReviewPage() {
       // Parse date in local timezone to avoid off-by-one day issues
       // dateString format is "yyyy-MM-dd"
       const date = parse(dateString, 'yyyy-MM-dd', new Date())
-      return formatInTimeZone(date, 'UTC', locale === 'es' ? "d 'de' MMMM 'de' yyyy" : 'MMMM d, yyyy', {
-        locale: locale === 'es' ? es : undefined,
-      })
+      return formatInTimeZone(
+        date,
+        'UTC',
+        locale === 'es' ? "d 'de' MMMM 'de' yyyy" : 'MMMM d, yyyy',
+        {
+          locale: locale === 'es' ? es : undefined,
+        }
+      )
     } catch {
       return dateString
     }

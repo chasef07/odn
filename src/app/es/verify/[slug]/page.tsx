@@ -10,8 +10,6 @@ export const metadata = localizedMetadata({
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default function SpanishVerifySlugPage(props: {
-  params: Promise<{ slug: string }>
-}) {
+export default function SpanishVerifySlugPage(props: { params: Promise<{ slug: string }> }) {
   return <VerifySlugPage {...props} locale="es" />
 }

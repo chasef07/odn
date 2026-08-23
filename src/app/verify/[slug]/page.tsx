@@ -77,8 +77,7 @@ function InvalidVerification({ locale }: { locale: Locale }) {
       >
         Try another record
       </Link>
-    </section>
-    ,
+    </section>,
     locale
   )
 }
@@ -133,9 +132,21 @@ export default async function VerifySlugPage({ params, locale = 'en' }: PageProp
               </div>
 
               <dl className="overflow-hidden rounded-md border border-gray-200">
-                <DetailRow locale={locale} label="Medical Record #" value={verification.medicalRecordNumber} />
-                <DetailRow locale={locale} label="Patient Initials" value={verification.patientInitials} />
-                <DetailRow locale={locale} label="Issue Date" value={formatDate(verification.issueDate)} />
+                <DetailRow
+                  locale={locale}
+                  label="Medical Record #"
+                  value={verification.medicalRecordNumber}
+                />
+                <DetailRow
+                  locale={locale}
+                  label="Patient Initials"
+                  value={verification.patientInitials}
+                />
+                <DetailRow
+                  locale={locale}
+                  label="Issue Date"
+                  value={formatDate(verification.issueDate)}
+                />
                 <DetailRow
                   locale={locale}
                   label="First Day Off"
@@ -192,8 +203,7 @@ export default async function VerifySlugPage({ params, locale = 'en' }: PageProp
           </section>
         )}
       </div>
-    </main>
-    ,
+    </main>,
     locale
   )
 }

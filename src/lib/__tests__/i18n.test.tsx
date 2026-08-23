@@ -73,6 +73,14 @@ describe('Spanish localization primitives', () => {
       languages: { 'en-US': '/faq', 'es-US': '/es/faq', 'x-default': '/faq' },
     })
     expect(metadata.openGraph).toMatchObject({ locale: 'es_US', url: '/es/faq' })
+
+    const flowMetadata = localizedMetadata({
+      path: '/review',
+      title: 'Review',
+      index: false,
+    })
+    expect(flowMetadata.alternates).toMatchObject({ canonical: '/es/review' })
+    expect(flowMetadata.robots).toEqual({ index: false, follow: false })
   })
 
   it('includes reciprocal English and Spanish entries in the sitemap', () => {

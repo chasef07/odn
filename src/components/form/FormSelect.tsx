@@ -30,6 +30,9 @@ interface FormSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 
 
   /** Transform option value before displaying (default: no transformation) */
   valueTransform?: (value: string) => string
+
+  /** Translate option labels (default: true). Keep proper names such as US states unchanged. */
+  translateOptions?: boolean
 }
 
 export function FormSelect({
@@ -42,6 +45,7 @@ export function FormSelect({
   required = true,
   height = 'h-12',
   valueTransform = (val) => val,
+  translateOptions = true,
   ...props
 }: FormSelectProps) {
   const { t } = useI18n()
@@ -63,7 +67,7 @@ export function FormSelect({
         <option value="">{t(placeholder)}</option>
         {options.map((option) => (
           <option key={option} value={valueTransform(option)}>
-            {t(option)}
+            {translateOptions ? t(option) : option}
           </option>
         ))}
       </select>

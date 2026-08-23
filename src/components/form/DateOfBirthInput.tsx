@@ -233,7 +233,10 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
       {/* Age confirmation */}
       {computedAge !== null && (
         <p className="text-muted-foreground text-sm">
-          {t('Age:')} <span className="text-foreground font-medium">{computedAge} {t('years old')}</span>
+          {t('Age:')}{' '}
+          <span className="text-foreground font-medium">
+            {computedAge} {t('years old')}
+          </span>
         </p>
       )}
 

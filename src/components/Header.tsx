@@ -78,7 +78,7 @@ export default function Header() {
   }, [mobileMenuOpen])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white md:bg-white/80 md:backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white lg:bg-white/80 lg:backdrop-blur-xl">
       {/* Skip to main content link - for keyboard/screen reader users */}
       <a
         href="#main-content"
@@ -86,17 +86,17 @@ export default function Header() {
       >
         {t('Skip to main content')}
       </a>
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-6">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-3 py-4 sm:px-4 lg:px-6">
         {/* Text Logo */}
         <Link href={path('/')} className="shrink-0">
-          <span className="text-2xl font-bold tracking-tight">
+          <span className="text-lg font-bold tracking-tight sm:text-2xl">
             <span className="text-[#009ed9]">Online</span>
             <span className="text-gray-900">DoctorNote</span>
           </span>
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden items-center gap-6 md:flex">
+        <div className="hidden items-center gap-6 lg:flex">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -108,7 +108,7 @@ export default function Header() {
           ))}
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           <LanguageSwitch compact />
           <button
             onClick={() => router.push(path('/start'))}
@@ -119,7 +119,7 @@ export default function Header() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 lg:hidden">
           <LanguageSwitch compact onNavigate={() => setMobileMenuOpen(false)} />
           <button
             ref={closeButtonRef}
@@ -137,7 +137,7 @@ export default function Header() {
       {mobileMenuOpen && (
         <div
           ref={mobileMenuRef}
-          className="fixed inset-0 z-40 bg-white md:hidden"
+          className="fixed inset-0 z-40 bg-white lg:hidden"
           role="dialog"
           aria-modal="true"
           aria-label={t('Mobile menu')}
@@ -170,7 +170,8 @@ export default function Header() {
                 <ArrowRight className="h-5 w-5" />
               </button>
               <p className="mt-4 text-center text-sm text-gray-500">
-                <span className="font-semibold text-gray-900">$24.95</span> · {t('Money-back guarantee')}
+                <span className="font-semibold text-gray-900">$24.95</span> ·{' '}
+                {t('Money-back guarantee')}
               </p>
             </div>
 
