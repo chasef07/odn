@@ -7,6 +7,7 @@ import HeroSection from '@/components/homepage/HeroSection'
 import HowItWorksSection from '@/components/homepage/HowItWorksSection'
 import FinalCTASection from '@/components/homepage/FinalCTASection'
 import WhyUseUsSection from '@/components/homepage/WhyUseUsSection'
+import { englishAlternates, translateReactTree, type Locale } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: "Get a Doctor's Note for Work or School from the Comfort of Your Home",
@@ -28,9 +29,7 @@ export const metadata: Metadata = {
     type: 'website',
     url: 'https://onlinedoctornote.com',
   },
-  alternates: {
-    canonical: '/',
-  },
+  alternates: englishAlternates('/'),
 }
 
 const testimonialAvatars = [
@@ -40,7 +39,7 @@ const testimonialAvatars = [
   '/images/avatars/avatar-4.jpg',
 ]
 
-export default function HomePage() {
+export function HomePageContent() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -210,4 +209,8 @@ export default function HomePage() {
       <Footer />
     </div>
   )
+}
+
+export default function HomePage({ locale = 'en' }: { locale?: Locale }) {
+  return translateReactTree(HomePageContent(), locale)
 }

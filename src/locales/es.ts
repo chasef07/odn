@@ -1,0 +1,1000 @@
+// Static Spanish translations. Medical, refund, privacy, and legal wording requires bilingual human review.
+export const spanishTranslations: Record<string, string> = {
+  '- 100% online': '- 100% online',
+  '- only $24.95': '- sólo $24.95',
+  '- signed by a board-certified physician licensed in your state':
+    '- firmada por un médico certificado y con licencia en su estado',
+  ', email at': ', correo electrónico en',
+  ', or any website of ours that links to this Privacy Notice':
+    ', o cualquier sitio web que vincule a este Aviso de privacidad',
+  ', or by mail to 5740 SW 67th Avenue, Miami, FL 33143, United States.':
+    ', o por correo a 5740 SW 67th Avenue, Miami, FL 33143, Estados Unidos.',
+  '. By using the Services, you agree to be bound by our Privacy Policy, which is incorporated into these Legal Terms. Please be advised the Services are hosted in the United States.':
+    '. Al utilizar los Servicios, usted acepta estar obligado por nuestra Política de Privacidad, que se incorpora en estos Términos Legales. Por favor avisen a los Servicios que se hospedan en los Estados Unidos.',
+  '. For more information on the privacy practices of Google, please visit the':
+    '. Para más información sobre las prácticas de privacidad de Google, visite',
+  '. I authorize ODN LLC to provide limited note verification details to anyone I share my note with, including the Medical Record #, patient initials, issue date, absence dates, return guidance, and certifying physician credentials.':
+    '. Autorizo a ODN LLC a proporcionar información limitada para verificar la nota a cualquier persona con quien yo la comparta, incluido el número de expediente médico, las iniciales del paciente, la fecha de emisión, las fechas de ausencia, las indicaciones de regreso y las credenciales del médico certificante.',
+  '. We will consider and act upon any request in accordance with applicable data protection laws.':
+    '. Consideraremos y actuaremos a solicitud de conformidad con las leyes de protección de datos aplicables.',
+  '(8am–8pm EST)': '(8 a. m.–8 p. m., hora del este)',
+  '(the "Site"), as well as any other related products and services that refer or link to these legal terms (the "Legal Terms") (collectively, the "Services").':
+    '(el "Site"), así como cualquier otro producto y servicios relacionados que se refieran o vinculen a estos términos legales (los " Términos legales") (colectivamente, los "Servicios").',
+  '← Back to Home': '← Volver a casa',
+  '1. Our Services': '1. Nuestros Servicios',
+  '1. What Information Do We Collect?': '1. ¿Qué información recopilamos?',
+  '10. Controls for Do-Not-Track Features': '10. Controles para las características de Do-No-Track',
+  '10. Guidelines for Reviews': '10. Directrices para los exámenes',
+  '100% Money Back Guarantee': 'Garantía de reembolso del 100 %',
+  '100% money-back guarantee.': 'Garantía de reembolso del 100 %.',
+  '11. Do United States Residents Have Specific Privacy Rights?':
+    '11. ¿Los residentes de los Estados Unidos tienen derechos específicos de privacidad?',
+  '11. Third-Party Websites and Content': '11. Sitios web y contenido de terceros',
+  '12. Do We Make Updates to This Notice?': '12. ¿Hacemos actualizaciones a este aviso?',
+  '12. Services Management': '12. Gestión de los servicios',
+  '13. How Can You Contact Us About This Notice?':
+    '13. ¿Cómo puede ponerse en contacto con nosotros sobre este aviso?',
+  '13. Privacy Policy': '13. Política de privacidad',
+  '14. How Can You Review, Update, or Delete the Data We Collect From You?':
+    '14. ¿Cómo puede revisar, actualizar o eliminar los datos que recopilamos de usted?',
+  '14. Term and Termination': '14. Mandato y terminación',
+  '15. Modifications and Interruptions': '15. Modificaciones e Interrupciones',
+  '16. Governing Law': '16. Derecho de gobierno',
+  '17. Dispute Resolution': '17. Resolución de controversias',
+  '18. Corrections': '18. Correcciones',
+  '19. Disclaimer': '19. Reclamación',
+  '2. How Do We Process Your Information?': '2. ¿Cómo procesamos su información?',
+  '2. Intellectual Property Rights': '2. Derechos de Propiedad Intelectual',
+  '20. Limitations of Liability': '20. Limitaciones de responsabilidad',
+  '21. Indemnification': '21. Indemnización',
+  '22. User Data': '22. Datos de usuario',
+  '23. Electronic Communications, Transactions, and Signatures':
+    '23. Comunicaciones electrónicas, transacciones y firmas',
+  '24. SMS Text Messaging': '24. Mensajes de texto SMS',
+  '25. California Users and Residents': '25. Usuarios y residentes de California',
+  '26. Miscellaneous': '26. Varios',
+  '27. Contact Us': '27. Contáctenos',
+  '3. User Representations': '3. Representaciones de los usuarios',
+  '3. When and With Whom Do We Share Your Personal Information?':
+    '3. ¿Cuándo y con quién compartimos su información personal?',
+  '4. Do We Use Cookies and Other Tracking Technologies?':
+    '4. ¿Usamos cookies y otras tecnologías de seguimiento?',
+  '4. Products': '4. Productos',
+  '5. Do We Offer Artificial Intelligence-Based Products?':
+    '5. ¿Ofrecemos productos basados en inteligencia artificial?',
+  '5. Purchases and Payment': '5. Compras y pagos',
+  '5740 SW 67th Avenue': '5740 SW 67th Avenue',
+  '6. How Long Do We Keep Your Information?': '6. ¿Cuánto tiempo llevamos su información?',
+  '6. Refunds Policy': '6. Política de reembolso',
+  '7. How Do We Keep Your Information Safe?': '7. ¿Cómo mantenemos su información segura?',
+  '7. Prohibited Activities': '7. Actividades prohibidas',
+  '8. Do We Collect Information From Minors?': '8. ¿Recogemos información de menores?',
+  '8. User Generated Contributions': '8. Contribuciones generadas por el usuario',
+  '9. Contribution License': '9. Licencia de contribución',
+  '9. What Are Your Privacy Rights?': '9. ¿Cuáles son sus derechos de privacidad?',
+  'A board-certified physician licensed in your state reviews your request.':
+    'Un médico certificado y con licencia en su estado revisa su solicitud.',
+  A7B3C9D2: 'A7B3C9D2',
+  'Abdominal pain': 'Dolor abdominal',
+  About: 'Quiénes somos',
+  'About Us': 'Quiénes somos',
+  'About Us | OnlineDoctorNote': 'Sobre nosotros ← OnlineDoctorNote',
+  'Absence Dates': 'Fechas de ausencia',
+  'Absence Reason': 'Motivo de la ausencia',
+  'Accepted across 46 states': 'Aceptada en 46 estados',
+  'access the Services; and': 'el acceso a los Servicios; y',
+  'Accident or injury': 'Accidente o lesión',
+  'Account Information': 'Información de cuentas',
+  'Additional Information': 'Información adicional',
+  'Additional information must be less than 1000 characters':
+    'La información adicional debe ser inferior a 1000 caracteres',
+  'Additional information needed.': 'Necesitamos información adicional.',
+  Affordable: 'Accesible',
+  'Age:': 'Edad:',
+  'Agreement to Our Legal Terms': 'Acuerdo a nuestros Términos Legales',
+  'AI automation': 'Automatización',
+  'AI bots': 'Bots AI',
+  'AI document generation': 'Generación de documentos AI',
+  Alabama: 'Alabama',
+  'All personal information processed using our AI Products is handled in line with our Privacy Notice and our agreement with third parties.':
+    'Toda la información personal procesada usando nuestros productos AI se maneja de acuerdo con nuestro Aviso de privacidad y nuestro acuerdo con terceros.',
+  'All personal information that you provide to us must be true, complete, and accurate, and you must notify us of any changes to such personal information.':
+    'Toda la información personal que nos proporcione debe ser verdadera, completa y precisa, y debe notificarnos cualquier cambio en dicha información personal.',
+  'All products are subject to availability. We reserve the right to discontinue any products at any time for any reason. Prices for all products are subject to change.':
+    'Todos los productos están sujetos a disponibilidad. Nos reservamos el derecho de suspender cualquier producto en cualquier momento por cualquier motivo. Los precios de todos los productos están sujetos a cambios.',
+  Allergies: 'Alergias',
+  'American Express': 'American Express',
+  'An unexpected error occurred. Please try again.':
+    'Un error inesperado ocurrió. Por favor, inténtalo de nuevo.',
+  and: 'y',
+  'Answer a few simple questions about your absence. Takes about 2 minutes.':
+    'Responda algunas preguntas sencillas sobre su ausencia. Toma aproximadamente 2 minutos.',
+  Anxiety: 'Ansiedad',
+  'Any additional information?': '¿Desea agregar información adicional?',
+  Approved: 'Solicitud aprobada',
+  Arizona: 'Arizona',
+  'As a user of the Services, you agree not to:': 'Como usuario de los Servicios, usted acepta no:',
+  'As part of our Services, we offer products, features, or tools powered by artificial intelligence, machine learning, or similar technologies (collectively, "AI Products"). These tools are designed to enhance your experience and provide you with innovative solutions.':
+    'Como parte de nuestros Servicios, ofrecemos productos, características o herramientas propulsadas por inteligencia artificial, aprendizaje automático o tecnologías similares (colectivamente, "Productos AI"). Estas herramientas están diseñadas para mejorar su experiencia y proporcionarle soluciones innovadoras.',
+  'Attempt to impersonate another user or person or use the username of another user.':
+    'Intente imitar a otro usuario o persona o utilizar el nombre de usuario de otro usuario.',
+  Authentication: 'Autenticación',
+  Back: 'Atrás',
+  'Based on the applicable laws of your country or state of residence in the US, you may have the right to request access to the personal information we collect from you, details about how we have processed it, correct inaccuracies, or delete your personal information. You may also have the right to withdraw your consent to our processing of your personal information. These rights may be limited in some circumstances by applicable law. To request to review, update, or delete your personal information, please email us at':
+    'Sobre la base de las leyes aplicables de su país o estado de residencia en los EE.UU., puede tener derecho a solicitar acceso a la información personal que recopilamos de usted, detalles sobre cómo lo hemos procesado, inexactitudes correctas o eliminar su información personal. También puede tener derecho a retirar su consentimiento a nuestro tratamiento de su información personal. Estos derechos pueden limitarse en algunas circunstancias por ley aplicable. Para solicitar revisar, actualizar o eliminar su información personal, por favor envíenos un correo electrónico a',
+  'Basic Information': 'Información básica',
+  'billing addresses': 'Dirección de facturación',
+  'Binding Arbitration': 'Arbitraje vinculante',
+  Blog: 'Blog',
+  'Blog - Health & Medical Documentation Tips': 'Blog - Consejos de documentación médica',
+  'Board-certified doctor reviewing medical documentation':
+    'Médico certificado revisando documentación médica',
+  'Board-Certified Doctors': 'Médicos certificados',
+  'Body or muscle aches': 'Dolores corporales o musculares',
+  'Both Work & School': 'Trabajo y escuela',
+  'Business Transfers.': 'Transferencias de negocios.',
+  'By checking this box, you agree to receive transactional SMS Healthcare Alerts about your note from OnlineDoctorNote at the phone number provided. Message frequency may vary. Message and data rates may apply. STOP to opt out. View our Terms of Service and Privacy Policy. We will not share mobile information with third parties for promotional or marketing purposes.':
+    'Al marcar esta casilla, acepta recibir de OnlineDoctorNote alertas médicas transaccionales por SMS sobre su nota en el número de teléfono proporcionado. La frecuencia de los mensajes puede variar. Pueden aplicarse tarifas de mensajes y datos. Responda STOP para dejar de recibir mensajes. Consulte nuestros Términos de servicio y la Política de privacidad. No compartiremos información móvil con terceros con fines promocionales o de mercadotecnia.',
+  'By providing your mobile phone number and opting in to receive text messages, you consent to receive SMS text messages from OnlineDoctorNote.com. Message and data rates may apply. You can opt out at any time by replying "STOP" to any message.':
+    'Al proporcionar su número de teléfono móvil y optar por recibir mensajes de texto, usted acepta recibir mensajes de texto SMS de OnlineDoctorNote.com. Las tasas de mensajes y datos pueden aplicarse. Usted puede optar en cualquier momento contestando "STOP" a cualquier mensaje.',
+  'By submitting suggestions or other feedback regarding the Services, you agree that we can use and share such feedback for any purpose without compensation to you.':
+    'Al presentar sugerencias u otros comentarios sobre los Servicios, usted acepta que podemos utilizar y compartir tales comentarios para cualquier propósito sin compensación a usted.',
+  'By using the Services, you represent and warrant that:':
+    'Al utilizar los Servicios, usted representa y garantiza que:',
+  California: 'California',
+  'California Users and Residents': 'Usuarios y residentes de California',
+  'Can I get a note for past absences?': '¿Puedo obtener una nota para ausencias pasadas?',
+  Cancel: 'Cancelar',
+  'Certifying Physician': 'Médico certificante',
+  Child: 'Hijo/a',
+  'Choose another reason': 'Elegir otro motivo',
+  'Circumvent, disable, or otherwise interfere with security-related features of the Services.':
+    'Circunstancia, deshabilitación o interfieren de otro modo con las características de seguridad de los Servicios.',
+  'Cleanup failed': 'La limpieza falló',
+  'Cleanup failed after retries': 'La limpieza falló después de la repetición',
+  'Close menu': 'Cerrar menú',
+  Colorado: 'Colorado',
+  complete: 'completado',
+  'Complete everything from your couch, your bed, or wherever you are. 100% online.':
+    'Complete todo desde el sofá, la cama o dondequiera que esté. El proceso es 100 % en línea.',
+  'Complete the form': 'Complete el formulario',
+  'Congestion or runny nose': 'Congestión o secreción nasal',
+  'Congratulations!': '¡Felicidades!',
+  Connecticut: 'Connecticut',
+  'Contact Information': 'Información de contacto',
+  'contact or authentication data': 'datos de contacto o autenticación',
+  'contact preferences': 'preferencias de contacto',
+  'Contact Us': 'Contáctenos',
+  Continue: 'Continuar',
+  'Continue to Payment': 'Continuar al pago',
+  'Contribution License': 'Licencia de contribuciones',
+  'Controls for Do-Not-Track Features': 'Controles para Do-No-Track Características',
+  'Cookies and similar technologies': 'Cookies y tecnologías similares',
+  Corrections: 'Correcciones',
+  'Cough or chest congestion': 'Tos o congestión torácica',
+  'Cut or scrapes': 'Cortadas o raspaduras',
+  'Data Buddies': 'Compañeros de datos',
+  'Date of Birth': 'Fecha de nacimiento',
+  'Date of birth cannot be in the future': 'La fecha de nacimiento no puede ser en el futuro',
+  'Date of birth is required': 'Se requiere la fecha de nacimiento',
+  'Date of Birth:': 'Fecha de nacimiento:',
+  Day: 'Día',
+  DD: 'DD',
+  'debit/credit card numbers': 'debit/credit card números',
+  Delaware: 'Delaware',
+  'Depending on where you are located geographically, the applicable privacy law may mean you have certain rights regarding your personal information.':
+    'Dependiendo de dónde se encuentra geográficamente, la ley de privacidad aplicable puede significar que tiene ciertos derechos respecto a su información personal.',
+  'Device Data.': 'Datos del dispositivo.',
+  'Diarrhea or constipation': 'Diarrea o estreñimiento',
+  Disclaimer: 'Descargo',
+  'Discount applied': 'Descuento aplicado',
+  Discover: 'Descubre',
+  Dislocation: 'Luxación',
+  'Disparage, tarnish, or otherwise harm, in our opinion, us and/or the Services.':
+    'Disparar, empañar o dañar, en nuestra opinión, nosotros y/o los Servicios.',
+  'Dispute Resolution': 'Resolución de controversias',
+  'District of Columbia': 'District of Columbia',
+  'Do United States Residents Have Specific Privacy Rights?':
+    '¿Los residentes de Estados Unidos tienen derechos de privacidad específicos?',
+  'Do we collect any information from third parties?': '¿Recopilamos información de terceros?',
+  'Do We Collect Information From Minors?': '¿Recogemos información de menores?',
+  'Do We Make Updates to This Notice?': '¿Hacemos actualizaciones a este Aviso?',
+  'Do We Offer Artificial Intelligence-Based Products?':
+    '¿Ofrecemos productos basados en inteligencia artificial?',
+  'Do we process any sensitive personal information?':
+    '¿Procesamos alguna información personal sensible?',
+  'Do We Use Cookies and Other Tracking Technologies?':
+    '¿Usamos cookies y otras tecnologías de seguimiento?',
+  'Do you accept insurance?': '¿Aceptan seguro médico?',
+  'Doctor reviews': 'Revisión médica',
+  "Doctor's appointment": 'Cita médica',
+  "Doctor's Note - Online Medical Documentation": 'Nota médica - Documentación médica en línea',
+  "Doctor's Note Verification": 'Verificación de nota médica',
+  "Doctor's Note Verification | Platinum Health Clinic":
+    'Verificación de notas del médico ← Clínica de salud platino',
+  DoctorNote: 'Doctor Note',
+  'DOCUMENT VERIFICATION': 'VERIFICACIÓN DEL DOCUMENTO',
+  'Document Verification | Platinum Health Clinic':
+    'Verificación de documentos Ø Platinum Health Clinic',
+  'download or print a copy of any portion of the Content to which you have properly gained access':
+    'descargar o imprimir una copia de cualquier parte del Contenido al que haya obtenido acceso correctamente',
+  'During business hours (8am-12am EST), most notes are delivered within 30 minutes to 2 hours. During off-hours, it may take slightly longer, but we always aim to be as quick as possible.':
+    'Durante las horas de trabajo (8am-12am EST), la mayoría de las notas se entregan en 30 minutos a 2 horas. Durante horas libres, puede tardar un poco más, pero siempre buscamos ser lo más rápido posible.',
+  Earache: 'Dolor de oído',
+  Easy: 'Fácil',
+  Edit: 'Editar',
+  'Electronic Communications, Transactions, and Signatures':
+    'Comunicaciones electrónicas, transacciones y firmas',
+  'Email Address': 'Correo electrónico',
+  'email addresses': 'direcciones de correo electrónico',
+  'Email is required': 'Se requiere correo electrónico',
+  'Email:': 'Correo electrónico:',
+  'Employer / School Verification': 'Verificación para empleadores y escuelas',
+  'Engage in any automated use of the system, such as using scripts to send comments or messages, or using any data mining, robots, or similar data gathering and extraction tools.':
+    'Realizar cualquier uso automatizado del sistema, como usar scripts para enviar comentarios o mensajes, o utilizar cualquier extracción de datos, robots, o herramientas similares de recopilación y extracción de datos.',
+  'Engage in unauthorized framing of or linking to the Services.':
+    'Participar en el encuadre no autorizado de los Servicios o vincularse con ellos.',
+  'Engage with us in other related ways, including any sales, marketing, or events':
+    'Colabora con nosotros de otras maneras relacionadas, incluyendo cualquier venta, marketing o eventos',
+  English: 'English',
+  'Enter any additional information here...': 'Ingrese aquí cualquier información adicional...',
+  'Enter first name': 'Ingrese el nombre',
+  'Enter last name': 'Ingrese el apellido',
+  'Enter your first name': 'Ingrese su nombre',
+  'Enter your last name': 'Ingrese su apellido',
+  Español: 'Español',
+  'Every note is reviewed by a licensed physician':
+    'Cada nota es revisada por un médico con licencia',
+  'Everything you need to know about our service':
+    'Todo lo que necesita saber sobre nuestro servicio',
+  'Failed to connect to payment service. Please try again.':
+    'No se pudo conectar con el servicio de pago. Inténtelo de nuevo.',
+  'Failed to create payment intent': 'No se pudo iniciar el pago',
+  'Failed to create submission': 'Failed to create submission',
+  'Failed to initialize payment': 'No se pudo inicializar el pago',
+  Fall: 'Caída',
+  FAQ: 'Preguntas frecuentes',
+  'FAQ - Frequently Asked Questions': 'Preguntas frecuentes | OnlineDoctorNote',
+  Fatigue: 'Fatiga',
+  'Feeling sick': 'Malestar o enfermedad',
+  'Fever or chills': 'Fiebre o escalofríos',
+  "Final step - just $24.95 for your official doctor's note.":
+    'Último paso: solo $24.95 por su nota médica oficial.',
+  'financial data': 'datos financieros',
+  'First Day Off': 'Primer día de ausencia',
+  'First name': 'Nombre',
+  'First Name': 'Nombre',
+  Florida: 'Florida',
+  'Follow-up care needed': 'Atención de seguimiento necesaria',
+  'For airlines, employers, or other travel-related documentation needs.':
+    'Para las aerolíneas, empleadores u otras necesidades de documentación relacionadas con los viajes.',
+  "For minor illnesses, mental health days, or caring for a family member, the traditional process doesn't make sense. You're already feeling unwell—the last thing you need is to sit in a waiting room for hours.":
+    'Para enfermedades menores, días de salud mental o cuidado de un familiar, el proceso tradicional no tiene sentido. Ya te sientes mal, lo último que necesitas es sentarte en una sala de espera por horas.',
+  'For Only $24.95': 'Por solo $24.95',
+  'For questions or concerns, please contact us via email at':
+    'Para preguntas o preocupaciones, por favor contáctenos por correo electrónico',
+  'Form data is incomplete. Please go back and complete the form.':
+    'Falta información en el formulario. Regrese y complételo.',
+  'Form data is required': 'Los datos del formulario son necesarios',
+  'Fracture or broken bone': 'Fractura o hueso roto',
+  'Frequently Asked Questions': 'Preguntas frecuentes',
+  Friend: 'Amigo/a',
+  'From the Comfort of Your Home': 'Desde la comodidad de su hogar',
+  'From Your Phone': 'Desde su teléfono',
+  "Full refund if your note isn't accepted": 'Reembolso completo si no aceptan su nota',
+  Georgia: 'Georgia',
+  "Get a Doctor's Note": 'Obtenga una nota médica',
+  "Get a Doctor's Note for Work or School from the Comfort of Your Home":
+    'Obtenga una nota médica para el trabajo o la escuela desde casa',
+  "Get a Doctor's Note in Minutes | OnlineDoctorNote":
+    'Obtenga una nota médica en minutos | OnlineDoctorNote',
+  "Get a doctor's note online in minutes, not days. Board-certified physicians, 100% online, HIPAA compliant. For work or school absences. Only $24.95 with money-back guarantee.":
+    'Obtenga la nota del médico en línea en minutos, no en días. Médicos certificados por la Junta, 100% en línea, compatible con HIPAA. Para ausencias laborales o escolares. Sólo $24.95 con garantía de devolución de dinero.',
+  "Get an official doctor's note for work or school in minutes. Board-certified physicians, HIPAA compliant, valid nationwide. Only $24.95 with money-back guarantee.":
+    'Obtenga una nota oficial del médico para el trabajo o la escuela en minutos. Médicos certificados por la Junta, compatibles con HIPAA, válidos en todo el país. Sólo $24.95 con garantía de devolución de dinero.',
+  "Get an official doctor's note from a board-certified physician. Fast, affordable, and accepted nationwide.":
+    'Obtenga la nota del médico oficial de un médico certificado por la junta. Rápido, asequible y aceptado a nivel nacional.',
+  "Get an official doctor's note online in minutes. Board-certified physicians, 100% online, HIPAA compliant. Only $24.95.":
+    'Obtenga una nota médica oficial en línea en minutos. Médicos certificados por la Junta, 100% en línea, compatible con HIPAA. Sólo $24.95.',
+  "Get answers to common questions about online doctor's notes. Learn about our service, pricing, delivery time, and money-back guarantee.":
+    'Obtenga respuestas a preguntas comunes sobre las notas del médico en línea. Aprenda acerca de nuestro servicio, precios, tiempo de entrega y garantía de devolución de dinero.',
+  'Get Started': 'Comenzar',
+  "Get Your Doctor's Note": 'Obtenga su nota médica',
+  "Get Your Doctor's Note in Minutes": 'Obtenga la nota de su médico en minutos',
+  'Get Your Note': 'Obtenga su nota',
+  'Get Your Note — $24.95': 'Obtenga su nota — $24.95',
+  'Get your note in minutes, not hours. No scheduling and no commute required.':
+    'Obtenga su nota en minutos, no en horas. No necesita programar una cita ni desplazarse.',
+  "Get your signed doctor's note delivered straight to your email inbox.":
+    'Reciba la nota médica firmada directamente en su correo electrónico.',
+  'Google Analytics': 'Google Analytics',
+  'Google Privacy & Terms page': 'Google Privacy &amp; Terms page',
+  'Got my letter within 15 minutes. The process was incredibly smooth and professional.':
+    'Recibí mi nota en 15 minutos. El proceso fue muy sencillo y profesional.',
+  'Governing Law': 'Derecho de gobierno',
+  'Guardian Information': 'Información del tutor legal',
+  'Guardian Information (Person Filling Out Form)':
+    'Información del tutor legal (persona que completa el formulario)',
+  'Guardian information is required when submitting for someone else':
+    'La información de los tutores se requiere cuando se envía para otra persona',
+  'Guardian must be 18 years or older': 'El tutor debe tener 18 años o más',
+  'Guidelines for Reviews': 'Directrices para los exámenes',
+  Hawaii: 'Hawaii',
+  'Head injury or concussion': 'Lesión en la cabeza o conmoción cerebral',
+  'Headache or migraine': 'Dolor de cabeza o migraña',
+  'health data': 'datos sobre salud',
+  'Healthcare documentation, simplified': 'Documentación sanitaria simplificada',
+  "Helpful articles about doctor's notes, telehealth, HIPAA compliance, and navigating medical documentation for work and school absences.":
+    'Artículos útiles sobre notas médicas, telesalubridad, cumplimiento de HIPAA y navegación de documentación médica para ausencias laborales y escolares.',
+  'Helpful resources and guides for navigating medical documentation':
+    'Recursos y guías útiles para navegar la documentación médica',
+  'HIPAA Compliant': 'Cumple con HIPAA',
+  Home: 'Inicio',
+  'How can we reach you?': '¿Cómo podemos comunicarnos con usted?',
+  'How Can You Contact Us About This Notice?':
+    '¿Cómo puedes contactar con nosotros sobre este aviso?',
+  'How Can You Review, Update, or Delete the Data We Collect From You?':
+    '¿Cómo puede revisar, actualizar o eliminar los datos que recopilamos de usted?',
+  'How do we keep your information safe?': '¿Cómo mantenemos su información segura?',
+  'How Do We Keep Your Information Safe?': '¿Cómo mantenemos su información segura?',
+  'How do we process your information?': '¿Cómo procesamos su información?',
+  'How Do We Process Your Information?': '¿Cómo procesamos su información?',
+  'How do you exercise your rights?': '¿Cómo ejerce sus derechos?',
+  'How it works': 'Cómo funciona',
+  'How It Works': 'Cómo funciona',
+  'How Long Do We Keep Your Information?': '¿Cuánto tiempo llevamos su información?',
+  'How quickly will I receive my note?': '¿Qué tan rápido recibiré mi nota?',
+  'How to Exercise Your Rights': 'Cómo ejercer sus derechos',
+  'How We Process Your Data Using AI': 'Cómo procesamos sus datos usando AI',
+  'I agree to the': 'Estoy de acuerdo con el',
+  'I certify that all information provided is accurate and truthful to the best of my knowledge. I am 18 or older.':
+    'Certifico que toda la información proporcionada es exacta y verdadera según mi leal saber y entender. Tengo 18 años o más.',
+  'I tested positive for COVID': 'Obtuve un resultado positivo de COVID',
+  'I tested positive for the FLU': 'Obtuve un resultado positivo de influenza',
+  Idaho: 'Idaho',
+  'If any complaint with us is not satisfactorily resolved, you can contact the Complaint Assistance Unit of the Division of Consumer Services of the California Department of Consumer Affairs in writing at 1625 North Market Blvd., Suite N 112, Sacramento, California 95834 or by telephone at (800) 952-5210 or (916) 445-1254.':
+    'Si cualquier queja con nosotros no se resuelve satisfactoriamente, puede ponerse en contacto con la Unidad de Asistencia de Denuncias de la División de Servicios de Consumo del Departamento de Consumo de California por escrito en 1625 North Market Blvd., Suite N 112, Sacramento, California 95834 o por teléfono al (800) 952-5210 o (916) 445-1254.',
+  'If the Parties are unable to resolve a Dispute through informal negotiations, the Dispute will be finally and exclusively resolved by binding arbitration.':
+    'Si las Partes no pueden resolver un conflicto mediante negociaciones oficiosas, el litigio se resolverá por fin y exclusivamente mediante arbitraje vinculante.',
+  'If we are relying on your consent to process your personal information, you have the right to withdraw your consent at any time. You can withdraw your consent at any time by contacting us at':
+    'Si confiamos en su consentimiento para procesar su información personal, tiene derecho a retirar su consentimiento en cualquier momento. Puede retirar su consentimiento en cualquier momento contactando con nosotros',
+  'If we terminate or suspend your account for any reason, you are prohibited from registering and creating a new account under your name, a fake or borrowed name, or the name of any third party.':
+    'Si terminamos o suspendimos su cuenta por cualquier motivo, está prohibido registrar y crear una nueva cuenta bajo su nombre, un nombre falso o prestado, o el nombre de cualquier tercero.',
+  'If you are a resident of California, Colorado, Connecticut, Delaware, Florida, Indiana, Iowa, Kentucky, Maryland, Minnesota, Montana, Nebraska, New Hampshire, New Jersey, Oregon, Rhode Island, Tennessee, Texas, Utah, or Virginia, you may have the right to request access to and receive details about the personal information we maintain about you.':
+    'Si usted es residente de California, Colorado, Connecticut, Delaware, Florida, Indiana, Iowa, Kentucky, Maryland, Minnesota, Montana, Nebraska, New Hampshire, New Jersey, Oregon, Rhode Island, Tennessee, Texas, Utah o Virginia, usted puede tener el derecho de solicitar acceso y recibir detalles sobre la información personal que mantenemos sobre usted.',
+  'If you are under the age of 18 please have your parent or guardian complete the form.':
+    'Si es menor de 18 años, pida a su padre, madre o tutor legal que complete el formulario.',
+  'IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.':
+    'Si no concuerdas con todos estos títulos legales, entonces estás presumiblemente prohibido de usar los servicios y debes deshacerte de mí mismo.',
+  'If you have questions or comments about this notice, you may email us at':
+    'Si tiene preguntas o comentarios sobre este aviso, puede enviarnos un correo electrónico en',
+  'If you provide any information that is untrue, inaccurate, not current, or incomplete, we have the right to suspend or terminate your account and refuse any and all current or future use of the Services.':
+    'Si usted proporciona cualquier información que sea inexacta, inexacta, no actual o incompleta, tenemos el derecho de suspender o terminar su cuenta y rechazar todo uso actual o futuro de los Servicios.',
+  'If you would at any time like to review or change the information in your account or terminate your account, you can contact us using the contact information provided.':
+    'Si desea revisar o cambiar la información en su cuenta o cancelar su cuenta, puede ponerse en contacto con nosotros utilizando la información de contacto proporcionada.',
+  Illinois: 'Illinois',
+  'IN NO EVENT WILL WE OR OUR DIRECTORS, EMPLOYEES, OR AGENTS BE LIABLE TO YOU OR ANY THIRD PARTY FOR ANY DIRECT, INDIRECT, CONSEQUENTIAL, EXEMPLARY, INCIDENTAL, SPECIAL, OR PUNITIVE DAMAGES, INCLUDING LOST PROFIT, LOST REVENUE, LOSS OF DATA, OR OTHER DAMAGES ARISING FROM YOUR USE OF THE SERVICES.':
+    'En ningún caso, nosotros o nuestros inspectores, EMPLOYEES, o ORGANISMOS, seremos capaces de usted o de cualquier tercera parte para cualquier DIRECT, INDIRECTO, CONSEQUENTIAL, EXEMPLARY, INCIDENTAL, SPECIAL, OR PUNITIVE DAMAGES, SU PROFIT INCLUIDO, LOS SER REVENIDOS, LOS OTROS',
+  'In order to resolve a complaint regarding the Services or to receive further information regarding use of the Services, please contact us at:':
+    'Con el fin de resolver una queja relativa a los Servicios o recibir más información sobre el uso de los Servicios, comuníquese con nosotros en:',
+  'In Short:': 'En resumen:',
+  'In what situations and with which parties do we share personal information?':
+    '¿En qué situaciones y con qué partes compartimos información personal?',
+  Indemnification: 'Indemnización',
+  Indiana: 'Indiana',
+  'Information about your computer, phone, tablet, or other device you use to access the Services.':
+    'Información sobre su computadora, teléfono, tableta u otro dispositivo que utiliza para acceder a los Servicios.',
+  "Information about your device's location, which can be either precise or imprecise.":
+    'Información sobre la ubicación del dispositivo, que puede ser precisa o imprecisa.',
+  'Information automatically collected': 'Información recopilada automáticamente',
+  'Intellectual Property Rights': 'Derechos de propiedad intelectual',
+  'Invalid JSON': 'Inválido JSON',
+  'Invalid payment intent': 'Invalida intención de pago',
+  'Invalid pricing configuration': 'Configuración de precios inválidos',
+  'Invalid pricing configuration. Please contact support.':
+    'Configuración de precios inválidos. Por favor contacte con soporte.',
+  'Invalid signature': 'Firma inválida',
+  'Invalid Telnyx event': 'Evento inválido de Telnyx',
+  Iowa: 'Iowa',
+  Irritability: 'Irritabilidad',
+  'Is this service legitimate?': '¿Este servicio es legítimo?',
+  'Issue Date': 'Fecha de publicación',
+  'Just $24.95 — a fraction of an office visit or urgent care copay. No hidden fees, ever.':
+    'Solo $24.95: una fracción del costo de una consulta o del copago de atención urgente. Sin cargos ocultos.',
+  Kansas: 'Kansas',
+  Kentucky: 'Kentucky',
+  'Lab work required': 'Trabajos de laboratorio necesarios',
+  'Last Day Off': 'Último día de ausencia',
+  'Last day off must be on or after first day off':
+    'El último día de ausencia debe ser igual o posterior al primer día de ausencia',
+  'Last name': 'Apellido',
+  'Last Name': 'Apellido',
+  'Last updated March 27, 2026': 'Última actualización el 27 de marzo de 2026',
+  'Learn about OnlineDoctorNote - our mission, values, and commitment to providing legitimate, doctor-signed medical documentation.':
+    'Aprende sobre OnlineDoctorNote - nuestra misión, valores y compromiso de proporcionar documentación médica legítima y firmada por el médico.',
+  'Legal Matters (Court, Jury Duty, Probation)':
+    'Asuntos legales (tribunal, servicio de jurado o libertad condicional)',
+  'Legal matters are not eligible': 'Los asuntos legales no son elegibles',
+  'Licensed physicians in your state': 'Médicos con licencia en su estado',
+  'Limitations of Liability': 'Limitaciones de responsabilidad',
+  'Loading payment form...': 'Cargando el formulario de pago...',
+  'Loading...': 'Cargando...',
+  'Location Data.': 'Datos de ubicación.',
+  'Log and Usage Data.': 'Datos de registro y uso.',
+  Louisiana: 'Louisiana',
+  'mailing addresses': 'direcciones de correo',
+  Maine: 'Maine',
+  Maryland: 'Maryland',
+  Mastercard: 'Mastercard',
+  'Medical Record #': 'Número de expediente médico',
+  'Menstrual cramps': 'Cólicos menstruales',
+  'Mental health': 'Salud mental',
+  'Miami, FL 33143': 'Miami, FL 33143',
+  Michigan: 'Michigan',
+  Minnesota: 'Minnesota',
+  'Minor burn': 'Quemadura menor',
+  Miscellaneous: 'Varios',
+  'Missing signature': 'Falta de firma',
+  'Missing webhook headers': 'Desapareciendo los cabeceros de Webhook',
+  Mississippi: 'Mississippi',
+  Missouri: 'Missouri',
+  MM: 'MM',
+  'Modifications and Interruptions': 'Modificaciones e Interrupciones',
+  'Money back guarantee': 'Garantía de reembolso',
+  'Money-back guarantee': 'Garantía de reembolso',
+  'Mobile menu': 'Menú móvil',
+  'Questions? Call us': '¿Tiene preguntas? Llámenos',
+  'Money-Back Guarantee': 'Garantía de reembolso',
+  Montana: 'Montana',
+  Month: 'Mes',
+  'Most web browsers and some mobile operating systems include a Do-Not-Track ("DNT") feature. At this stage, no uniform technology standard for recognizing and implementing DNT signals has been finalized. As such, we do not currently respond to DNT browser signals.':
+    'La mayoría de los navegadores web y algunos sistemas operativos móviles incluyen una función Do-Not-Track ("DNT"). En esta etapa, no se ha finalizado ninguna norma uniforme de tecnología para reconocer y aplicar las señales DNT. Como tal, actualmente no respondemos a las señales del navegador DNT.',
+  'Most Web browsers are set to accept cookies by default. If you prefer, you can usually choose to set your browser to remove cookies and to reject cookies.':
+    'La mayoría de los navegadores Web están establecidos para aceptar cookies por defecto. Si lo prefieres, puedes elegir configurar tu navegador para eliminar las cookies y rechazar las cookies.',
+  'My work called to verify and there was no issue. The verification service gave me complete peace of mind.':
+    'Mi empleador llamó para verificarla y no hubo ningún problema. El servicio de verificación me dio total tranquilidad.',
+  Myself: 'Para mí',
+  names: 'nombres',
+  'Nausea or vomiting': 'Náuseas o vómitos',
+  Nebraska: 'Nebraska',
+  "Need a quick doctor's note for work or school?":
+    '¿Necesita rápidamente una nota médica para el trabajo o la escuela?',
+  "Need coverage for both? We'll prepare a note suitable for either audience.":
+    '¿Necesitas cobertura para ambos? Prepararemos una nota adecuada para cualquier audiencia.',
+  Nevada: 'Nevada',
+  'New Hampshire': 'New Hampshire',
+  'New Jersey': 'New Jersey',
+  'New Mexico': 'Nuevo México',
+  'New York': 'Nueva York',
+  'No Driving Required': 'No necesita desplazarse',
+  'No Insurance Needed': 'No necesita seguro médico',
+  'No insurance? No problem. Our simple flat rate means affordable care for everyone.':
+    '¿No tiene seguro médico? No hay problema. Nuestra tarifa fija hace que el servicio sea accesible para todos.',
+  'No Waiting Rooms': 'Sin salas de espera',
+  'North Carolina': 'Carolina del Norte',
+  'North Dakota': 'North Dakota',
+  'Not provided': 'No proporcionado',
+  'Note Purpose': 'Propósito de la nota',
+  'Now tell us about you': 'Ahora cuéntenos sobre usted',
+  NPI: 'NPI',
+  'ODN LLC': 'ODN LLC',
+  of: 'de',
+  Ohio: 'Ohio',
+  Oklahoma: 'Oklahoma',
+  Online: 'Online',
+  'Online Medical Documentation': 'Documentación médica en línea',
+  "OnlineDoctorNote - Get Your Doctor's Note Online":
+    'OnlineDoctorNota - Obtenga la nota de su médico en línea',
+  'OnlineDoctorNote privacy policy. Learn how we protect your personal health information and comply with HIPAA regulations.':
+    'OnlineDoctorNota política de privacidad. Aprenda cómo protegemos su información de salud personal y cumplimos con las regulaciones HIPAA.',
+  'OnlineDoctorNote team providing telehealth services':
+    'Equipo OnlineDoctorNote que proporciona servicios de telesalud',
+  'OnlineDoctorNote terms of service. Read our terms and conditions for using our online medical documentation service.':
+    'OnlineDoctorNota términos de servicio. Lea nuestros términos y condiciones para utilizar nuestro servicio de documentación médica en línea.',
+  'OnlineDoctorNote.com': 'OnlineDoctorNote.com',
+  'OnlineDoctorNote.com ·': 'OnlineDoctorNote.com ·',
+  'Only letters, spaces, hyphens, and apostrophes are allowed':
+    'Solo se permiten letras, espacios, guiones y apóstrofos',
+  'Open menu': 'Abrir menú',
+  'Opting out of marketing and promotional communications':
+    'Cómo cancelar las comunicaciones promocionales y de mercadotecnia',
+  'or by calling toll-free at': 'o llamando gratis a',
+  'or contact us by post at:': 'o contáctenos por correo en:',
+  'Order Summary': 'Resumen del pedido',
+  Other: 'Otro',
+  'Our AI Products are designed for:': 'Nuestros productos AI están diseñados para:',
+  'Our Content and Marks are protected by copyright and trademark laws and treaties in the United States and around the world.':
+    'Nuestros Contenidos y Marcas están protegidos por leyes y tratados de derechos de autor y marcas en los Estados Unidos y en todo el mundo.',
+  'Our intellectual property': 'Nuestra propiedad intelectual',
+  "Our notes are signed by board-certified doctors and contain all standard medical documentation elements. We have a 100% money-back guarantee—if your note isn't accepted for any reason, we'll issue a full refund. We also provide a verification service for employers and schools.":
+    'Nuestras notas son firmadas por médicos certificados por la junta y contienen todos los elementos de documentación médica estándar. Tenemos una garantía de devolución de dinero del 100%, si su nota no es aceptada por ningún motivo, emitiremos un reembolso completo. También ofrecemos un servicio de verificación para los empleadores y las escuelas.',
+  "Our notes can be used for work or school absences of up to 7 days. This covers mild illnesses, minor injuries, mental health days, doctor's appointments, and caregiver duties. We cannot provide notes for FMLA, legal matters, disability claims, or return-to-work clearance.":
+    'Nuestras notas se pueden utilizar para ausencias de trabajo o escuela de hasta 7 días. Esto cubre enfermedades leves, lesiones menores, días de salud mental, citas médicas y deberes de cuidado. No podemos proporcionar notas para el FMLA, asuntos legales, reclamaciones por discapacidad o autorización de retorno al trabajo.',
+  'Our Services': 'Nuestros Servicios',
+  "Our site provides a Telehealth platform for consumers to request a doctor's note from a Telehealth provider. Consumers input health information which is reviewed by a licensed provider, and if appropriate, a digital doctor's note will be issued and sent electronically.":
+    'Nuestro sitio proporciona una plataforma de Telesalud para que los consumidores soliciten la nota de un médico de un proveedor de Telesalud. Los consumidores introducen información de salud que es revisada por un proveedor autorizado, y si es apropiado, una nota de médico digital será emitida y enviada electrónicamente.',
+  'Paid submission requires manual recovery':
+    'La presentación de pagos requiere recuperación manual',
+  Parent: 'Padre o madre',
+  'Patient Information': 'Información del paciente',
+  'Patient Initials': 'Inicial del paciente',
+  'Pay Now': 'Pagar ahora',
+  Payment: 'Pago',
+  'Payment Data.': 'Datos de pago.',
+  'Payment Details': 'Datos de pago',
+  'Payment Error': 'Error de pago',
+  'Payment intent ID is required': 'Se requiere identificación de intención de pago',
+  'Payment processing error. Please try again.':
+    'Error de procesamiento de pagos. Por favor, inténtalo de nuevo.',
+  'Payment Successful': 'Pago realizado correctamente',
+  'Payment verification failed': 'No se pudo verificar el pago',
+  Pennsylvania: 'Pennsylvania',
+  'Personal Information Provided by You.': 'Información personal proporcionada por usted.',
+  'Personal information you disclose to us': 'Información personal que nos revela',
+  'Phone Number': 'Número de teléfono',
+  'Phone number is required': 'El número de teléfono es obligatorio',
+  'Phone number must be exactly 10 digits': 'El número de teléfono debe ser exactamente 10 dígitos',
+  'phone numbers': 'números de teléfono',
+  'Phone:': 'Teléfono:',
+  'Please check the Medical Record # and try again. If you still need help, contact Platinum Health Clinic.':
+    'Por favor, compruebe el Registro Médico y vuelva a intentarlo. Si todavía necesita ayuda, comuníquese con Platinum Health Clinic.',
+  'Please choose who this note is for': 'Seleccione para quién es esta nota',
+  'Please compare the information below with the document provided to confirm validity.':
+    'Compare la información que figura a continuación con el documento proporcionado para confirmar su validez.',
+  'Please contact support if you believe this is an error.':
+    'Comuníquese con soporte si considera que se trata de un error.',
+  'Please describe other symptoms': 'Sírvase describir otros síntomas',
+  'Please describe the purpose...': 'Describa el propósito...',
+  'Please describe your other symptoms': 'Por favor, describa sus otros síntomas',
+  'Please describe...': 'Describa los detalles...',
+  'Please enter a valid date of birth': 'Ingrese una fecha válida de nacimiento',
+  'Please enter a valid email address':
+    'Por favor, introduzca una dirección de correo electrónico válida',
+  'Please enter a valid email address with a recognized domain':
+    'Por favor, introduzca una dirección de correo electrónico válida con un dominio reconocido',
+  'Please enter a valid first day off': 'Por favor ingrese un primer día válido',
+  'Please enter a valid guardian date of birth': 'Ingrese una fecha válida de nacimiento del tutor',
+  'Please enter a valid last day off': 'Por favor ingrese un último día válido',
+  'Please enter a valid patient date of birth':
+    'Por favor, introduzca una fecha de nacimiento válida del paciente',
+  'Please enter a valid phone number': 'Introduzca un número de teléfono válido',
+  'Please enter the medical record number located in the upper right corner of the note.':
+    'Ingrese el número de expediente médico que aparece en la esquina superior derecha de la nota.',
+  'Please note:': 'Tenga en cuenta:',
+  'Please note: Your information is always confidential and protected by HIPAA.':
+    'Aviso: Su información siempre es confidencial y está protegida por HIPAA.',
+  'Please provide information about the person who needs this note':
+    'Proporcione la información de la persona que necesita esta nota médica',
+  'Please review all details carefully before continuing to payment.':
+    'Revise cuidadosamente todos los datos antes de continuar al pago.',
+  'Please select a reason for your absence': 'Seleccione el motivo de su ausencia',
+  'Please select at least one symptom or describe your symptoms':
+    'Por favor, seleccione al menos un síntoma o describa sus síntomas',
+  'Please select end date': 'Seleccione la fecha de finalización',
+  'Please select start date': 'Seleccione la fecha de inicio',
+  'Please select the purpose of this note': 'Seleccione el propósito de esta nota',
+  'Please select your state': 'Seleccione su estado',
+  'Please specify the purpose': 'Sírvase especificar el propósito',
+  'Please specify the reason': 'Especifique el motivo',
+  'Please specify the reason...': 'Especifique el motivo...',
+  'Please wait while we confirm your payment': 'Espere mientras confirmamos su pago',
+  'Powered by': 'Con tecnología de',
+  'Preventive screening': 'Examen preventivo',
+  'Price unavailable': 'Precio no disponible',
+  Privacy: 'Privacidad',
+  'Privacy Policy': 'Política de privacidad',
+  'Procedure scheduled': 'Procedimiento programado',
+  'Processing Payment': 'Procesando el pago',
+  'Processing your request...': 'Procesando su solicitud...',
+  'Processing...': 'Procesando...',
+  Products: 'Productos',
+  'Prohibited Activities': 'Actividades prohibidas',
+  'Provide to your school administrator, counselor, or professor as needed.':
+    'Proporcione a su administrador de la escuela, consejero o profesor según sea necesario.',
+  'Purchases and Payment': 'Compras y pagos',
+  'Purpose description must be less than 500 characters':
+    'La descripción del propósito debe ser inferior a 500 caracteres',
+  'Questions or concerns?': '¿Preguntas o preocupaciones?',
+  'Reading this Privacy Notice will help you understand your privacy rights and choices. We are responsible for making decisions about how your personal information is processed. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at':
+    'Leer este Aviso de privacidad le ayudará a entender sus derechos y opciones de privacidad. Somos responsables de tomar decisiones sobre cómo se procesa su información personal. Si no está de acuerdo con nuestras políticas y prácticas, por favor no utilice nuestros Servicios. Si todavía tiene alguna pregunta o preocupación, por favor contacte con nosotros',
+  'Real board-certified doctors who care. We verify your note if your employer or school calls.':
+    'Médicos certificados que se preocupan por usted. Verificamos su nota si llama su empleador o escuela.',
+  'Reason must be less than 200 characters': 'La razón debe ser inferior a 200 caracteres',
+  'Receive your note': 'Reciba su nota',
+  'Recipient must be either "myself" or "someone_else"':
+    'El destinatario debe ser "yo mismo" o "alguien else"',
+  'Refunds Policy': 'Política de reembolso',
+  'Request My Note': 'Solicitar mi nota',
+  Restrictions: 'Restricciones',
+  'Return Guidance': 'Indicaciones de regreso',
+  'Return to Home': 'Volver al inicio',
+  Review: 'Revisar información',
+  'Review your information': 'Revise su información',
+  'Right to access your personal data': 'Derecho a acceder a sus datos personales',
+  'Right to correct inaccuracies in your personal data':
+    'Derecho a corregir inexactitudes en sus datos personales',
+  'Right to know whether or not we are processing your personal data':
+    'Derecho a saber si estamos procesando o no sus datos personales',
+  'Right to non-discrimination for exercising your rights':
+    'Derecho a la no discriminación por ejercer sus derechos',
+  'Right to obtain a copy of the personal data you previously shared with us':
+    'Derecho a obtener una copia de los datos personales que compartió anteriormente con nosotros',
+  'Right to opt out of the processing of your personal data if it is used for targeted advertising':
+    'Derecho a no procesar sus datos personales si se utiliza para publicidad dirigida',
+  'Right to request the deletion of your personal data':
+    'Derecho a solicitar la eliminación de sus datos personales',
+  'Routine check-up': 'Verificación de rutina',
+  Sadness: 'Tristeza',
+  "Sample doctor's note": 'Ejemplo de nota médica',
+  Save: 'Guardar',
+  'Save Money': 'Ahorre dinero',
+  'Save Time': 'Ahorre tiempo',
+  School: 'Escuela',
+  'Secure payment powered by Stripe': 'Pago seguro procesado por Stripe',
+  'Select all symptoms that apply': 'Seleccione todos los síntomas que correspondan',
+  'Select all symptoms that apply.': 'Seleccione todos los síntomas que correspondan.',
+  "Select the dates you need covered by your doctor's note. We can cover up to 7 consecutive days.":
+    'Seleccione las fechas que debe cubrir su nota médica. Podemos cubrir hasta 7 días consecutivos.',
+  'Select this if the note is for volunteer work or another non-legal reason.':
+    'Seleccione esto si la nota es para el trabajo voluntario u otra razón no legal.',
+  'Select your relationship': 'Seleccione su relación con la persona',
+  'Select your relationship to the person.': 'Seleccione su relación con la persona.',
+  'Select your state': 'Seleccione su estado',
+  'Select your state to ensure we can serve you.':
+    'Seleccione su estado para confirmar que podemos atenderle.',
+  'Sensitive Information.': 'Información sensible.',
+  'Server misconfiguration': 'Error del servidor',
+  'Service-related, diagnostic, usage, and performance information our servers automatically collect when you access or use our Services.':
+    'Servicio relacionado, diagnóstico, uso e información de rendimiento nuestros servidores recopilan automáticamente al acceder o utilizar nuestros Servicios.',
+  'Services Management': 'Gestión de los servicios',
+  'Share with your employer to excuse an absence or request accommodations.':
+    'Compartir con su empleador para excusar una ausencia o solicitar alojamiento.',
+  'shortly.': 'en breve.',
+  Sibling: 'Hermano/a',
+  'Significant Other/Spouse': 'Pareja o cónyuge',
+  'Skin rash or burn': 'Erupción cutánea o quemadura',
+  'Skip the crowded waiting room. No exposure to other sick patients while you recover.':
+    'Evite las salas de espera llenas y la exposición a otros pacientes enfermos mientras se recupera.',
+  'Skip the waiting room. Get started now.': 'Evite la sala de espera. Comience ahora.',
+  'Skip to main content': 'Saltar al contenido principal',
+  'SMS message not found for receipt': 'Mensaje SMS no encontrado para la recepción',
+  'SMS Text Messaging': 'Mensajes de texto SMS',
+  'solely for your personal, non-commercial use.': 'sólo para su uso personal, no comercial.',
+  'Some information — such as your Internet Protocol (IP) address and/or browser and device characteristics — is collected automatically when you visit our Services.':
+    'Algunas informaciones, como su dirección de Internet Protocol (IP) y/o características de navegador y dispositivo, se recogen automáticamente cuando visita nuestros Servicios.',
+  'Some of the information may be considered "special" or "sensitive" in certain jurisdictions. We may process sensitive personal information when necessary with your consent or as otherwise permitted by applicable law.':
+    'Parte de la información puede ser considerada "especial" o "sensible" en ciertas jurisdicciones. Podemos procesar información personal sensible cuando sea necesario con su consentimiento o según lo permita la ley aplicable.',
+  'Someone else': 'Para otra persona',
+  'Sore throat': 'Dolor de garganta',
+  'South Carolina': 'South Carolina',
+  'South Dakota': 'South Dakota',
+  'Specialist consultation': 'Consulta especializada',
+  'Sprain or strain': 'Esguince o distensión',
+  State: 'Estado',
+  'State License': 'Licencia estatal',
+  Step: 'Paso',
+  Stress: 'Estrés',
+  'Subject to your compliance with these Legal Terms, we grant you a non-exclusive, non-transferable, revocable license to:':
+    'Sujeto a su cumplimiento de estos Términos Legales, le otorgamos una licencia no exclusiva, no transferible, revocable a:',
+  'Summary of Key Points': 'Resumen de los puntos clave',
+  'Swelling or bruising': 'Hinchazón o moretones',
+  'Symptom description must be less than 500 characters':
+    'La descripción de los síntomas debe ser inferior a 500 caracteres',
+  Symptoms: 'Síntomas',
+  'Systematically retrieve data or other content from the Services to create or compile, directly or indirectly, a collection, compilation, database, or directory without written permission from us.':
+    'Recuperar sistemáticamente datos u otro contenido de los Servicios para crear o compilar, directa o indirectamente, una colección, compilación, base de datos o directorio sin permiso escrito de nosotros.',
+  'Table of Contents': 'Cuadro de contenidos',
+  'Taking care of someone': 'Cuidado de otra persona',
+  'Telnyx event already processing': 'Evento Telnyx ya procesado',
+  'Temporary submission not found': 'Presentación temporal no encontrada',
+  Tennessee: 'Tennessee',
+  'Term and Termination': 'Término y terminación',
+  Terms: 'Términos',
+  'Terms of Service': 'Términos de servicio',
+  Texas: 'Texas',
+  'Thank you for your interest in our services. Unfortunately, our notes cannot be used for legal matters, including jury duty, court, probation, or similar obligations. We apologize for any inconvenience.':
+    'Gracias por su interés en nuestros servicios. Lamentablemente, nuestras notas no pueden utilizarse para asuntos jurídicos, como el deber de jurado, el tribunal, la libertad condicional o obligaciones similares. Nos disculpamos por cualquier inconveniente.',
+  'Thank you for your payment!': '¡Gracias por su pago!',
+  "That's why we built OnlineDoctorNote: a legitimate telehealth service that connects you with board-certified physicians who can evaluate your situation and provide proper documentation, all from the comfort of your home.":
+    'Es por eso que construimos OnlineDoctorNote: un servicio de telesalud legítimo que te conecta con médicos certificados por la junta que pueden evaluar tu situación y proporcionar documentación adecuada, todo desde la comodidad de tu hogar.',
+  'The arbitration shall be commenced and conducted under the Commercial Arbitration Rules of the American Arbitration Association ("AAA") and, where appropriate, the AAA\'s Supplementary Procedures for Consumer Related Disputes.':
+    'El arbitraje se iniciará y llevará a cabo bajo el Reglamento de Arbitraje Comercial de la Asociación Americana de Arbitraje ("AAA") y, cuando proceda, los Procedimientos Suplementarios de la AAA para Controversias Relacionadas con el Consumidor.',
+  'The completed note will be sent to your registered email address':
+    'La nota terminada se enviará al correo electrónico registrado',
+  'The Content and Marks are provided in or through the Services "AS IS" for your personal, non-commercial use only.':
+    'El Contenido y las Marcas se proporcionan en o a través de los Servicios "AS IS" para su uso personal, no comercial solamente.',
+  'The doctor will review your chart and contact you if needed.':
+    'El médico revisará su información clínica y se comunicará con usted si es necesario.',
+  'The easiest way to exercise your rights is by contacting us at':
+    'La manera más fácil de ejercer sus derechos es contactarnos',
+  'The information provided when using the Services is not intended for distribution to or use by any person or entity in any jurisdiction or country where such distribution or use would be contrary to law or regulation or which would subject us to any registration requirement within such jurisdiction or country. Accordingly, those persons who choose to access the Services from other locations do so on their own initiative and are solely responsible for compliance with local laws, if and to the extent local laws are applicable.':
+    'La información proporcionada al utilizar los Servicios no está destinada a la distribución o el uso por cualquier persona o entidad en ninguna jurisdicción o país en que dicha distribución o utilización sea contraria a la ley o la regulación o que nos someta a cualquier requisito de registro dentro de dicha jurisdicción o país. En consecuencia, las personas que optan por acceder a los Servicios de otros lugares lo hacen por iniciativa propia y son únicamente responsables del cumplimiento de las leyes locales, si son aplicables y en la medida en que son aplicables las leyes locales.',
+  'The information we collect includes:': 'La información que recopilamos incluye:',
+  'The Parties agree that any arbitration shall be limited to the Dispute between the Parties individually. To the full extent permitted by law, (a) no arbitration shall be joined with any other proceeding; (b) there is no right or authority for any Dispute to be arbitrated on a class-action basis; and (c) there is no right or authority for any Dispute to be brought in a purported representative capacity.':
+    'Las Partes convienen en que todo arbitraje se limitará a la controversia entre las Partes individualmente. En la medida en que lo permita la ley, a) no se unirá ningún arbitraje a ningún otro procedimiento; b) no existe ningún derecho o autoridad para que cualquier Controversia sea arbitrada sobre una base de acción de clase; y c) no hay derecho o autoridad para que cualquier Controversia sea presentada en una capacidad representativa presupuestada.',
+  'The personal information that we collect depends on the context of your interactions with us and the Services, the choices you make, and the products and features you use. The personal information we collect may include the following:':
+    'La información personal que recopilamos depende del contexto de sus interacciones con nosotros y los Servicios, las opciones que tomas y los productos y características que utilizas. La información personal que recopilamos puede incluir lo siguiente:',
+  'The Services are intended for users who are at least 18 years old. Persons under the age of 18 are not permitted to use or register for the Services.':
+    'Los Servicios están destinados a usuarios de al menos 18 años. No se permite a las personas menores de 18 años utilizar o registrarse para los servicios.',
+  'THE SERVICES ARE PROVIDED ON AN AS-IS AND AS-AVAILABLE BASIS. YOU AGREE THAT YOUR USE OF THE SERVICES WILL BE AT YOUR SOLE RISK. TO THE FULLEST EXTENT PERMITTED BY LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, IN CONNECTION WITH THE SERVICES AND YOUR USE THEREOF.':
+    'Los SERVICIOS están protegidos en una loma tan asabible como ella. Dices que tu uso de los servicios estará en tu carrera. Al más poderoso, percibido por la ley, rechazamos todas las urgencias, la expectativa o la aplicación, en conformidad con los servicios y su uso allí.',
+  'The Services does not offer users to submit or post content. We may provide you with the opportunity to create, submit, post, display, transmit, perform, publish, distribute, or broadcast content and materials to us or on the Services ("Contributions").':
+    'Los Servicios no ofrecen a los usuarios que envíen o publiquen contenidos. Podemos brindarle la oportunidad de crear, enviar, publicar, mostrar, transmitir, realizar, publicar, distribuir o transmitir contenidos y materiales a nosotros o a los Servicios ("Contribuciones").',
+  'The Services may contain links to other websites ("Third-Party Websites") as well as articles, photographs, text, graphics, pictures, designs, music, sound, video, information, applications, software, and other content or items belonging to or originating from third parties ("Third-Party Content"). Such Third-Party Websites and Third-Party Content are not investigated, monitored, or checked for accuracy, appropriateness, or completeness by us.':
+    'Los Servicios pueden contener enlaces a otros sitios web ("Sitios web de terceros"), así como artículos, fotografías, textos, gráficos, imágenes, diseños, música, sonido, vídeo, información, aplicaciones, software y otros contenidos o artículos pertenecientes a terceros o originarios de ellos ("Contenido de terceros"). Tales sitios web de terceros y contenido de terceros no son investigados, monitoreados o verificados por nosotros para la exactitud, la idoneidad o la integridad.',
+  'There may be information on the Services that contains typographical errors, inaccuracies, or omissions. We reserve the right to correct any errors, inaccuracies, or omissions and to change or update the information on the Services at any time, without prior notice.':
+    'Puede haber información sobre los Servicios que contengan errores tipográficos, inexactitudes o omisiones. Nos reservamos el derecho a corregir cualquier error, inexactitudes o omisiones y a cambiar o actualizar la información sobre los Servicios en cualquier momento, sin previo aviso.',
+  'There was an issue with your payment': 'Ocurrió un problema con su pago',
+  'These Legal Terms and any policies or operating rules posted by us on the Services or in respect to the Services constitute the entire agreement and understanding between you and us. Our failure to exercise or enforce any right or provision of these Legal Terms shall not operate as a waiver of such right or provision.':
+    'Estos Términos Legales y cualquier política o reglamento operativo publicados por nosotros en los Servicios o respecto a los Servicios constituyen el acuerdo y entendimiento completo entre usted y nosotros. Nuestra incapacidad para ejercer o hacer cumplir cualquier derecho o disposición de estos Términos legales no funcionará como una renuncia a dicho derecho o disposición.',
+  'These Legal Terms and your use of the Services are governed by and construed in accordance with the laws of the State of New York applicable to agreements made and to be entirely performed within the State of New York, without regard to its conflict of law principles.':
+    'Estos Términos Legales y su uso de los Servicios se rigen y se interpretan de conformidad con las leyes del Estado de Nueva York aplicables a los acuerdos concertados y que se realicen íntegramente dentro del Estado de Nueva York, sin tener en cuenta sus principios de conflicto de leyes.',
+  'These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you"), and ODN LLC, concerning your access to and use of the Services. You agree that by accessing the Services, you have read, understood, and agreed to be bound by all of these Legal Terms.':
+    'Estos Términos Legales constituyen un acuerdo jurídicamente vinculante hecho entre usted, ya sea personalmente o en nombre de una entidad ("usted"), y ODN LLC, en relación con su acceso y uso de los Servicios. Usted está de acuerdo en que al acceder a los Servicios, ha leído, entendido y acordado estar obligado por todos estos Términos Legales.',
+  'These Legal Terms shall remain in full force and effect while you use the Services.':
+    'Estos Términos Legales permanecerán en plena fuerza y efecto mientras utilice los Servicios.',
+  'Third-Party Websites and Content': 'Sitios web y contenido de terceros',
+  'This Privacy Notice for ODN LLC (doing business as OnlineDoctorNote.com) ("we," "us," or "our"), describes how and why we might access, collect, store, use, and/or share ("process") your personal information when you use our services ("Services"), including when you:':
+    'Este Aviso de privacidad para ODN LLC (hacer negocios como OnlineDoctorNote.com) ("nosotros", o "nuestro"), describe cómo y por qué podemos acceder, recopilar, almacenar, usar y/o compartir ("proceso") su información personal cuando utiliza nuestros servicios ("Servicios"), incluyendo cuando:',
+  'This summary provides key points from our Privacy Notice, but you can find out more details about any of these topics by using our table of contents below to find the section you are looking for.':
+    'Este resumen proporciona puntos clave de nuestro Aviso de Privacidad, pero puede encontrar más detalles sobre cualquiera de estos temas utilizando nuestra tabla de contenidos a continuación para encontrar la sección que está buscando.',
+  "Three simple steps to get your doctor's note":
+    'Tres pasos sencillos para obtener su nota médica',
+  'To comply with our legal obligations': 'Para cumplir con nuestras obligaciones legales',
+  'To deliver and facilitate delivery of services to the user':
+    'Para ofrecer y facilitar la prestación de servicios al usuario',
+  'To deliver targeted advertising': 'Para entregar publicidad dirigida',
+  'To evaluate and improve our Services': 'Para evaluar y mejorar nuestros servicios',
+  'To exercise these rights, you can contact us at':
+    'Para ejercer estos derechos, puede contactar con nosotros',
+  'To facilitate account creation and authentication and manage user accounts':
+    'Para facilitar la creación y autenticación de cuentas y gestionar cuentas de usuario',
+  'To fulfill and manage your orders': 'Para cumplir y gestionar sus órdenes',
+  'To post testimonials': 'Para publicar testimonios',
+  'To protect our Services': 'Para proteger nuestros servicios',
+  'To request feedback': 'Solicitar información',
+  'To respond to user inquiries and offer support':
+    'Para responder a las preguntas de los usuarios y ofrecer soporte',
+  'To send you marketing and promotional communications':
+    'Para enviarte marketing y comunicaciones promocionales',
+  'Too many verification attempts. Please wait a few minutes and try again.':
+    'Demasiados intentos de verificación. Por favor, espere unos minutos y vuelva a intentarlo.',
+  Travel: 'Viaje',
+  'Trick, defraud, or mislead us and other users, especially in any attempt to learn sensitive account information such as user passwords.':
+    'Trick, defraud, o engañarnos a nosotros y a otros usuarios, especialmente en cualquier intento de aprender información de cuenta sensible como contraseñas de usuario.',
+  'Trouble sleeping': 'Problemas para dormir',
+  'Trusted by 80,000+ patients nationwide':
+    'La confianza de más de 80,000 pacientes en todo el país',
+  'Trusted by 80,000+ patients nationwide.':
+    'La confianza de más de 80,000 pacientes en todo el país.',
+  'Try another record': 'Probar con otro expediente',
+  'Unable to fetch pricing information': 'Incapaz de obtener información sobre los precios',
+  'Unable to fetch pricing information. Please try again.':
+    'Incapaz de buscar información sobre precios. Por favor, inténtalo de nuevo.',
+  'Unable to process your request. Please try again.':
+    'Incapaz de procesar su solicitud. Por favor, inténtalo de nuevo.',
+  Unauthorized: 'No autorizado',
+  'United States': 'Estados Unidos',
+  'Unknown error': 'Error desconocido',
+  "Upload or transmit viruses, Trojan horses, or other material that interferes with any party's uninterrupted use and enjoyment of the Services.":
+    'Cargue o transmita virus, caballos troyanos u otro material que interfiera con el uso ininterrumpido de cualquier parte y el disfrute de los Servicios.',
+  'Use any information obtained from the Services in order to harass, abuse, or harm another person.':
+    'Use cualquier información obtenida de los Servicios para hostigar, abusar o dañar a otra persona.',
+  "Use OnlineDoctorNote.com. A Telehealth service provider with a focus on providing consumers with a certified doctor's note for their employer or school to verify an absence.":
+    'Use OnlineDoctorNote.com. Un proveedor de servicios de Telesalud se centra en proporcionar a los consumidores una nota médica certificada para su empleador o escuela para verificar una ausencia.',
+  'Use the Services as part of any effort to compete with us or otherwise use the Services and/or the Content for any revenue-generating endeavor or commercial enterprise.':
+    'Utilice los Servicios como parte de cualquier esfuerzo para competir con nosotros o utilizar de otro modo los Servicios y/o el Contenido para cualquier esfuerzo generador de ingresos o empresa comercial.',
+  'Use the Services in a manner inconsistent with any applicable laws or regulations.':
+    'Use los Servicios de una manera incompatible con cualquier ley o reglamento aplicable.',
+  'User Data': 'Datos de usuario',
+  'User Generated Contributions': 'Contribuciones generadas por el usuario',
+  'User Representations': 'Representaciones de usuario',
+  Utah: 'Utah',
+  Valid: 'Válida',
+  'Valid Nationwide': 'Válida en todo el país',
+  Verify: 'Verificar',
+  'Verify a Platinum Health Clinic medical note by Medical Record #.':
+    'Verifique una nota médica de la Clínica de Salud Platinum por Registro Médico #.',
+  'Verify document': 'Verificar documento',
+  'Verifying your payment...': 'Verificando su pago...',
+  'Verifying...': 'Verificando...',
+  Vermont: 'Vermont',
+  Virginia: 'Virginia',
+  Visa: 'Visa',
+  'Visit our website at': 'Visita nuestro sitio web',
+  'Visiting the Services, sending us emails, and completing online forms constitute electronic communications. You consent to receive electronic communications, and you agree that all agreements, notices, disclosures, and other communications we provide to you electronically, via email and on the Services, satisfy any legal requirement that such communication be in writing.':
+    'Visitar los Servicios, enviarnos correos electrónicos y completar formularios en línea constituyen comunicaciones electrónicas. Usted acepta recibir comunicaciones electrónicas, y usted acepta que todos los acuerdos, avisos, revelaciones y otras comunicaciones que le ofrecemos electrónicamente, por correo electrónico y en los Servicios, satisfacen cualquier requisito legal que dicha comunicación sea por escrito.',
+  Washington: 'Washington',
+  'Watery or itchy eyes': 'Ojos llorosos o con picazón',
+  "Way easier than going to the doctor's office. My employer accepted it without any questions.":
+    'Fue mucho más fácil que ir al consultorio médico. Mi empleador la aceptó sin hacer preguntas.',
+  'We accept the following forms of payment:': 'Aceptamos las siguientes formas de pago:',
+  'We aim to protect your personal information through a system of organizational and technical security measures.':
+    'Nuestro objetivo es proteger su información personal a través de un sistema de medidas de seguridad organizativas y técnicas.',
+  'We are ODN LLC, doing business as OnlineDoctorNote.com ("Company," "we," "us," "our"), a company registered in Delaware, United States at 5740 SW 67th Avenue, Miami, FL 33143.':
+    'Somos ODN LLC, haciendo negocios como OnlineDoctorNote.com ("Empresa", "nosotros", "nuestro"), una empresa registrada en Delaware, Estados Unidos en 5740 SW 67th Avenue, Miami, FL 33143.',
+  'We are the owner or the licensee of all intellectual property rights in our Services, including all source code, databases, functionality, software, website designs, audio, video, text, photographs, and graphics in the Services (collectively, the "Content"), as well as the trademarks, service marks, and logos contained therein (the "Marks").':
+    'Somos el propietario o el licenciatario de todos los derechos de propiedad intelectual en nuestros Servicios, incluyendo todo el código fuente, bases de datos, funcionalidad, software, diseños web, audio, vídeo, texto, fotografías y gráficos en los Servicios (colectivamente, el "Content"), así como las marcas, marcas de servicio y logotipos contenidos en ellos (los "Marks").',
+  'We automatically collect certain information when you visit, use, or navigate the Services. This information does not reveal your specific identity but may include device and usage information, such as your IP address, browser and device characteristics, operating system, language preferences, referring URLs, device name, country, location, and information about how and when you use our Services.':
+    'Recopilamos automáticamente cierta información cuando visita, utiliza o navega por los Servicios. Esta información no revela su identidad específica, pero puede incluir información de dispositivo y uso, como su dirección IP, características de navegador y dispositivo, sistema operativo, preferencias de lenguaje, URLs de referencia, nombre de dispositivo, país, ubicación e información sobre cómo y cuándo utiliza nuestros Servicios.',
+  "We believe getting a doctor's note shouldn't require hours in a waiting room. Our mission is to provide convenient, legitimate telehealth services that respect your time.":
+    'Creemos que conseguir una nota de médico no debería requerir horas en una sala de espera. Nuestra misión es proporcionar servicios de telesalud convenientes y legítimos que respeten su tiempo.',
+  'We cannot guarantee the Services will be available at all times. We may experience hardware, software, or other problems or need to perform maintenance related to the Services, resulting in interruptions, delays, or errors.':
+    'No podemos garantizar que los Servicios estarán disponibles en todo momento. Podemos experimentar hardware, software u otros problemas o necesidad de realizar el mantenimiento relacionado con los Servicios, resultando en interrupciones, retrasos o errores.',
+  'We care about data privacy and security. Please review our Privacy Policy:':
+    'Nos importa la privacidad y seguridad de los datos. Por favor revise nuestra Política de Privacidad:',
+  'We collect personal information that you provide to us.':
+    'Recopilamos información personal que nos proporciona.',
+  'We collect personal information that you voluntarily provide to us when you register on the Services, express an interest in obtaining information about us or our products and Services, when you participate in activities on the Services, or otherwise when you contact us.':
+    'Recopilamos información personal que usted nos proporciona voluntariamente cuando se registre en los Servicios, expresamos un interés en obtener información sobre nosotros o nuestros productos y servicios, cuando usted participa en actividades en los Servicios, o de otro modo cuando usted contacte con nosotros.',
+  'We could not verify this document.': 'No pudimos verificar este documento.',
+  'We do not collect any information from third parties.':
+    'No recopilamos ninguna información de terceros.',
+  'We do not knowingly collect data from or market to children under 18 years of age.':
+    'No recopilamos a sabiendas datos desde o comercializamos a niños menores de 18 años.',
+  "We do not knowingly collect, solicit data from, or market to children under 18 years of age. By using the Services, you represent that you are at least 18 or that you are the parent or guardian of such a minor and consent to such minor dependent's use of the Services. If you become aware of any data we may have collected from children under age 18, please contact us at":
+    'No recopilamos, solicitamos datos o comercializamos a niños menores de 18 años. Mediante el uso de los Servicios, usted representa que usted tiene al menos 18 años o que usted es el padre o tutor de tal menor y el consentimiento para el uso de los Servicios de tal menor dependiente. Si conoce algún dato que hayamos recopilado de niños menores de 18 años, por favor contáctenos a',
+  "We do not provide documentation for legal matters including probation / court appearances, FMLA, workers' compensation, disability, or insurance claims under any circumstances. Requests for these purposes will be denied. Users must be 18+ or a parent/guardian requesting on behalf of a minor.":
+    'No proporcionamos documentación para asuntos legales incluyendo libertad condicional / comparecencias judiciales, FMLA, compensación de trabajadores, discapacidad o reclamos de seguros bajo cualquier circunstancia. Las solicitudes para estos fines serán denegadas. Los usuarios deben ser 18+ o un padre o tutor solicitando en nombre de un menor.',
+  "We don't accept insurance, but at $24.95, our service is typically less than most insurance copays—and you don't have to leave your home or take time off work to visit a doctor's office.":
+    'No aceptamos seguro, pero a $24.95, nuestro servicio es normalmente menos que la mayoría de los copagos de seguros, y no tiene que salir de su casa o tomar tiempo libre para visitar la oficina de un médico.',
+  'We have a 100% money-back guarantee. If for any reason you are dissatisfied with our service or if your note is not accepted by your employer or school, please contact us via email at':
+    'Tenemos una garantía de devolución de dinero del 100%. Si por alguna razón usted está insatisfecho con nuestro servicio o si su nota no es aceptada por su empleador o escuela, póngase en contacto con nosotros por correo electrónico en',
+  'We have adequate organizational and technical processes and procedures in place to protect your personal information. However, no electronic transmission over the internet or information storage technology can be guaranteed to be 100% secure.':
+    'Tenemos procesos y procedimientos organizativos y técnicos adecuados para proteger su información personal. Sin embargo, no se puede garantizar una transmisión electrónica a través de Internet o la tecnología de almacenamiento de información 100% segura.',
+  'We have implemented appropriate and reasonable technical and organizational security measures designed to protect the security of any personal information we process. However, despite our safeguards and efforts to secure your information, no electronic transmission over the Internet or information storage technology can be guaranteed to be 100% secure.':
+    'Hemos implementado medidas de seguridad técnica y organizativa apropiadas y razonables para proteger la seguridad de cualquier información personal que procesamos. Sin embargo, a pesar de nuestras salvaguardias y esfuerzos para asegurar su información, no se puede garantizar que la transmisión electrónica a través de Internet o la tecnología de almacenamiento de información sea 100% segura.',
+  'We keep your information for as long as necessary to fulfill the purposes outlined in this Privacy Notice unless otherwise required by law.':
+    'Mantenemos su información durante todo el tiempo que sea necesario para cumplir los propósitos descritos en este Aviso de privacidad a menos que la ley requiera otra cosa.',
+  "We make getting a doctor's note simple, affordable, and stress-free.":
+    'Hacemos que obtener una nota médica sea sencillo, accesible y sin complicaciones.',
+  'We may collect data necessary to process your payment if you choose to make purchases, such as your payment instrument number, and the security code associated with your payment instrument. All payment data is handled and stored by Stripe. You may find their privacy notice at':
+    'Podemos recopilar los datos necesarios para procesar su pago si usted decide realizar compras, como su número de instrumento de pago, y el código de seguridad asociado con su instrumento de pago. Todos los datos de pago son manejados y almacenados por Stripe. Puede encontrar su aviso de privacidad en',
+  'We may need to share your personal information in the following situations:':
+    'Es posible que tengamos que compartir su información personal en las siguientes situaciones:',
+  'We may provide you areas on the Services to leave reviews or ratings. When posting a review, you must comply with certain criteria including having firsthand experience with the person/entity being reviewed and not containing offensive profanity or abusive language.':
+    'Podemos proporcionarle áreas en los Servicios para dejar opiniones o calificaciones. Al publicar una revisión, debe cumplir ciertos criterios, incluyendo tener experiencia directa con la persona/entidad que se está revisando y no contener profanidad ofensiva o lenguaje abusivo.',
+  'We may share information in specific situations and with specific third parties.':
+    'Podemos compartir información en situaciones específicas y con terceros específicos.',
+  'We may share information in specific situations described in this section.':
+    'Podemos compartir información en situaciones específicas descritas en esta sección.',
+  'We may share or transfer your information in connection with, or during negotiations of, any merger, sale of company assets, financing, or acquisition of all or a portion of our business to another company.':
+    'Podemos compartir o transferir su información en relación con, o durante las negociaciones de, cualquier fusión, venta de activos de la empresa, financiación o adquisición de todo o una parte de nuestro negocio a otra empresa.',
+  'We may share your information with Google Analytics to track and analyze the use of the Services. To opt out of being tracked by Google Analytics across the Services, visit':
+    'Podemos compartir su información con Google Analytics para rastrear y analizar el uso de los Servicios. Para no ser rastreado por Google Analytics a través de los Servicios, visite',
+  'We may update this Privacy Notice from time to time. The updated version will be indicated by an updated "Last updated" date at the top of this Privacy Notice. We encourage you to review this Privacy Notice frequently to stay informed about how we are protecting your information.':
+    'Podemos actualizar este Aviso de privacidad de vez en cuando. La versión actualizada será indicada por una fecha actualizada "Última actualización" en la parte superior de este Aviso de privacidad. Le animamos a revisar este Aviso de privacidad con frecuencia para mantenerse informado sobre cómo estamos protegiendo su información.',
+  'We may use cookies and other tracking technologies to collect and store your information.':
+    'Podemos utilizar cookies y otras tecnologías de seguimiento para recopilar y almacenar su información.',
+  'We may use cookies and similar tracking technologies to gather information when you interact with our Services. Some online tracking technologies help us maintain the security of our Services and your account, prevent crashes, fix bugs, save your preferences, and assist with basic site functions.':
+    'Podemos utilizar cookies y tecnologías de seguimiento similares para recopilar información cuando interactúa con nuestros servicios. Algunas tecnologías de seguimiento en línea nos ayudan a mantener la seguridad de nuestros Servicios y su cuenta, prevenir fallos, corregir errores, guardar sus preferencias, y ayudar con funciones básicas del sitio.',
+  'We offer products, features, or tools powered by artificial intelligence, machine learning, or similar technologies.':
+    'Ofrecemos productos, características o herramientas propulsadas por inteligencia artificial, aprendizaje automático o tecnologías similares.',
+  'We operate the website': 'Operamos el sitio web',
+  'We process your information to provide, improve, and administer our Services, communicate with you, for security and fraud prevention, and to comply with law.':
+    'Procesamos su información para proporcionar, mejorar y administrar nuestros Servicios, comunicarse con usted, para la prevención de la seguridad y el fraude, y para cumplir con la ley.',
+  'We process your information to provide, improve, and administer our Services, communicate with you, for security and fraud prevention, and to comply with law. We may also process your information for other purposes with your consent.':
+    'Procesamos su información para proporcionar, mejorar y administrar nuestros Servicios, comunicarse con usted, para la prevención de la seguridad y el fraude, y para cumplir con la ley. También podemos procesar su información para otros fines con su consentimiento.',
+  'We process your personal information for a variety of reasons, depending on how you interact with our Services, including:':
+    'Procesamos su información personal por diversas razones, dependiendo de cómo interactúe con nuestros Servicios, incluyendo:',
+  'We reserve the right to change, modify, or remove the contents of the Services at any time or for any reason at our sole discretion without notice. We also reserve the right to modify or discontinue all or part of the Services without notice at any time.':
+    'Nos reservamos el derecho a cambiar, modificar o eliminar el contenido de los Servicios en cualquier momento o por cualquier motivo a nuestra sola discreción sin previo aviso. También nos reservamos el derecho a modificar o suspender todo o parte de los Servicios sin previo aviso en cualquier momento.',
+  'We reserve the right to refuse any order placed through the Services. We may, in our sole discretion, limit or cancel quantities purchased per person, per household, or per order.':
+    'Nos reservamos el derecho a rechazar cualquier orden que se haga a través de los Servicios. Podemos, a nuestro exclusivo criterio, limitar o cancelar las cantidades compradas por persona, por hogar o por orden.',
+  'We reserve the right, but not the obligation, to: (1) monitor the Services for violations of these Legal Terms; (2) take appropriate legal action against anyone who violates the law or these Legal Terms; (3) refuse, restrict access to, limit the availability of, or disable any of your Contributions; (4) remove from the Services or otherwise disable all files and content that are excessive in size or burdensome to our systems; and (5) otherwise manage the Services in a manner designed to protect our rights and property.':
+    'Nos reservamos el derecho, pero no la obligación, de: (1) monitorear los Servicios para las violaciones de estos Términos Legales; (2) tomar acciones legales apropiadas contra cualquiera que viole la ley o estos Términos Legales; (3) rechazar, restringir el acceso a, limitar la disponibilidad, o deshabilitar cualquiera de sus Contribuciones; (4) eliminar de los Servicios o desactivar de otra manera todos los archivos y contenidos que son excesivos en tamaño o carga a nuestros sistemas; y (5) manejar de otra manera los Servicios para proteger nuestros derechos.',
+  'We saw a gap between people needing simple medical documentation and a healthcare system that often requires taking an entire day off work just to get a note for being sick.':
+    'Vimos una brecha entre las personas que necesitan documentación médica simple y un sistema de salud que a menudo requiere tomar un día de descanso para obtener una nota para estar enferma.',
+  'We verify your note if contacted': 'Verificamos su nota si se comunican con nosotros',
+  'We will maintain certain data that you transmit to the Services for the purpose of managing the performance of the Services, as well as data relating to your use of the Services. Although we perform regular routine backups of data, you are solely responsible for all data that you transmit or that relates to any activity you have undertaken using the Services.':
+    'Mantendremos ciertos datos que usted transmite a los Servicios con el fin de gestionar el desempeño de los Servicios, así como datos relacionados con su uso de los Servicios. Aunque realizamos copias de seguridad periódicas de datos, usted es el único responsable de todos los datos que usted transmite o que se relaciona con cualquier actividad que haya realizado utilizando los Servicios.',
+  'We will only keep your personal information for as long as it is necessary for the purposes set out in this Privacy Notice, unless a longer retention period is required or permitted by law. No purpose in this notice will require us keeping your personal information for longer than the period of time in which users have an account with us.':
+    'Sólo mantendremos su información personal durante el tiempo que sea necesaria para los propósitos establecidos en este Aviso de privacidad, a menos que la ley requiera o permita un período de retención más largo. Ningún propósito en este aviso nos exigirá mantener su información personal por más tiempo que el período en que los usuarios tienen una cuenta con nosotros.',
+  "We'll verify the note if necessary.": 'Verificaremos la nota si es necesario.',
+  "We're Here to Help": 'Estamos aquí para ayudarle',
+  'Webhook processing failed': 'El procesamiento de Webhook falló',
+  'West Virginia': 'West Virginia',
+  'What Are Your Privacy Rights?': '¿Cuáles son sus derechos de privacidad?',
+  'What are your rights?': '¿Cuáles son sus derechos?',
+  'What can the note be used for?': '¿Para qué se puede usar la nota?',
+  'What do you need this note for?': '¿Para qué necesita esta nota médica?',
+  'What happens next?': '¿Qué sucede ahora?',
+  'What Information Do We Collect?': '¿Qué información recopilamos?',
+  'What is your information?': '¿Cuál es su información?',
+  'What is your reason for absence?': '¿Cuál es el motivo de su ausencia?',
+  'What our patients say': 'Lo que dicen nuestros pacientes',
+  'What personal information do we process?': '¿Qué información personal procesamos?',
+  'What symptoms are you experiencing?': '¿Qué síntomas presenta?',
+  "What's included": '¿Qué incluye?',
+  'When and With Whom Do We Share Your Personal Information?':
+    '¿Cuándo y con quién compartimos su información personal?',
+  'When do you need to be excused?': '¿Para qué fechas necesita justificante?',
+  'When necessary, with your consent or as otherwise permitted by applicable law, we process the following categories of sensitive information:':
+    'Cuando sea necesario, con su consentimiento o según lo permitido por la ley aplicable, procesamos las siguientes categorías de información sensible:',
+  'When you create or make available any Contributions, you represent and warrant that:':
+    'Cuando usted crea o pone a disposición cualquier contribución, usted representa y garantiza que:',
+  'When you visit, use, or navigate our Services, we may process personal information depending on how you interact with us and the Services, the choices you make, and the products and features you use.':
+    'Cuando visite, utilice o navega por nuestros Servicios, podemos procesar información personal dependiendo de cómo interactúe con nosotros y con los Servicios, las opciones que haga y los productos y características que utilice.',
+  'Where are you located?': '¿En qué estado se encuentra?',
+  'Who are you taking care of?': '¿A quién está cuidando?',
+  'Who is this note for?': '¿Para quién es esta nota médica?',
+  'Who Is Using This Note': 'Para quién es esta nota',
+  'Request Your Note': 'Solicite su nota médica',
+  'Who is using this note?': '¿Quién usará esta nota médica?',
+  'Why Thousands of Patients Trust Us': 'Por qué miles de pacientes confían en nosotros',
+  'Why we started': '¿Por qué empezamos?',
+  'Will my employer or school accept the note?': '¿Mi empleador o escuela aceptarán la nota?',
+  Wisconsin: 'Wisconsin',
+  'Withdrawing your consent': 'Retiro de su consentimiento',
+  'Within Minutes': 'En cuestión de minutos',
+  'WITHOUT LIMITING ANY OTHER PROVISION OF THESE LEGAL TERMS, WE RESERVE THE RIGHT TO, IN OUR SOLE DISCRETION AND WITHOUT NOTICE OR LIABILITY, DENY ACCESS TO AND USE OF THE SERVICES (INCLUDING BLOCKING CERTAIN IP ADDRESSES), TO ANY PERSON FOR ANY REASON OR FOR NO REASON.':
+    'SIN LIMITAR UNA OTRA PROVISIÓN DE LOS TERMINADOS JURÍDICOS, RESERVAMOS EL DERECHO A, EN nuestra SOLA DISCRECIÓN Y sin NOTA O LIABILIDAD, DENINGÚN ACCESO Y UTILIZACIÓN DE LOS SERVICIOS (INCLUDING BLOCKING CERTAIN IP ADDRESSES), A cualquier persona por cualquier otra razón o sin ninguna razón.',
+  Work: 'Trabajo',
+  Wyoming: 'Wyoming',
+  Year: 'Año',
+  'years old': 'años',
+  'Yes, absolutely. Our service connects you with real, board-certified physicians licensed in your state. Each note is reviewed and signed by a licensed doctor who evaluates your case. This is a legitimate telehealth service that follows all applicable healthcare regulations.':
+    'Sí. Nuestro servicio le conecta con médicos certificados y con licencia en su estado. Cada nota es revisada y firmada por un médico con licencia que evalúa su caso. Es un servicio legítimo de telesalud que cumple con todas las normas de atención médica aplicables.',
+  'Yes, we can provide notes for absences that occurred within the past 7 days. Simply enter your absence dates when completing the form.':
+    'Sí, podemos proporcionar notas para ausencias que ocurrieron en los últimos 7 días. Simplemente introduzca sus fechas de ausencia al completar el formulario.',
+  'Yes, we will update this notice as necessary to stay compliant with relevant laws.':
+    'Sí, actualizaremos este aviso como sea necesario para cumplir con las leyes pertinentes.',
+  "You agree to defend, indemnify, and hold us harmless, including our subsidiaries, affiliates, and all of our respective officers, agents, partners, and employees, from and against any loss, damage, liability, claim, or demand, including reasonable attorneys' fees and expenses, made by any third party due to or arising out of: (1) your Contributions; (2) use of the Services; (3) breach of these Legal Terms; (4) any breach of your representations and warranties set forth in these Legal Terms; (5) your violation of the rights of a third party; or (6) any overt harmful act toward any other user of the Services with whom you connected via the Services.":
+    'Usted acepta defendernos, indemnizarnos y eximirnos de responsabilidad, incluidas nuestras subsidiarias, afiliadas y todos nuestros respectivos directivos, agentes, socios y empleados, frente a cualquier pérdida, daño, responsabilidad, reclamación o demanda, incluidos los honorarios y gastos razonables de abogados, que presente un tercero debido a, o como consecuencia de: (1) sus Contribuciones; (2) el uso de los Servicios; (3) el incumplimiento de estos Términos legales; (4) el incumplimiento de cualquiera de las declaraciones y garantías establecidas en estos Términos legales; (5) la vulneración de los derechos de un tercero; o (6) cualquier acto manifiestamente perjudicial contra otro usuario de los Servicios con quien usted se haya conectado a través de los Servicios.',
+  'You agree to provide current, complete, and accurate purchase and account information for all purchases made via the Services. You further agree to promptly update account and payment information, including email address, payment method, and payment card expiration date, so that we can complete your transactions and contact you as needed.':
+    'Usted acepta proporcionar información de compra y cuenta actualizada, completa y precisa para todas las compras realizadas a través de los Servicios. Usted acepta además actualizar rápidamente la información de cuenta y pago, incluyendo dirección de correo electrónico, método de pago y fecha de vencimiento de la tarjeta de pago, para que podamos completar sus transacciones y contactar con usted según sea necesario.',
+  'You and Services agree that we may access, store, process, and use any information and personal data that you provide following the terms of the Privacy Policy and your choices (including settings).':
+    'Usted y Servicios aceptan que podemos acceder, almacenar, procesar y utilizar cualquier información y datos personales que proporcione siguiendo los términos de la Política de Privacidad y sus opciones (incluyendo ajustes).',
+  'you are not a minor in the jurisdiction in which you reside;':
+    'usted no es un menor en la jurisdicción en la que reside;',
+  'You are the creator and owner of or have the necessary licenses, rights, consents, releases, and permissions to use your Contributions.':
+    'Usted es el creador y propietario de las licencias, derechos, consentimientos, liberaciones y permisos necesarios para utilizar sus Contribuciones.',
+  'You can contact us by phone at': 'Puede contactarnos por teléfono',
+  'You can unsubscribe from our marketing and promotional communications at any time by clicking on the unsubscribe link in the emails that we send, replying "STOP" or "UNSUBSCRIBE" to the SMS messages that we send, or by contacting us.':
+    'Puede darse de baja de nuestras comunicaciones promocionales y de marketing en cualquier momento haciendo clic en el enlace de suscripción en los correos electrónicos que enviamos, respondiendo "STOP" o "UNSUBSCRIBE" a los mensajes SMS que enviamos, o contactando con nosotros.',
+  'You have rights under certain US state data protection laws. These rights include:':
+    'Usted tiene derechos bajo ciertas leyes estatales de protección de datos. Estos derechos incluyen:',
+  'you have the legal capacity and you agree to comply with these Legal Terms;':
+    'usted tiene la capacidad legal y usted acepta cumplir con estos Términos legales;',
+  'You may not access or use the Services for any purpose other than that for which we make the Services available. The Services may not be used in connection with any commercial endeavors except those that are specifically endorsed or approved by us.':
+    'Usted no puede acceder o utilizar los Servicios para cualquier propósito que no sea el para el cual ponemos los Servicios disponibles. Los Servicios no pueden utilizarse en relación con ningún esfuerzo comercial, excepto aquellos que son específicamente aprobados o aprobados por nosotros.',
+  'You may review, change, or terminate your account at any time, depending on your country, province, or state of residence.':
+    'Usted puede revisar, cambiar o terminar su cuenta en cualquier momento, dependiendo de su país, provincia o estado de residencia.',
+  'You must agree to the Terms of Service and Privacy Policy':
+    'Debe aceptar los Términos de servicio y la Política de privacidad',
+  'You must be 18 or older to fill out this form':
+    'Usted debe tener 18 años o más para llenar este formulario',
+  'You must be 18 or older to request a note for yourself':
+    'Usted debe tener 18 años o más para solicitar una nota para usted',
+  'You must certify that the information is accurate':
+    'Debe certificar que la información es exacta',
+  'YOU UNDERSTAND THAT WITHOUT THIS PROVISION, YOU WOULD HAVE THE RIGHT TO SUE IN COURT AND HAVE A JURY TRIAL.':
+    'Entiendes que, sin esta propuesta, tendrías derecho a colar en la caja y a tener un jurado.',
+  'you will not access the Services through automated or non-human means, whether through a bot, script or otherwise;':
+    'no accederá a los Servicios a través de medios automatizados o no humanos, ya sea a través de un bot, script o de otro modo;',
+  'you will not use the Services for any illegal or unauthorized purpose; and':
+    'no utilizará los Servicios para ningún propósito ilegal o no autorizado; y',
+  "You'll receive a confirmation email within the next few minutes":
+    'Recibirá un correo de confirmación en los próximos minutos',
+  "You're in the right place.": 'Está en el lugar indicado.',
+  "You've been approved.": 'Su solicitud ha sido aprobada.',
+  'Your Contributions are not false, inaccurate, or misleading.':
+    'Sus contribuciones no son falsas, inexactas o engañosas.',
+  'Your Contributions are not obscene, lewd, or otherwise objectionable.':
+    'Sus contribuciones no son obscenos, lewd, o de otro modo objetables.',
+  'Your Contributions do not violate any applicable law, regulation, or rule.':
+    'Sus contribuciones no violan ninguna ley, regulación o regla aplicable.',
+  "Your doctor's note is being processed": 'Su nota médica se está procesando',
+  "Your doctor's note is being processed and will be sent to":
+    'Su nota médica se está procesando y se enviará a',
+  "Your doctor's note will be reviewed and processed": 'Su nota médica será revisada y procesada',
+  'Your information is private and will never be used for marketing purposes.':
+    'Su información es privada y nunca se utilizará con fines de mercadotecnia.',
+  'Your information stays private': 'Su información permanece privada',
+  'Your note will be emailed to you.': 'Recibirá su nota médica por correo electrónico.',
+  'Your Rights': 'Sus derechos',
+  'Your use of our Services': 'Su uso de nuestros Servicios',
+  'your use of the Services will not violate any applicable law or regulation.':
+    'su uso de los Servicios no violará ninguna ley o regulación aplicable.',
+  YYYY: 'AAAA',
+}

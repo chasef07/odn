@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormLayout } from '@/components/form-layout'
@@ -21,6 +21,7 @@ import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { LEGAL_NOTE_PURPOSE_ERROR, page5Schema } from '@/lib/validation-schemas'
 import { NOTE_PURPOSES } from '@/lib/form-constants'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 const NOTE_PURPOSE_OPTIONS = [
   {
@@ -65,6 +66,7 @@ export default function NotePurposePage() {
   const [showLegalMatterDialog, setShowLegalMatterDialog] = useState(
     savedData.notePurpose === 'legal'
   )
+  const { locale } = useI18n()
 
   const {
     register,
@@ -117,7 +119,9 @@ export default function NotePurposePage() {
   }
 
   const title = patientFirstName
-    ? `Please tell us what ${patientFirstName} needs a doctor's note for?`
+    ? locale === 'es'
+      ? `Cuéntenos para qué necesita ${patientFirstName} una nota médica.`
+      : `Please tell us what ${patientFirstName} needs a doctor's note for?`
     : 'What do you need this note for?'
 
   return (

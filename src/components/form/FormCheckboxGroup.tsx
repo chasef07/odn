@@ -1,4 +1,5 @@
 import { FieldError, UseFormRegisterReturn } from 'react-hook-form'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface CheckboxOption {
   value: string
@@ -37,9 +38,10 @@ export function FormCheckboxGroup({
   selectedValues = [],
   gridClassName = 'grid gap-3 sm:grid-cols-2',
 }: FormCheckboxGroupProps) {
+  const { t } = useI18n()
   return (
     <fieldset>
-      <legend className="sr-only">{legend}</legend>
+      <legend className="sr-only">{t(legend)}</legend>
 
       <div className={gridClassName}>
         {options.map((option) => {
@@ -63,7 +65,7 @@ export function FormCheckboxGroup({
                 aria-invalid={!!error}
                 aria-describedby={error ? `${fieldName}-error` : undefined}
               />
-              <span className="text-sm font-medium">{option.label}</span>
+              <span className="text-sm font-medium">{t(option.label)}</span>
             </label>
           )
         })}
@@ -71,7 +73,7 @@ export function FormCheckboxGroup({
 
       {error && (
         <p id={`${fieldName}-error`} className="mt-2 text-sm text-red-500">
-          {error.message}
+          {error.message ? t(error.message) : error.message}
         </p>
       )}
     </fieldset>

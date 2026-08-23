@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import { FieldError, UseFormRegisterReturn } from 'react-hook-form'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface RadioOption {
   value: string
@@ -43,9 +44,10 @@ export function FormRadioGroup({
   gridClassName = 'grid gap-4 md:grid-cols-2',
   variant = 'default',
 }: FormRadioGroupProps) {
+  const { t } = useI18n()
   return (
     <fieldset>
-      <legend className="sr-only">{legend}</legend>
+      <legend className="sr-only">{t(legend)}</legend>
 
       <div className={gridClassName}>
         {options.map((option) => {
@@ -69,7 +71,9 @@ export function FormRadioGroup({
                   className="sr-only"
                   aria-describedby={error ? `${fieldName}-error` : undefined}
                 />
-                <span className="text-lg font-semibold">{option.label}</span>
+                <span className="text-lg font-semibold">
+                  {typeof option.label === 'string' ? t(option.label) : option.label}
+                </span>
               </label>
             )
           }
@@ -92,9 +96,11 @@ export function FormRadioGroup({
                   className="sr-only"
                   aria-describedby={error ? `${fieldName}-error` : undefined}
                 />
-                <span className="text-base font-semibold">{option.label}</span>
+                <span className="text-base font-semibold">
+                  {typeof option.label === 'string' ? t(option.label) : option.label}
+                </span>
                 {option.description && (
-                  <span className="text-muted-foreground text-sm">{option.description}</span>
+                  <span className="text-muted-foreground text-sm">{t(option.description)}</span>
                 )}
               </label>
             )
@@ -117,7 +123,9 @@ export function FormRadioGroup({
                 className="sr-only"
                 aria-describedby={error ? `${fieldName}-error` : undefined}
               />
-              <span className="text-sm font-medium">{option.label}</span>
+              <span className="text-sm font-medium">
+                {typeof option.label === 'string' ? t(option.label) : option.label}
+              </span>
             </label>
           )
         })}
@@ -125,7 +133,7 @@ export function FormRadioGroup({
 
       {error && (
         <p id={`${fieldName}-error`} className="mt-2 text-sm text-red-500">
-          {error.message}
+          {error.message ? t(error.message) : error.message}
         </p>
       )}
     </fieldset>

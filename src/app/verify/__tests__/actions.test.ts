@@ -62,6 +62,25 @@ describe('lookupMedicalRecord', () => {
     )
   })
 
+  it('preserves the Spanish route when an active record is verified', async () => {
+    mockHeaders.mockResolvedValue(
+      new Headers({ 'x-forwarded-for': '203.0.113.11', 'x-site-locale': 'es' })
+    )
+    mockFindUnique.mockResolvedValue({
+      verificationSlug: 'v_spanish',
+      status: 'ACTIVE',
+      revokedAt: null,
+      submission: {
+        status: SubmissionStatus.APPROVED,
+        refundedAt: null,
+      },
+    })
+
+    await expect(lookupMedicalRecord({}, buildFormData('A7B3C9D2'))).rejects.toThrow(
+      'NEXT_REDIRECT:/es/verify/v_spanish'
+    )
+  })
+
   it('does not globally throttle when requester IP headers are unavailable', async () => {
     mockHeaders.mockResolvedValue(new Headers())
     mockFindUnique.mockResolvedValue(null)

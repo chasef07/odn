@@ -7,14 +7,13 @@ import {
 } from '@/components/ui/accordion'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { englishAlternates, translate, translateReactTree, type Locale } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'FAQ - Frequently Asked Questions',
   description:
     "Get answers to common questions about online doctor's notes. Learn about our service, pricing, delivery time, and money-back guarantee.",
-  alternates: {
-    canonical: '/faq',
-  },
+  alternates: englishAlternates('/faq'),
 }
 
 const faqs = [
@@ -50,17 +49,17 @@ const faqs = [
   },
 ]
 
-export default function FAQPage() {
+export function FAQPageContent(locale: Locale = 'en') {
   // FAQ Schema for rich snippets
   const faqSchema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
     mainEntity: faqs.map((faq) => ({
       '@type': 'Question',
-      name: faq.question,
+      name: translate(locale, faq.question),
       acceptedAnswer: {
         '@type': 'Answer',
-        text: faq.answer,
+        text: translate(locale, faq.answer),
       },
     })),
   }
@@ -104,4 +103,8 @@ export default function FAQPage() {
       <Footer />
     </div>
   )
+}
+
+export default function FAQPage({ locale = 'en' }: { locale?: Locale }) {
+  return translateReactTree(FAQPageContent(locale), locale)
 }

@@ -1,6 +1,7 @@
 import { SelectHTMLAttributes } from 'react'
 import { FieldError, UseFormRegisterReturn } from 'react-hook-form'
 import { Label } from '@/components/ui/label'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface FormSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'> {
   /** Unique field identifier */
@@ -29,6 +30,9 @@ interface FormSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 
 
   /** Transform option value before displaying (default: no transformation) */
   valueTransform?: (value: string) => string
+
+  /** Translate option labels (default: true). Keep proper names such as US states unchanged. */
+  translateOptions?: boolean
 }
 
 export function FormSelect({
@@ -41,12 +45,14 @@ export function FormSelect({
   required = true,
   height = 'h-12',
   valueTransform = (val) => val,
+  translateOptions = true,
   ...props
 }: FormSelectProps) {
+  const { t } = useI18n()
   return (
     <div className="space-y-2">
       <Label htmlFor={id} className="text-sm font-medium">
-        {label}
+        {t(label)}
       </Label>
 
       <select
@@ -58,17 +64,17 @@ export function FormSelect({
         aria-describedby={error ? `${id}-error` : undefined}
         {...props}
       >
-        <option value="">{placeholder}</option>
+        <option value="">{t(placeholder)}</option>
         {options.map((option) => (
           <option key={option} value={valueTransform(option)}>
-            {option}
+            {translateOptions ? t(option) : option}
           </option>
         ))}
       </select>
 
       {error && (
         <p id={`${id}-error`} className="text-sm text-red-500">
-          {error.message}
+          {error.message ? t(error.message) : error.message}
         </p>
       )}
     </div>

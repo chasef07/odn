@@ -3,17 +3,16 @@ import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { englishAlternates, translateReactTree, type Locale } from '@/lib/i18n'
 
 export const metadata = {
   title: 'About Us | OnlineDoctorNote',
   description:
     'Learn about OnlineDoctorNote - our mission, values, and commitment to providing legitimate, doctor-signed medical documentation.',
-  alternates: {
-    canonical: '/about',
-  },
+  alternates: englishAlternates('/about'),
 }
 
-export default function AboutPage() {
+export function AboutPageContent() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -94,4 +93,8 @@ export default function AboutPage() {
       <Footer />
     </div>
   )
+}
+
+export default function AboutPage({ locale = 'en' }: { locale?: Locale }) {
+  return translateReactTree(AboutPageContent(), locale)
 }

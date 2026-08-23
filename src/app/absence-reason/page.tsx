@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormLayout } from '@/components/form-layout'
@@ -11,6 +11,7 @@ import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { page7Schema } from '@/lib/validation-schemas'
 import { ABSENCE_REASONS } from '@/lib/form-constants'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 type FormData = {
   absenceReason: string | null
@@ -23,6 +24,7 @@ export default function AbsenceReasonPage() {
   const recipient = savedData.recipient || 'myself'
   const patientFirstName = savedData.patientFirstName || ''
   const currentStep = getStepNumber('/absence-reason', recipient)
+  const { locale } = useI18n()
 
   const {
     register,
@@ -57,7 +59,9 @@ export default function AbsenceReasonPage() {
   }
 
   const title = patientFirstName
-    ? `What's the reason for ${patientFirstName}'s absence?`
+    ? locale === 'es'
+      ? `¿Cuál es el motivo de la ausencia de ${patientFirstName}?`
+      : `What's the reason for ${patientFirstName}'s absence?`
     : 'What is your reason for absence?'
 
   return (

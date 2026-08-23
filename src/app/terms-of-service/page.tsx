@@ -1,17 +1,16 @@
 import Header from '@/components/Header'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { englishAlternates, translateReactTree, type Locale } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description:
     'OnlineDoctorNote terms of service. Read our terms and conditions for using our online medical documentation service.',
-  alternates: {
-    canonical: '/terms-of-service',
-  },
+  alternates: englishAlternates('/terms-of-service'),
 }
 
-export default function TermsOfServicePage() {
+export function TermsOfServicePageContent() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -664,4 +663,8 @@ export default function TermsOfServicePage() {
       </div>
     </div>
   )
+}
+
+export default function TermsOfServicePage({ locale = 'en' }: { locale?: Locale }) {
+  return translateReactTree(TermsOfServicePageContent(), locale)
 }

@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { ArrowLeft } from 'lucide-react'
 import { FormLayout } from '@/components/form-layout'
 import { getFormData } from '@/lib/form-storage'
+import { useI18n } from '@/components/i18n/I18nProvider'
+import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 
 const CURRENT_STEP = 10
 
@@ -28,6 +30,7 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
   const router = useRouter()
   const [message, setMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const { t, path } = useI18n()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,7 +45,7 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/payment/success`,
+        return_url: `${window.location.origin}${path('/payment/success')}`,
       },
     })
 
@@ -51,9 +54,9 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
     // your `return_url`.
     if (error) {
       if (error.type === 'card_error' || error.type === 'validation_error') {
-        setMessage(error.message || 'An error occurred')
+        setMessage(error.message || t('An error occurred'))
       } else {
-        setMessage('An unexpected error occurred.')
+        setMessage(t('An unexpected error occurred.'))
       }
     }
 
@@ -61,58 +64,60 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Order Summary */}
-      <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
-        <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-foreground text-base font-medium">
-              Doctor&apos;s Note - Online Medical Documentation
-            </p>
-            {priceInfo?.offerApplied && (
-              <p className="mt-1 text-sm font-medium text-green-700">Discount applied</p>
-            )}
+    <LocalizedPage>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Order Summary */}
+        <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
+          <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-foreground text-base font-medium">
+                Doctor&apos;s Note - Online Medical Documentation
+              </p>
+              {priceInfo?.offerApplied && (
+                <p className="mt-1 text-sm font-medium text-green-700">Discount applied</p>
+              )}
+            </div>
+            <span className="text-primary text-xl font-bold">
+              {priceInfo ? (
+                `$${priceInfo.formattedAmount}`
+              ) : (
+                <span className="text-base text-red-600">Price unavailable</span>
+              )}
+            </span>
           </div>
-          <span className="text-primary text-xl font-bold">
-            {priceInfo ? (
-              `$${priceInfo.formattedAmount}`
-            ) : (
-              <span className="text-base text-red-600">Price unavailable</span>
-            )}
-          </span>
         </div>
-      </div>
 
-      <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
-        <h3 className="text-foreground mb-4 text-sm font-semibold">Payment Details</h3>
-        <PaymentElement />
-      </div>
-
-      {message && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-600">{message}</p>
+        <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
+          <h3 className="text-foreground mb-4 text-sm font-semibold">Payment Details</h3>
+          <PaymentElement />
         </div>
-      )}
 
-      <div className="flex items-center justify-between pt-2">
-        <button
-          type="button"
-          onClick={() => router.push('/review')}
-          className="text-foreground hover:bg-accent inline-flex items-center justify-center rounded-lg p-2 transition-all"
-          aria-label="Back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading || !stripe || !elements}
-          className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isLoading ? 'Processing...' : 'Pay Now'}
-        </button>
-      </div>
-    </form>
+        {message && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+            <p className="text-sm text-red-600">{message}</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-2">
+          <button
+            type="button"
+            onClick={() => router.push('/review')}
+            className="text-foreground hover:bg-accent inline-flex items-center justify-center rounded-lg p-2 transition-all"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !stripe || !elements}
+            className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? 'Processing...' : 'Pay Now'}
+          </button>
+        </div>
+      </form>
+    </LocalizedPage>
   )
 }
 
@@ -121,6 +126,7 @@ export default function PaymentPage() {
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { locale, t } = useI18n()
 
   useEffect(() => {
     // Create PaymentIntent as soon as the page loads
@@ -131,7 +137,7 @@ export default function PaymentPage() {
 
         // Validate form data exists
         if (!formData.email || !formData.patientFirstName) {
-          setError('Form data is incomplete. Please go back and complete the form.')
+          setError(t('Form data is incomplete. Please go back and complete the form.'))
           setLoading(false)
           return
         }
@@ -145,7 +151,8 @@ export default function PaymentPage() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          throw new Error(errorData.error || 'Failed to create payment intent')
+          setError(t(errorData.error || 'Failed to create payment intent'))
+          return
         }
 
         const data = await response.json()
@@ -161,22 +168,18 @@ export default function PaymentPage() {
             offerCode: data.offerCode,
           })
         } else {
-          setError('Failed to initialize payment')
+          setError(t('Failed to initialize payment'))
         }
       } catch (err) {
         console.error('Payment intent creation error:', err)
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to connect to payment service. Please try again.'
-        )
+        setError(t('Failed to connect to payment service. Please try again.'))
       } finally {
         setLoading(false)
       }
     }
 
     createPaymentIntent()
-  }, [])
+  }, [t])
 
   const appearance = {
     theme: 'stripe' as const,
@@ -185,6 +188,7 @@ export default function PaymentPage() {
   const options = {
     clientSecret,
     appearance,
+    locale: locale === 'es' ? ('es' as const) : ('en' as const),
   }
 
   if (loading) {

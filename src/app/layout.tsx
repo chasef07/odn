@@ -1,9 +1,12 @@
 import type { Metadata } from 'next'
 import { Manrope, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
+import { headers } from 'next/headers'
 import './globals.css'
 import '@/lib/env' // Validate environment variables on startup
 import OfferCodeCapture from '@/components/OfferCodeCapture'
+import { I18nProvider } from '@/components/i18n/I18nProvider'
+import { englishAlternates, translate, type Locale } from '@/lib/i18n'
 
 const sans = Manrope({
   variable: '--font-geist-sans',
@@ -76,15 +79,20 @@ export const metadata: Metadata = {
     },
   },
   category: 'healthcare',
+  alternates: englishAlternates('/'),
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const requestHeaders = await headers()
+  const locale: Locale = requestHeaders.get('x-site-locale') === 'es' ? 'es' : 'en'
+  const localizedSiteUrl = locale === 'es' ? `${siteUrl}/es` : siteUrl
+
   return (
-    <html lang="en">
+    <html lang={locale === 'es' ? 'es-US' : 'en-US'}>
       <head>
         {/* Google Tag Manager */}
         <Script id="gtm" strategy="afterInteractive">
@@ -113,11 +121,14 @@ export default function RootLayout({
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'MedicalBusiness',
-              '@id': siteUrl,
+              '@id': localizedSiteUrl,
               name: 'OnlineDoctorNote',
-              url: siteUrl,
-              description:
-                "Professional online doctor's notes for work and school absences, signed by board-certified physicians.",
+              url: localizedSiteUrl,
+              inLanguage: locale === 'es' ? 'es-US' : 'en-US',
+              description: translate(
+                locale,
+                "Professional online doctor's notes for work and school absences, signed by board-certified physicians."
+              ),
               address: {
                 '@type': 'PostalAddress',
                 addressCountry: 'US',
@@ -132,8 +143,8 @@ export default function RootLayout({
               },
               availableChannel: {
                 '@type': 'ServiceChannel',
-                serviceUrl: siteUrl,
-                serviceType: 'Online Medical Documentation',
+                serviceUrl: localizedSiteUrl,
+                serviceType: translate(locale, 'Online Medical Documentation'),
               },
             }),
           }}
@@ -150,8 +161,10 @@ export default function RootLayout({
           ></iframe>
         </noscript>
         {/* End Google Tag Manager (noscript) */}
-        <OfferCodeCapture />
-        {children}
+        <I18nProvider>
+          <OfferCodeCapture />
+          {children}
+        </I18nProvider>
       </body>
     </html>
   )
