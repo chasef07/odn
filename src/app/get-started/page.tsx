@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormProgress } from '@/components/form-progress'
@@ -11,6 +11,8 @@ import { saveFormData, getFormData } from '@/lib/form-storage'
 import { page4Schema } from '@/lib/validation-schemas'
 import { AVAILABLE_STATES } from '@/lib/form-constants'
 import { ShieldCheck, DollarSign, Star } from 'lucide-react'
+import { LocalizedPage } from '@/components/i18n/LocalizedPage'
+import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 
 const CURRENT_STEP = 1
 
@@ -39,8 +41,12 @@ export default function Home() {
   }
 
   return (
-    <div className="text-foreground min-h-screen bg-white">
+    <LocalizedPage>
+      <div className="text-foreground min-h-screen bg-white">
       <main className="mx-auto w-full max-w-4xl px-6 py-8">
+        <div className="mb-3 flex justify-end">
+          <LanguageSwitch />
+        </div>
         {/* Top Bar: Progress + Trust Badges */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1">
@@ -96,6 +102,7 @@ export default function Home() {
           </div>
         </form>
       </main>
-    </div>
+      </div>
+    </LocalizedPage>
   )
 }

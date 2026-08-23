@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { differenceInYears } from 'date-fns'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface DateOfBirthInputProps {
   /** Field name used for react-hook-form (e.g. "patientDateOfBirth") */
@@ -18,6 +19,7 @@ interface DateOfBirthInputProps {
 }
 
 export function DateOfBirthInput({ name, label, value, onChange, error }: DateOfBirthInputProps) {
+  const { t } = useI18n()
   // Parse existing YYYY-MM-DD value into parts
   const [year, month, day] = value ? value.split('-') : ['', '', '']
 
@@ -156,7 +158,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
   return (
     <div className="space-y-2">
       <Label htmlFor={`${name}-month`} className="text-sm font-medium">
-        {label}
+        {t(label)}
       </Label>
 
       <div className="flex items-center gap-2">
@@ -173,7 +175,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             onKeyDown={(e) => handleKeyDown(e, 'month')}
             className={`${inputClasses} ${invalidClasses} w-16`}
             maxLength={2}
-            aria-label="Month"
+            aria-label={t('Month')}
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
@@ -196,7 +198,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             onKeyDown={(e) => handleKeyDown(e, 'day')}
             className={`${inputClasses} ${invalidClasses} w-16`}
             maxLength={2}
-            aria-label="Day"
+            aria-label={t('Day')}
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
@@ -219,7 +221,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             onKeyDown={(e) => handleKeyDown(e, 'year')}
             className={`${inputClasses} ${invalidClasses} w-20`}
             maxLength={4}
-            aria-label="Year"
+            aria-label={t('Year')}
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
@@ -231,13 +233,13 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
       {/* Age confirmation */}
       {computedAge !== null && (
         <p className="text-muted-foreground text-sm">
-          Age: <span className="text-foreground font-medium">{computedAge} years old</span>
+          {t('Age:')} <span className="text-foreground font-medium">{computedAge} {t('years old')}</span>
         </p>
       )}
 
       {error && (
         <p id={`${name}-error`} className="text-sm text-red-500">
-          {error}
+          {t(error)}
         </p>
       )}
     </div>

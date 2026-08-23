@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { normalizeMedicalRecordNumber } from '@/lib/note-verification'
 import { checkVerificationLookupLimit, getRateLimitKey } from '@/lib/verification-rate-limit'
+import { localizePath } from '@/lib/i18n'
 
 export type VerificationLookupState = {
   error?: string
@@ -63,5 +64,6 @@ export async function lookupMedicalRecord(
     return { error: GENERIC_ERROR }
   }
 
-  redirect(`/verify/${verification.verificationSlug}`)
+  const locale = headerList.get('x-site-locale') === 'es' ? 'es' : 'en'
+  redirect(localizePath(`/verify/${verification.verificationSlug}`, locale))
 }

@@ -2,17 +2,16 @@ import type { Metadata } from 'next'
 import Script from 'next/script'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { englishAlternates, translateReactTree, type Locale } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'Blog - Health & Medical Documentation Tips',
   description:
     "Helpful articles about doctor's notes, telehealth, HIPAA compliance, and navigating medical documentation for work and school absences.",
-  alternates: {
-    canonical: '/blog',
-  },
+  alternates: englishAlternates('/blog'),
 }
 
-export default function BlogPage() {
+export function BlogPageContent() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -40,4 +39,8 @@ export default function BlogPage() {
       <Footer />
     </div>
   )
+}
+
+export default function BlogPage({ locale = 'en' }: { locale?: Locale }) {
+  return translateReactTree(BlogPageContent(), locale)
 }

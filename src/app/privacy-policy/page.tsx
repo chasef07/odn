@@ -1,17 +1,16 @@
 import Header from '@/components/Header'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { englishAlternates, translateReactTree, type Locale } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
     'OnlineDoctorNote privacy policy. Learn how we protect your personal health information and comply with HIPAA regulations.',
-  alternates: {
-    canonical: '/privacy-policy',
-  },
+  alternates: englishAlternates('/privacy-policy'),
 }
 
-export default function PrivacyPolicyPage() {
+export function PrivacyPolicyPageContent() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -625,4 +624,8 @@ export default function PrivacyPolicyPage() {
       </div>
     </div>
   )
+}
+
+export default function PrivacyPolicyPage({ locale = 'en' }: { locale?: Locale }) {
+  return translateReactTree(PrivacyPolicyPageContent(), locale)
 }

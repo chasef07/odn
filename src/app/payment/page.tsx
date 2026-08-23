@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { ArrowLeft } from 'lucide-react'
 import { FormLayout } from '@/components/form-layout'
 import { getFormData } from '@/lib/form-storage'
+import { useI18n } from '@/components/i18n/I18nProvider'
+import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 
 const CURRENT_STEP = 10
 
@@ -28,6 +30,7 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
   const router = useRouter()
   const [message, setMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const { t, path } = useI18n()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,7 +45,7 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/payment/success`,
+        return_url: `${window.location.origin}${path('/payment/success')}`,
       },
     })
 
@@ -51,9 +54,9 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
     // your `return_url`.
     if (error) {
       if (error.type === 'card_error' || error.type === 'validation_error') {
-        setMessage(error.message || 'An error occurred')
+        setMessage(error.message || t('An error occurred'))
       } else {
-        setMessage('An unexpected error occurred.')
+        setMessage(t('An unexpected error occurred.'))
       }
     }
 
@@ -61,7 +64,8 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <LocalizedPage>
+      <form onSubmit={handleSubmit} className="space-y-6">
       {/* Order Summary */}
       <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
         <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
@@ -112,7 +116,8 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
           {isLoading ? 'Processing...' : 'Pay Now'}
         </button>
       </div>
-    </form>
+      </form>
+    </LocalizedPage>
   )
 }
 
@@ -121,6 +126,7 @@ export default function PaymentPage() {
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { locale, t } = useI18n()
 
   useEffect(() => {
     // Create PaymentIntent as soon as the page loads
@@ -131,7 +137,7 @@ export default function PaymentPage() {
 
         // Validate form data exists
         if (!formData.email || !formData.patientFirstName) {
-          setError('Form data is incomplete. Please go back and complete the form.')
+          setError(t('Form data is incomplete. Please go back and complete the form.'))
           setLoading(false)
           return
         }
@@ -161,14 +167,14 @@ export default function PaymentPage() {
             offerCode: data.offerCode,
           })
         } else {
-          setError('Failed to initialize payment')
+          setError(t('Failed to initialize payment'))
         }
       } catch (err) {
         console.error('Payment intent creation error:', err)
         setError(
           err instanceof Error
-            ? err.message
-            : 'Failed to connect to payment service. Please try again.'
+            ? t(err.message)
+            : t('Failed to connect to payment service. Please try again.')
         )
       } finally {
         setLoading(false)
@@ -176,7 +182,7 @@ export default function PaymentPage() {
     }
 
     createPaymentIntent()
-  }, [])
+  }, [t])
 
   const appearance = {
     theme: 'stripe' as const,
@@ -185,6 +191,7 @@ export default function PaymentPage() {
   const options = {
     clientSecret,
     appearance,
+    locale: locale === 'es' ? ('es' as const) : ('en' as const),
   }
 
   if (loading) {

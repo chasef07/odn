@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { z } from 'zod'
@@ -27,6 +27,8 @@ import { formatPhoneNumber } from '@/lib/phone-utils'
 import { validateAbsenceDates } from '@/lib/date-validators'
 import { isAgeValid } from '@/lib/age-validators'
 import { UI_TIMING } from '@/lib/validation-constants'
+import { useI18n } from '@/components/i18n/I18nProvider'
+import { es } from 'date-fns/locale'
 
 type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 
@@ -63,6 +65,7 @@ export default function ReviewPage() {
   const [editingSection, setEditingSection] = useState<EditSection>(null)
   const [phoneDisplay, setPhoneDisplay] = useState(formData.phone || '')
   const [isProcessing, setIsProcessing] = useState(false)
+  const { locale, t } = useI18n()
 
   // Main form for terms checkboxes
   const {
@@ -247,12 +250,14 @@ export default function ReviewPage() {
   // Helper function to format date
   // Uses UTC to avoid timezone shifts for calendar dates
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Not provided'
+    if (!dateString) return t('Not provided')
     try {
       // Parse date in local timezone to avoid off-by-one day issues
       // dateString format is "yyyy-MM-dd"
       const date = parse(dateString, 'yyyy-MM-dd', new Date())
-      return formatInTimeZone(date, 'UTC', 'MMMM d, yyyy')
+      return formatInTimeZone(date, 'UTC', locale === 'es' ? "d 'de' MMMM 'de' yyyy" : 'MMMM d, yyyy', {
+        locale: locale === 'es' ? es : undefined,
+      })
     } catch {
       return dateString
     }

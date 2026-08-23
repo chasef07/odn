@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 const steps = [
   {
@@ -24,6 +25,7 @@ const steps = [
 
 export default function HowItWorksSection() {
   const router = useRouter()
+  const { t, path } = useI18n()
   const [visibleSteps, setVisibleSteps] = useState<Set<number>>(new Set())
   const stepRefs = useRef<(HTMLDivElement | null)[]>([])
 
@@ -52,10 +54,10 @@ export default function HowItWorksSection() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
-            How it works
+            {t('How it works')}
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-gray-600">
-            Three simple steps to get your doctor&apos;s note
+            {t("Three simple steps to get your doctor's note")}
           </p>
         </div>
 
@@ -75,8 +77,8 @@ export default function HowItWorksSection() {
                 {item.step}
               </div>
               <div>
-                <h3 className="mb-1 text-xl font-semibold text-gray-900">{item.title}</h3>
-                <p className="text-gray-600">{item.description}</p>
+                <h3 className="mb-1 text-xl font-semibold text-gray-900">{t(item.title)}</h3>
+                <p className="text-gray-600">{t(item.description)}</p>
               </div>
             </div>
           ))}
@@ -92,10 +94,10 @@ export default function HowItWorksSection() {
           }`}
         >
           <button
-            onClick={() => router.push('/start')}
+            onClick={() => router.push(path('/start'))}
             className="font-hero group inline-flex items-center gap-2 rounded-full bg-[#009ed9] px-8 py-4 text-base font-medium text-white transition-all duration-300 hover:bg-[#00b4f5] hover:shadow-lg hover:shadow-[#009ed9]/25"
           >
-            Get Your Note
+            {t('Get Your Note')}
             <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
           </button>
         </div>

@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import { Mail, Phone } from 'lucide-react'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 export default function Footer() {
+  const { t, path } = useI18n()
   return (
     <footer className="border-t border-gray-100 bg-white px-4 py-12 md:px-6">
       <div className="mx-auto max-w-6xl">
@@ -23,42 +25,42 @@ export default function Footer() {
             >
               <Phone className="h-4 w-4" />
               917-300-8543
-              <span className="text-gray-400">(8am–8pm EST)</span>
+              <span className="text-gray-400">{t('(8am–8pm EST)')}</span>
             </a>
           </div>
 
           {/* Links */}
           <div className="flex flex-wrap justify-center gap-6 text-sm md:justify-end">
-            <Link href="/faq" className="text-gray-600 transition-colors hover:text-gray-900">
-              FAQ
+            <Link href={path('/faq')} className="text-gray-600 transition-colors hover:text-gray-900">
+              {t('FAQ')}
             </Link>
-            <Link href="/blog" className="text-gray-600 transition-colors hover:text-gray-900">
-              Blog
-            </Link>
-            <Link
-              href="/privacy-policy"
-              className="text-gray-600 transition-colors hover:text-gray-900"
-            >
-              Privacy
+            <Link href={path('/blog')} className="text-gray-600 transition-colors hover:text-gray-900">
+              {t('Blog')}
             </Link>
             <Link
-              href="/terms-of-service"
+              href={path('/privacy-policy')}
               className="text-gray-600 transition-colors hover:text-gray-900"
             >
-              Terms
+              {t('Privacy')}
             </Link>
-            <Link href="/about" className="text-gray-600 transition-colors hover:text-gray-900">
-              About
+            <Link
+              href={path('/terms-of-service')}
+              className="text-gray-600 transition-colors hover:text-gray-900"
+            >
+              {t('Terms')}
+            </Link>
+            <Link href={path('/about')} className="text-gray-600 transition-colors hover:text-gray-900">
+              {t('About')}
             </Link>
           </div>
         </div>
 
         <div className="mt-8 flex flex-col items-center gap-4 border-t border-gray-100 pt-8 text-center md:flex-row md:justify-between md:text-left">
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} OnlineDoctorNote.com · HIPAA Compliant
+            © {new Date().getFullYear()} OnlineDoctorNote.com · {t('HIPAA Compliant')}
           </p>
           <p className="text-sm text-gray-400">
-            Powered by{' '}
+            {t('Powered by')}{' '}
             <a
               href="https://www.databuddiessolutions.com"
               target="_blank"

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { unstable_noStore as noStore } from 'next/cache'
 import { ShieldCheck } from 'lucide-react'
 import { VerificationLookupForm } from './VerificationLookupForm'
+import { translateReactTree, type Locale } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: "Doctor's Note Verification | Platinum Health Clinic",
@@ -15,10 +16,10 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default function VerifyPage() {
+export default function VerifyPage({ locale = 'en' }: { locale?: Locale }) {
   noStore()
 
-  return (
+  return translateReactTree(
     <main className="bg-background min-h-screen px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-xl">
         <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
@@ -41,5 +42,7 @@ export default function VerifyPage() {
         </section>
       </div>
     </main>
+    ,
+    locale
   )
 }

@@ -3,11 +3,13 @@
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowRight, Star } from 'lucide-react'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 const heroPhrases = ['From Your Phone', 'Within Minutes', 'For Only $24.95']
 
 export default function HeroSection() {
   const router = useRouter()
+  const { t, path } = useI18n()
 
   return (
     <section className="relative overflow-hidden bg-white px-5 py-10 md:px-6 md:py-16">
@@ -16,11 +18,11 @@ export default function HeroSection() {
           {/* Left - Text Content */}
           <div className="order-1 text-left">
             <h1 className="font-hero animate-fade-in-up mb-3 text-4xl leading-[1.1] font-bold tracking-tight text-gray-900 md:text-5xl lg:text-6xl">
-              Get a Doctor&apos;s Note
+              {t("Get a Doctor's Note")}
               <span className="relative block whitespace-nowrap text-[#009ed9]">
                 {/* Invisible placeholder to reserve line height */}
                 <span aria-hidden="true" className="invisible">
-                  {heroPhrases[0]}
+                  {t(heroPhrases[0])}
                 </span>
                 {heroPhrases.map((phrase, i) => (
                   <span
@@ -28,7 +30,7 @@ export default function HeroSection() {
                     className="animate-hero-phrase absolute inset-0"
                     style={{ animationDelay: `${-13.5 + i * 4.5}s` }}
                   >
-                    {phrase}
+                    {t(phrase)}
                   </span>
                 ))}
               </span>
@@ -49,20 +51,20 @@ export default function HeroSection() {
                   </div>
                 </div>
               </div>
-              <p className="mt-1 text-sm text-gray-600">Trusted by 80,000+ patients nationwide</p>
+              <p className="mt-1 text-sm text-gray-600">{t('Trusted by 80,000+ patients nationwide')}</p>
             </div>
 
             {/* CTA */}
             <div className="animate-fade-in-up stagger-2 flex flex-col items-start">
               <button
-                onClick={() => router.push('/start')}
+                onClick={() => router.push(path('/start'))}
                 className="font-hero group inline-flex items-center justify-center gap-2 rounded-full bg-[#009ed9] px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-[#00b4f5]"
               >
-                Get Your Note
+                {t('Get Your Note')}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
               <p className="mt-2 text-sm text-gray-500">
-                <span className="font-semibold text-gray-900">$24.95</span> · Money-Back Guarantee
+                <span className="font-semibold text-gray-900">$24.95</span> · {t('Money-Back Guarantee')}
               </p>
             </div>
           </div>
@@ -72,7 +74,7 @@ export default function HeroSection() {
             <div className="animate-fade-in-up stagger-1">
               <Image
                 src="/images/homepage/Doctor-Note-letter-1024px.png"
-                alt="Sample doctor's note"
+                alt={t("Sample doctor's note")}
                 width={600}
                 height={548}
                 quality={90}

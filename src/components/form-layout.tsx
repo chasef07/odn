@@ -4,6 +4,9 @@ import { ReactNode } from 'react'
 import { ShieldCheck, DollarSign } from 'lucide-react'
 import { FormProgress } from './form-progress'
 import { getFirstName } from '@/lib/form-storage'
+import { useI18n } from '@/components/i18n/I18nProvider'
+import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
+import { translateReactTree } from '@/lib/i18n'
 
 interface FormLayoutProps {
   currentStep: number
@@ -23,6 +26,7 @@ export function FormLayout({
   hideProgressAndBadges = false,
 }: FormLayoutProps) {
   const firstName = usePersonalization ? getFirstName() : null
+  const { t, locale } = useI18n()
 
   // Replace {firstName} placeholder with actual name
   const personalizedTitle = firstName
@@ -32,6 +36,9 @@ export function FormLayout({
   return (
     <div className="text-foreground min-h-screen bg-white">
       <main className="mx-auto w-full max-w-4xl px-6 py-6 md:py-8">
+        <div className="mb-3 flex justify-end">
+          <LanguageSwitch />
+        </div>
         {/* Top Bar: Progress + Trust Badges */}
         {!hideProgressAndBadges && (
           <div className="mb-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -43,11 +50,11 @@ export function FormLayout({
             <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="text-primary h-4 w-4" />
-                <span>HIPAA Compliant</span>
+                <span>{t('HIPAA Compliant')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <DollarSign className="text-primary h-4 w-4" />
-                <span>Money back guarantee</span>
+                <span>{t('Money back guarantee')}</span>
               </div>
             </div>
           </div>
@@ -56,17 +63,17 @@ export function FormLayout({
         {/* Title - Centered on White Background */}
         <div className="mb-3 text-center">
           <h1 className="font-display text-foreground mb-3 text-3xl font-bold sm:text-4xl md:text-5xl">
-            {personalizedTitle}
+            {t(personalizedTitle)}
           </h1>
           {description && (
             <p className="text-muted-foreground mx-auto max-w-2xl text-base sm:text-lg">
-              {description}
+              {t(description)}
             </p>
           )}
         </div>
 
         {/* Form Content */}
-        {children}
+        {translateReactTree(children, locale)}
       </main>
     </div>
   )

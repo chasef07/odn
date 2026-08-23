@@ -1,15 +1,21 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { CheckCircle2, ArrowLeft } from 'lucide-react'
+import { LocalizedPage } from '@/components/i18n/LocalizedPage'
+import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 
 export default function ApprovedPage() {
   const router = useRouter()
 
   return (
-    <div className="text-foreground min-h-screen bg-white">
+    <LocalizedPage>
+      <div className="text-foreground min-h-screen bg-white">
       {/* Main Content - Centered */}
       <main className="mx-auto max-w-4xl px-6 py-12 text-center">
+        <div className="mb-6 flex justify-end">
+          <LanguageSwitch />
+        </div>
         {/* Congratulations Heading */}
         <h1 className="font-display text-foreground mb-10 text-4xl font-bold sm:text-5xl">
           Congratulations!
@@ -70,6 +76,7 @@ export default function ApprovedPage() {
           </button>
         </div>
       </main>
-    </div>
+      </div>
+    </LocalizedPage>
   )
 }

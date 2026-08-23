@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Menu, X, ArrowRight } from 'lucide-react'
+import { useI18n } from '@/components/i18n/I18nProvider'
+import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -19,6 +21,7 @@ export default function Header() {
   const router = useRouter()
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const { t, path } = useI18n()
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -81,11 +84,11 @@ export default function Header() {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[60] focus:rounded-md focus:bg-[#009ed9] focus:px-4 focus:py-2 focus:text-white focus:ring-2 focus:ring-white focus:outline-none"
       >
-        Skip to main content
+        {t('Skip to main content')}
       </a>
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-6">
         {/* Text Logo */}
-        <Link href="/" className="shrink-0">
+        <Link href={path('/')} className="shrink-0">
           <span className="text-2xl font-bold tracking-tight">
             <span className="text-[#009ed9]">Online</span>
             <span className="text-gray-900">DoctorNote</span>
@@ -97,33 +100,37 @@ export default function Header() {
           {navLinks.map((link) => (
             <Link
               key={link.href}
-              href={link.href}
+              href={path(link.href)}
               className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
             >
-              {link.label}
+              {t(link.label)}
             </Link>
           ))}
         </div>
 
-        {/* Desktop CTA */}
-        <button
-          onClick={() => router.push('/start')}
-          className="hidden items-center gap-2 rounded-full bg-[#009ed9] px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#00b4f5] md:flex"
-        >
-          Get Your Note
-          <ArrowRight className="h-4 w-4" />
-        </button>
+        <div className="hidden items-center gap-3 md:flex">
+          <LanguageSwitch compact />
+          <button
+            onClick={() => router.push(path('/start'))}
+            className="flex items-center gap-2 rounded-full bg-[#009ed9] px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#00b4f5]"
+          >
+            {t('Get Your Note')}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
 
-        {/* Mobile Menu Button */}
-        <button
-          ref={closeButtonRef}
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="relative z-50 rounded-lg p-2 text-gray-600 hover:bg-gray-100 md:hidden"
-          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-          aria-expanded={mobileMenuOpen}
-        >
-          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          <LanguageSwitch compact onNavigate={() => setMobileMenuOpen(false)} />
+          <button
+            ref={closeButtonRef}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="relative z-50 rounded-lg p-2 text-gray-600 hover:bg-gray-100"
+            aria-label={t(mobileMenuOpen ? 'Close menu' : 'Open menu')}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile Menu - Full Screen Overlay */}
@@ -133,7 +140,7 @@ export default function Header() {
           className="fixed inset-0 z-40 bg-white md:hidden"
           role="dialog"
           aria-modal="true"
-          aria-label="Mobile menu"
+          aria-label={t('Mobile menu')}
         >
           <div className="flex h-full flex-col px-6 pt-20">
             {/* Navigation Links */}
@@ -141,11 +148,11 @@ export default function Header() {
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
-                  href={link.href}
+                  href={path(link.href)}
                   onClick={() => setMobileMenuOpen(false)}
                   className="rounded-lg px-4 py-4 text-xl font-medium text-gray-900 transition-colors hover:bg-gray-50"
                 >
-                  {link.label}
+                  {t(link.label)}
                 </Link>
               ))}
             </div>
@@ -155,21 +162,21 @@ export default function Header() {
               <button
                 onClick={() => {
                   setMobileMenuOpen(false)
-                  router.push('/start')
+                  router.push(path('/start'))
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-[#009ed9] px-6 py-4 text-lg font-medium text-white transition-colors hover:bg-[#00b4f5]"
               >
-                Get Your Note
+                {t('Get Your Note')}
                 <ArrowRight className="h-5 w-5" />
               </button>
               <p className="mt-4 text-center text-sm text-gray-500">
-                <span className="font-semibold text-gray-900">$24.95</span> · Money-back guarantee
+                <span className="font-semibold text-gray-900">$24.95</span> · {t('Money-back guarantee')}
               </p>
             </div>
 
             {/* Contact Info at Bottom */}
             <div className="mt-auto pb-8 text-center">
-              <p className="text-sm text-gray-500">Questions? Call us</p>
+              <p className="text-sm text-gray-500">{t('Questions? Call us')}</p>
               <a href="tel:917-300-8543" className="text-lg font-medium text-gray-900">
                 917-300-8543
               </a>

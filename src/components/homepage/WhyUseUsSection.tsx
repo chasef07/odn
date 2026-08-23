@@ -1,4 +1,7 @@
+'use client'
+
 import { DollarSign, Clock, Shield, Home, Users, HeartHandshake, CircleCheck } from 'lucide-react'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 const benefits = [
   {
@@ -38,16 +41,17 @@ const benefits = [
 ]
 
 export default function WhyUseUsSection() {
+  const { t } = useI18n()
   return (
     <section className="bg-[#009ed9] px-4 py-20 md:px-6 md:py-28">
       <div className="mx-auto max-w-6xl">
         {/* Section Header */}
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-semibold tracking-tight text-white md:text-4xl">
-            Why Thousands of Patients Trust Us
+            {t('Why Thousands of Patients Trust Us')}
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-white/80">
-            We make getting a doctor&apos;s note simple, affordable, and stress-free.
+            {t("We make getting a doctor's note simple, affordable, and stress-free.")}
           </p>
         </div>
 
@@ -64,9 +68,9 @@ export default function WhyUseUsSection() {
               <div>
                 <div className="mb-0.5 flex items-center gap-1.5">
                   <CircleCheck className="h-4 w-4 text-white/70" strokeWidth={2} />
-                  <h3 className="text-base font-semibold text-white">{benefit.title}</h3>
+                  <h3 className="text-base font-semibold text-white">{t(benefit.title)}</h3>
                 </div>
-                <p className="text-sm text-white/80">{benefit.description}</p>
+                <p className="text-sm text-white/80">{t(benefit.description)}</p>
               </div>
             </div>
           ))}
