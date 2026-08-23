@@ -44,6 +44,15 @@ export const MAYBE_REASONS = [
       'The doctor is reviewing your intake form and needs additional time to complete the review. We appreciate your patience.',
   },
   {
+    value: 'MORE_INFO_NEEDED',
+    label: 'More Info Needed',
+    description: 'Request additional details for the chart and doctor review.',
+    sendsEmail: true,
+    requiresApprovedDays: false,
+    emailMessage:
+      'Can you please provide additional details regarding your appointment, injury, or medical condition? We will add this information to your chart for the doctor’s review. However, we will not include it on your note unless you request that we do so.\n\nPlease reply directly to this email with the additional details.',
+  },
+  {
     value: 'ADDITIONAL_EMPLOYER_LANGUAGE',
     label: 'Additional employer language',
     description: 'Request asks for serious-health-condition or employer-specific language.',
@@ -81,6 +90,7 @@ export type MaybeApprovedDays = (typeof MAYBE_APPROVED_DAY_OPTIONS)[number]
 
 export const DEFAULT_MAYBE_REASON: MaybeReason = 'OTHER_REVIEW'
 export const DATES_EXCEED_ALLOWED_RANGE_REASON: MaybeReason = 'DATES_EXCEED_ALLOWED_RANGE'
+export const MORE_INFO_NEEDED_REASON: MaybeReason = 'MORE_INFO_NEEDED'
 export const INTERNAL_ONLY_MAYBE_REASON: MaybeReason = 'INTERNAL_ONLY'
 
 export function getMaybeReasonConfig(reason: string | null | undefined): MaybeReasonConfig | null {

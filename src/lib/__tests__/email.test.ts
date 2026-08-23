@@ -205,6 +205,25 @@ describe('sendMaybeEmail', () => {
       })
     ).rejects.toThrow('Failed to send maybe email: Email service unavailable')
   })
+
+  it('uses a specific non-sensitive subject and the existing support reply address for more info', async () => {
+    mockEmailSend.mockResolvedValue({ id: 'email_more_info' })
+
+    await sendMaybeEmail({
+      to: 'patient@example.com',
+      patientName: 'John Doe',
+      reason: 'MORE_INFO_NEEDED',
+    })
+
+    expect(mockEmailSend).toHaveBeenCalledTimes(1)
+    expect(mockEmailSend).toHaveBeenCalledWith({
+      from: 'noreply@onlinedoctornote.com',
+      replyTo: 'hello@onlinedoctornote.com',
+      to: 'patient@example.com',
+      subject: "More information needed for your doctor's note request",
+      html: '<html>Maybe email</html>',
+    })
+  })
 })
 
 describe('sendPaymentConfirmationEmail', () => {

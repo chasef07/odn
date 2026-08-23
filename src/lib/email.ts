@@ -5,7 +5,11 @@ import ApprovalEmail from '@/emails/ApprovalEmail'
 import PaymentConfirmationEmail from '@/emails/PaymentConfirmationEmail'
 import BounceAlertEmail from '@/emails/BounceAlertEmail'
 import MaybeEmail from '@/emails/MaybeEmail'
-import type { MaybeApprovedDays, MaybeReason } from '@/lib/maybe-reasons'
+import {
+  MORE_INFO_NEEDED_REASON,
+  type MaybeApprovedDays,
+  type MaybeReason,
+} from '@/lib/maybe-reasons'
 
 let resendClient: Resend | null = null
 
@@ -224,7 +228,10 @@ export async function sendMaybeEmail({
       from: FROM_EMAIL,
       replyTo: 'hello@onlinedoctornote.com',
       to,
-      subject: "Update on your doctor's note request",
+      subject:
+        reason === MORE_INFO_NEEDED_REASON
+          ? "More information needed for your doctor's note request"
+          : "Update on your doctor's note request",
       html: emailHtml,
     })
 
