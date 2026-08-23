@@ -151,7 +151,8 @@ export default function PaymentPage() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          throw new Error(errorData.error || 'Failed to create payment intent')
+          setError(t(errorData.error || 'Failed to create payment intent'))
+          return
         }
 
         const data = await response.json()
@@ -171,11 +172,7 @@ export default function PaymentPage() {
         }
       } catch (err) {
         console.error('Payment intent creation error:', err)
-        setError(
-          err instanceof Error
-            ? t(err.message)
-            : t('Failed to connect to payment service. Please try again.')
-        )
+        setError(t('Failed to connect to payment service. Please try again.'))
       } finally {
         setLoading(false)
       }

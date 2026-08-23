@@ -247,7 +247,11 @@ export const spanishTranslations: Record<string, string> = {
     'Cada nota es revisada por un médico con licencia',
   'Everything you need to know about our service':
     'Todo lo que necesita saber sobre nuestro servicio',
+  'Failed to connect to payment service. Please try again.':
+    'No se pudo conectar con el servicio de pago. Inténtelo de nuevo.',
+  'Failed to create payment intent': 'No se pudo iniciar el pago',
   'Failed to create submission': 'Failed to create submission',
+  'Failed to initialize payment': 'No se pudo inicializar el pago',
   Fall: 'Caída',
   FAQ: 'Preguntas frecuentes',
   'FAQ - Frequently Asked Questions': 'Preguntas frecuentes | OnlineDoctorNote',
