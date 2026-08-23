@@ -15,6 +15,7 @@ import * as React from 'react'
 import {
   DATES_EXCEED_ALLOWED_RANGE_REASON,
   DEFAULT_MAYBE_REASON,
+  MORE_INFO_NEEDED_REASON,
   getMaybeEmailMessage,
   type MaybeApprovedDays,
   type MaybeReason,
@@ -33,12 +34,17 @@ export const MaybeEmail = ({
 }: MaybeEmailProps) => {
   const currentYear = new Date().getFullYear()
   const isDatesExceedAllowedRange = reason === DATES_EXCEED_ALLOWED_RANGE_REASON
+  const isMoreInfoNeeded = reason === MORE_INFO_NEEDED_REASON
   const messageParagraphs = getMaybeEmailMessage({ reason, approvedDays })
 
   return (
     <Html>
       <Head />
-      <Preview>Your doctor&apos;s note request is under review</Preview>
+      <Preview>
+        {isMoreInfoNeeded
+          ? 'More information is needed for your doctor’s note request'
+          : 'Your doctor’s note request is under review'}
+      </Preview>
       <Tailwind>
         <Body className="bg-gray-50 font-sans">
           <Container className="mx-auto my-8 max-w-2xl">
@@ -67,7 +73,7 @@ export const MaybeEmail = ({
                   Review Update
                 </Text>
                 <Heading className="m-0 mb-3 text-xl font-bold text-gray-900">
-                  Additional review needed
+                  {isMoreInfoNeeded ? 'More information needed' : 'Additional review needed'}
                 </Heading>
                 {messageParagraphs.map((paragraph, index) => (
                   <Text

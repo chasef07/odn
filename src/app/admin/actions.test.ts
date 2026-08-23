@@ -879,6 +879,58 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     })
   })
 
+  it('sends the more-info request to the customer exactly once without changing note content', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...mockSubmission,
+      additionalInformation: 'Existing chart details',
+    })
+
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'MORE_INFO_NEEDED',
+      internalNote: 'Awaiting customer reply',
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockSendMaybeEmail).toHaveBeenCalledTimes(1)
+    expect(mockSendMaybeEmail).toHaveBeenCalledWith({
+      to: 'patient@example.com',
+      patientName: 'John Doe',
+      reason: 'MORE_INFO_NEEDED',
+      approvedDays: null,
+    })
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: mockSubmissionId, status: SubmissionStatus.PENDING_REVIEW },
+        data: expect.objectContaining({
+          status: SubmissionStatus.MAYBE,
+          maybeReason: 'MORE_INFO_NEEDED',
+          maybeInternalNote: 'Awaiting customer reply',
+          maybeEmailSentAt: null,
+          reviewedByAdminId: mockDoctorId,
+        }),
+      })
+    )
+    expect(mockUpdateMany.mock.calls[0][0].data).not.toHaveProperty('additionalInformation')
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: mockSubmissionId },
+      data: { maybeEmailSentAt: expect.any(Date) },
+    })
+  })
+
+  it('requires an authenticated admin session before sending a more-info request', async () => {
+    mockGetSession.mockResolvedValue(null)
+
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'MORE_INFO_NEEDED',
+    })
+
+    expect(result).toEqual({ success: false, error: 'Failed to mark submission as maybe' })
+    expect(mockFindUnique).not.toHaveBeenCalled()
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+    expect(mockSendMaybeEmail).not.toHaveBeenCalled()
+  })
+
   it('sends maybe SMS after the maybe email succeeds', async () => {
     mockFindUnique.mockResolvedValue({
       ...mockSubmission,
@@ -1017,12 +1069,30 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
   })
 
+  it('surfaces more-info delivery failure without recording a sent timestamp', async () => {
+    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockSendMaybeEmail.mockRejectedValue(new Error('Resend unavailable'))
+
+    const result = await maybeSubmission(mockSubmissionId, {
+      reason: 'MORE_INFO_NEEDED',
+    })
+
+    expect(result).toEqual({
+      success: true,
+      warning: 'Submission moved to Maybe, but email notification failed to send',
+    })
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1)
+    expect(mockSendMaybeEmail).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
+  })
+
   it('does not send duplicate email if another doctor already moved the pending submission', async () => {
     mockFindUnique.mockResolvedValue(mockSubmission)
     mockUpdateMany.mockResolvedValue({ count: 0 })
 
     const result = await maybeSubmission(mockSubmissionId, {
-      reason: 'OTHER_REVIEW',
+      reason: 'MORE_INFO_NEEDED',
     })
 
     expect(result).toEqual({
