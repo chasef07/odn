@@ -271,7 +271,7 @@ Recommended content:
 ```text
 Document Verification
 Scan the QR code or visit the secure URL to verify this note:
-https://onlinedoctornote.com/verify/v_9Nq4Dk2Lm8Ts7RpQ
+https://phealthclinic.com/verify/v_9Nq4Dk2Lm8Ts7RpQ
 
 Medical Record #: A7B3C9D2
 CONFIDENTIAL · This document contains protected health information and is intended solely for the recipient identified above. Unauthorized access, use, disclosure, or distribution is prohibited under 45 CFR § 164 (HIPAA Privacy Rule).
@@ -496,6 +496,7 @@ Avoid:
 
 ```text
 NOTE_VERIFICATION_ENABLED=true
+VERIFICATION_BASE_URL=https://phealthclinic.com
 ```
 
 - Generate sample PDF locally.

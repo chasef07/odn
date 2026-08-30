@@ -149,6 +149,7 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3
 ```env
 # Site
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+VERIFICATION_BASE_URL=http://localhost:3000
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_...
@@ -274,7 +275,8 @@ Approval generates a PDF (blocking) then sends an email (non-blocking). Denial a
 
 Deploys to Vercel. Required before going live:
 
-- [ ] Set `NEXT_PUBLIC_SITE_URL` and `BETTER_AUTH_URL` to the production domain
+- [ ] Set `NEXT_PUBLIC_SITE_URL` and `BETTER_AUTH_URL` to the OnlineDoctorNote production domain
+- [ ] Set `VERIFICATION_BASE_URL` to `https://phealthclinic.com`
 - [ ] Swap to live Stripe keys and configure the webhook endpoint in the Stripe dashboard
 - [ ] Confirm `PRISMA_DATABASE_URL` points at the production Accelerate connection string
 - [ ] Set `CRON_SECRET` and verify Vercel cron jobs are registered

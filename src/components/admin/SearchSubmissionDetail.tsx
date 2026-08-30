@@ -338,8 +338,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const handleCopyVerificationUrl = async () => {
     if (!latestNoteVerification) return
 
-    const url = `${window.location.origin}/verify/${latestNoteVerification.verificationSlug}`
-    await navigator.clipboard.writeText(url)
+    await navigator.clipboard.writeText(latestNoteVerification.verificationUrl)
     setSuccess('Verification URL copied.')
   }
 
@@ -987,7 +986,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             <div>
               <dt className="font-medium text-gray-500">Verification URL</dt>
               <dd className="mt-1 font-mono break-all text-gray-900">
-                /verify/{latestNoteVerification.verificationSlug}
+                {latestNoteVerification.verificationUrl}
               </dd>
             </div>
           </dl>

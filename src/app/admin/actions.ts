@@ -1630,14 +1630,21 @@ export async function searchSubmissions({
 }
 
 // Type for submission with formatted date strings (for client components)
+type SubmissionWithNoteVerifications = Prisma.SubmissionGetPayload<{
+  include: { noteVerifications: true }
+}>
+
 export type FormattedSubmission = Omit<
-  Prisma.SubmissionGetPayload<{ include: { noteVerifications: true } }>,
-  'patientDateOfBirth' | 'guardianDateOfBirth' | 'firstDayOff' | 'lastDayOff'
+  SubmissionWithNoteVerifications,
+  'patientDateOfBirth' | 'guardianDateOfBirth' | 'firstDayOff' | 'lastDayOff' | 'noteVerifications'
 > & {
   patientDateOfBirth: string
   guardianDateOfBirth: string | null
   firstDayOff: string
   lastDayOff: string
+  noteVerifications: Array<
+    SubmissionWithNoteVerifications['noteVerifications'][number] & { verificationUrl: string }
+  >
   smsMessages: FormattedSmsMessage[]
   smsOptOutAt: Date | null
   smsPhoneE164: string | null
@@ -1703,6 +1710,10 @@ export async function getSubmissionById(
         : null,
       firstDayOff: formatDateUTC(submission.firstDayOff),
       lastDayOff: formatDateUTC(submission.lastDayOff),
+      noteVerifications: submission.noteVerifications.map((verification) => ({
+        ...verification,
+        verificationUrl: getVerificationUrl(verification.verificationSlug),
+      })),
       smsMessages: submission.smsMessages,
       smsOptOutAt: smsPhoneState?.optedOutAt || null,
       smsPhoneE164: submission.smsPhoneE164,

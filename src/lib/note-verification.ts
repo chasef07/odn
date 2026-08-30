@@ -2,6 +2,9 @@ import crypto from 'crypto'
 import { NoteVerificationStatus, Prisma, Submission } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { getStateLicense } from '@/lib/state-licenses'
+import { getVerificationUrl } from '@/lib/verification-url'
+
+export { getVerificationBaseUrl, getVerificationUrl } from '@/lib/verification-url'
 
 const RECORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const RECORD_LENGTH = 8
@@ -96,18 +99,6 @@ export function normalizeMedicalRecordNumber(input: string): string {
   const prefixedMatch = compact.match(/^PH\d{4}([A-Z0-9]{8})$/)
   if (prefixedMatch) return prefixedMatch[1]
   return input.trim().toUpperCase()
-}
-
-export function getVerificationBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.BETTER_AUTH_URL ||
-    'https://onlinedoctornote.com'
-  ).replace(/\/+$/, '')
-}
-
-export function getVerificationUrl(verificationSlug: string): string {
-  return `${getVerificationBaseUrl()}/verify/${verificationSlug}`
 }
 
 export function getConfiguredPhysician() {
