@@ -76,13 +76,16 @@ export async function POST(request: NextRequest) {
     const emailSubject = event.data.subject
 
     // 5. Identify email type from subject
-    let emailType: 'approval' | 'denial' | 'payment_confirmation' | 'unknown' = 'unknown'
+    let emailType: 'approval' | 'denial' | 'payment_confirmation' | 'follow_up' | 'unknown' =
+      'unknown'
     if (emailSubject.includes("Your Doctor's Note is Approved")) {
       emailType = 'approval'
     } else if (emailSubject.includes('Payment Confirmed')) {
       emailType = 'payment_confirmation'
     } else if (emailSubject.includes("Your Doctor's Note Request - Update")) {
       emailType = 'denial'
+    } else if (emailSubject.includes('A thank-you discount from OnlineDoctorNote')) {
+      emailType = 'follow_up'
     }
 
     // 6. Query submissions by email. Customer SMS only sends for unambiguous matches.

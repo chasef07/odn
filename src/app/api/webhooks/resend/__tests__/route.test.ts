@@ -499,6 +499,44 @@ describe('POST /api/webhooks/resend', () => {
     })
   })
 
+  it('should identify note follow-up email from subject', async () => {
+    mockResendVerify.mockReturnValue({
+      type: 'email.bounced',
+      data: {
+        email_id: 'email_123',
+        to: ['john@example.com'],
+        subject: 'A thank-you discount from OnlineDoctorNote',
+        bounce_reason: 'mailbox_does_not_exist',
+        from: 'noreply@onlinedoctornote.com',
+        created_at: '2025-01-01T00:00:00Z',
+      },
+    })
+
+    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
+
+    const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'email.bounced' }),
+      headers: {
+        'Content-Type': 'application/json',
+        'svix-id': 'msg_follow_up',
+        'svix-timestamp': '1234567890',
+        'svix-signature': 'valid_signature',
+      },
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockSendBounceAlertEmail).toHaveBeenCalledWith({
+      bouncedEmail: 'john@example.com',
+      bounceReason: 'mailbox_does_not_exist',
+      emailType: 'follow_up',
+      submission: mockSubmission,
+    })
+  })
+
   it('should handle unknown email types', async () => {
     mockResendVerify.mockReturnValue({
       type: 'email.bounced',

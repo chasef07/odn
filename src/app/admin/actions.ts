@@ -2071,12 +2071,15 @@ export async function changeSubmissionStatus(
           let emailWarning: string | undefined
           try {
             const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
-            // Note: Can't get refund amount since it's already processed, use 0
             await sendDenialEmail({
               to: submission.email,
               patientName,
               denialReason,
-              refundAmount: 0, // Already refunded previously
+              refundAmount: (submission.paymentAmount ?? 0) / 100,
+            })
+            await prisma.submission.update({
+              where: { id: submissionId },
+              data: { denialEmailSentAt: new Date() },
             })
             await sendTransactionalSmsForSubmission({
               submission,
@@ -2154,6 +2157,10 @@ export async function changeSubmissionStatus(
             patientName,
             denialReason,
             refundAmount: refundAmountDollars,
+          })
+          await prisma.submission.update({
+            where: { id: submissionId },
+            data: { denialEmailSentAt: new Date() },
           })
           await sendTransactionalSmsForSubmission({
             submission,

@@ -258,20 +258,21 @@ export async function POST(request: NextRequest) {
       revalidatePath('/admin/approved')
       revalidatePath('/admin/maybe')
 
-      // 9b. Send payment confirmation email (NON-BLOCKING - fire and forget)
-      // Remove await to return 200 OK to Stripe immediately
-      sendPaymentConfirmationEmail({
-        to: submission.email,
-        patientName: submission.patientFirstName,
-        submissionId: submission.id,
-      })
-        .then(() => {
-          logger.info('Payment confirmation email sent:', submission.email)
+      // 9b. Finish the payment confirmation attempt before the serverless request exits.
+      // Email failure remains non-critical so a successful payment is still acknowledged.
+      try {
+        await sendPaymentConfirmationEmail({
+          to: submission.email,
+          patientName: submission.patientFirstName,
+          submissionId: submission.id,
         })
-        .catch((emailError) => {
-          // NON-BLOCKING: Log warning but don't fail webhook
-          logger.warn('Failed to send payment confirmation email (non-critical):', emailError)
+        logger.info('Payment confirmation email sent for submission:', submission.id)
+      } catch (emailError) {
+        logger.warn('Failed to send payment confirmation email (non-critical):', {
+          submissionId: submission.id,
+          error: emailError instanceof Error ? emailError.message : 'Unknown error',
         })
+      }
 
       if (submission.smsOptIn) {
         sendTransactionalSmsForSubmission({

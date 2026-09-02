@@ -166,8 +166,10 @@ model Submission {
   refundedAt     DateTime? @map("refunded_at") // When refund was initiated
 
   // Email Delivery Tracking
-  approvalEmailSentAt DateTime? @map("approval_email_sent_at")
-  denialEmailSentAt   DateTime? @map("denial_email_sent_at")
+  approvalEmailSentAt    DateTime? @map("approval_email_sent_at")
+  denialEmailSentAt      DateTime? @map("denial_email_sent_at")
+  followUpEmailClaimedAt DateTime? @map("follow_up_email_claimed_at")
+  followUpEmailSentAt    DateTime? @map("follow_up_email_sent_at")
 
   // PDF approval render options used when a support automation reissues a note
   approvalDiagnosis        String?  @map("approval_diagnosis") @db.Text
@@ -186,6 +188,7 @@ model Submission {
   @@index([email])
   @@index([createdAt])
   @@index([status, createdAt])
+  @@index([status, followUpEmailSentAt, createdAt])
   @@index([patientFirstName, patientLastName, patientDateOfBirth, status])
   @@index([email, status])
   @@index([smsPhoneE164])

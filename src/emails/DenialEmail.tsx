@@ -8,10 +8,6 @@ import {
   Section,
   Text,
   Link,
-  Hr,
-  Button,
-  Row,
-  Column,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
 import * as React from 'react'
@@ -80,26 +76,15 @@ export const DenialEmail = ({
                 <Text className="m-0 mb-2 text-sm font-semibold tracking-wide text-gray-700 uppercase">
                   Refund Processed
                 </Text>
-                <Heading className="m-0 mb-3 text-3xl font-bold text-gray-900">
-                  {formattedRefund}
-                </Heading>
+                {refundAmount > 0 ? (
+                  <Heading className="m-0 mb-3 text-3xl font-bold text-gray-900">
+                    {formattedRefund}
+                  </Heading>
+                ) : null}
                 <Text className="m-0 text-sm leading-relaxed text-gray-700">
                   A full refund has been processed to your original payment method. Please allow{' '}
                   <strong>5-10 business days</strong> for the refund to appear in your account.
                 </Text>
-              </Section>
-
-              <Hr className="my-8 border-gray-200" />
-
-              {/* FAQ Button */}
-              <Section className="mb-6 text-center">
-                <Button
-                  href="https://onlinedoctornote.com"
-                  className="inline-block rounded-lg px-8 py-3 text-base font-semibold text-white no-underline"
-                  style={{ backgroundColor: '#009ed9' }}
-                >
-                  View FAQs
-                </Button>
               </Section>
 
               {/* Help Section */}

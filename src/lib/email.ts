@@ -3,6 +3,7 @@ import { render } from '@react-email/render'
 import DenialEmail from '@/emails/DenialEmail'
 import ApprovalEmail from '@/emails/ApprovalEmail'
 import PaymentConfirmationEmail from '@/emails/PaymentConfirmationEmail'
+import FollowUpEmail from '@/emails/FollowUpEmail'
 import BounceAlertEmail from '@/emails/BounceAlertEmail'
 import MaybeEmail from '@/emails/MaybeEmail'
 import {
@@ -35,6 +36,15 @@ export const resend = {
 
 // Email configuration
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@onlinedoctornote.com'
+
+function throwIfResendFailed(result: unknown): void {
+  if (typeof result !== 'object' || result === null || !('error' in result)) return
+
+  const error = (result as { error?: { message?: string } | null }).error
+  if (error) {
+    throw new Error(error.message || 'Resend rejected the email')
+  }
+}
 
 /**
  * Sends a denial notification email to the patient
@@ -74,6 +84,7 @@ export async function sendDenialEmail({
       subject: "Your Doctor's Note Request - Update",
       html: emailHtml,
     })
+    throwIfResendFailed(result)
 
     return result
   } catch (error) {
@@ -140,6 +151,7 @@ export async function sendApprovalEmail({
         },
       ],
     })
+    throwIfResendFailed(result)
 
     return result
   } catch (error) {
@@ -177,13 +189,19 @@ export async function sendPaymentConfirmationEmail({
       })
     )
 
-    const result = await resend.emails.send({
-      from: FROM_EMAIL,
-      replyTo: 'hello@onlinedoctornote.com',
-      to,
-      subject: "Payment Confirmed - Your Doctor's Note Request Received",
-      html: emailHtml,
-    })
+    const result = await resend.emails.send(
+      {
+        from: FROM_EMAIL,
+        replyTo: 'hello@onlinedoctornote.com',
+        to,
+        subject: "Payment Confirmed - Your Doctor's Note Request Received",
+        html: emailHtml,
+      },
+      {
+        idempotencyKey: `submission/${submissionId}/payment-confirmation`,
+      }
+    )
+    throwIfResendFailed(result)
 
     return result
   } catch (error) {
@@ -234,6 +252,7 @@ export async function sendMaybeEmail({
           : "Update on your doctor's note request",
       html: emailHtml,
     })
+    throwIfResendFailed(result)
 
     return result
   } catch (error) {
@@ -245,11 +264,59 @@ export async function sendMaybeEmail({
 }
 
 /**
+ * Sends the single post-delivery customer follow-up for a submission.
+ *
+ * The caller owns eligibility and persistence. The stable submission-scoped
+ * idempotency key makes a retry safe if the job loses its database acknowledgement.
+ */
+export async function sendFollowUpEmail({
+  to,
+  patientName,
+  notePurpose,
+  submissionId,
+}: {
+  to: string
+  patientName: string
+  notePurpose: string
+  submissionId: string
+}) {
+  try {
+    const emailHtml = await render(
+      FollowUpEmail({
+        patientName,
+        notePurpose,
+      })
+    )
+
+    const result = await resend.emails.send(
+      {
+        from: FROM_EMAIL,
+        replyTo: 'hello@onlinedoctornote.com',
+        to,
+        subject: 'A thank-you discount from OnlineDoctorNote',
+        html: emailHtml,
+      },
+      {
+        idempotencyKey: `submission/${submissionId}/note-follow-up`,
+      }
+    )
+    throwIfResendFailed(result)
+
+    return result
+  } catch (error) {
+    console.error('Failed to send follow-up email:', error)
+    throw new Error(
+      `Failed to send follow-up email: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+/**
  * Sends a bounce alert email to the admin team
  *
  * @param bouncedEmail - Email address that bounced
  * @param bounceReason - Reason for the bounce
- * @param emailType - Type of email that bounced (approval, denial, payment_confirmation, unknown)
+ * @param emailType - Type of email that bounced
  * @param submission - Submission data (optional)
  * @returns Promise that resolves to the email send result
  * @throws Error if email sending fails
@@ -262,7 +329,7 @@ export async function sendBounceAlertEmail({
 }: {
   bouncedEmail: string
   bounceReason: string
-  emailType: 'approval' | 'denial' | 'payment_confirmation' | 'unknown'
+  emailType: 'approval' | 'denial' | 'payment_confirmation' | 'follow_up' | 'unknown'
   submission: {
     id: string
     patientFirstName: string
@@ -296,6 +363,7 @@ export async function sendBounceAlertEmail({
       subject: `🚨 Email Bounce Alert: ${patientName}`,
       html: emailHtml,
     })
+    throwIfResendFailed(result)
 
     return result
   } catch (error) {
@@ -340,12 +408,14 @@ export async function sendSmsSupportTicketAlertEmail({
       </div>
     `
 
-    return await resend.emails.send({
+    const result = await resend.emails.send({
       from: FROM_EMAIL,
       to: 'hello@onlinedoctornote.com',
       subject: `SMS Support Ticket: ${category || 'Needs Review'}`,
       html: emailHtml,
     })
+    throwIfResendFailed(result)
+    return result
   } catch (error) {
     console.error('Failed to send SMS support ticket alert email:', error)
     throw new Error(

@@ -138,6 +138,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_mock'
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test'
     vi.clearAllMocks()
+    mockSendPaymentConfirmationEmail.mockResolvedValue(undefined)
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
 
     // Default: no existing submission (fresh event)
@@ -172,6 +173,43 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(createArg.data.paymentAmount).toBe(2495)
     expect(createArg.data.offerCode).toBeNull()
     expect(createArg.data.offerPriceId).toBeNull()
+    expect(mockSendPaymentConfirmationEmail).toHaveBeenCalledWith({
+      to: 'john@example.com',
+      patientName: 'John',
+      submissionId: 'sub_ok',
+    })
+  })
+
+  it('acknowledges Stripe after a failed purchase email attempt without losing the submission', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_email_failure',
+      paymentIntentId: 'pi_test_123',
+      formData: validFormData,
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_email_failure',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+    })
+    mockSendPaymentConfirmationEmail.mockRejectedValue(new Error('Resend unavailable'))
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockSubmissionCreate).toHaveBeenCalledOnce()
+    expect(mockSendPaymentConfirmationEmail).toHaveBeenCalledOnce()
+  })
+
+  it('does not resend the purchase email when Stripe retries an existing submission', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockSubmissionFindUnique.mockResolvedValue({ id: 'sub_existing' })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockSubmissionCreate).not.toHaveBeenCalled()
+    expect(mockSendPaymentConfirmationEmail).not.toHaveBeenCalled()
   })
 
   it('sends purchase confirmation SMS when opted in', async () => {

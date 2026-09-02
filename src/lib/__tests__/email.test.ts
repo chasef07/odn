@@ -265,6 +265,9 @@ describe('sendPaymentConfirmationEmail', () => {
       expect(mockEmailSend).toHaveBeenCalledWith(
         expect.objectContaining({
           html: '<html>Payment confirmation email</html>',
+        }),
+        expect.objectContaining({
+          idempotencyKey: 'submission/550e8400-e29b-41d4-a716-446655440000/payment-confirmation',
         })
       )
     })
@@ -289,6 +292,9 @@ describe('sendPaymentConfirmationEmail', () => {
           to: 'patient@example.com',
           subject: "Payment Confirmed - Your Doctor's Note Request Received",
           html: '<html>Test payment confirmation</html>',
+        }),
+        expect.objectContaining({
+          idempotencyKey: 'submission/550e8400-e29b-41d4-a716-446655440000/payment-confirmation',
         })
       )
     })

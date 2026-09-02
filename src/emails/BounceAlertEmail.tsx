@@ -18,7 +18,7 @@ import * as React from 'react'
 interface BounceAlertEmailProps {
   bouncedEmail: string
   bounceReason: string
-  emailType: 'approval' | 'denial' | 'payment_confirmation' | 'unknown'
+  emailType: 'approval' | 'denial' | 'payment_confirmation' | 'follow_up' | 'unknown'
   patientFirstName?: string
   patientLastName?: string
   patientPhone?: string
@@ -45,6 +45,7 @@ export const BounceAlertEmail = ({
     approval: 'Approval Email',
     denial: 'Denial Email',
     payment_confirmation: 'Payment Confirmation Email',
+    follow_up: 'Note Follow-up Email',
     unknown: 'Unknown Email Type',
   }
 
@@ -83,6 +84,10 @@ export const BounceAlertEmail = ({
                     <span className="font-mono" style={{ color: '#dc2626' }}>
                       {bouncedEmail}
                     </span>
+                  </Text>
+
+                  <Text className="mb-2 text-base leading-relaxed text-gray-900">
+                    <strong>Email Type:</strong> {emailTypeNames[emailType]}
                   </Text>
 
                   <Text className="mb-6 text-base leading-relaxed text-gray-900">
@@ -125,6 +130,10 @@ export const BounceAlertEmail = ({
                     <span className="font-mono" style={{ color: '#dc2626' }}>
                       {bouncedEmail}
                     </span>
+                  </Text>
+
+                  <Text className="mb-2 text-base leading-relaxed text-gray-900">
+                    <strong>Email Type:</strong> {emailTypeNames[emailType]}
                   </Text>
 
                   <Text className="mb-6 text-base leading-relaxed text-gray-900">

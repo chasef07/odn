@@ -119,17 +119,6 @@ export const PaymentConfirmationEmail = ({
 
               <Hr className="my-8 border-gray-200" />
 
-              {/* FAQ Button */}
-              <Section className="mb-6 text-center">
-                <Button
-                  href="https://onlinedoctornote.com"
-                  className="inline-block rounded-lg px-8 py-3 text-base font-semibold text-white no-underline"
-                  style={{ backgroundColor: '#009ed9' }}
-                >
-                  View FAQs
-                </Button>
-              </Section>
-
               {/* Help Section */}
               <Section className="mt-8 rounded-xl bg-gray-50 p-6">
                 <Heading className="m-0 mb-2 text-base font-bold text-gray-900">Need Help?</Heading>
@@ -143,8 +132,20 @@ export const PaymentConfirmationEmail = ({
                   >
                     hello@onlinedoctornote.com
                   </Link>
-                  . Please include your reference number (#{shortId}) in any correspondence.
+                  . Please include your reference number (#{shortId}) in any correspondence and
+                  refer to the FAQs below for common questions.
                 </Text>
+              </Section>
+
+              {/* FAQ Button */}
+              <Section className="mt-6 text-center">
+                <Button
+                  href="https://onlinedoctornote.com/"
+                  className="inline-block rounded-lg px-8 py-3 text-base font-semibold text-white no-underline"
+                  style={{ backgroundColor: '#009ed9' }}
+                >
+                  View FAQs
+                </Button>
               </Section>
             </Section>
 

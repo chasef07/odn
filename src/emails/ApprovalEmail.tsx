@@ -27,7 +27,7 @@ interface ApprovalEmailProps {
 
 export const ApprovalEmail = ({
   patientName = 'Patient',
-  notePurpose = 'work or school',
+  notePurpose = 'work',
   absenceReason = 'Feeling sick',
 }: ApprovalEmailProps) => {
   // Check if this is a caregiver note or doctor's appointment
