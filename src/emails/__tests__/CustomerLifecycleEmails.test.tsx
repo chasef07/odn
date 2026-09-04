@@ -71,7 +71,7 @@ describe('customer lifecycle email copy', () => {
     expect(text).toContain('scan the QR code printed on it')
     expect(text).toContain('10% off your next note')
     expect(text).toContain('shared with and used by friends and family')
-    expect(html).toContain('https://onlinedoctornote.com/?offer=doctor10')
+    expect(html).toContain('https://onlinedoctornote.com/start/?offer=doctor10')
     expect(html).not.toContain('offer=friends20')
     expect(html).not.toMatch(/unsubscribe/i)
     expect(text).not.toContain('No longer want to receive these emails?')

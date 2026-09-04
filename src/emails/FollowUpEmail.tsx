@@ -21,7 +21,7 @@ interface FollowUpEmailProps {
 }
 
 const QR_RELEVANT_PURPOSES = new Set(['work', 'school', 'both'])
-const THANK_YOU_OFFER_URL = `https://onlinedoctornote.com/?${OFFER_QUERY_PARAM}=${DOCTOR_10_OFFER_CODE}`
+const THANK_YOU_OFFER_URL = `https://onlinedoctornote.com/start/?${OFFER_QUERY_PARAM}=${DOCTOR_10_OFFER_CODE}`
 
 export const FollowUpEmail = ({
   patientName = 'Patient',
