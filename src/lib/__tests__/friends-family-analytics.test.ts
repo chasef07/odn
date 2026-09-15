@@ -44,6 +44,54 @@ function submission(
 }
 
 describe('friends-family analytics segmentation', () => {
+  it('tracks doctor10 customers, repeat orders, and net revenue separately from friends20', () => {
+    const submissions = [
+      submission({ id: 'promo', offerCode: ' DOCTOR10 ', paymentAmount: 2246 }),
+      submission({ id: 'repeat-promo', offerCode: 'doctor10', paymentAmount: 2246 }),
+      submission({
+        id: 'refunded-promo',
+        email: 'refunded@example.com',
+        offerCode: 'doctor10',
+        paymentAmount: 2246,
+        stripeRefundId: 're_promo',
+      }),
+      submission({
+        id: 'old-promo',
+        email: 'legacy@example.com',
+        offerCode: 'friends20',
+        paymentAmount: 1996,
+      }),
+    ]
+    const analytics = buildFriendsFamilyAnalytics(submissions, referenceDate, {
+      segment: 'offer_used',
+    })
+
+    expect(analytics.summary.offerUsed).toBe(2)
+    expect(analytics.summary.offerNotesCount).toBe(3)
+    expect(analytics.summary.offerNetRevenueCents).toBe(4492)
+    expect(analytics.customers.map((customer) => customer.email).sort()).toEqual([
+      'jane@example.com',
+      'refunded@example.com',
+    ])
+
+    const customer = buildFriendsFamilyCustomerDetail(
+      submissions.filter((row) => row.email === 'jane@example.com'),
+      'email:jane@example.com',
+      referenceDate
+    )
+    expect(customer?.offerUsedCount).toBe(2)
+    expect(customer?.scoreFactors).toContainEqual({ label: 'Already used doctor10', value: -25 })
+
+    const legacy = buildFriendsFamilyCustomerDetail(
+      submissions.filter((row) => row.email === 'legacy@example.com'),
+      'email:legacy@example.com',
+      referenceDate
+    )
+    expect(legacy?.offerUsedCount).toBe(0)
+    expect(legacy?.standardPriceNotes).toBe(0)
+    expect(legacy?.segments).not.toContain('offer_used')
+  })
+
   it('ranks lapsed repeat full-price customers as the best targets', () => {
     const analytics = buildFriendsFamilyAnalytics(
       [

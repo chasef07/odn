@@ -246,7 +246,7 @@ export function FriendsFamilyAnalyticsDashboard({
         <KpiTile label="Repeat Customers" value={formatNumber(summary.repeatCustomers)} />
         <KpiTile label="Best Targets" value={formatNumber(summary.bestTargets)} />
         <KpiTile
-          label="friends20 Conversions"
+          label="10% Promo Orders (doctor10)"
           value={formatNumber(summary.offerNotesCount)}
           sublabel="Net revenue"
           subvalue={offerNetRevenue}

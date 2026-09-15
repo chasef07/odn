@@ -1,5 +1,5 @@
 import { SubmissionStatus } from '@prisma/client'
-import { FRIENDS_FAMILY_OFFER_CODE, normalizeOfferCode } from '@/lib/offer-codes'
+import { DOCTOR_10_OFFER_CODE, normalizeOfferCode } from '@/lib/offer-codes'
 
 export type FriendsFamilySegmentKey =
   | 'best_targets'
@@ -260,7 +260,7 @@ function buildCustomerSegment(
     (submission) => Boolean(submission.refundedAt) || Boolean(submission.stripeRefundId)
   ).length
   const offerUsedCount = sorted.filter(
-    (submission) => normalizeOfferCode(submission.offerCode) === FRIENDS_FAMILY_OFFER_CODE
+    (submission) => normalizeOfferCode(submission.offerCode) === DOCTOR_10_OFFER_CODE
   ).length
   const standardPriceNotes = sorted.filter(
     (submission) => !normalizeOfferCode(submission.offerCode)
@@ -357,7 +357,7 @@ function buildCustomerSegment(
   }
 
   if (offerUsedCount > 0) {
-    score += addFactor(scoreFactors, reasons, 'Already used friends20', -25, 'warning')
+    score += addFactor(scoreFactors, reasons, 'Already used doctor10', -25, 'warning')
   } else if (standardPriceNotes > 0) {
     score += addFactor(scoreFactors, reasons, 'Paid standard price before', 8, 'positive')
   }
@@ -442,7 +442,7 @@ export function buildFriendsFamilyAnalytics(
   let offerNotesCount = 0
   let offerNetRevenueCents = 0
   for (const submission of submissions) {
-    if (normalizeOfferCode(submission.offerCode) !== FRIENDS_FAMILY_OFFER_CODE) continue
+    if (normalizeOfferCode(submission.offerCode) !== DOCTOR_10_OFFER_CODE) continue
     offerNotesCount += 1
     const paid = submission.paymentAmount ?? 0
     const refunded = Boolean(submission.refundedAt) || Boolean(submission.stripeRefundId)

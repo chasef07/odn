@@ -1,6 +1,6 @@
 /**
  * Friends & Family Analytics Page
- * Customer segmentation for the friends20 offer.
+ * Customer segmentation for the doctor10 (10% off) offer.
  */
 
 import { headers } from 'next/headers'
