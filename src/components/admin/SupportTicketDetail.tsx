@@ -15,6 +15,7 @@ import {
 } from '@/app/admin/support/actions'
 import { supportCategoryLabel, supportStatusLabel } from '@/lib/sms-support-types'
 import { formatDateUTC } from '@/lib/utils'
+import { formatDateTimeET } from '@/lib/admin-utils'
 
 export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailType }) {
   const router = useRouter()
@@ -271,11 +272,5 @@ function statusClass(status: string): string {
 }
 
 function formatDateTime(date: Date): string {
-  return new Date(date).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  return formatDateTimeET(date)
 }

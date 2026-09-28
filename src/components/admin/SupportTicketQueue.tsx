@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { formatDateTimeET } from '@/lib/admin-utils'
 import type { SupportTicketListItem } from '@/app/admin/support/actions'
 import { supportCategoryLabel, supportStatusLabel } from '@/lib/sms-support-types'
 
@@ -143,10 +144,5 @@ function statusClass(status: string): string {
 }
 
 function formatDateTime(date: Date): string {
-  return new Date(date).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  return formatDateTimeET(date, { includeYear: false })
 }

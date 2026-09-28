@@ -8,6 +8,7 @@
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { getTodayET } from '@/lib/admin-utils'
 
 interface ApprovalDialogContentProps {
   evaluationDate: string
@@ -74,9 +75,9 @@ export function ApprovalDialogContent({
 }
 
 /**
- * Get today's date in YYYY-MM-DD format using local timezone
- * This ensures the default date matches what the user sees on their calendar
+ * Get today's date in YYYY-MM-DD format in Eastern Time
+ * Admin portal and PDF "Date Issued" defaults are always Eastern Time
  */
 export function getTodayLocal(): string {
-  return new Date().toLocaleDateString('en-CA')
+  return getTodayET()
 }

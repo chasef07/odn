@@ -4,7 +4,10 @@
  */
 
 import { formatDistanceToNow, format, differenceInDays, differenceInYears, parse } from 'date-fns'
-import { formatInTimeZone, toZonedTime } from 'date-fns-tz'
+import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz'
+
+/** Admin portal always displays times in Eastern Time */
+export const ADMIN_TIME_ZONE = 'America/New_York'
 
 /**
  * Denial reason types for submissions
@@ -195,10 +198,37 @@ export function formatFullDate(date: string | Date): string {
 export function formatDateWithTime(date: string | Date): string {
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date
-    return formatInTimeZone(dateObj, 'America/New_York', "MMM d, yyyy 'at' h:mm a")
+    return formatInTimeZone(dateObj, ADMIN_TIME_ZONE, "MMM d, yyyy 'at' h:mm a")
   } catch {
     return typeof date === 'string' ? date : date.toISOString()
   }
+}
+
+/**
+ * Format a timestamp in Eastern Time with a zone label (e.g., "Nov 1, 2025, 10:00 AM EDT")
+ * Use instead of toLocaleString(), which renders in the server's (UTC) or viewer's timezone
+ * @param date - Timestamp to format
+ * @param options.includeYear - Include the year (default true)
+ * @returns Formatted date/time in Eastern Time
+ */
+export function formatDateTimeET(
+  date: string | Date,
+  { includeYear = true }: { includeYear?: boolean } = {}
+): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  return formatInTimeZone(
+    dateObj,
+    ADMIN_TIME_ZONE,
+    includeYear ? 'MMM d, yyyy, h:mm a zzz' : 'MMM d, h:mm a zzz'
+  )
+}
+
+/**
+ * Get today's date in Eastern Time as YYYY-MM-DD
+ * Matches the default "Date Issued" used for generated PDFs
+ */
+export function getTodayET(): string {
+  return formatInTimeZone(new Date(), ADMIN_TIME_ZONE, 'yyyy-MM-dd')
 }
 
 /**
@@ -233,18 +263,16 @@ export function formatNotePurpose(purpose: string): string {
  * @returns Date object representing 6am ET today (or yesterday's 6am if before 6am)
  */
 export function getBusinessDayStart(): Date {
-  const now = new Date()
-  const nowET = toZonedTime(now, 'America/New_York')
-
-  // Set to 6am ET today
-  nowET.setHours(6, 0, 0, 0)
+  const nowET = toZonedTime(new Date(), ADMIN_TIME_ZONE)
 
   // If current time is before 6am ET, use yesterday's 6am
-  const currentET = toZonedTime(new Date(), 'America/New_York')
-  if (currentET.getHours() < 6) {
+  if (nowET.getHours() < 6) {
     nowET.setDate(nowET.getDate() - 1)
   }
 
-  // Return as UTC Date for database queries
-  return nowET
+  // Build 6am ET as a wall-clock string, then convert to a real UTC instant.
+  // (Mutating the toZonedTime() result directly would yield 6am in the
+  // server's timezone — 6am UTC on Vercel — instead of 6am ET.)
+  const day = format(nowET, 'yyyy-MM-dd')
+  return fromZonedTime(`${day}T06:00:00`, ADMIN_TIME_ZONE)
 }

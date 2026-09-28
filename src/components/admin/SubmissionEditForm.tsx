@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { getTodayET } from '@/lib/admin-utils'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import {
   Select,
@@ -24,9 +25,9 @@ import {
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import { updateSubmission, approveSubmission, type FormattedSubmission } from '@/app/admin/actions'
 
-// Get today's date in YYYY-MM-DD format using local timezone
+// Get today's date in YYYY-MM-DD format in Eastern Time
 function getTodayLocal(): string {
-  return new Date().toLocaleDateString('en-CA')
+  return getTodayET()
 }
 
 interface SubmissionEditFormProps {

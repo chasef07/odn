@@ -33,7 +33,12 @@ import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
-import { DENIAL_REASON_OPTIONS, calculateDaysDifference } from '@/lib/admin-utils'
+import {
+  DENIAL_REASON_OPTIONS,
+  calculateDaysDifference,
+  formatDateTimeET,
+  getTodayET,
+} from '@/lib/admin-utils'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import {
   updateSubmission,
@@ -148,10 +153,8 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   )
 
   // Evaluation date for PDF (ephemeral - not stored in database)
-  // Use toLocaleDateString('en-CA') to get YYYY-MM-DD in local time (not UTC)
-  const [evaluationDate, setEvaluationDate] = useState<string>(
-    new Date().toLocaleDateString('en-CA')
-  )
+  // Defaults to today in Eastern Time to match the admin portal and PDF defaults
+  const [evaluationDate, setEvaluationDate] = useState<string>(getTodayET())
 
   // Diagnosis for PDF (ephemeral - not stored in database)
   const [diagnosis, setDiagnosis] = useState('')
@@ -363,13 +366,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
   const formatDateTime = (date: Date | null) => {
     if (!date) return 'N/A'
-    return new Date(date).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    })
+    return formatDateTimeET(date)
   }
 
   // Determine which action buttons to show based on current status

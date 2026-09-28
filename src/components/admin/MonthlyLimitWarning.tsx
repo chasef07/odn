@@ -3,7 +3,7 @@
  * Displays warning when patient approaches or exceeds 7-day rolling limit
  */
 
-import { format } from 'date-fns'
+import { ADMIN_TIME_ZONE } from '@/lib/admin-utils'
 import { formatInTimeZone } from 'date-fns-tz'
 import { MonthlyUsage } from '@/lib/monthly-limit'
 import { Card } from '@/components/ui/card'
@@ -102,7 +102,9 @@ export function MonthlyLimitWarning({
                 {formatInTimeZone(sub.lastDayOff, 'UTC', 'MMM d')} ({sub.days} day
                 {sub.days > 1 ? 's' : ''})
                 {sub.approvedAt && (
-                  <span className="ml-1 opacity-70">• {format(sub.approvedAt, 'MMM d')}</span>
+                  <span className="ml-1 opacity-70">
+                    • {formatInTimeZone(sub.approvedAt, ADMIN_TIME_ZONE, 'MMM d')}
+                  </span>
                 )}
               </li>
             ))}
