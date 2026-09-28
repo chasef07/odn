@@ -1,8 +1,3 @@
-/**
- * Tests for State Medical License Mappings
- * Ensures business-critical license data is correct and complete
- */
-
 import { describe, it, expect } from 'vitest'
 import { STATE_LICENSES, getStateLicense } from '../state-licenses'
 import { AVAILABLE_STATES } from '../form-constants'
@@ -152,7 +147,6 @@ describe('getStateLicense', () => {
     })
 
     it('should return null for states not in AVAILABLE_STATES', () => {
-      // States not in the 46 available states
       const unavailableStates = ['Alaska', 'Arkansas', 'Massachusetts', 'Oregon', 'Rhode Island']
 
       unavailableStates.forEach((state) => {
@@ -162,7 +156,7 @@ describe('getStateLicense', () => {
     })
 
     it('should be case-sensitive', () => {
-      const result = getStateLicense('texas') // lowercase
+      const result = getStateLicense('texas')
       expect(result).toBeNull()
     })
 

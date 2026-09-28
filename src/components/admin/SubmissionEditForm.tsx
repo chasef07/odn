@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * Submission Edit Form Component
- * Editable form for Maybe submissions
- */
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -25,19 +20,12 @@ import {
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import { updateSubmission, approveSubmission, type FormattedSubmission } from '@/app/admin/actions'
 
-// Get today's date in YYYY-MM-DD format in Eastern Time
-function getTodayLocal(): string {
-  return getTodayET()
-}
-
 interface SubmissionEditFormProps {
   submission: FormattedSubmission
 }
 
-// Helper function to parse YYYY-MM-DD string to Date at noon UTC (avoids timezone issues)
 function parseDateSafe(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number)
-  // Create date at noon UTC to avoid timezone boundary issues
   return new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
 }
 
@@ -49,7 +37,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Form state - initialize with submission data (dates are already YYYY-MM-DD strings from server)
   const [patientFirstName, setPatientFirstName] = useState(submission.patientFirstName)
   const [patientLastName, setPatientLastName] = useState(submission.patientLastName)
   const [patientDateOfBirth, setPatientDateOfBirth] = useState(
@@ -78,8 +65,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
     submission.additionalInformation || ''
   )
 
-  // Ephemeral fields for PDF (not stored in database)
-  const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
+  const [evaluationDate, setEvaluationDate] = useState(getTodayET())
   const [diagnosis, setDiagnosis] = useState('')
   const [withRestrictions, setWithRestrictions] = useState(true)
 
@@ -163,7 +149,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
@@ -178,7 +163,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
 
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
-          {/* Page Header */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-foreground text-3xl font-bold">Edit Submission</h1>
@@ -189,7 +173,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
             </Link>
           </div>
 
-          {/* Status Messages */}
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="text-sm text-red-600">{error}</p>
@@ -201,9 +184,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
             </div>
           )}
 
-          {/* Form */}
           <div className="space-y-8 rounded-lg border border-gray-200 bg-white p-6 shadow">
-            {/* Patient Information */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Patient Information</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -250,7 +231,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               onRemoved={handleGuardianRemoved}
             />
 
-            {/* Guardian Information (if applicable) */}
             {(guardianFirstName || guardianLastName || recipient === 'someone_else') && (
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold text-gray-900">Guardian Information</h2>
@@ -287,7 +267,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             )}
 
-            {/* Contact Information */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Contact Information</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -314,7 +293,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
-            {/* Note Details */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Note Details</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -362,7 +340,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
-            {/* PDF Options (ephemeral - not stored in database) */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">PDF Options</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -410,7 +387,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </p>
             </div>
 
-            {/* Absence Dates */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Absence Dates</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -437,7 +413,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
-            {/* Absence Reason */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Absence Reason</h2>
               <div className="space-y-2">
@@ -468,7 +443,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
-            {/* Symptoms (Note: Simplified - you may want checkboxes) */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Symptoms</h2>
               <div className="space-y-2">
@@ -501,7 +475,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               )}
             </div>
 
-            {/* Additional Information */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Additional Information</h2>
               <div className="space-y-2">
@@ -517,7 +490,6 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-3 border-t border-gray-200 pt-6">
               <Button onClick={handleSave} disabled={isActionDisabled} size="lg">
                 {isLoading ? 'Saving...' : 'Save Changes'}

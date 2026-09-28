@@ -1,8 +1,3 @@
-/**
- * 30-Day Limit Warning Component
- * Displays warning when patient approaches or exceeds 7-day rolling limit
- */
-
 import { ADMIN_TIME_ZONE } from '@/lib/admin-utils'
 import { formatInTimeZone } from 'date-fns-tz'
 import { MonthlyUsage } from '@/lib/monthly-limit'
@@ -23,19 +18,15 @@ export function MonthlyLimitWarning({
   const limit = 7
 
   if (!wouldExceed && monthlyUsage.totalDays < 5) {
-    // Don't show warning if well under limit
     return null
   }
 
-  // Calculate progress percentage (cap at 100% for visual)
-  const progressPercent = Math.min((newTotal / limit) * 100, 100)
   const currentPercent = Math.min((monthlyUsage.totalDays / limit) * 100, 100)
 
   return (
     <Card
       className={`p-4 ${wouldExceed ? 'border-red-500 bg-red-50' : 'border-yellow-500 bg-yellow-50'}`}
     >
-      {/* Header with icon and title */}
       <div className="mb-3 flex items-center gap-2">
         <span className="text-xl">{wouldExceed ? '🚨' : '⚠️'}</span>
         <h3 className={`text-base font-bold ${wouldExceed ? 'text-red-900' : 'text-yellow-900'}`}>
@@ -43,7 +34,6 @@ export function MonthlyLimitWarning({
         </h3>
       </div>
 
-      {/* Progress bar section */}
       <div className="mb-3">
         <div className="mb-1 flex justify-between text-xs">
           <span className={wouldExceed ? 'text-red-700' : 'text-yellow-700'}>
@@ -53,14 +43,11 @@ export function MonthlyLimitWarning({
           <span className={wouldExceed ? 'text-red-700' : 'text-yellow-700'}>Limit: {limit}</span>
         </div>
 
-        {/* Progress bar */}
         <div className="h-3 overflow-hidden rounded-full bg-gray-200">
-          {/* Current usage (darker) */}
           <div
             className={`h-full transition-all duration-300 ${wouldExceed ? 'bg-red-400' : 'bg-yellow-400'}`}
             style={{ width: `${currentPercent}%` }}
           >
-            {/* Requested days overlay (lighter, stacked on top) */}
             <div
               className={`h-full ${wouldExceed ? 'bg-red-600' : 'bg-yellow-600'}`}
               style={{
@@ -71,7 +58,6 @@ export function MonthlyLimitWarning({
               }}
             />
           </div>
-          {/* Requested days portion */}
           <div
             className={`-mt-3 h-full ${wouldExceed ? 'bg-red-600' : 'bg-yellow-600'}`}
             style={{
@@ -88,7 +74,6 @@ export function MonthlyLimitWarning({
         )}
       </div>
 
-      {/* Previous submissions (collapsible detail) */}
       {monthlyUsage.submissions.length > 0 && (
         <details className={`text-xs ${wouldExceed ? 'text-red-700' : 'text-yellow-700'}`}>
           <summary className="mb-1 cursor-pointer hover:underline">
@@ -112,7 +97,6 @@ export function MonthlyLimitWarning({
         </details>
       )}
 
-      {/* Action suggestion */}
       {wouldExceed && (
         <p
           className={`mt-2 border-t pt-2 text-xs ${wouldExceed ? 'border-red-200 text-red-700' : 'border-yellow-200 text-yellow-700'}`}

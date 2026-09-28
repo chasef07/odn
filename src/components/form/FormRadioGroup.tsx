@@ -9,28 +9,20 @@ interface RadioOption {
 }
 
 interface FormRadioGroupProps {
-  /** Unique field identifier */
   fieldName: string
 
-  /** Screen reader legend text */
   legend: string
 
-  /** Array of radio options */
   options: RadioOption[]
 
-  /** React Hook Form register return value */
   register: UseFormRegisterReturn
 
-  /** Error object from react-hook-form */
   error?: FieldError
 
-  /** Currently selected value */
   selectedValue?: string
 
-  /** Grid layout classes (default: "grid gap-4 md:grid-cols-2") */
   gridClassName?: string
 
-  /** Variant style ("default" | "large-buttons" | "center-buttons") */
   variant?: 'default' | 'large-buttons' | 'center-buttons'
 }
 
@@ -53,7 +45,6 @@ export function FormRadioGroup({
         {options.map((option) => {
           const isSelected = selectedValue === option.value
 
-          // Center buttons variant (for home page recipient selection)
           if (variant === 'center-buttons') {
             return (
               <label
@@ -78,7 +69,6 @@ export function FormRadioGroup({
             )
           }
 
-          // Large button variant (for note purpose page)
           if (variant === 'large-buttons') {
             return (
               <label
@@ -106,7 +96,6 @@ export function FormRadioGroup({
             )
           }
 
-          // Default compact variant (for absence reason page)
           return (
             <label
               key={option.value}

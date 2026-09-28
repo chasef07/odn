@@ -1,10 +1,3 @@
-/**
- * Minimal structured logger.
- *
- * `debug` and `info` are no-ops outside development so verbose operational
- * logging doesn't leak into production output. `warn` and `error` always log
- * so failures remain visible in every environment.
- */
 type LogArgs = unknown[]
 
 const isDevelopment = () => process.env.NODE_ENV === 'development'

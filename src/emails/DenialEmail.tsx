@@ -10,7 +10,6 @@ import {
   Link,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
-import * as React from 'react'
 
 interface DenialEmailProps {
   patientName: string
@@ -23,10 +22,8 @@ export const DenialEmail = ({
   denialReason = 'Other',
   refundAmount = 24.95,
 }: DenialEmailProps) => {
-  // denialReason kept for potential future use/logging
   void denialReason
 
-  // Format refund amount as currency
   const formattedRefund = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -41,14 +38,12 @@ export const DenialEmail = ({
       <Tailwind>
         <Body className="bg-gray-50 font-sans">
           <Container className="mx-auto my-8 max-w-2xl">
-            {/* Header with Logo */}
             <Section className="rounded-t-2xl border-b border-gray-200 bg-white px-8 py-4">
               <Text className="m-0 text-2xl font-bold" style={{ color: '#009ed9' }}>
                 OnlineDoctorNote
               </Text>
             </Section>
 
-            {/* Main Content */}
             <Section className="bg-white px-8 py-8">
               <Text className="mb-6 text-base leading-relaxed text-gray-900">
                 Hi <strong>{patientName}</strong>,
@@ -68,7 +63,6 @@ export const DenialEmail = ({
                 guidelines.
               </Text>
 
-              {/* Refund Card */}
               <Section
                 className="mb-8 rounded-2xl bg-white p-6"
                 style={{ border: '2px solid #009ed9' }}
@@ -87,7 +81,6 @@ export const DenialEmail = ({
                 </Text>
               </Section>
 
-              {/* Help Section */}
               <Section className="mt-8 rounded-xl bg-gray-50 p-6">
                 <Heading className="m-0 mb-2 text-base font-bold text-gray-900">Need Help?</Heading>
                 <Text className="m-0 text-sm leading-relaxed text-gray-700">
@@ -104,7 +97,6 @@ export const DenialEmail = ({
               </Section>
             </Section>
 
-            {/* Footer */}
             <Section className="rounded-b-2xl bg-gray-100 px-8 py-6">
               <Text className="m-0 text-center text-xs leading-relaxed text-gray-600">
                 © {currentYear} Online Doctor&apos;s Note. All rights reserved.

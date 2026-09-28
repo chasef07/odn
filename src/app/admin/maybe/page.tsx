@@ -1,8 +1,3 @@
-/**
- * Maybe Portal Page
- * Shows table of all MAYBE submissions
- */
-
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
@@ -14,7 +9,6 @@ import { getMaybeSubmissions, getManualSubmissions } from '../actions'
 import { MaybePortalTabs } from '@/components/admin/MaybePortalTabs'
 
 export default async function MaybePortalPage() {
-  // SECURITY: Check authentication
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -23,7 +17,6 @@ export default async function MaybePortalPage() {
     redirect('/admin/login')
   }
 
-  // Fetch all maybe and manual submissions
   const [maybeResult, manualResult] = await Promise.all([
     getMaybeSubmissions(),
     getManualSubmissions(),
@@ -35,7 +28,6 @@ export default async function MaybePortalPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
@@ -49,7 +41,6 @@ export default async function MaybePortalPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-8">
-          {/* Header with back button */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-foreground text-3xl font-bold">Review Portal</h1>
@@ -70,7 +61,6 @@ export default async function MaybePortalPage() {
             </div>
           </div>
 
-          {/* Error state */}
           {(!maybeResult.success || !manualResult.success) && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="text-sm text-red-600">
@@ -82,7 +72,6 @@ export default async function MaybePortalPage() {
             </div>
           )}
 
-          {/* Tabs Component */}
           <MaybePortalTabs
             maybeSubmissions={maybeSubmissions}
             manualSubmissions={manualSubmissions}

@@ -28,7 +28,6 @@ export function FormLayout({
   const firstName = usePersonalization ? getFirstName() : null
   const { t, locale } = useI18n()
 
-  // Replace {firstName} placeholder with actual name
   const personalizedTitle = firstName
     ? title.replace('{firstName}', firstName)
     : title.replace('{firstName}', '')
@@ -39,14 +38,12 @@ export function FormLayout({
         <div className="mb-3 flex justify-end">
           <LanguageSwitch />
         </div>
-        {/* Top Bar: Progress + Trust Badges */}
         {!hideProgressAndBadges && (
           <div className="mb-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <FormProgress currentStep={currentStep} />
             </div>
 
-            {/* Horizontal Trust Badges */}
             <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="text-primary h-4 w-4" />
@@ -60,7 +57,6 @@ export function FormLayout({
           </div>
         )}
 
-        {/* Title - Centered on White Background */}
         <div className="mb-3 text-center">
           <h1 className="font-display text-foreground mb-3 text-3xl font-bold sm:text-4xl md:text-5xl">
             {t(personalizedTitle)}
@@ -72,7 +68,6 @@ export function FormLayout({
           )}
         </div>
 
-        {/* Form Content */}
         {translateReactTree(children, locale)}
       </main>
     </div>

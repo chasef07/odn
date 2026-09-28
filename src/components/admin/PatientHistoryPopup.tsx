@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * Patient History Popup Component
- * Shows past submissions for the same patient in a dialog
- */
-
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
@@ -17,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { getPatientHistory, type PatientHistoryEntry } from '@/app/admin/actions'
-import { formatDateRange, formatDateWithTime } from '@/lib/admin-utils'
+import { formatDateRange, formatDateWithTime, NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
 
 interface PatientHistoryPopupProps {
   patientFirstName: string
@@ -25,14 +20,6 @@ interface PatientHistoryPopupProps {
   patientDateOfBirth: Date | string
   email: string
   currentSubmissionId: string
-}
-
-const NOTE_PURPOSE_LABELS: Record<string, string> = {
-  work: 'Work',
-  school: 'School',
-  both: 'Work & School',
-  travel: 'Travel',
-  other: 'Other',
 }
 
 export function PatientHistoryPopup({
@@ -46,7 +33,6 @@ export function PatientHistoryPopup({
   const [isLoading, setIsLoading] = useState(false)
   const [history, setHistory] = useState<PatientHistoryEntry[] | null>(null)
 
-  // Fetch history on mount so we can show the count immediately
   useEffect(() => {
     async function fetchHistory() {
       setIsLoading(true)
@@ -76,7 +62,6 @@ export function PatientHistoryPopup({
 
   const count = history?.length ?? 0
 
-  // Don't show anything while loading or if no history
   if (isLoading) {
     return (
       <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">

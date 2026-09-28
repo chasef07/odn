@@ -4,7 +4,6 @@ import path from 'path'
 import { loadEnv } from 'vite'
 
 export default defineConfig(({ mode }) => {
-  // Load env file based on mode (test will load .env.test)
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
@@ -15,7 +14,6 @@ export default defineConfig(({ mode }) => {
       globalSetup: './vitest.global-setup.ts',
       setupFiles: ['./vitest.setup.ts'],
       env: {
-        // Load test environment variables from .env.test
         ...env,
       },
       include: ['**/*.{test,spec}.{ts,tsx}'],
@@ -31,8 +29,8 @@ export default defineConfig(({ mode }) => {
           '**/*.d.ts',
           '**/types.ts',
           'vitest.setup.ts',
-          'scripts/**', // Utility scripts
-          'src/app/layout.tsx', // Next.js specific files
+          'scripts/**',
+          'src/app/layout.tsx',
           'src/app/not-found.tsx',
         ],
         thresholds: {

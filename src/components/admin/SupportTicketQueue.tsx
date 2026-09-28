@@ -2,7 +2,11 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { formatDateTimeET } from '@/lib/admin-utils'
 import type { SupportTicketListItem } from '@/app/admin/support/actions'
-import { supportCategoryLabel, supportStatusLabel } from '@/lib/sms-support-types'
+import {
+  supportCategoryLabel,
+  supportStatusClass,
+  supportStatusLabel,
+} from '@/lib/sms-support-types'
 
 const STATUS_FILTERS = [
   { label: 'All', value: '' },
@@ -102,7 +106,7 @@ export function SupportTicketQueue({
                         <p className="text-xs text-gray-500">{ticket.phoneE164}</p>
                       </td>
                       <td className="px-4 py-4 align-top">
-                        <span className={statusClass(ticket.status)}>
+                        <span className={supportStatusClass(ticket.status)}>
                           {supportStatusLabel(ticket.status)}
                         </span>
                         {ticket.jobs[0] && (
@@ -117,7 +121,7 @@ export function SupportTicketQueue({
                         </p>
                       </td>
                       <td className="px-4 py-4 text-right align-top text-sm text-gray-500">
-                        {formatDateTime(ticket.updatedAt)}
+                        {formatDateTimeET(ticket.updatedAt, { includeYear: false })}
                       </td>
                     </tr>
                   )
@@ -129,20 +133,4 @@ export function SupportTicketQueue({
       </div>
     </div>
   )
-}
-
-function statusClass(status: string): string {
-  if (status === 'NEEDS_CSR')
-    return 'rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700'
-  if (status === 'RUNNING_AUTOMATION') {
-    return 'rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700'
-  }
-  if (status === 'CLOSED') {
-    return 'rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700'
-  }
-  return 'rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700'
-}
-
-function formatDateTime(date: Date): string {
-  return formatDateTimeET(date, { includeYear: false })
 }

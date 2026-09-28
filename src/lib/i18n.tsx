@@ -5,8 +5,6 @@ import { spanishTranslations } from '@/locales/es'
 export const locales = ['en', 'es'] as const
 export type Locale = (typeof locales)[number]
 
-export const defaultLocale: Locale = 'en'
-
 export function localeFromPathname(pathname: string): Locale {
   return pathname === '/es' || pathname.startsWith('/es/') ? 'es' : 'en'
 }
@@ -77,10 +75,6 @@ export function translateTextNode(locale: Locale, value: string): string {
 
 const translatedProps = new Set(['alt', 'aria-label', 'placeholder', 'title'])
 
-/**
- * Localizes a server-rendered public page without duplicating its JSX tree.
- * All translations are checked-in strings; this does not call a translation service at runtime.
- */
 export function translateReactTree(node: React.ReactNode, locale: Locale): React.ReactNode {
   if (locale === 'en' || node === null || node === undefined || typeof node === 'boolean')
     return node
@@ -157,4 +151,16 @@ export function englishAlternates(path: string): Metadata['alternates'] {
       'x-default': canonicalPath,
     },
   }
+}
+
+export function flowMetadata(path: string, title?: string): Metadata {
+  return {
+    ...(title ? { title } : {}),
+    alternates: englishAlternates(path),
+    robots: { index: false, follow: false },
+  }
+}
+
+export function FlowLayout({ children }: { children: React.ReactNode }) {
+  return children
 }

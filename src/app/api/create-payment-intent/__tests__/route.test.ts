@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import type { FormData } from '@/lib/form-storage'
 
-// Mock Prisma using vi.hoisted
 const { mockPrismaCreate, mockPrismaUpdate, mockPrismaDelete } = vi.hoisted(() => ({
   mockPrismaCreate: vi.fn(),
   mockPrismaUpdate: vi.fn(),
@@ -19,7 +18,6 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-// Mock Stripe using vi.hoisted
 const { mockPaymentIntentCreate, mockPaymentIntentCancel, mockPricesRetrieve } = vi.hoisted(() => ({
   mockPaymentIntentCreate: vi.fn(),
   mockPaymentIntentCancel: vi.fn(),
@@ -53,16 +51,12 @@ vi.mock('stripe', () => {
   }
 })
 
-// Import after mocks
 import { POST } from '../route'
 import { serializeAttributionCookie } from '@/lib/attribution'
 
 describe('POST /api/create-payment-intent', () => {
   let originalEnv: NodeJS.ProcessEnv
 
-  // Use dynamic dates so the absence-date validator (enforced in the route)
-  // always sees dates within the allowed 7-day window regardless of when
-  // tests run.
   const _now = new Date()
   const _toISODate = (d: Date) => d.toISOString().split('T')[0]
   const _daysFromToday = (n: number) => {
@@ -94,7 +88,6 @@ describe('POST /api/create-payment-intent', () => {
     process.env.STRIPE_DOCTOR_10_PRICE_ID = 'price_doctor_10_mock'
     vi.clearAllMocks()
 
-    // Default mock for price retrieval
     mockPricesRetrieve.mockImplementation(async (priceId: string) => {
       return {
         id: priceId,
@@ -118,15 +111,13 @@ describe('POST /api/create-payment-intent', () => {
     const mockPaymentIntentId = 'pi_123456'
     const mockTempSubmissionId = 'temp_123'
 
-    // Mock TemporarySubmission.create (step 1 - with placeholder ID)
     mockPrismaCreate.mockResolvedValue({
       id: mockTempSubmissionId,
-      paymentIntentId: expect.stringMatching(/^pending_/), // Placeholder ID
+      paymentIntentId: expect.stringMatching(/^pending_/),
       formData: mockFormData,
       expiresAt: new Date(),
     })
 
-    // Mock PaymentIntent.create (step 2)
     mockPaymentIntentCreate.mockResolvedValue({
       id: mockPaymentIntentId,
       client_secret: mockClientSecret,
@@ -137,7 +128,6 @@ describe('POST /api/create-payment-intent', () => {
       },
     })
 
-    // Mock TemporarySubmission.update (step 3 - link to real payment intent ID)
     mockPrismaUpdate.mockResolvedValue({
       id: mockTempSubmissionId,
       paymentIntentId: mockPaymentIntentId,
@@ -167,7 +157,6 @@ describe('POST /api/create-payment-intent', () => {
       })
     )
 
-    // Verify TemporarySubmission was created FIRST with placeholder
     expect(mockPrismaCreate).toHaveBeenCalledWith({
       data: {
         paymentIntentId: expect.stringMatching(/^pending_/),
@@ -176,7 +165,6 @@ describe('POST /api/create-payment-intent', () => {
       },
     })
 
-    // Verify PaymentIntent includes metadata with temp submission ID
     expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({
@@ -185,7 +173,6 @@ describe('POST /api/create-payment-intent', () => {
       })
     )
 
-    // Verify TemporarySubmission was updated with real payment intent ID
     expect(mockPrismaUpdate).toHaveBeenCalledWith({
       where: { id: mockTempSubmissionId },
       data: {
@@ -212,7 +199,6 @@ describe('POST /api/create-payment-intent', () => {
     const incompleteFormData = {
       state: 'CA',
       recipient: 'myself',
-      // Missing other required fields
     }
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
@@ -232,7 +218,6 @@ describe('POST /api/create-payment-intent', () => {
     const formDataWithoutGuardian = {
       ...mockFormData,
       recipient: 'someone_else',
-      // Missing guardian fields
     }
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
@@ -288,7 +273,7 @@ describe('POST /api/create-payment-intent', () => {
         price_type: 'standard',
         offer_code: '',
         offer_price_id: '',
-        temporarySubmissionId: mockTempSubmissionId, // NEW: fallback reference
+        temporarySubmissionId: mockTempSubmissionId,
       },
     })
   })
@@ -517,7 +502,7 @@ describe('POST /api/create-payment-intent', () => {
   it('should use amount from Stripe Price object', async () => {
     mockPricesRetrieve.mockResolvedValue({
       id: 'price_test_mock',
-      unit_amount: 3999, // Different amount
+      unit_amount: 3999,
       currency: 'usd',
     })
 
@@ -565,7 +550,7 @@ describe('POST /api/create-payment-intent', () => {
   it('should handle invalid price object (missing unit_amount)', async () => {
     mockPricesRetrieve.mockResolvedValue({
       id: 'price_test_mock',
-      unit_amount: null, // Invalid
+      unit_amount: null,
       currency: 'usd',
     })
 
@@ -587,7 +572,7 @@ describe('POST /api/create-payment-intent', () => {
     mockPricesRetrieve.mockResolvedValue({
       id: 'price_test_mock',
       unit_amount: 2495,
-      currency: null, // Invalid
+      currency: null,
     })
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
@@ -733,8 +718,6 @@ describe('POST /api/create-payment-intent', () => {
   })
 
   it('should return 500 if database fails to create TemporarySubmission', async () => {
-    // In the new flow, TemporarySubmission is created FIRST
-    // If it fails, no PaymentIntent is created, so nothing to cancel
     mockPrismaCreate.mockRejectedValue(new Error('Database error'))
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
@@ -749,7 +732,6 @@ describe('POST /api/create-payment-intent', () => {
     expect(response.status).toBe(500)
     expect(data.error).toBe('Unable to process your request. Please try again.')
 
-    // PaymentIntent should NOT be created or canceled since DB failed first
     expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
     expect(mockPaymentIntentCancel).not.toHaveBeenCalled()
   })
@@ -757,15 +739,12 @@ describe('POST /api/create-payment-intent', () => {
   it('should handle invalid Stripe key error', async () => {
     const mockTempSubmissionId = 'temp_789'
 
-    // TemporarySubmission created successfully
     mockPrismaCreate.mockResolvedValue({
       id: mockTempSubmissionId,
     })
 
-    // PaymentIntent creation fails (invalid API key)
     mockPaymentIntentCreate.mockRejectedValue(new Error('Invalid API Key provided'))
 
-    // Cleanup deletes temp submission
     mockPrismaDelete.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
@@ -780,7 +759,6 @@ describe('POST /api/create-payment-intent', () => {
     expect(response.status).toBe(500)
     expect(data.error).toBe('Payment processing error. Please try again.')
 
-    // Verify cleanup was attempted
     expect(mockPrismaDelete).toHaveBeenCalledWith({
       where: { id: mockTempSubmissionId },
     })
@@ -804,7 +782,7 @@ describe('POST /api/create-payment-intent', () => {
     mockPricesRetrieve.mockResolvedValue({
       id: 'price_test_mock',
       unit_amount: 2495,
-      currency: 'eur', // Different currency
+      currency: 'eur',
     })
 
     mockPaymentIntentCreate.mockResolvedValue({
@@ -905,10 +883,6 @@ describe('POST /api/create-payment-intent', () => {
   })
 
   describe('server-side validation hardening', () => {
-    // These tests cover the bypass gaps reported by a doctor: users could
-    // navigate back and edit localStorage to push invalid data through payment.
-    // See src/app/api/create-payment-intent/route.ts for the validators.
-
     const today = new Date()
     const toISODate = (d: Date) => d.toISOString().split('T')[0]
     const daysFromToday = (n: number) => {
@@ -921,7 +895,7 @@ describe('POST /api/create-payment-intent', () => {
       const badData = {
         ...mockFormData,
         firstDayOff: daysFromToday(0),
-        lastDayOff: daysFromToday(10), // 11 inclusive days
+        lastDayOff: daysFromToday(10),
       }
 
       const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
@@ -984,7 +958,7 @@ describe('POST /api/create-payment-intent', () => {
       const badData = {
         ...mockFormData,
         recipient: 'someone_else',
-        patientDateOfBirth: daysFromToday(30), // 30 days in the future
+        patientDateOfBirth: daysFromToday(30),
         guardianFirstName: 'Jane',
         guardianLastName: 'Doe',
         guardianDateOfBirth: '1980-01-01',
@@ -1029,7 +1003,6 @@ describe('POST /api/create-payment-intent', () => {
     })
 
     it('should reject under-18 patient when recipient=myself', async () => {
-      // DOB is 5 years ago -> clearly under 18
       const dob = new Date(today)
       dob.setUTCFullYear(dob.getUTCFullYear() - 5)
 
@@ -1066,7 +1039,7 @@ describe('POST /api/create-payment-intent', () => {
       const goodData = {
         ...mockFormData,
         firstDayOff: daysFromToday(-2),
-        lastDayOff: daysFromToday(2), // 5 inclusive days
+        lastDayOff: daysFromToday(2),
       }
 
       const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {

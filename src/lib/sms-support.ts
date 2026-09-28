@@ -10,7 +10,6 @@ import {
   askDobSms,
   askOtherMessageSms,
   askPurposeSms,
-  askRefundReasonSms,
   askSubmissionReferenceSms,
   automationBlockedSms,
   automationQueuedSms,

@@ -1,8 +1,3 @@
-/**
- * Status Badge Component
- * Reusable badge for displaying submission status with appropriate colors
- */
-
 import { SubmissionStatus } from '@prisma/client'
 
 interface StatusBadgeProps {

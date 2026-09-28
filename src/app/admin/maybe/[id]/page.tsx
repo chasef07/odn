@@ -1,8 +1,3 @@
-/**
- * Edit Maybe Submission Page
- * Allows doctor to edit submission fields and approve/deny
- */
-
 import { redirect, notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
@@ -16,7 +11,6 @@ export default async function EditMaybeSubmissionPage({
 }) {
   const { id } = await params
 
-  // SECURITY: Check authentication
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -25,7 +19,6 @@ export default async function EditMaybeSubmissionPage({
     redirect('/admin/login')
   }
 
-  // Fetch submission
   const result = await getSubmissionById(id)
 
   if (!result.success || !result.submission) {

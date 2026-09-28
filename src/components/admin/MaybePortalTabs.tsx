@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * Maybe Portal Tabs Component
- * Displays Maybe Queue and Manual Notes tabs
- */
-
 import { useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { MaybeActionButtons } from './MaybeActionButtons'
@@ -13,15 +8,12 @@ import { formatDateWithTime } from '@/lib/admin-utils'
 import { getMaybeReasonLabel } from '@/lib/maybe-reasons'
 import type { MaybeSubmission, ManualSubmission } from '@/app/admin/actions'
 
-// Helper to format calendar dates consistently in UTC
 function formatCalendarDate(dateString: string): string {
-  // Parse YYYY-MM-DD as UTC midnight to avoid timezone shifts
   const [year, month, day] = dateString.split('-').map(Number)
   const date = new Date(Date.UTC(year, month - 1, day))
   return formatInTimeZone(date, 'UTC', 'MMM d, yyyy')
 }
 
-// Helper to format calendar date range
 function formatDateRange(start: string, end: string): string {
   if (start === end) {
     return formatCalendarDate(start)
@@ -53,7 +45,6 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
@@ -89,7 +80,6 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
         </nav>
       </div>
 
-      {/* Tab Content Header */}
       <div>
         <h2 className="text-foreground text-2xl font-bold">{tabTitle}</h2>
         <p className="text-muted-foreground mt-1 text-sm">
@@ -97,7 +87,6 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
         </p>
       </div>
 
-      {/* Empty State */}
       {submissions.length === 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <div className="mx-auto max-w-md">
@@ -110,7 +99,6 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
         </div>
       )}
 
-      {/* Table View */}
       {submissions.length > 0 && (
         <div className="-mx-4 sm:mx-0">
           <div className="overflow-x-auto rounded-none border-y border-gray-200 bg-white shadow sm:rounded-lg sm:border">

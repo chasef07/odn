@@ -21,7 +21,6 @@ export default function AdditionalInfoPage() {
   const currentStep = getStepNumber('/additional-info', recipient)
   const absenceReason = savedData.absenceReason || ''
 
-  // Dynamic back route: skip symptoms page for Doctor's appointment and Other
   const backRoute =
     absenceReason === "Doctor's appointment" || absenceReason === 'Other'
       ? getBackRoute('/symptoms', recipient)!

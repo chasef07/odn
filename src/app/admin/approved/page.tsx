@@ -1,8 +1,3 @@
-/**
- * Approved Submissions Page
- * Shows all submissions approved today with visual confirmation
- */
-
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
@@ -14,7 +9,6 @@ import { getApprovedSubmissionsForToday } from '../actions'
 import { formatDateWithTime } from '@/lib/admin-utils'
 
 export default async function ApprovedSubmissionsPage() {
-  // SECURITY: Check authentication
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -23,13 +17,11 @@ export default async function ApprovedSubmissionsPage() {
     redirect('/admin/login')
   }
 
-  // Fetch approved submissions for today
   const result = await getApprovedSubmissionsForToday()
 
   if (!result.success || !result.data) {
     return (
       <div>
-        {/* Header */}
         <header className="border-b bg-white shadow-sm">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between gap-4">
@@ -58,7 +50,6 @@ export default async function ApprovedSubmissionsPage() {
 
   return (
     <div>
-      {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
@@ -72,7 +63,6 @@ export default async function ApprovedSubmissionsPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
-          {/* Page Header */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-green-600">Approved Submissions</h1>
@@ -93,7 +83,6 @@ export default async function ApprovedSubmissionsPage() {
             </div>
           </div>
 
-          {/* Table or Empty State */}
           {submissions.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white py-16 text-center">
               <div className="mb-4 text-6xl">📋</div>

@@ -66,8 +66,8 @@ jobs:
       - name: Validate Prisma schema
         run: npx prisma validate
       - run: npx prisma generate
-      - name: tsc --noEmit
-        run: npx tsc --noEmit --incremental false
+      - name: Typecheck
+        run: npm run typecheck
 
   test:
     name: Test

@@ -254,7 +254,6 @@ describe('friends-family analytics segmentation', () => {
   })
 
   it('returns limited segment rows without timelines or score factors', () => {
-    // 60 distinct repeat customers, each with two approved notes 40 and 80 days ago.
     const submissions = Array.from({ length: 60 }, (_, index) => [
       submission({
         id: `sub-${index}-recent`,
@@ -284,13 +283,10 @@ describe('friends-family analytics segmentation', () => {
   it('segments customers who never requested a refund and ranks them by note volume', () => {
     const analytics = buildFriendsFamilyAnalytics(
       [
-        // Single approved note.
         submission({ id: 'one', email: 'one@example.com', createdAt: daysAgo(5) }),
-        // Three approved notes — most volume, should rank first.
         submission({ id: 'three-a', email: 'three@example.com', createdAt: daysAgo(20) }),
         submission({ id: 'three-b', email: 'three@example.com', createdAt: daysAgo(50) }),
         submission({ id: 'three-c', email: 'three@example.com', createdAt: daysAgo(90) }),
-        // Refunded customer — excluded entirely.
         submission({
           id: 'refunded',
           email: 'refunded@example.com',
@@ -316,10 +312,8 @@ describe('friends-family analytics segmentation', () => {
   it('sorts the all-customers view by most recent approval, not targeting score', () => {
     const analytics = buildFriendsFamilyAnalytics(
       [
-        // Lapsed repeat customer: high targeting score, but older approval.
         submission({ id: 'lapsed-1', email: 'lapsed@example.com', createdAt: daysAgo(45) }),
         submission({ id: 'lapsed-2', email: 'lapsed@example.com', createdAt: daysAgo(80) }),
-        // Fresh single approval: lower score, but most recent.
         submission({ id: 'fresh', email: 'fresh@example.com', createdAt: daysAgo(2) }),
       ],
       referenceDate,

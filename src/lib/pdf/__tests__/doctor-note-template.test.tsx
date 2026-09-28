@@ -1,10 +1,3 @@
-/**
- * Tests for Doctor's Note PDF Template
- * Tests state-specific licenses and caregiver vs. regular patient content
- * Note: These tests verify the component renders successfully with different props.
- * Full PDF content validation is done via integration tests and manual review.
- */
-
 import { describe, it, expect } from 'vitest'
 import { pdf } from '@react-pdf/renderer'
 import {
@@ -15,14 +8,12 @@ import {
 } from '../doctor-note-template'
 import { getStateLicense } from '../../state-licenses'
 
-// Mock doctor info for testing
 const mockDoctorInfo: DoctorInfo = {
   name: 'Dr. Test Doctor',
   credentials: 'MD FACEP',
   signatureUrl: '/test-signature.png',
 }
 
-// Base submission data for testing
 const baseSubmissionData: DoctorNoteData = {
   patientFirstName: 'John',
   patientLastName: 'Doe',
@@ -54,7 +45,6 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
       />
     )
 
-    // Should generate a PDF without errors
     const blob = await doc.toBlob()
     expect(blob.size).toBeGreaterThan(0)
   })
@@ -188,7 +178,6 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
 
     const blob = await doc.toBlob()
     expect(blob.size).toBeGreaterThan(0)
-    // Medical record number should be formatted as first 8 chars uppercase: 550E8400
   })
 
   it('should render successfully with Medical Record # field for short UUID', async () => {
@@ -205,22 +194,15 @@ describe('DoctorNoteTemplate - Component Rendering', () => {
 
     const blob = await doc.toBlob()
     expect(blob.size).toBeGreaterThan(0)
-    // Medical record number should be formatted as first 8 chars uppercase: ABC123DE
   })
 })
 
-/**
- * Recursively walk a React element tree and concatenate all string children.
- * Used to assert on the text content rendered by DoctorNoteTemplate without
- * needing to parse the binary PDF output.
- */
 function extractText(node: unknown): string {
   if (node === null || node === undefined || typeof node === 'boolean') return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(extractText).join('')
   if (typeof node === 'object' && 'props' in (node as Record<string, unknown>)) {
     const element = node as { type: unknown; props: { children?: unknown } }
-    // Render function components so conditional content (e.g. notePurpose checks) executes
     if (typeof element.type === 'function') {
       const rendered = (element.type as (props: unknown) => unknown)(element.props)
       return extractText(rendered)
@@ -261,7 +243,6 @@ describe('DoctorNoteTemplate - "may return" sentence', () => {
     const text = extractText(tree)
     expect(text).not.toContain('may return')
     expect(text).not.toContain('Furthermore')
-    // Trailing contact sentence must still appear
     expect(text).toContain('please do not hesitate to contact our office')
   })
 
@@ -476,20 +457,10 @@ describe('DoctorNoteTemplate - condition phrase by absence reason', () => {
   })
 
   it('renders "with an illness" for "Feeling sick" in the caregiver branch', () => {
-    // Force the caregiver branch by using the caregiver helper logic but a
-    // different reason. Since isCaregiver is gated on absenceReason itself,
-    // the only way to land on the caregiver branch with a non-default reason
-    // is to swap the rendering branch directly. The component gates on
-    // absenceReason === 'Taking care of someone', so we exercise the helper:
-    // here we still render through the component using the caregiver reason
-    // and verify the swap by checking the rendered phrase via the helper.
     const tree = (
       <DoctorNoteTemplate
         submissionData={{
           ...baseSubmissionData,
-          // Caregiver branch fires when absenceReason === 'Taking care of someone'.
-          // For this test, we render the caregiver branch and confirm fallback,
-          // then assert the helper directly for "Feeling sick"+with mapping.
           absenceReason: 'Taking care of someone',
         }}
         doctorInfo={mockDoctorInfo}
@@ -498,8 +469,6 @@ describe('DoctorNoteTemplate - condition phrase by absence reason', () => {
     )
     const text = extractText(tree)
     expect(text).toContain('attend to their family member with a medical condition')
-    // The "with" mapping is exercised by the helper; verify it produces
-    // "with an illness" for "Feeling sick".
     expect(getConditionPhrase('Feeling sick').with).toBe('with an illness')
   })
 
@@ -512,12 +481,9 @@ describe('DoctorNoteTemplate - condition phrase by absence reason', () => {
       />
     )
     const text = extractText(tree)
-    // The appointment branch uses its own "for a doctor's appointment" wording
-    // and never references "medical condition" or the new illness/injury phrases.
     expect(text).not.toContain('medical condition')
     expect(text).not.toContain('due to an illness')
     expect(text).not.toContain('due to an injury')
-    // Helper still maps it to the fallback.
     expect(getConditionPhrase("Doctor's appointment").dueTo).toBe('due to a medical condition')
   })
 })

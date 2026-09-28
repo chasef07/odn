@@ -3,7 +3,6 @@ import { MetadataRoute } from 'next'
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://onlinedoctornote.com'
 
-  // All form step pages that should not be crawled
   const formPages = [
     '/get-started',
     '/basic-info',
@@ -27,7 +26,6 @@ export default function robots(): MetadataRoute.Robots {
         allow: ['/', '/about', '/faq', '/blog', '/privacy-policy', '/terms-of-service'],
         disallow: ['/api/', '/admin/', '/*?', ...formPages],
       },
-      // AI crawlers - limited to homepage + legal pages only
       {
         userAgent: ['GPTBot', 'ChatGPT-User', 'anthropic-ai', 'Claude-Web'],
         allow: ['/', '/about', '/faq', '/blog', '/privacy-policy', '/terms-of-service'],

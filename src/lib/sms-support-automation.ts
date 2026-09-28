@@ -4,7 +4,6 @@ import prisma from '@/lib/prisma'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { generateQrCodeDataUrl } from '@/lib/qr-code'
 import { parseIsoDateOnlyAsUTCDate } from '@/lib/date-only'
-import { formatDateUTC } from '@/lib/utils'
 import {
   createNoteVerification,
   getVerificationUrl,
@@ -389,10 +388,6 @@ export function automationSummary(payload: SupportAutomationPayload): string {
     return `Change note purpose to ${payload.updates.notePurpose}`
   }
   return 'Support automation update'
-}
-
-export function currentDobIso(submission: { patientDateOfBirth: Date }): string {
-  return formatDateUTC(submission.patientDateOfBirth)
 }
 
 function isAutomationKind(value: unknown): value is SmsSupportAutomationKind {

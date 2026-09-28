@@ -50,7 +50,6 @@ const faqs = [
 ]
 
 export function FAQPageContent(locale: Locale = 'en') {
-  // FAQ Schema for rich snippets
   const faqSchema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -68,7 +67,6 @@ export function FAQPageContent(locale: Locale = 'en') {
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* FAQ Schema */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}

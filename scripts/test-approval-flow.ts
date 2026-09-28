@@ -1,28 +1,11 @@
-/**
- * Manual Testing Script for Approval Flow
- * Generates a sample doctor's note PDF locally for visual inspection
- *
- * Usage:
- *   npx tsx scripts/test-approval-flow.ts
- *
- * This script will:
- * 1. Create a mock submission with realistic data
- * 2. Generate a PDF using the approval automation
- * 3. Save the PDF to ./test-output/sample-doctors-note.pdf
- * 4. Log the path for easy opening
- */
-
-// Load environment variables from .env.local
 import { config } from 'dotenv'
 import { Submission, SubmissionStatus } from '@prisma/client'
 import { generateDoctorNotePDF } from '../src/lib/pdf/generate-pdf'
 import fs from 'fs'
 import path from 'path'
 
-// Load .env.local file with override to ensure it takes precedence
 config({ path: '.env.local', override: true })
 
-// Sample submission data for testing
 const mockSubmission: Submission = {
   id: 'test_submission_123',
   stripePaymentIntentId: 'pi_test_123',
@@ -78,7 +61,6 @@ const mockSubmission: Submission = {
   updatedAt: new Date('2024-11-07'),
 }
 
-// Sample submission with guardian (minor)
 const mockSubmissionMinor: Submission = {
   ...mockSubmission,
   id: 'test_submission_minor_456',
@@ -96,7 +78,6 @@ const mockSubmissionMinor: Submission = {
 async function main() {
   console.log('🧪 Testing Approval Flow - PDF Generation\n')
 
-  // Check environment variables
   console.log('📋 Checking environment variables...')
   const requiredEnvVars = ['DOCTOR_NAME', 'DOCTOR_CREDENTIALS', 'DOCTOR_SIGNATURE_URL']
 
@@ -115,7 +96,6 @@ async function main() {
   console.log('✅ All environment variables found')
   console.log('ℹ️  Using state-specific medical licenses from src/lib/state-licenses.ts\n')
 
-  // Create output directory
   const outputDir = path.join(process.cwd(), 'test-output')
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true })
@@ -123,21 +103,18 @@ async function main() {
   }
 
   try {
-    // Test 1: Generate PDF for adult patient (work)
     console.log('📄 Test 1: Generating PDF for adult patient (work absence)...')
     const pdfBuffer1 = await generateDoctorNotePDF(mockSubmission)
     const outputPath1 = path.join(outputDir, 'sample-doctors-note-adult.pdf')
     fs.writeFileSync(outputPath1, pdfBuffer1)
     console.log(`✅ PDF generated successfully: ${outputPath1}\n`)
 
-    // Test 2: Generate PDF for minor with guardian (school)
     console.log('📄 Test 2: Generating PDF for minor with guardian (school absence)...')
     const pdfBuffer2 = await generateDoctorNotePDF(mockSubmissionMinor)
     const outputPath2 = path.join(outputDir, 'sample-doctors-note-minor.pdf')
     fs.writeFileSync(outputPath2, pdfBuffer2)
     console.log(`✅ PDF generated successfully: ${outputPath2}\n`)
 
-    // Summary
     console.log('='.repeat(60))
     console.log('✅ All tests passed!\n')
     console.log('Generated PDFs:')
@@ -155,7 +132,6 @@ async function main() {
     if (error instanceof Error) {
       console.error(`   ${error.message}\n`)
 
-      // Provide helpful hints based on error
       if (error.message.includes('signature')) {
         console.error('💡 Tip: Make sure your doctor signature image exists at:')
         console.error(`   ${process.env.DOCTOR_SIGNATURE_URL}\n`)
@@ -174,5 +150,4 @@ async function main() {
   }
 }
 
-// Run the script
 main()

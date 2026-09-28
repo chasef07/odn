@@ -132,7 +132,6 @@ describe('business analytics', () => {
 
     expect(analytics.summary.rangeLabel).toBe('Last 12 months')
     expect(analytics.summary.netRevenueDeltaPct).toBeNull()
-    // Nov 2025 → Jun 2026 inclusive, no empty pre-launch months.
     expect(analytics.trend).toHaveLength(8)
     expect(analytics.trend[0].key).toBe('2025-11')
     expect(analytics.trend.at(-1)?.key).toBe('2026-06')
@@ -150,7 +149,6 @@ describe('business analytics', () => {
     )
 
     expect(analytics.summary.rangeLabel).toBe('Last 8 quarters')
-    // Q4 2025 → Q2 2026 inclusive, no empty pre-launch quarters.
     expect(analytics.trend.map((point) => point.key)).toEqual(['2025-Q4', '2026-Q1', '2026-Q2'])
     expect(analytics.trend[0].notes).toBe(1)
     expect(analytics.trend.at(-1)?.notes).toBe(1)

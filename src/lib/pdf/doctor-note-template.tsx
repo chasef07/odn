@@ -1,10 +1,3 @@
-/**
- * Doctor's Note PDF Template
- * Uses @react-pdf/renderer to generate professional medical excuse notes
- *
- * Simplified format - removes all medical details per business requirements
- */
-
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Image, Link, Font } from '@react-pdf/renderer'
 import { getStateLicense } from '../state-licenses'
@@ -12,10 +5,6 @@ import { getPdfActivitiesText } from '../email-helpers'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
-/**
- * Validate that font files exist before registration
- * Throws descriptive error if fonts are missing
- */
 function validateFontFiles(): void {
   const fontPaths = [
     join(
@@ -46,17 +35,6 @@ function validateFontFiles(): void {
   }
 }
 
-/**
- * Register Plus Jakarta Sans font with error handling
- *
- * Font Source: @fontsource/plus-jakarta-sans npm package
- * - Loads from node_modules (installed via package.json)
- * - Uses WOFF format for optimal PDF compatibility
- * - Includes normal (400) and bold (700) weights
- * - Validates files exist before registration
- *
- * Fallback: If fonts fail to load, @react-pdf/renderer uses system fonts
- */
 try {
   validateFontFiles()
 
@@ -93,35 +71,28 @@ try {
   }
 } catch (error) {
   console.error('⚠️ Font loading failed, PDF will use fallback system fonts:', error)
-  // Continue execution - @react-pdf/renderer will use default fonts
 }
 
-// Define comprehensive type for submission data
 export interface DoctorNoteData {
-  // Patient Information
   patientFirstName: string
   patientLastName: string
   patientDateOfBirth: Date
 
-  // Guardian Information (optional)
   guardianFirstName?: string | null
   guardianLastName?: string | null
   recipient: string
 
-  // Absence Information
   firstDayOff: Date
   lastDayOff: Date
   notePurpose: string
   otherNotePurpose?: string | null
 
-  // Medical Information
   absenceReason: string
   otherAbsenceReason?: string | null
-  symptoms?: string[] | null // JSON array from Prisma
+  symptoms?: string[] | null
   otherSymptomText?: string | null
   additionalInformation?: string | null
 
-  // Metadata
   state: string
   submissionId: string
   createdAt: Date
@@ -149,7 +120,6 @@ interface DoctorNoteTemplateProps {
   verificationInfo?: DoctorNoteVerificationInfo
 }
 
-// Create styles - Plus Jakarta Sans font
 const styles = StyleSheet.create({
   page: {
     paddingTop: 0,
@@ -162,7 +132,6 @@ const styles = StyleSheet.create({
     lineHeight: 1.3,
     position: 'relative',
   },
-  // Image in bottom right - NOT a watermark
   watermarkContainer: {
     position: 'absolute',
     bottom: -40,
@@ -190,7 +159,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: -76,
   },
-  // Header with light blue diagonal background
   headerSection: {
     backgroundColor: '#d9edf7',
     paddingLeft: 72,
@@ -252,7 +220,6 @@ const styles = StyleSheet.create({
   contentSectionWithVerification: {
     paddingBottom: 128,
   },
-  // Field styling with bold labels
   fieldLine: {
     fontSize: 7,
     marginBottom: 2,
@@ -402,10 +369,6 @@ const styles = StyleSheet.create({
   },
 })
 
-/**
- * Format date as Month DD, YYYY (e.g., October 12, 2025)
- * Uses UTC methods to avoid timezone conversion issues
- */
 function formatDate(date: Date): string {
   const d = new Date(date)
   const monthNames = [
@@ -428,10 +391,6 @@ function formatDate(date: Date): string {
   return `${month} ${day}, ${year}`
 }
 
-/**
- * Format date of birth as MM/DD/YYYY
- * Uses UTC methods to avoid timezone conversion issues
- */
 function formatDateOfBirth(date: Date): string {
   const d = new Date(date)
   const month = String(d.getUTCMonth() + 1).padStart(2, '0')
@@ -440,9 +399,6 @@ function formatDateOfBirth(date: Date): string {
   return `${month}/${day}/${year}`
 }
 
-/**
- * Format note purpose for excuse text (used in "may return to X" text)
- */
 function formatExcuseFrom(purpose: string, other?: string | null): string {
   if (purpose === 'other' && other) {
     return other
@@ -466,14 +422,6 @@ function formatPhysicianDisplayName(name: string, credentials?: string | null): 
   return `${cleanName}, ${cleanCredentials}`
 }
 
-/**
- * Map an absence reason to the condition phrase used in the PDF body.
- *
- * Returns both the "due to ..." form (used in the standard medical branch)
- * and the "with ..." form (used in the caregiver branch where the patient's
- * family member has the condition). Reasons not in the mapping fall back to
- * the generic "medical condition" wording for backward compatibility.
- */
 export function getConditionPhrase(absenceReason: string): { dueTo: string; with: string } {
   if (absenceReason === 'Feeling sick' || absenceReason === 'Mental health') {
     return { dueTo: 'due to an illness', with: 'with an illness' }
@@ -484,9 +432,6 @@ export function getConditionPhrase(absenceReason: string): { dueTo: string; with
   return { dueTo: 'due to a medical condition', with: 'with a medical condition' }
 }
 
-/**
- * Doctor's Note PDF Template Component - Simplified
- */
 export function DoctorNoteTemplate({
   submissionData,
   doctorInfo,
@@ -516,11 +461,9 @@ export function DoctorNoteTemplate({
       ? `${guardianFirstName} ${guardianLastName}`
       : null
 
-  // Check if this is a caregiver note or doctor's appointment
   const isCaregiver = absenceReason === 'Taking care of someone'
   const isAppointment = absenceReason === "Doctor's appointment"
 
-  // Specialize the condition phrase based on absence reason
   const conditionPhrase = getConditionPhrase(absenceReason)
 
   const excuseFrom = formatExcuseFrom(notePurpose, otherNotePurpose)
@@ -529,22 +472,18 @@ export function DoctorNoteTemplate({
   const lastDayFormatted = formatDate(lastDayOff)
   const dobFormatted = formatDateOfBirth(patientDateOfBirth)
 
-  // Format medical record number from submission ID (first 8 chars, uppercase)
   const medicalRecordNumber =
     verificationInfo?.medicalRecordNumber ||
     submissionData.submissionId.toUpperCase().substring(0, 8)
 
-  // Get state-specific medical license
   const stateLicense = getStateLicense(submissionData.state)
 
-  // Logo path - use absolute path from project root for reliability in all environments
   const logoPath = join(process.cwd(), 'public', 'images', 'logo.png')
   const watermarkPath = join(process.cwd(), 'public', 'images', 'no-bg.png')
 
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
-        {/* Watermark in bottom right */}
         <View
           style={
             verificationInfo
@@ -562,9 +501,7 @@ export function DoctorNoteTemplate({
           />
         </View>
 
-        {/* Header Section - Light blue background matching Doe John note */}
         <View style={styles.headerSection}>
-          {/* Contact Info (LEFT) */}
           <View style={styles.headerLeft}>
             <Text style={styles.tagline}>Proudly Serving Patients in Over 40 States</Text>
             <Text style={styles.headerLine}>
@@ -577,14 +514,12 @@ export function DoctorNoteTemplate({
             <Text style={styles.headerLine}>Fax: 888-597-8820</Text>
           </View>
 
-          {/* Logo and Clinic Name (RIGHT) */}
           <View style={styles.headerRight}>
             <Image src={logoPath} style={styles.logo} />
             <Text style={styles.clinicName}>Platinum Health Clinic</Text>
           </View>
         </View>
 
-        {/* Content Section */}
         <View
           style={
             verificationInfo
@@ -592,13 +527,11 @@ export function DoctorNoteTemplate({
               : styles.contentSection
           }
         >
-          {/* Date Issued and Medical Record Number */}
           <View style={styles.headerInfoRow}>
             <Text style={styles.dateIssued}>Date Issued: {dateIssuedFormatted}</Text>
             <Text style={styles.medicalRecordNumber}>Medical Record #: {medicalRecordNumber}</Text>
           </View>
 
-          {/* Patient/Caregiver Information */}
           <View style={styles.patientSection}>
             <Text style={styles.patientField}>
               {isCaregiver ? 'Caregiver Name: ' : 'Patient Name: '}
@@ -610,7 +543,6 @@ export function DoctorNoteTemplate({
             )}
           </View>
 
-          {/* Letter Body */}
           <View style={styles.letterBody}>
             <Text style={styles.concernHeader}>
               <Text style={styles.fieldLabel}>To Whom It May Concern:</Text>
@@ -626,7 +558,6 @@ export function DoctorNoteTemplate({
                   following period, if possible.
                 </Text>
 
-                {/* Start and End Dates */}
                 <View style={styles.dateRange}>
                   <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
                   <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
@@ -658,7 +589,6 @@ export function DoctorNoteTemplate({
                   {diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
                 </Text>
 
-                {/* Start and End Dates */}
                 <View style={styles.dateRange}>
                   <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
                   <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
@@ -690,7 +620,6 @@ export function DoctorNoteTemplate({
                   {diagnosis?.trim() ? ` ${diagnosis.trim()}` : ''}
                 </Text>
 
-                {/* Start and End Dates */}
                 <View style={styles.dateRange}>
                   <Text style={styles.dateRangeLabel}>First Day Off: {firstDayFormatted}</Text>
                   <Text style={styles.dateRangeLabel}>Last Day Off: {lastDayFormatted}</Text>
@@ -717,7 +646,6 @@ export function DoctorNoteTemplate({
             <Text style={styles.thankYou}>Thank you,</Text>
           </View>
 
-          {/* Signature Section */}
           <View style={styles.closing}>
             <View style={styles.signatureRow}>
               <Text style={styles.signatureLabel}>Signature:</Text>

@@ -1,8 +1,3 @@
-/**
- * Form Constants
- * All dropdown options, labels, and static data
- */
-
 export const AVAILABLE_STATES = [
   'Alabama',
   'Arizona',
@@ -84,7 +79,6 @@ export const ABSENCE_REASONS = [
   'Other',
 ] as const
 
-// Symptoms organized by absence reason - each reason shows ~8 relevant symptoms
 export const SYMPTOMS_BY_REASON: Record<string, string[]> = {
   'Feeling sick': [
     'Fever or chills',

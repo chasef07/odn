@@ -73,7 +73,6 @@ export default function ContactInfoPage() {
             placeholder="your.email@example.com"
           />
 
-          {/* Phone - Custom formatting, can't use FormField */}
           <div className="space-y-2">
             <Label htmlFor="phone" className="text-sm font-medium">
               Phone Number

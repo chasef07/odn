@@ -11,7 +11,6 @@ import {
   Text,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
-import * as React from 'react'
 import { getRecipientName } from '@/lib/email-helpers'
 import { DOCTOR_10_OFFER_CODE, OFFER_QUERY_PARAM } from '@/lib/offer-codes'
 

@@ -45,7 +45,6 @@ export default function WhyUseUsSection() {
   return (
     <section className="bg-[#009ed9] px-4 py-20 md:px-6 md:py-28">
       <div className="mx-auto max-w-6xl">
-        {/* Section Header */}
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-semibold tracking-tight text-white md:text-4xl">
             {t('Why Thousands of Patients Trust Us')}
@@ -55,7 +54,6 @@ export default function WhyUseUsSection() {
           </p>
         </div>
 
-        {/* Benefit Cards Grid */}
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {benefits.map((benefit, index) => (
             <div

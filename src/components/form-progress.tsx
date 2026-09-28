@@ -11,7 +11,6 @@ export function FormProgress({ currentStep }: FormProgressProps) {
   const { t } = useI18n()
   const progressValue = PROGRESS_VALUES[currentStep as keyof typeof PROGRESS_VALUES] || 0
 
-  // Dynamic total steps based on recipient
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
   const totalSteps = recipient === 'someone_else' ? 11 : 10

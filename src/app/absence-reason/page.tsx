@@ -38,11 +38,9 @@ export default function AbsenceReasonPage() {
 
   const selectedReason = useWatch({ control, name: 'absenceReason' })
 
-  // Build absence reason options from constants
   const absenceReasonOptions = [...ABSENCE_REASONS]
 
   const onSubmit = (data: FormData) => {
-    // Clear symptoms when absence reason changes
     const previousReason = savedData.absenceReason
     if (previousReason !== data.absenceReason) {
       saveFormData({ ...data, symptoms: [], otherSymptomText: '' })
@@ -50,7 +48,6 @@ export default function AbsenceReasonPage() {
       saveFormData(data)
     }
 
-    // Skip symptoms page for Doctor's appointment and Other (go to the step after symptoms)
     if (data.absenceReason === "Doctor's appointment" || data.absenceReason === 'Other') {
       router.push(getNextRoute('/symptoms', recipient)!)
     } else {
@@ -77,7 +74,6 @@ export default function AbsenceReasonPage() {
           gridClassName="grid gap-2.5 sm:grid-cols-2"
         />
 
-        {/* Show text input when "Other" is selected */}
         {selectedReason === 'Other' && (
           <div className="space-y-2">
             <Input

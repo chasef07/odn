@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { SubmissionStatus } from '@prisma/client'
 import { subDays, addDays } from 'date-fns'
 
-// Mock Prisma
 const mockFindMany = vi.fn()
 vi.mock('../prisma', () => ({
   default: {
@@ -12,10 +11,8 @@ vi.mock('../prisma', () => ({
   },
 }))
 
-// Import after mocking
 import { getMonthlyDaysUsed, wouldExceedMonthlyLimit } from '../monthly-limit'
 
-// Test patient details
 const testPatient = {
   firstName: 'John',
   lastName: 'Doe',
@@ -26,7 +23,6 @@ describe('monthly-limit (rolling 30-day window)', () => {
   let referenceDate: Date
 
   beforeEach(() => {
-    // Mock consistent reference date for predictable testing
     referenceDate = new Date('2025-01-15')
     referenceDate.setHours(0, 0, 0, 0)
     vi.setSystemTime(referenceDate)
@@ -72,7 +68,7 @@ describe('monthly-limit (rolling 30-day window)', () => {
           referenceDate
         )
 
-        expect(result.totalDays).toBe(3) // 3 days: day -10, -9, -8
+        expect(result.totalDays).toBe(3)
         expect(result.submissions).toHaveLength(1)
         expect(result.remainingDays).toBe(4)
       })
@@ -100,7 +96,7 @@ describe('monthly-limit (rolling 30-day window)', () => {
           referenceDate
         )
 
-        expect(result.totalDays).toBe(5) // 2 + 3 days
+        expect(result.totalDays).toBe(5)
         expect(result.submissions).toHaveLength(2)
       })
 
@@ -132,8 +128,6 @@ describe('monthly-limit (rolling 30-day window)', () => {
           referenceDate
         )
 
-        // Window should be [referenceDate - 30] to [referenceDate - 1]
-        // Query finds overlapping submissions: firstDayOff <= windowEnd AND lastDayOff >= windowStart
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({
@@ -147,10 +141,6 @@ describe('monthly-limit (rolling 30-day window)', () => {
 
     describe('submission spanning window boundary (count ALL days)', () => {
       it('should count ALL days when submission starts before window', async () => {
-        // Submission starts 35 days ago (before window), ends 28 days ago (within window)
-        // Window: [-30, -1] relative to referenceDate
-        // Submission: [-35, -28] - 8 days total
-        // Even though only some days are in window, count ALL 8 days
         mockFindMany.mockResolvedValue([
           {
             id: 'sub-1',
@@ -167,14 +157,10 @@ describe('monthly-limit (rolling 30-day window)', () => {
           referenceDate
         )
 
-        expect(result.totalDays).toBe(8) // ALL days, not just days in window
+        expect(result.totalDays).toBe(8)
       })
 
       it('should count ALL days when submission ends after window end', async () => {
-        // Submission starts 5 days ago (within window), ends today (after window end which is yesterday)
-        // Window end is referenceDate - 1 (yesterday)
-        // Submission: [-5, 0] - 6 days total
-        // Count all 6 days even though some are outside window
         mockFindMany.mockResolvedValue([
           {
             id: 'sub-1',
@@ -195,8 +181,6 @@ describe('monthly-limit (rolling 30-day window)', () => {
       })
 
       it('should count ALL days when submission spans entire window', async () => {
-        // Submission: 40 days ago to yesterday (spans entire 30-day window)
-        // Total: 40 days
         mockFindMany.mockResolvedValue([
           {
             id: 'sub-1',
@@ -219,13 +203,11 @@ describe('monthly-limit (rolling 30-day window)', () => {
 
     describe('submissions exactly on boundary dates', () => {
       it('should include submission ending exactly on window start', async () => {
-        // Window start: referenceDate - 30 days
-        // Submission ends exactly on window start - should be INCLUDED
         mockFindMany.mockResolvedValue([
           {
             id: 'sub-1',
             firstDayOff: subDays(referenceDate, 32),
-            lastDayOff: subDays(referenceDate, 30), // Exactly on window start
+            lastDayOff: subDays(referenceDate, 30),
             reviewedAt: subDays(referenceDate, 29),
           },
         ])
@@ -241,12 +223,10 @@ describe('monthly-limit (rolling 30-day window)', () => {
       })
 
       it('should include submission starting exactly on window end', async () => {
-        // Window end: referenceDate - 1 day (yesterday)
-        // Submission starts exactly on window end - should be INCLUDED
         mockFindMany.mockResolvedValue([
           {
             id: 'sub-1',
-            firstDayOff: subDays(referenceDate, 1), // Exactly on window end
+            firstDayOff: subDays(referenceDate, 1),
             lastDayOff: referenceDate,
             reviewedAt: subDays(referenceDate, 1),
           },
@@ -269,7 +249,7 @@ describe('monthly-limit (rolling 30-day window)', () => {
           {
             id: 'sub-1',
             firstDayOff: subDays(referenceDate, 20),
-            lastDayOff: subDays(referenceDate, 12), // 9 days
+            lastDayOff: subDays(referenceDate, 12),
             reviewedAt: subDays(referenceDate, 11),
           },
         ])
@@ -291,7 +271,7 @@ describe('monthly-limit (rolling 30-day window)', () => {
           {
             id: 'sub-1',
             firstDayOff: subDays(referenceDate, 20),
-            lastDayOff: subDays(referenceDate, 14), // 7 days
+            lastDayOff: subDays(referenceDate, 14),
             reviewedAt: subDays(referenceDate, 13),
           },
         ])
@@ -337,13 +317,13 @@ describe('monthly-limit (rolling 30-day window)', () => {
         {
           id: 'sub-1',
           firstDayOff: subDays(referenceDate, 10),
-          lastDayOff: subDays(referenceDate, 8), // 3 days
+          lastDayOff: subDays(referenceDate, 8),
           reviewedAt: subDays(referenceDate, 7),
         },
       ])
 
       const firstDayOff = referenceDate
-      const lastDayOff = addDays(referenceDate, 2) // Requesting 3 days
+      const lastDayOff = addDays(referenceDate, 2)
 
       const result = await wouldExceedMonthlyLimit(
         testPatient.firstName,
@@ -364,13 +344,13 @@ describe('monthly-limit (rolling 30-day window)', () => {
         {
           id: 'sub-1',
           firstDayOff: subDays(referenceDate, 10),
-          lastDayOff: subDays(referenceDate, 5), // 6 days
+          lastDayOff: subDays(referenceDate, 5),
           reviewedAt: subDays(referenceDate, 4),
         },
       ])
 
       const firstDayOff = referenceDate
-      const lastDayOff = addDays(referenceDate, 2) // Requesting 3 days
+      const lastDayOff = addDays(referenceDate, 2)
 
       const result = await wouldExceedMonthlyLimit(
         testPatient.firstName,
@@ -394,7 +374,7 @@ describe('monthly-limit (rolling 30-day window)', () => {
         testPatient.lastName,
         testPatient.dob,
         referenceDate,
-        referenceDate // Same day = 1 day request
+        referenceDate
       )
 
       expect(result.requestedDays).toBe(1)
@@ -417,7 +397,6 @@ describe('monthly-limit (rolling 30-day window)', () => {
         )
 
         expect(result.totalDays).toBe(0)
-        // Verify window was calculated from yesterday, not today
         expect(mockFindMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({
@@ -463,16 +442,13 @@ describe('monthly-limit (rolling 30-day window)', () => {
           marchDate
         )
 
-        // Verify function executed successfully and query was made
         expect(result.totalDays).toBe(0)
         expect(mockFindMany).toHaveBeenCalledTimes(1)
 
-        // Verify the query structure is correct (window extends into February)
         const callArgs = mockFindMany.mock.calls[0][0]
         expect(callArgs.where.firstDayOff.lte).toBeDefined()
         expect(callArgs.where.lastDayOff.gte).toBeDefined()
-        // Window start should be in February (month index 1)
-        expect(callArgs.where.lastDayOff.gte.getMonth()).toBe(1) // February
+        expect(callArgs.where.lastDayOff.gte.getMonth()).toBe(1)
       })
     })
 
@@ -489,14 +465,12 @@ describe('monthly-limit (rolling 30-day window)', () => {
           janDate
         )
 
-        // Verify function executed successfully
         expect(result.totalDays).toBe(0)
         expect(mockFindMany).toHaveBeenCalledTimes(1)
 
-        // Verify the window extends into December 2024
         const callArgs = mockFindMany.mock.calls[0][0]
         expect(callArgs.where.lastDayOff.gte.getFullYear()).toBe(2024)
-        expect(callArgs.where.lastDayOff.gte.getMonth()).toBe(11) // December
+        expect(callArgs.where.lastDayOff.gte.getMonth()).toBe(11)
       })
     })
   })

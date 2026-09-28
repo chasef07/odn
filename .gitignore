@@ -46,3 +46,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+
+# generated PDFs (may contain patient data - never commit)
+/generated-pdfs/
+/generated-pdfs.zip
+/test-output/
+/tmp/

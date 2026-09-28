@@ -1,12 +1,6 @@
-/**
- * Tests for Admin Server Actions - Approval Automation
- * Tests PDF generation and email notifications
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { SubmissionStatus } from '@prisma/client'
 
-// Hoist mocks to the top level
 const {
   mockFindUnique,
   mockUpdate,
@@ -48,7 +42,6 @@ const {
   mockGetSession: vi.fn(),
 }))
 
-// Mock Prisma
 vi.mock('@/lib/prisma', () => ({
   default: {
     submission: {
@@ -59,9 +52,8 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-// Mock email utility
 vi.mock('@/lib/email', () => ({
-  sendDenialEmail: vi.fn(), // Keep for other tests
+  sendDenialEmail: vi.fn(),
   sendApprovalEmail: mockSendApprovalEmail,
   sendMaybeEmail: vi.fn(),
 }))
@@ -70,7 +62,6 @@ vi.mock('@/lib/telnyx', () => ({
   sendTransactionalSmsForSubmission: mockSendTransactionalSmsForSubmission,
 }))
 
-// Mock PDF generation utilities
 vi.mock('@/lib/pdf/generate-pdf', () => ({
   generateDoctorNotePDF: mockGenerateDoctorNotePDF,
   generatePDFFilename: mockGeneratePDFFilename,
@@ -90,7 +81,6 @@ vi.mock('@/lib/note-verification', () => ({
   revokeNoteVerificationForSubmission: mockRevokeNoteVerificationForSubmission,
 }))
 
-// Mock Better Auth
 vi.mock('@/lib/auth', () => ({
   auth: {
     api: {
@@ -99,26 +89,20 @@ vi.mock('@/lib/auth', () => ({
   },
 }))
 
-// Mock next/cache
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-// Mock next/headers
 vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }))
 
-// Mock Stripe
 vi.mock('stripe', () => ({
   default: class MockStripe {
-    constructor() {
-      // Mock Stripe constructor
-    }
+    constructor() {}
   },
 }))
 
-// Now import the functions under test
 import {
   approveSubmission,
   removeGuardianFromAdultSubmission,
@@ -176,10 +160,8 @@ describe('approveSubmission - Approval Automation', () => {
   }
 
   beforeEach(() => {
-    // Reset all mocks before each test
     vi.clearAllMocks()
 
-    // Default mock implementations
     mockGetSession.mockResolvedValue({
       user: { id: mockDoctorId },
     })
@@ -201,25 +183,20 @@ describe('approveSubmission - Approval Automation', () => {
 
   describe('Successful approval flow', () => {
     it('should successfully approve submission with PDF and email', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
       mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
       mockSendApprovalEmail.mockResolvedValue({ success: true })
       mockUpdate.mockResolvedValue({})
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({ success: true })
 
-      // Verify submission was fetched
       expect(mockFindUnique).toHaveBeenCalledWith({
         where: { id: mockSubmissionId },
       })
 
-      // Verify PDF was generated with submission data (issueDate, diagnosis, withRestrictions)
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         mockSubmission,
         mockDefaultIssueDate,
@@ -228,10 +205,8 @@ describe('approveSubmission - Approval Automation', () => {
         mockVerificationPdfInfo
       )
 
-      // Verify PDF filename was generated
       expect(mockGeneratePDFFilename).toHaveBeenCalledWith(mockSubmission.id)
 
-      // Verify email was sent with PDF attachment
       expect(mockSendApprovalEmail).toHaveBeenCalledWith({
         to: 'patient@example.com',
         patientName: 'John Doe',
@@ -243,7 +218,6 @@ describe('approveSubmission - Approval Automation', () => {
         pdfFilename: mockPDFFilename,
       })
 
-      // Verify database was approved before the email timestamp is stored
       expect(mockUpdateMany).toHaveBeenCalledTimes(1)
       expect(mockUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -297,7 +271,6 @@ describe('approveSubmission - Approval Automation', () => {
     })
 
     it('should handle different note purposes correctly', async () => {
-      // Arrange
       const schoolSubmission = {
         ...mockSubmission,
         notePurpose: 'school',
@@ -308,10 +281,8 @@ describe('approveSubmission - Approval Automation', () => {
       mockSendApprovalEmail.mockResolvedValue({ success: true })
       mockUpdate.mockResolvedValue({})
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({ success: true })
       expect(mockSendApprovalEmail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -321,7 +292,6 @@ describe('approveSubmission - Approval Automation', () => {
     })
 
     it('should handle "both" note purpose correctly', async () => {
-      // Arrange
       const bothSubmission = {
         ...mockSubmission,
         notePurpose: 'both',
@@ -332,10 +302,8 @@ describe('approveSubmission - Approval Automation', () => {
       mockSendApprovalEmail.mockResolvedValue({ success: true })
       mockUpdate.mockResolvedValue({})
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({ success: true })
       expect(mockSendApprovalEmail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -345,25 +313,21 @@ describe('approveSubmission - Approval Automation', () => {
     })
 
     it('should pass custom evaluation date to PDF generation', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
       mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
       mockSendApprovalEmail.mockResolvedValue({ success: true })
       mockUpdate.mockResolvedValue({})
 
-      // Act - pass a custom evaluation date
       const result = await approveSubmission(mockSubmissionId, '2024-01-20')
 
-      // Assert
       expect(result).toEqual({ success: true })
 
-      // Verify PDF was generated with the custom issue date (as UTC Date), no diagnosis, default withRestrictions
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         mockSubmission,
-        new Date(Date.UTC(2024, 0, 20)), // January 20, 2024 UTC
-        undefined, // diagnosis
-        true, // withRestrictions (default)
+        new Date(Date.UTC(2024, 0, 20)),
+        undefined,
+        true,
         mockVerificationPdfInfo
       )
     })
@@ -421,17 +385,14 @@ describe('approveSubmission - Approval Automation', () => {
 
   describe('withRestrictions parameter', () => {
     it('should pass withRestrictions=true (default) to PDF generation', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
       mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
       mockSendApprovalEmail.mockResolvedValue({ success: true })
       mockUpdate.mockResolvedValue({})
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({ success: true })
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         mockSubmission,
@@ -443,17 +404,14 @@ describe('approveSubmission - Approval Automation', () => {
     })
 
     it('should pass withRestrictions=true explicitly to PDF generation', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
       mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
       mockSendApprovalEmail.mockResolvedValue({ success: true })
       mockUpdate.mockResolvedValue({})
 
-      // Act
       const result = await approveSubmission(mockSubmissionId, undefined, undefined, true)
 
-      // Assert
       expect(result).toEqual({ success: true })
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         mockSubmission,
@@ -465,17 +423,14 @@ describe('approveSubmission - Approval Automation', () => {
     })
 
     it('should pass withRestrictions=false to PDF generation when specified', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
       mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
       mockSendApprovalEmail.mockResolvedValue({ success: true })
       mockUpdate.mockResolvedValue({})
 
-      // Act
       const result = await approveSubmission(mockSubmissionId, undefined, undefined, false)
 
-      // Assert
       expect(result).toEqual({ success: true })
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         mockSubmission,
@@ -489,38 +444,30 @@ describe('approveSubmission - Approval Automation', () => {
 
   describe('PDF generation failure scenarios (BLOCKING)', () => {
     it('should block approval if PDF generation fails', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockGenerateDoctorNotePDF.mockRejectedValue(new Error('Missing signature image'))
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Failed to generate PDF: Missing signature image',
       })
 
-      // Verify database was NOT updated (no approval)
       expect(mockUpdate).not.toHaveBeenCalled()
       expect(mockUpdateMany).not.toHaveBeenCalled()
 
-      // Verify email was NOT sent
       expect(mockSendApprovalEmail).not.toHaveBeenCalled()
     })
 
     it('should block approval if doctor env vars missing', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockGenerateDoctorNotePDF.mockRejectedValue(
         new Error('Missing required doctor environment variables')
       )
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Failed to generate PDF: Missing required doctor environment variables',
@@ -534,29 +481,23 @@ describe('approveSubmission - Approval Automation', () => {
 
   describe('Email failure scenarios (NON-BLOCKING)', () => {
     it('should still approve if email fails but PDF generation succeeds', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
       mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
       mockSendApprovalEmail.mockRejectedValue(new Error('Email service unavailable'))
       mockUpdate.mockResolvedValue({})
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert - Should succeed with warning
       expect(result).toEqual({
         success: true,
         warning: 'Submission approved, but email notification failed to send',
       })
 
-      // Verify PDF was generated
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalled()
 
-      // Verify email was attempted
       expect(mockSendApprovalEmail).toHaveBeenCalled()
 
-      // Verify database was updated with approval, but no email timestamp update happened.
       expect(mockUpdateMany).toHaveBeenCalledTimes(1)
       expect(mockUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -596,13 +537,10 @@ describe('approveSubmission - Approval Automation', () => {
 
   describe('Validation scenarios', () => {
     it('should fail if submission not found', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(null)
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Submission not found',
@@ -614,16 +552,13 @@ describe('approveSubmission - Approval Automation', () => {
     })
 
     it('should fail if submission already approved', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue({
         ...mockSubmission,
         status: SubmissionStatus.APPROVED,
       })
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Cannot approve submission with status: APPROVED',
@@ -635,16 +570,13 @@ describe('approveSubmission - Approval Automation', () => {
     })
 
     it('should fail if submission already denied', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue({
         ...mockSubmission,
         status: SubmissionStatus.DENIED,
       })
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Cannot approve submission with status: DENIED',
@@ -656,13 +588,10 @@ describe('approveSubmission - Approval Automation', () => {
     })
 
     it('should fail if no authenticated doctor session', async () => {
-      // Arrange
       mockGetSession.mockResolvedValue(null)
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Failed to approve submission: Unauthorized: No active session',
@@ -677,7 +606,6 @@ describe('approveSubmission - Approval Automation', () => {
 
   describe('Guardian information handling', () => {
     it('should handle submissions with guardian information (minors)', async () => {
-      // Arrange
       const minorSubmission = {
         ...mockSubmission,
         recipient: 'someone_else',
@@ -691,22 +619,19 @@ describe('approveSubmission - Approval Automation', () => {
       mockSendApprovalEmail.mockResolvedValue({ success: true })
       mockUpdate.mockResolvedValue({})
 
-      // Act
       const result = await approveSubmission(mockSubmissionId)
 
-      // Assert
       expect(result).toEqual({ success: true })
 
-      // Verify PDF was generated with guardian info (issueDate, diagnosis, withRestrictions)
       expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
         expect.objectContaining({
           guardianFirstName: 'Jane',
           guardianLastName: 'Doe',
           recipient: 'someone_else',
         }),
-        mockDefaultIssueDate, // issueDate
-        undefined, // diagnosis
-        true, // withRestrictions (default)
+        mockDefaultIssueDate,
+        undefined,
+        true,
         mockVerificationPdfInfo
       )
     })
@@ -834,11 +759,6 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
   })
 
   it('should regenerate PDF and resend email for APPROVED submission (wire-up regression)', async () => {
-    // This is the regression test for the bug where the admin search page
-    // "Re-Approve" button did nothing because it called approveSubmission,
-    // which short-circuits on APPROVED status. The correct action is
-    // reApproveSubmission, which does the work even for APPROVED.
-
     mockFindUnique.mockResolvedValue(mockApprovedSubmission)
     mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
     mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
@@ -849,7 +769,6 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
 
     expect(result).toEqual({ success: true })
 
-    // PDF should be regenerated (with the evaluation date as UTC)
     expect(mockGenerateDoctorNotePDF).toHaveBeenCalledWith(
       mockApprovedSubmission,
       new Date(Date.UTC(2024, 0, 20)),
@@ -858,7 +777,6 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
       mockVerificationPdfInfo
     )
 
-    // Email should be resent
     expect(mockSendApprovalEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'patient@example.com',
@@ -868,7 +786,6 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
       })
     )
 
-    // Approval state is refreshed before the email timestamp is stored
     expect(mockUpdateMany).toHaveBeenCalledTimes(1)
     expect(mockUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -919,7 +836,6 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
   })
 
   it('should NOT short-circuit on APPROVED status (unlike approveSubmission)', async () => {
-    // Sanity check: approveSubmission refuses APPROVED…
     mockFindUnique.mockResolvedValue(mockApprovedSubmission)
     const approveResult = await approveSubmission(mockSubmissionId)
     expect(approveResult).toEqual({
@@ -929,7 +845,6 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
     expect(mockGenerateDoctorNotePDF).not.toHaveBeenCalled()
     expect(mockSendApprovalEmail).not.toHaveBeenCalled()
 
-    // …but reApproveSubmission accepts it and does the work.
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ user: { id: mockDoctorId } })
     mockFindUnique.mockResolvedValue(mockApprovedSubmission)

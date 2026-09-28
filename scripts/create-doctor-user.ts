@@ -1,23 +1,22 @@
-/**
- * Create Doctor User for Better Auth
- * Uses bcrypt for password hashing (simpler and more standard)
- * Run with: npx tsx scripts/create-doctor-user.ts
- */
-
 import prisma from '../src/lib/prisma'
 import bcrypt from 'bcryptjs'
 
-async function createDoctorUser() {
-  const email = 'hello@onlinedoctornote.com'
-  const password = '32240'
-  const name = 'Dr. Buchwald'
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`${name} is required`)
+  }
+  return value
+}
 
-  console.log('🔐 Hashing password with bcrypt...')
-  // Use bcrypt instead of scrypt - it's a standard format
+async function createDoctorUser() {
+  const email = requireEnv('ADMIN_EMAIL')
+  const name = requireEnv('ADMIN_NAME')
+  const password = requireEnv('ADMIN_PASSWORD')
+
   const hashedPassword = await bcrypt.hash(password, 10)
 
   try {
-    // Create user
     const user = await prisma.user.create({
       data: {
         email,
@@ -26,10 +25,7 @@ async function createDoctorUser() {
       },
     })
 
-    console.log('✓ User created:', user.id)
-
-    // Create account with password
-    const account = await prisma.account.create({
+    await prisma.account.create({
       data: {
         userId: user.id,
         accountId: email,
@@ -38,17 +34,13 @@ async function createDoctorUser() {
       },
     })
 
-    console.log('✓ Account created:', account.id)
-    console.log('\n✅ Doctor user created successfully!')
-    console.log('Email:', email)
-    console.log('Password:', password)
-    console.log('Password hash (bcrypt):', hashedPassword)
-    console.log('\nYou can now log in at http://localhost:3000/admin/login')
-  } catch (error) {
-    console.error('❌ Error creating doctor user:', error)
+    console.log(`Doctor user created: ${email} (${user.id})`)
   } finally {
     await prisma.$disconnect()
   }
 }
 
-createDoctorUser()
+createDoctorUser().catch((error) => {
+  console.error('Error creating doctor user:', error)
+  process.exit(1)
+})

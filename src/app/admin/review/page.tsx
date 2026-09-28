@@ -1,17 +1,10 @@
 'use client'
 
-/**
- * Admin Review Interface Page
- * Tinder-like interface for reviewing submissions with keyboard shortcuts
- */
-
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -25,8 +18,7 @@ import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
-import { getTodayLocal } from '@/components/admin/ApprovalDialogContent'
-import { calculateDaysDifference, type DenialReason } from '@/lib/admin-utils'
+import { calculateDaysDifference, getTodayET, type DenialReason } from '@/lib/admin-utils'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import { ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import type { Submission } from '@prisma/client'
@@ -43,7 +35,6 @@ import {
 export default function AdminReviewPage() {
   const router = useRouter()
 
-  // State management
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +51,7 @@ export default function AdminReviewPage() {
   const [showDenialDialog, setShowDenialDialog] = useState(false)
   const [showMaybeDialog, setShowMaybeDialog] = useState(false)
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
-  const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
+  const [evaluationDate, setEvaluationDate] = useState(getTodayET())
   const [diagnosis, setDiagnosis] = useState('')
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [maybeError, setMaybeError] = useState<string | null>(null)
@@ -112,7 +103,6 @@ export default function AdminReviewPage() {
     )
   }
 
-  // Fetch submissions on mount
   useEffect(() => {
     async function fetchSubmissions() {
       setIsLoading(true)
@@ -132,7 +122,6 @@ export default function AdminReviewPage() {
     fetchSubmissions()
   }, [])
 
-  // Fetch monthly limit data when submission changes
   useEffect(() => {
     async function fetchMonthlyData() {
       if (!currentSubmission) {
@@ -214,7 +203,6 @@ export default function AdminReviewPage() {
     setIsSavingClassification(false)
   }
 
-  // Handle approval - show dialog first
   const handleApprove = () => {
     if (!currentSubmission || isReviewActionDisabled) return
     setApprovalError(null)
@@ -222,14 +210,12 @@ export default function AdminReviewPage() {
     setShowApprovalDialog(true)
   }
 
-  // Handle approval confirmation with evaluation date and diagnosis
   const handleApproveConfirm = async () => {
     if (!currentSubmission || isReviewActionDisabled) return
 
     setIsTransitioning(true)
     setApprovalError(null)
 
-    // Call server action to approve with evaluation date, diagnosis, and restrictions toggle
     const result = await approveSubmission(
       currentSubmission.id,
       evaluationDate,
@@ -242,24 +228,19 @@ export default function AdminReviewPage() {
       setDiagnosis('')
       setReviewWarning(result.warning ?? null)
 
-      // Add to approved list
       setReviewedSubmissions((prev) => ({
         ...prev,
         approved: [...prev.approved, currentSubmission.id],
       }))
 
-      // Quick fade transition
       setTimeout(() => {
-        // Reset evaluation date to today for next submission
-        setEvaluationDate(getTodayLocal())
+        setEvaluationDate(getTodayET())
 
         if (isLastSubmission) {
-          // Show completion screen
           setShowCompletion(true)
         } else {
-          // Move to next submission
           setCurrentIndex((prev) => prev + 1)
-          setWithRestrictions(true) // Reset to default for next submission
+          setWithRestrictions(true)
         }
         setIsTransitioning(false)
       }, 150)
@@ -270,40 +251,33 @@ export default function AdminReviewPage() {
     }
   }
 
-  // Handle denial - show dialog first
   const handleDeny = () => {
     if (!currentSubmission || isReviewActionDisabled) return
     setReviewWarning(null)
     setShowDenialDialog(true)
   }
 
-  // Handle denial confirmation with reason
   const handleDenyConfirm = async (reason: DenialReason) => {
     if (!currentSubmission || isReviewActionDisabled) return
 
     setIsTransitioning(true)
 
-    // Call server action to deny with reason
     const result = await denySubmission(currentSubmission.id, reason)
 
     if (result.success) {
       setReviewWarning(result.warning ?? null)
 
-      // Add to denied list
       setReviewedSubmissions((prev) => ({
         ...prev,
         denied: [...prev.denied, currentSubmission.id],
       }))
 
-      // Quick fade transition
       setTimeout(() => {
         if (isLastSubmission) {
-          // Show completion screen
           setShowCompletion(true)
         } else {
-          // Move to next submission
           setCurrentIndex((prev) => prev + 1)
-          setWithRestrictions(true) // Reset to default for next submission
+          setWithRestrictions(true)
         }
         setIsTransitioning(false)
       }, 150)
@@ -314,7 +288,6 @@ export default function AdminReviewPage() {
     }
   }
 
-  // Handle maybe - show dialog first
   const handleMaybe = () => {
     if (!currentSubmission || isReviewActionDisabled) return
 
@@ -323,35 +296,29 @@ export default function AdminReviewPage() {
     setShowMaybeDialog(true)
   }
 
-  // Handle maybe confirmation with reason
   const handleMaybeConfirm = async (input: MaybeSubmissionInput) => {
     if (!currentSubmission || isReviewActionDisabled) return
 
     setIsTransitioning(true)
     setMaybeError(null)
 
-    // Call server action to mark as maybe
     const result = await maybeSubmission(currentSubmission.id, input)
 
     if (result.success) {
       setShowMaybeDialog(false)
       setReviewWarning(result.warning ?? null)
 
-      // Add to maybe list
       setReviewedSubmissions((prev) => ({
         ...prev,
         maybe: [...prev.maybe, currentSubmission.id],
       }))
 
-      // Quick fade transition
       setTimeout(() => {
         if (isLastSubmission) {
-          // Show completion screen
           setShowCompletion(true)
         } else {
-          // Move to next submission
           setCurrentIndex((prev) => prev + 1)
-          setWithRestrictions(true) // Reset to default for next submission
+          setWithRestrictions(true)
         }
         setIsTransitioning(false)
       }, 150)
@@ -362,10 +329,8 @@ export default function AdminReviewPage() {
     }
   }
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Prevent if transitioning, on completion screen, or dialog is open
       if (
         isTransitioning ||
         isGuardianRemovalPending ||
@@ -379,13 +344,13 @@ export default function AdminReviewPage() {
       }
 
       if (e.key === 'ArrowLeft') {
-        e.preventDefault() // Prevent scroll
+        e.preventDefault()
         handleDeny()
       } else if (e.key === 'ArrowRight') {
-        e.preventDefault() // Prevent scroll
+        e.preventDefault()
         handleApprove()
       } else if (e.key === 'ArrowDown') {
-        e.preventDefault() // Prevent scroll
+        e.preventDefault()
         handleMaybe()
       }
     }
@@ -406,12 +371,10 @@ export default function AdminReviewPage() {
     currentSubmission,
   ])
 
-  // Handle return to dashboard
   const handleReturnToDashboard = () => {
     router.push('/admin')
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex h-[calc(100vh-120px)] items-center justify-center">
@@ -423,7 +386,6 @@ export default function AdminReviewPage() {
     )
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex h-[calc(100vh-120px)] items-center justify-center">
@@ -436,7 +398,6 @@ export default function AdminReviewPage() {
     )
   }
 
-  // If no submissions, show empty state
   if (submissions.length === 0) {
     return (
       <div className="flex h-[calc(100vh-120px)] items-center justify-center">
@@ -449,7 +410,6 @@ export default function AdminReviewPage() {
     )
   }
 
-  // Show completion screen
   if (showCompletion) {
     return (
       <CompletionScreen
@@ -464,7 +424,6 @@ export default function AdminReviewPage() {
 
   return (
     <div className="flex h-[calc(100vh-120px)] flex-col space-y-3">
-      {/* Back Button & Search */}
       <div className="flex shrink-0 items-center justify-between">
         <Button variant="outline" onClick={() => router.push('/admin')} size="sm">
           ← Back
@@ -486,12 +445,10 @@ export default function AdminReviewPage() {
         </div>
       )}
 
-      {/* Submission Card with fade transition - scrollable on mobile */}
       <div
         className={`flex-1 overflow-auto transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
       >
         <div className="space-y-4">
-          {/* 30-Day Limit Warning (shows when approaching or exceeding) */}
           {!isLoadingMonthlyData && monthlyLimitData && (
             <MonthlyLimitWarning
               monthlyUsage={monthlyLimitData.currentUsage}
@@ -540,10 +497,8 @@ export default function AdminReviewPage() {
         </div>
       </div>
 
-      {/* Action Buttons - Tinder-style - always visible */}
       <div className="mx-auto w-full max-w-2xl shrink-0 pb-2">
         <div className="flex items-center justify-center gap-8 sm:gap-12">
-          {/* Deny Button */}
           <button
             onClick={handleDeny}
             disabled={isReviewActionDisabled}
@@ -564,7 +519,6 @@ export default function AdminReviewPage() {
             </svg>
           </button>
 
-          {/* Maybe Button */}
           <button
             onClick={handleMaybe}
             disabled={isReviewActionDisabled}
@@ -573,7 +527,6 @@ export default function AdminReviewPage() {
             <span className="text-4xl font-bold text-yellow-500">?</span>
           </button>
 
-          {/* Approve Button */}
           <button
             onClick={handleApprove}
             disabled={isReviewActionDisabled}
@@ -595,14 +548,12 @@ export default function AdminReviewPage() {
         </div>
       </div>
 
-      {/* Denial Reason Dialog */}
       <DenialReasonDialog
         open={showDenialDialog}
         onOpenChange={setShowDenialDialog}
         onConfirm={handleDenyConfirm}
       />
 
-      {/* Maybe Reason Dialog */}
       <MaybeReasonDialog
         open={showMaybeDialog}
         onOpenChange={setShowMaybeDialog}
@@ -612,7 +563,6 @@ export default function AdminReviewPage() {
         defaultReason={suggestedMaybeReason}
       />
 
-      {/* Approval Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
         <DialogContent>
           <DialogHeader>

@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { NoteVerificationStatus, Prisma, Submission } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { getStateLicense } from '@/lib/state-licenses'
-import { getVerificationUrl } from '@/lib/verification-url'
+import { getTodayET } from '@/lib/admin-utils'
 
 export { getVerificationBaseUrl, getVerificationUrl } from '@/lib/verification-url'
 
@@ -27,15 +27,8 @@ export type NoteVerificationSnapshot = {
   licenseNumber: string | null
 }
 
-export type PublicNoteVerification = NoteVerificationSnapshot & {
-  verificationUrl: string
-}
-
 export function getDefaultIssueDate(): Date {
-  const now = new Date()
-  const etDateString = now.toLocaleString('en-US', { timeZone: 'America/New_York' })
-  const etDate = new Date(etDateString)
-  return new Date(Date.UTC(etDate.getFullYear(), etDate.getMonth(), etDate.getDate()))
+  return new Date(`${getTodayET()}T00:00:00Z`)
 }
 
 export function parseIssueDateInput(evaluationDate?: string): Date {
@@ -107,14 +100,6 @@ export function getConfiguredPhysician() {
   const npi = process.env.DOCTOR_NPI?.trim() || DEFAULT_DOCTOR_NPI
 
   return { name, credentials, npi }
-}
-
-export function getPhysicianDisplayName(name: string, credentials?: string | null): string {
-  const cleanName = name.trim()
-  const cleanCredentials = credentials?.trim()
-  if (!cleanCredentials) return cleanName
-  if (cleanName.toLowerCase().includes(cleanCredentials.toLowerCase())) return cleanName
-  return `${cleanName}, ${cleanCredentials}`
 }
 
 export function buildNoteVerificationSnapshot(
@@ -234,11 +219,4 @@ export async function revokeNoteVerificationForSubmission(
       revokedAt,
     },
   })
-}
-
-export function toPublicNoteVerification(record: NoteVerificationSnapshot): PublicNoteVerification {
-  return {
-    ...record,
-    verificationUrl: getVerificationUrl(record.verificationSlug),
-  }
 }

@@ -7,7 +7,6 @@ describe('age-validators', () => {
   let today: Date
 
   beforeEach(() => {
-    // Mock consistent "today" for predictable testing
     today = new Date('2025-01-15')
     today.setHours(0, 0, 0, 0)
     vi.setSystemTime(today)
@@ -109,25 +108,22 @@ describe('age-validators', () => {
 
     describe('Leap year dates', () => {
       it('should handle Feb 29 leap year birthday', () => {
-        vi.setSystemTime(new Date('2024-03-01')) // Day after leap day 2024
+        vi.setSystemTime(new Date('2024-03-01'))
 
-        // Born on Feb 29, 1996 (leap year)
-        expect(isAgeValid('1996-02-29', 18)).toBe(true) // 28 years old
-        expect(isAgeValid('2008-02-29', 18)).toBe(false) // 16 years old
+        expect(isAgeValid('1996-02-29', 18)).toBe(true)
+        expect(isAgeValid('2008-02-29', 18)).toBe(false)
       })
 
       it('should handle leap year birthday on leap day', () => {
-        vi.setSystemTime(new Date('2024-02-29')) // Leap day 2024
+        vi.setSystemTime(new Date('2024-02-29'))
 
-        // Born on Feb 29, 2000
-        expect(isAgeValid('2000-02-29', 18)).toBe(true) // Exactly 24 years old
+        expect(isAgeValid('2000-02-29', 18)).toBe(true)
       })
 
       it('should handle leap year birthday on non-leap year', () => {
-        vi.setSystemTime(new Date('2025-02-28')) // Not a leap year
+        vi.setSystemTime(new Date('2025-02-28'))
 
-        // Born on Feb 29, 2000 (leap year)
-        expect(isAgeValid('2000-02-29', 18)).toBe(true) // 24+ years old
+        expect(isAgeValid('2000-02-29', 18)).toBe(true)
       })
     })
 
@@ -142,7 +138,6 @@ describe('age-validators', () => {
       })
 
       it('should handle various valid date formats', () => {
-        // Different valid date string formats
         expect(isAgeValid('2000-01-15T00:00:00Z', 18)).toBe(true)
         expect(isAgeValid('2000-01-15T12:30:00', 18)).toBe(true)
       })
@@ -170,7 +165,7 @@ describe('age-validators', () => {
 
     describe('Year boundaries', () => {
       it('should handle birthday crossing year boundary', () => {
-        vi.setSystemTime(new Date('2025-01-01')) // New Year's Day
+        vi.setSystemTime(new Date('2025-01-01'))
 
         const eighteenYearsAgo = format(subYears(new Date('2025-01-01'), 18), 'yyyy-MM-dd')
         expect(isAgeValid(eighteenYearsAgo, 18)).toBe(true)
@@ -179,9 +174,8 @@ describe('age-validators', () => {
       it('should handle December birthday in January', () => {
         vi.setSystemTime(new Date('2025-01-15'))
 
-        // Born Dec 2006, now Jan 2025
-        expect(isAgeValid('2006-12-31', 18)).toBe(true) // 18+
-        expect(isAgeValid('2007-12-31', 18)).toBe(false) // 17
+        expect(isAgeValid('2006-12-31', 18)).toBe(true)
+        expect(isAgeValid('2007-12-31', 18)).toBe(false)
       })
     })
   })
@@ -314,14 +308,11 @@ describe('age-validators', () => {
           dateOfBirth: createAgeValidator(18).optional(),
         })
 
-        // Valid: omitted
         expect(schema.safeParse({}).success).toBe(true)
 
-        // Valid: 18+
         const validDate = format(subYears(today, 18), 'yyyy-MM-dd')
         expect(schema.safeParse({ dateOfBirth: validDate }).success).toBe(true)
 
-        // Invalid: under 18
         const invalidDate = format(subYears(today, 17), 'yyyy-MM-dd')
         expect(schema.safeParse({ dateOfBirth: invalidDate }).success).toBe(false)
       })

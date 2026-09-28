@@ -1,8 +1,3 @@
-/**
- * Admin Search Detail Page
- * View and edit a single submission found via search
- */
-
 import { headers } from 'next/headers'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -18,7 +13,6 @@ interface PageProps {
 }
 
 export default async function AdminSearchDetailPage({ params }: PageProps) {
-  // Check authentication
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -27,7 +21,6 @@ export default async function AdminSearchDetailPage({ params }: PageProps) {
     redirect('/admin/login')
   }
 
-  // Fetch submission
   const { id } = await params
   const result = await getSubmissionById(id)
 
@@ -37,7 +30,6 @@ export default async function AdminSearchDetailPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
@@ -55,7 +47,6 @@ export default async function AdminSearchDetailPage({ params }: PageProps) {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Back Link */}
         <div className="mb-6">
           <Link
             href="/admin/search"
@@ -73,7 +64,6 @@ export default async function AdminSearchDetailPage({ params }: PageProps) {
           </Link>
         </div>
 
-        {/* Page Title */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
             {result.submission.patientFirstName} {result.submission.patientLastName}
@@ -83,7 +73,6 @@ export default async function AdminSearchDetailPage({ params }: PageProps) {
           </p>
         </div>
 
-        {/* Submission Detail */}
         <SearchSubmissionDetail submission={result.submission} />
       </main>
     </div>

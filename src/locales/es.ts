@@ -1,4 +1,3 @@
-// Static Spanish translations. Medical, refund, privacy, and legal wording requires bilingual human review.
 export const spanishTranslations: Record<string, string> = {
   '- 100% online': '- 100% online',
   '- only $24.95': '- sólo $24.95',

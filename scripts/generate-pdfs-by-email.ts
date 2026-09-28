@@ -1,21 +1,8 @@
-/**
- * Generate PDFs for Approved Submissions by Email Address
- *
- * This script generates doctor's note PDFs for specific patient email addresses
- * and saves them to a local directory.
- *
- * Usage:
- *   - Single email: npx tsx scripts/generate-pdfs-by-email.ts patient@example.com
- *   - Multiple emails: npx tsx scripts/generate-pdfs-by-email.ts email1@test.com email2@test.com
- *   - Custom output dir: npx tsx scripts/generate-pdfs-by-email.ts patient@example.com --output ./my-pdfs
- */
-
 import { PrismaClient } from '@prisma/client'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import * as fs from 'fs'
 import * as path from 'path'
 
-// Use direct DATABASE_URL instead of Prisma Accelerate for scripts
 const prisma = new PrismaClient({
   datasources: {
     db: {
@@ -33,9 +20,6 @@ interface GenerateResult {
   error?: string
 }
 
-/**
- * Find approved submissions for a specific email
- */
 async function findApprovedSubmissions(email: string) {
   const submissions = await prisma.submission.findMany({
     where: {
@@ -50,9 +34,6 @@ async function findApprovedSubmissions(email: string) {
   return submissions
 }
 
-/**
- * Generate PDF and save to disk
- */
 async function generateAndSavePDF(submissionId: string, outputDir: string): Promise<string> {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
@@ -62,29 +43,22 @@ async function generateAndSavePDF(submissionId: string, outputDir: string): Prom
     throw new Error(`Submission ${submissionId} not found`)
   }
 
-  // Generate PDF
   const pdfBuffer = await generateDoctorNotePDF(submission)
   const filename = generatePDFFilename(submission.id)
 
-  // Ensure output directory exists
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true })
   }
 
-  // Save to disk
   const filepath = path.join(outputDir, filename)
   fs.writeFileSync(filepath, pdfBuffer)
 
   return filename
 }
 
-/**
- * Main function
- */
 async function main() {
   const args = process.argv.slice(2)
 
-  // Parse arguments
   const emails = args.filter((arg) => !arg.startsWith('--'))
   const outputDirIndex = args.indexOf('--output')
   const outputDir =
@@ -109,7 +83,6 @@ async function main() {
   try {
     const allResults: GenerateResult[] = []
 
-    // Process each email
     for (const email of emails) {
       console.log(`📧 Looking up: ${email}`)
 
@@ -122,7 +95,6 @@ async function main() {
 
       console.log(`   ✅ Found ${submissions.length} approved submission(s)\n`)
 
-      // Display each submission
       submissions.forEach((submission, index) => {
         const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
         const reviewedDate = submission.reviewedAt?.toLocaleDateString() || 'Unknown'
@@ -134,7 +106,6 @@ async function main() {
         console.log(`      State: ${submission.state}`)
         console.log('')
 
-        // Add to results for generation
         allResults.push({
           email: submission.email,
           submissionId: submission.id,
@@ -150,7 +121,6 @@ async function main() {
       return
     }
 
-    // Generate PDFs
     console.log('━'.repeat(60))
     console.log('📄 GENERATING PDFs...\n')
 
@@ -172,7 +142,6 @@ async function main() {
       }
     }
 
-    // Print summary
     console.log('━'.repeat(60))
     console.log('📊 FINAL SUMMARY')
     console.log('━'.repeat(60))
@@ -210,7 +179,6 @@ async function main() {
   }
 }
 
-// Run the script
 main().catch((error) => {
   console.error('Fatal error:', error)
   process.exit(1)

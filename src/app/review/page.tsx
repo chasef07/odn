@@ -66,7 +66,6 @@ export default function ReviewPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const { locale, t } = useI18n()
 
-  // Main form for terms checkboxes
   const {
     register,
     handleSubmit,
@@ -80,7 +79,6 @@ export default function ReviewPage() {
     },
   })
 
-  // Personal info edit form
   const personalForm = useForm<PersonalFormData>({
     resolver: zodResolver(page2Schema),
     defaultValues: {
@@ -90,7 +88,6 @@ export default function ReviewPage() {
     },
   })
 
-  // Guardian info edit form
   const guardianForm = useForm<GuardianFormData>({
     resolver: zodResolver(guardianSchema),
     defaultValues: {
@@ -100,17 +97,15 @@ export default function ReviewPage() {
     },
   })
 
-  // Contact info edit form
   const contactForm = useForm<ContactFormData>({
     resolver: zodResolver(page3Schema),
     defaultValues: {
       email: formData.email || '',
       phone: formData.phone || '',
     },
-    mode: 'onChange', // Enable real-time validation for email typo detection
+    mode: 'onChange',
   })
 
-  // Absence dates edit form
   const datesForm = useForm<DatesFormData>({
     resolver: zodResolver(page6Schema),
     defaultValues: {
@@ -119,7 +114,6 @@ export default function ReviewPage() {
     },
   })
 
-  // Auto-capitalization helper for names
   const capitalizeName = (value: string): string => {
     return value
       .split(/(\s+|-|')/)
@@ -133,14 +127,12 @@ export default function ReviewPage() {
       .join('')
   }
 
-  // Handler for patient name changes with auto-capitalization
   const handlePatientNameChange =
     (field: 'patientFirstName' | 'patientLastName') => (e: React.ChangeEvent<HTMLInputElement>) => {
       const capitalized = capitalizeName(e.target.value)
       personalForm.setValue(field, capitalized)
     }
 
-  // Handler for guardian name changes with auto-capitalization
   const handleGuardianNameChange =
     (field: 'guardianFirstName' | 'guardianLastName') =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,16 +140,13 @@ export default function ReviewPage() {
       guardianForm.setValue(field, capitalized)
     }
 
-  // Handler to start editing a section
   const handleEdit = (section: string) => {
-    // Reset phone display to current saved value when entering edit mode
     if (section === 'contact') {
       setPhoneDisplay(formData.phone || '')
     }
     setEditingSection(section as EditSection)
   }
 
-  // Handler to cancel editing
   const handleCancel = (section: string) => {
     if (section === 'personal') {
       personalForm.reset()
@@ -165,7 +154,6 @@ export default function ReviewPage() {
       guardianForm.reset()
     } else if (section === 'contact') {
       contactForm.reset()
-      // Reset phone display to saved value
       setPhoneDisplay(formData.phone || '')
     } else if (section === 'dates') {
       datesForm.reset()
@@ -173,7 +161,6 @@ export default function ReviewPage() {
     setEditingSection(null)
   }
 
-  // Handler to save personal info
   const handleSavePersonal = personalForm.handleSubmit((data) => {
     if (recipient === 'myself' && data.patientDateOfBirth) {
       if (!isAgeValid(data.patientDateOfBirth, 18)) {
@@ -188,21 +175,18 @@ export default function ReviewPage() {
     setEditingSection(null)
   })
 
-  // Handler to save guardian info
   const handleSaveGuardian = guardianForm.handleSubmit((data) => {
     saveFormData(data)
     setFormData(getFormData())
     setEditingSection(null)
   })
 
-  // Handler for phone number change
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value)
     setPhoneDisplay(formatted)
     contactForm.setValue('phone', formatted)
   }
 
-  // Handler to save contact info
   const handleSaveContact = contactForm.handleSubmit((data) => {
     saveFormData(data)
     setFormData(getFormData())
@@ -210,9 +194,7 @@ export default function ReviewPage() {
     setEditingSection(null)
   })
 
-  // Handler to save absence dates
   const handleSaveDates = datesForm.handleSubmit((data) => {
-    // Use centralized validation
     const validationData = {
       firstDayOff: data.firstDayOff,
       lastDayOff: data.lastDayOff,
@@ -221,7 +203,6 @@ export default function ReviewPage() {
     const validationErrors = validateAbsenceDates(validationData)
 
     if (validationErrors.length > 0) {
-      // Set errors on form
       validationErrors.forEach((error) => {
         datesForm.setError(error.field as keyof DatesFormData, {
           message: error.message,
@@ -235,24 +216,18 @@ export default function ReviewPage() {
     setEditingSection(null)
   })
 
-  // Main form submission
   const onSubmit = (data: TermsFormData) => {
     saveFormData({ smsOptIn: data.smsOptIn === true })
     setIsProcessing(true)
 
-    // Simulate processing delay to show loading state
     setTimeout(() => {
       router.push('/approved')
     }, UI_TIMING.PROCESSING_DELAY_MS)
   }
 
-  // Helper function to format date
-  // Uses UTC to avoid timezone shifts for calendar dates
   const formatDate = (dateString?: string) => {
     if (!dateString) return t('Not provided')
     try {
-      // dateString format is "yyyy-MM-dd"; read it as midnight UTC so the
-      // UTC formatting below shows the same calendar day in every timezone
       const date = new Date(`${dateString}T00:00:00Z`)
       return formatInTimeZone(
         date,
@@ -279,7 +254,6 @@ export default function ReviewPage() {
         className="space-y-4 pb-8"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {/* Patient Information */}
         <FormEditableSection
           sectionId="personal"
           title="Patient Information"
@@ -358,7 +332,6 @@ export default function ReviewPage() {
           }
         />
 
-        {/* Guardian Information - Only show if someone_else */}
         {recipient === 'someone_else' && (
           <FormEditableSection
             sectionId="guardian"
@@ -439,7 +412,6 @@ export default function ReviewPage() {
           />
         )}
 
-        {/* Contact Information */}
         <FormEditableSection
           sectionId="contact"
           title="Contact Information"
@@ -455,7 +427,6 @@ export default function ReviewPage() {
           }
           editContent={
             <>
-              {/* Email - Custom with real-time validation */}
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email Address
@@ -477,7 +448,6 @@ export default function ReviewPage() {
                 )}
               </div>
 
-              {/* Phone - Custom formatting */}
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-sm font-medium">
                   Phone Number
@@ -504,7 +474,6 @@ export default function ReviewPage() {
           }
         />
 
-        {/* Absence Dates */}
         <FormEditableSection
           sectionId="dates"
           title="Absence Dates"
@@ -539,7 +508,6 @@ export default function ReviewPage() {
           }
         />
 
-        {/* Terms Checkboxes - Native Checkboxes */}
         <div className="border-border/40 space-y-3 rounded-xl border bg-white p-4 shadow-sm md:p-6">
           <div className="flex items-start space-x-3">
             <input
@@ -626,14 +594,11 @@ export default function ReviewPage() {
         />
       </form>
 
-      {/* Loading Overlay */}
       {isProcessing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/95 backdrop-blur-sm">
           <div className="text-center">
-            {/* Spinner */}
             <div className="border-primary/20 border-t-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4"></div>
 
-            {/* Loading text */}
             <p className="text-foreground text-lg font-medium">Processing your request...</p>
           </div>
         </div>

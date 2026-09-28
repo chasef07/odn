@@ -52,7 +52,6 @@ describe('Footer', () => {
   it('should render Mail and Phone icons', () => {
     const { container } = render(<Footer />)
 
-    // Mail and Phone icons from lucide-react render as SVG elements
     const svgs = container.querySelectorAll('svg')
     expect(svgs.length).toBeGreaterThanOrEqual(2)
   })

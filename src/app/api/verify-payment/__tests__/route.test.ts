@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-// Mock Stripe using vi.hoisted
 const { mockRetrieve } = vi.hoisted(() => ({
   mockRetrieve: vi.fn(),
 }))
@@ -21,7 +20,6 @@ vi.mock('stripe', () => {
   }
 })
 
-// Import after mock
 import { POST } from '../route'
 
 describe('POST /api/verify-payment', () => {
@@ -148,7 +146,6 @@ describe('POST /api/verify-payment', () => {
     const response = await POST(request)
     const data = await response.json()
 
-    // Empty string is falsy, so || null returns null
     expect(data.email).toBeNull()
   })
 
@@ -356,7 +353,6 @@ describe('POST /api/verify-payment', () => {
     const response = await POST(request)
     const data = await response.json()
 
-    // Error should be logged (even in production) but not exposed to client
     expect(consoleSpy).toHaveBeenCalledWith('Error verifying payment:', expect.any(Error))
     expect(data.error).toBe('Invalid payment intent')
     expect(data.error).not.toContain('Sensitive')

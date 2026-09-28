@@ -4,34 +4,24 @@ import { Label } from '@/components/ui/label'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface FormSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'> {
-  /** Unique field identifier */
   id: string
 
-  /** Display label text */
   label: string
 
-  /** React Hook Form register return value */
   register: UseFormRegisterReturn
 
-  /** Error object from react-hook-form */
   error?: FieldError
 
-  /** Array of option values */
   options: string[]
 
-  /** Placeholder text for empty option */
   placeholder?: string
 
-  /** Whether field is required (default: true) */
   required?: boolean
 
-  /** Height class ("h-12" | "h-14", default: "h-12") */
   height?: 'h-12' | 'h-14'
 
-  /** Transform option value before displaying (default: no transformation) */
   valueTransform?: (value: string) => string
 
-  /** Translate option labels (default: true). Keep proper names such as US states unchanged. */
   translateOptions?: boolean
 }
 

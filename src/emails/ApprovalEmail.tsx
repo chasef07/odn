@@ -9,12 +9,10 @@ import {
   Text,
   Link,
   Hr,
-  Button,
   Row,
   Column,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
-import * as React from 'react'
 import { getRecipientName, getAbsenceFromText } from '@/lib/email-helpers'
 
 interface ApprovalEmailProps {
@@ -30,11 +28,9 @@ export const ApprovalEmail = ({
   notePurpose = 'work',
   absenceReason = 'Feeling sick',
 }: ApprovalEmailProps) => {
-  // Check if this is a caregiver note or doctor's appointment
   const isCaregiver = absenceReason === 'Taking care of someone'
   const isAppointment = absenceReason === "Doctor's appointment"
 
-  // Map note purpose to dynamic subject line text
   const subjectPurposeMap: Record<string, string> = {
     work: 'For Work',
     school: 'For School',
@@ -46,7 +42,6 @@ export const ApprovalEmail = ({
   const subjectPurpose = subjectPurposeMap[notePurpose] || ''
   const currentYear = new Date().getFullYear()
 
-  // Dynamic subject line based on absence reason or note purpose
   const subjectLine = isCaregiver
     ? "Your Caregiver's Note Has Arrived!"
     : subjectPurpose
@@ -60,14 +55,12 @@ export const ApprovalEmail = ({
       <Tailwind>
         <Body className="bg-gray-50 font-sans">
           <Container className="mx-auto my-8 max-w-2xl">
-            {/* Header with Logo */}
             <Section className="rounded-t-2xl border-b border-gray-200 bg-white px-8 py-4">
               <Text className="m-0 text-2xl font-bold" style={{ color: '#009ed9' }}>
                 OnlineDoctorNote
               </Text>
             </Section>
 
-            {/* Main Content */}
             <Section className="bg-white px-8 py-8">
               <Text className="mb-6 text-base leading-relaxed text-gray-900">
                 Hi <strong>{patientName}</strong>,
@@ -156,7 +149,6 @@ export const ApprovalEmail = ({
 
               <Hr className="my-8 border-gray-200" />
 
-              {/* Help Section */}
               <Section className="mt-8 rounded-xl bg-gray-50 p-6">
                 <Text className="m-0 text-sm leading-relaxed text-gray-700">
                   We are always here to help. Email us at{' '}
@@ -171,7 +163,6 @@ export const ApprovalEmail = ({
               </Section>
             </Section>
 
-            {/* Footer */}
             <Section className="rounded-b-2xl bg-gray-100 px-8 py-6">
               <Text className="m-0 text-center text-xs leading-relaxed text-gray-600">
                 © {currentYear} Online Doctor&apos;s Note. All rights reserved.

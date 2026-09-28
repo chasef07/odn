@@ -3,8 +3,6 @@ import { NextRequest } from 'next/server'
 import type Stripe from 'stripe'
 import type { FormData } from '@/lib/form-storage'
 
-// --- Mocks ---------------------------------------------------------------
-
 const {
   mockSubmissionFindUnique,
   mockSubmissionCreate,
@@ -33,7 +31,6 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-// SubmissionStatus enum mock (matches generated @prisma/client shape we use)
 vi.mock('@prisma/client', () => ({
   SubmissionStatus: {
     PENDING_REVIEW: 'PENDING_REVIEW',
@@ -75,10 +72,7 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-// Import AFTER mocks
 import { POST } from '../route'
-
-// --- Helpers -------------------------------------------------------------
 
 const now = new Date()
 const toISODate = (d: Date) => d.toISOString().split('T')[0]
@@ -128,8 +122,6 @@ function buildEvent(overrides: Partial<Stripe.Event> = {}): Stripe.Event {
   } as unknown as Stripe.Event
 }
 
-// --- Tests ---------------------------------------------------------------
-
 describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
   let originalEnv: NodeJS.ProcessEnv
 
@@ -141,7 +133,6 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     mockSendPaymentConfirmationEmail.mockResolvedValue(undefined)
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
 
-    // Default: no existing submission (fresh event)
     mockSubmissionFindUnique.mockResolvedValue(null)
     mockTempDelete.mockResolvedValue({})
   })
@@ -427,7 +418,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const badFormData = {
       ...validFormData,
       firstDayOff: daysFromToday(0),
-      lastDayOff: daysFromToday(10), // 11 inclusive days
+      lastDayOff: daysFromToday(10),
     }
     mockTempFindUnique.mockResolvedValue({
       id: 'temp_bad_dates',
@@ -454,7 +445,6 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(createArg.data.maybeInternalNote).toMatch(/7 consecutive days/i)
     expect(createArg.data.maybeEmailSentAt).toBeNull()
 
-    // Clear admin-facing log so doctor can find the submission
     expect(consoleError).toHaveBeenCalled()
 
     consoleError.mockRestore()

@@ -1,8 +1,3 @@
-/**
- * AdminStats Component
- * Displays dashboard statistics in card format
- */
-
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,7 +19,6 @@ export function AdminStats({
 }: AdminStatsProps) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {/* Pending Reviews Card */}
       <Card className="p-0">
         <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
           <div className="mb-1 text-2xl font-bold text-blue-600 sm:mb-2 sm:text-4xl">
@@ -34,7 +28,6 @@ export function AdminStats({
         </CardContent>
       </Card>
 
-      {/* Approved Today Card with View Button */}
       <Card className="p-0">
         <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
           <div className="mb-1 text-2xl font-bold text-green-600 sm:mb-2 sm:text-4xl">
@@ -55,7 +48,6 @@ export function AdminStats({
         </CardContent>
       </Card>
 
-      {/* Denied Today Card with View Button */}
       <Card className="p-0">
         <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
           <div className="mb-1 text-2xl font-bold text-red-600 sm:mb-2 sm:text-4xl">
@@ -76,7 +68,6 @@ export function AdminStats({
         </CardContent>
       </Card>
 
-      {/* Maybe/Manual Card with View Button */}
       <Card className="p-0">
         <CardContent className="flex flex-col items-center justify-center p-4 text-center sm:p-6">
           <div className="mb-1 flex items-center gap-1 sm:mb-2">

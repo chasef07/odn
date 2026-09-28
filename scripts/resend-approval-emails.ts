@@ -1,14 +1,3 @@
-/**
- * Resend Approval Emails Script
- *
- * This script identifies approved submissions that never received their approval email
- * (due to Cloudflare outage or other delivery issues) and resends them.
- *
- * Usage:
- *   - Dry run (preview): npx tsx scripts/resend-approval-emails.ts
- *   - Actually send: npx tsx scripts/resend-approval-emails.ts --send
- */
-
 import { PrismaClient } from '@prisma/client'
 import { sendApprovalEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
@@ -22,9 +11,6 @@ interface ResendStats {
   errors: Array<{ submissionId: string; email: string; error: string }>
 }
 
-/**
- * Find approved submissions that never received approval email
- */
 async function findMissingApprovalEmails() {
   const submissions = await prisma.submission.findMany({
     where: {
@@ -32,16 +18,13 @@ async function findMissingApprovalEmails() {
       approvalEmailSentAt: null,
     },
     orderBy: {
-      reviewedAt: 'desc', // Most recent first
+      reviewedAt: 'desc',
     },
   })
 
   return submissions
 }
 
-/**
- * Resend approval email with PDF attachment
- */
 async function resendApprovalEmail(submissionId: string): Promise<void> {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
@@ -51,11 +34,9 @@ async function resendApprovalEmail(submissionId: string): Promise<void> {
     throw new Error(`Submission ${submissionId} not found`)
   }
 
-  // Generate PDF
   const pdfBuffer = await generateDoctorNotePDF(submission)
   const pdfFilename = generatePDFFilename(submission.id)
 
-  // Send email
   const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
   await sendApprovalEmail({
     to: submission.email,
@@ -66,7 +47,6 @@ async function resendApprovalEmail(submissionId: string): Promise<void> {
     pdfFilename,
   })
 
-  // Update database to mark email as sent
   await prisma.submission.update({
     where: { id: submissionId },
     data: {
@@ -75,9 +55,6 @@ async function resendApprovalEmail(submissionId: string): Promise<void> {
   })
 }
 
-/**
- * Main function
- */
 async function main() {
   const args = process.argv.slice(2)
   const shouldSend = args.includes('--send')
@@ -94,7 +71,6 @@ async function main() {
 
     console.log(`📧 Found ${submissions.length} submission(s) missing approval emails:\n`)
 
-    // Display submissions
     submissions.forEach((submission, index) => {
       const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
       const reviewedDate = submission.reviewedAt?.toLocaleDateString() || 'Unknown'
@@ -112,7 +88,6 @@ async function main() {
       return
     }
 
-    // Actually send emails
     console.log('📤 Sending approval emails...\n')
 
     const stats: ResendStats = {
@@ -141,7 +116,6 @@ async function main() {
       }
     }
 
-    // Print summary
     console.log('\n' + '='.repeat(60))
     console.log('📊 SUMMARY')
     console.log('='.repeat(60))
@@ -165,7 +139,6 @@ async function main() {
   }
 }
 
-// Run the script
 main().catch((error) => {
   console.error('Fatal error:', error)
   process.exit(1)

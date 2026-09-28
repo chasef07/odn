@@ -1,4 +1,11 @@
 import { SubmissionStatus } from '@prisma/client'
+import {
+  getCustomerKey,
+  isOpenStatus,
+  MS_PER_DAY,
+  toCalendarDate,
+  toIsoDate,
+} from '@/lib/analytics-shared'
 import { DOCTOR_10_OFFER_CODE, normalizeOfferCode } from '@/lib/offer-codes'
 
 export type FriendsFamilySegmentKey =
@@ -140,36 +147,8 @@ export type FriendsFamilyAnalyticsOptions = {
   limit?: number
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
-
-function toIsoDate(date: Date): string {
-  return date.toISOString()
-}
-
-function toCalendarDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase()
-}
-
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, '')
-}
-
 export function getFriendsFamilyCustomerKey(submission: FriendsFamilySubmissionInput): string {
-  const email = normalizeEmail(submission.email)
-  if (email) {
-    return `email:${email}`
-  }
-
-  const phone = normalizePhone(submission.phone)
-  if (phone) {
-    return `phone:${phone}`
-  }
-
-  return `patient:${submission.patientFirstName.toLowerCase()}:${submission.patientLastName.toLowerCase()}:${toCalendarDate(submission.patientDateOfBirth)}`
+  return getCustomerKey(submission)
 }
 
 function submissionCustomerName(submission: FriendsFamilySubmissionInput): string {
@@ -190,14 +169,6 @@ function approvedAt(submission: FriendsFamilySubmissionInput): Date | null {
   }
 
   return submission.reviewedAt ?? submission.approvalEmailSentAt ?? submission.createdAt
-}
-
-function isOpenStatus(status: SubmissionStatus): boolean {
-  return (
-    status === SubmissionStatus.PENDING_REVIEW ||
-    status === SubmissionStatus.MAYBE ||
-    status === SubmissionStatus.MANUAL
-  )
 }
 
 function addFactor(
@@ -299,7 +270,6 @@ function buildCustomerSegment(
   const scoreFactors: FriendsFamilyScoreFactor[] = []
   let score = 0
 
-  // Loyalty / repeat-buyer signals (strongest positive)
   if (approvedNotes >= 2) {
     score += addFactor(scoreFactors, reasons, 'Repeat successful customer', 30, 'positive')
   }
@@ -307,7 +277,6 @@ function buildCustomerSegment(
     score += addFactor(scoreFactors, reasons, '3+ approved notes', 10, 'positive')
   }
 
-  // Recency: reward 30-90 day lapse, penalize too-recent and cold
   if (daysSinceLastApproved !== null) {
     if (daysSinceLastApproved < 14) {
       score += addFactor(scoreFactors, reasons, 'Too recent to discount', -20, 'warning')
@@ -467,9 +436,6 @@ export function buildFriendsFamilyAnalytics(
     return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
   }
 
-  // All Customers is a recency view: surface the most recently approved (then
-  // most recently active) customers first instead of the targeting score, which
-  // intentionally favors a 30–90 day lapse and buries fresh approvals.
   const byRecency = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
     const aApproved = a.lastApprovedAt ? new Date(a.lastApprovedAt).getTime() : 0
     const bApproved = b.lastApprovedAt ? new Date(b.lastApprovedAt).getTime() : 0
@@ -477,8 +443,6 @@ export function buildFriendsFamilyAnalytics(
     return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
   }
 
-  // No Refunds is a loyalty view: rank by the customers with the most approved
-  // notes first, then by recency.
   const byNotes = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
     if (b.approvedNotes !== a.approvedNotes) return b.approvedNotes - a.approvedNotes
     return byRecency(a, b)

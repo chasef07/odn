@@ -1,4 +1,11 @@
 import { SubmissionStatus } from '@prisma/client'
+import {
+  getCustomerKey,
+  isOpenStatus,
+  MS_PER_DAY,
+  toCalendarDate,
+  toIsoDate,
+} from '@/lib/analytics-shared'
 import { normalizeOfferCode } from '@/lib/offer-codes'
 import { ATTRIBUTION_CHANNEL_LABELS, type AttributionChannel } from '@/lib/attribution'
 
@@ -165,7 +172,6 @@ type PeriodMetrics = {
   offerNetRevenueCents: number
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 const MAX_STATE_ROWS = 10
 
 const dayLabelFormatter = new Intl.DateTimeFormat('en-US', {
@@ -198,14 +204,6 @@ const AGE_BANDS = [
   { key: '65_plus', label: '65+', min: 65, max: Number.POSITIVE_INFINITY },
   { key: 'unknown', label: 'Unknown', min: null, max: null },
 ] as const
-
-function toIsoDate(date: Date): string {
-  return date.toISOString()
-}
-
-function toCalendarDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
 
 function startOfUtcDay(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
@@ -288,34 +286,8 @@ function bucketLabel(date: Date, granularity: TrendGranularity): string {
   }
 }
 
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase()
-}
-
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, '')
-}
-
-function customerKey(submission: BusinessAnalyticsSubmissionInput): string {
-  const email = normalizeEmail(submission.email)
-  if (email) return `email:${email}`
-
-  const phone = normalizePhone(submission.phone)
-  if (phone) return `phone:${phone}`
-
-  return `patient:${submission.patientFirstName.toLowerCase()}:${submission.patientLastName.toLowerCase()}:${toCalendarDate(submission.patientDateOfBirth)}`
-}
-
 function isRefunded(submission: BusinessAnalyticsSubmissionInput): boolean {
   return Boolean(submission.refundedAt) || Boolean(submission.stripeRefundId)
-}
-
-function isOpenStatus(status: SubmissionStatus): boolean {
-  return (
-    status === SubmissionStatus.PENDING_REVIEW ||
-    status === SubmissionStatus.MAYBE ||
-    status === SubmissionStatus.MANUAL
-  )
 }
 
 function inPeriod(
@@ -326,9 +298,6 @@ function inPeriod(
   return (!start || submission.createdAt >= start) && submission.createdAt < endExclusive
 }
 
-// Fallback price (in cents) when paymentAmount is missing — older rows
-// predate the column being populated. Every Submission row represents a
-// completed transaction, so we treat null as the standard $24.95.
 const ESTIMATED_PAYMENT_CENTS = 2495
 
 function effectivePaymentCents(submission: BusinessAnalyticsSubmissionInput): number {
@@ -351,8 +320,6 @@ function buildPeriod(range: BusinessAnalyticsRange, referenceDate: Date): Analyt
     }
   }
 
-  // Period-bucketed views: re-aggregate the trend by month/quarter/year over a
-  // fixed window (no day-based previous-period comparison).
   if (range === 'monthly') {
     return {
       range,
@@ -453,13 +420,13 @@ function buildPeriodMetrics(
     periodStart
       ? allSubmissions
           .filter((submission) => submission.createdAt < periodStart)
-          .map((submission) => customerKey(submission))
+          .map((submission) => getCustomerKey(submission))
       : []
   )
   const periodCustomerGroups = new Map<string, BusinessAnalyticsSubmissionInput[]>()
 
   for (const submission of periodSubmissions) {
-    const key = customerKey(submission)
+    const key = getCustomerKey(submission)
     const existing = periodCustomerGroups.get(key)
     if (existing) {
       existing.push(submission)
@@ -535,10 +502,6 @@ function buildTrend(
         )
       : null
 
-  // Determine where the bucket axis begins. Daily ranges keep the full window so
-  // zero-days still render. Open windows (all time, yearly) start at the first
-  // data point. Month/quarter windows are clamped to the first bucket that has
-  // data so pre-launch months/quarters aren't shown as empty dead space.
   let axisStart: Date | null = period.start ? bucketStart(period.start, granularity) : null
   if (!axisStart) {
     if (!earliestSubmission) return []
@@ -774,7 +737,7 @@ function countThreePlusNotesSixMonths(
   for (const submission of submissions) {
     if (submission.createdAt < sixMonthsAgo || submission.createdAt > referenceDate) continue
 
-    const key = customerKey(submission)
+    const key = getCustomerKey(submission)
     groups.set(key, (groups.get(key) ?? 0) + 1)
   }
 

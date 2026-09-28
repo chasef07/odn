@@ -43,10 +43,6 @@ export function normalizeOfferCode(input: unknown): string | null {
   return /^[a-z0-9_-]+$/.test(normalized) ? normalized : null
 }
 
-export function isFriendsFamilyOfferCode(input: unknown): boolean {
-  return normalizeOfferCode(input) === FRIENDS_FAMILY_OFFER_CODE
-}
-
 export function getOfferConfig(input: unknown): OfferConfig | null {
   const normalized = normalizeOfferCode(input)
   return OFFER_CONFIGS.find((offer) => offer.code === normalized) ?? null

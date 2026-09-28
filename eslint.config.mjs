@@ -1,5 +1,6 @@
 import nextVitals from 'eslint-config-next/core-web-vitals'
 import prettierConfig from 'eslint-config-prettier'
+import localRules from './eslint-rules/no-comments.mjs'
 
 const eslintConfig = [
   ...nextVitals,
@@ -15,9 +16,14 @@ const eslintConfig = [
     ],
   },
   {
+    plugins: { local: localRules },
+    rules: {
+      'local/no-comments': 'error',
+    },
+  },
+  {
     files: ['src/lib/pdf/**/*.{ts,tsx,js,jsx}'],
     rules: {
-      // React PDF's Image component is not a DOM image and does not support alt.
       'jsx-a11y/alt-text': 'off',
     },
   },

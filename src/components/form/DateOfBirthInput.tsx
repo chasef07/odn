@@ -6,21 +6,15 @@ import { differenceInYears } from 'date-fns'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface DateOfBirthInputProps {
-  /** Field name used for react-hook-form (e.g. "patientDateOfBirth") */
   name: string
-  /** Display label */
   label: string
-  /** Current value in YYYY-MM-DD format */
   value: string
-  /** Called with YYYY-MM-DD string when date changes */
   onChange: (value: string) => void
-  /** Error message to display */
   error?: string
 }
 
 export function DateOfBirthInput({ name, label, value, onChange, error }: DateOfBirthInputProps) {
   const { t } = useI18n()
-  // Parse existing YYYY-MM-DD value into parts
   const [year, month, day] = value ? value.split('-') : ['', '', '']
 
   const [mm, setMm] = useState(month || '')
@@ -31,9 +25,6 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
   const dayRef = useRef<HTMLInputElement>(null)
   const yearRef = useRef<HTMLInputElement>(null)
 
-  // Sync from external value changes (e.g. loading saved form data).
-  // Intentional props→state sync; splitting an ISO date into three inputs
-  // means we can't derive during render without re-parsing every keystroke.
   useEffect(() => {
     if (value) {
       const [y, m, d] = value.split('-')
@@ -46,7 +37,6 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
     }
   }, [value])
 
-  // Combine parts and call onChange when any part changes
   const emitChange = (newMm: string, newDd: string, newYyyy: string) => {
     if (newMm && newDd && newYyyy.length === 4) {
       const padded = `${newYyyy}-${newMm.padStart(2, '0')}-${newDd.padStart(2, '0')}`
@@ -59,7 +49,6 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
   const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/\D/g, '').slice(0, 2)
 
-    // Prevent invalid months
     if (raw.length === 1 && parseInt(raw) > 1) {
       const padded = '0' + raw
       setMm(padded)
@@ -84,7 +73,6 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
   const handleDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/\D/g, '').slice(0, 2)
 
-    // Prevent invalid days
     if (raw.length === 1 && parseInt(raw) > 3) {
       const padded = '0' + raw
       setDd(padded)
@@ -112,7 +100,6 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
     emitChange(mm, dd, raw)
   }
 
-  // Handle backspace to go back to previous field
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
     field: 'month' | 'day' | 'year'
@@ -129,7 +116,6 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
     }
   }
 
-  // Compute age for confirmation display
   const computedAge = (() => {
     if (mm && dd && yyyy.length === 4) {
       const monthNum = parseInt(mm)
@@ -137,7 +123,6 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
       const yearNum = parseInt(yyyy)
       if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900) {
         const dob = new Date(yearNum, monthNum - 1, dayNum)
-        // Validate the date is real (e.g. not Feb 30)
         if (
           dob.getFullYear() === yearNum &&
           dob.getMonth() === monthNum - 1 &&
@@ -230,7 +215,6 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
         </div>
       </div>
 
-      {/* Age confirmation */}
       {computedAge !== null && (
         <p className="text-muted-foreground text-sm">
           {t('Age:')}{' '}

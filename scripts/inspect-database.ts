@@ -4,7 +4,6 @@ async function inspectDatabase() {
   try {
     console.log('🔍 Inspecting Database...\n')
 
-    // Count records in each table
     const tempCount = await prisma.temporarySubmission.count()
     const submissionCount = await prisma.submission.count()
 
@@ -12,7 +11,6 @@ async function inspectDatabase() {
     console.log(`  TemporarySubmissions: ${tempCount}`)
     console.log(`  Submissions (permanent): ${submissionCount}\n`)
 
-    // Get recent temporary submissions
     if (tempCount > 0) {
       console.log('📝 Recent Temporary Submissions:')
       const tempSubmissions = await prisma.temporarySubmission.findMany({
@@ -28,7 +26,6 @@ async function inspectDatabase() {
       console.table(tempSubmissions)
     }
 
-    // Get recent permanent submissions
     if (submissionCount > 0) {
       console.log('\n✅ Recent Permanent Submissions:')
       const submissions = await prisma.submission.findMany({
@@ -46,7 +43,6 @@ async function inspectDatabase() {
       console.table(submissions)
     }
 
-    // Check for expired temporary submissions
     const expiredCount = await prisma.temporarySubmission.count({
       where: {
         expiresAt: {
@@ -61,7 +57,6 @@ async function inspectDatabase() {
       )
     }
 
-    // Check for submissions by status
     const statusBreakdown = await prisma.submission.groupBy({
       by: ['status'],
       _count: true,

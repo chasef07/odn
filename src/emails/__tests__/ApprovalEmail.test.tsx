@@ -1,8 +1,3 @@
-/**
- * Tests for Approval Email Template
- * Tests dynamic subject lines, caregiver/appointment content, and work/school text
- */
-
 import { describe, it, expect } from 'vitest'
 import { render } from '@react-email/render'
 import { ApprovalEmail } from '../ApprovalEmail'
@@ -132,7 +127,6 @@ describe('ApprovalEmail - Body Text (from work/school)', () => {
       />
     )
 
-    // Caregiver + school = student taking care of family member
     expect(html).toContain('medically excused absence')
     expect(html).toContain('from school')
   })
@@ -180,7 +174,6 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
       />
     )
 
-    // Caregiver + school = student taking care of family member
     expect(html).toContain('school')
     expect(html).toContain('needs further verification')
   })
@@ -335,7 +328,6 @@ describe('ApprovalEmail - Contact Information', () => {
       <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
     )
 
-    // Point 1 should mention replying to hello@onlinedoctornote.com for changes
     expect(html).toContain('reply to')
     expect(html).toContain('hello@onlinedoctornote.com')
   })

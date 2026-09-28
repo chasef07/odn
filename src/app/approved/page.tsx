@@ -11,17 +11,14 @@ export default function ApprovedPage() {
   return (
     <LocalizedPage>
       <div className="text-foreground min-h-screen bg-white">
-        {/* Main Content - Centered */}
         <main className="mx-auto max-w-4xl px-6 py-12 text-center">
           <div className="mb-6 flex justify-end">
             <LanguageSwitch />
           </div>
-          {/* Congratulations Heading */}
           <h1 className="font-display text-foreground mb-10 text-4xl font-bold sm:text-5xl">
             Congratulations!
           </h1>
 
-          {/* Approval Checklist */}
           <div className="mx-auto mb-10 max-w-xl space-y-5 text-left">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-500" />
@@ -51,12 +48,10 @@ export default function ApprovedPage() {
             </div>
           </div>
 
-          {/* Pricing Callout */}
           <p className="text-muted-foreground mb-8 text-xl">
             Final step - just $24.95 for your official doctor&apos;s note.
           </p>
 
-          {/* Navigation Buttons */}
           <div className="flex items-center justify-between">
             <button
               type="button"

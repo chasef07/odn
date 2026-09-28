@@ -23,7 +23,9 @@
 - **Stripe-first architecture** — `TemporarySubmission` is written _before_ the `PaymentIntent`, with a metadata fallback so webhooks never lose a paid order.
 - **Doctor review portal** — Better Auth (bcrypt), Tinder-style card review, search/edit any submission, one-click re-approval that regenerates PDF and email.
 - **Medical-grade PDFs** — `@react-pdf/renderer` with Plus Jakarta Sans, state-specific license numbers for 46 states, returned by email on approval.
-- **Production-ready** — Prisma Accelerate (40× faster queries), Resend webhook handling for bounces, HIPAA-conscious UX, 369+ tests on PGlite so CI never touches prod.
+- **SMS support** — Telnyx inbound/outbound texting with automated support flows and an admin ticket queue.
+- **Note verification** — every issued note gets a record number and QR code that resolves to a public verification page.
+- **Production-ready** — Prisma Accelerate, Resend webhook handling for bounces, HIPAA-conscious UX, 680+ tests on PGlite so CI never touches prod.
 
 ---
 
@@ -36,6 +38,7 @@
 - **Auth** — Better Auth (email/password, bcrypt 10 rounds)
 - **Payments** — Stripe (API `2026-02-25.clover`) with webhook-driven fulfillment
 - **Email** — React Email + Resend; bounce tracking via Resend webhook
+- **SMS** — Telnyx
 - **PDF** — @react-pdf/renderer with @fontsource/plus-jakarta-sans
 - **Testing** — Vitest + Testing Library, PGlite per run
 - **Analytics** — Google Ads, Reddit Pixel
@@ -95,7 +98,7 @@ sequenceDiagram
 
 ### Prerequisites
 
-- **Node.js 22** (see `.github/workflows/test.yml`)
+- **Node.js 22** (see `.github/workflows/ci.yml`)
 - Stripe account + CLI (for local webhooks)
 - Resend account (sending API key)
 - PostgreSQL for production; local dev uses PGlite (no install needed)
@@ -131,8 +134,6 @@ This project ships with **PGlite** (via `@prisma/dev`) so you don't need a local
 
 Tests use `vitest.global-setup.ts` to start/stop PGlite around the run, so `npm test` is self-contained. CI never sees production credentials.
 
-Full walkthrough: [`docs/LOCAL_DEVELOPMENT_TESTING.md`](docs/LOCAL_DEVELOPMENT_TESTING.md).
-
 ### Stripe webhooks locally
 
 ```bash
@@ -155,11 +156,11 @@ VERIFICATION_BASE_URL=http://localhost:3000
 STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_PRICE_ID=price_...
+STRIPE_FRIENDS_FAMILY_PRICE_ID=price_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # Database
-DATABASE_URL=postgresql://...              # direct (migrations)
-PRISMA_DATABASE_URL=prisma+postgres://...  # Accelerate (runtime)
+DATABASE_URL=postgresql://...
 
 # Better Auth
 BETTER_AUTH_SECRET=...
@@ -168,10 +169,18 @@ BETTER_AUTH_URL=http://localhost:3000
 # Email (Resend)
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=noreply@yourdomain.com
+RESEND_WEBHOOK_SECRET=whsec_...
+
+# SMS (Telnyx)
+TELNYX_API_KEY=...
+TELNYX_FROM_NUMBER=+1...
+TELNYX_PUBLIC_KEY=...
+TELNYX_WEBHOOK_ENABLED=false
 
 # Doctor (PDF)
 DOCTOR_NAME="Dr. Your Name"
 DOCTOR_CREDENTIALS="MD"
+DOCTOR_NPI="..."
 DOCTOR_SIGNATURE_URL="/images/doctor-signature.png"
 
 # Cron
@@ -240,11 +249,20 @@ npm run test:coverage      # Coverage report
 npm run test:watch         # Watch mode
 
 # Quality
-npm run lint
-npm run format
-npm run format:check
-npx tsc --noEmit
+npm run lint               # ESLint, zero warnings allowed
+npm run typecheck          # tsc (unused locals/params are errors)
+npm run format             # Prettier write
+npm run format:check       # Prettier check
 ```
+
+---
+
+## Code Conventions
+
+- **No code comments.** The local ESLint rule `local/no-comments` (`eslint-rules/no-comments.mjs`) fails lint on any comment except tool directives (`eslint-disable…`, `@ts-expect-error`, `/// <reference>`). `npx eslint --fix` removes violations automatically.
+- **No dead code.** `noUnusedLocals` and `noUnusedParameters` are on, so unused imports and variables fail the typecheck.
+- **CI enforces everything.** `.github/workflows/ci.yml` runs Prisma validate, lint, Prettier, typecheck, tests, and a production build on every push and PR to `main`/`dev`.
+- **Never commit generated PDFs.** Scripts write to `generated-pdfs/` and `test-output/`, which are gitignored because they can contain patient data.
 
 ---
 
@@ -255,6 +273,10 @@ npx tsc --noEmit
 - **`/admin/review`** — card-style queue for pending submissions
 - **`/admin/search`** — search by name/email/ID; view + edit any submission
 - **`/admin/maybe` · `/approved` · `/denied`** — today's queues by status
+- **`/admin/support`** — SMS support ticket queue
+- **`/admin/analytics` · `/admin/friends-family`** — business and friends & family analytics
+
+Public sign-up is disabled. Create doctor accounts with `ADMIN_EMAIL=... ADMIN_NAME=... ADMIN_PASSWORD=... npx tsx scripts/create-doctor-user.ts`.
 
 Approval generates a PDF (blocking) then sends an email (non-blocking). Denial automatically refunds via Stripe and emails the patient. Re-approval of an already-approved submission regenerates a new PDF and sends a fresh email.
 
@@ -264,7 +286,8 @@ Approval generates a PDF (blocking) then sends an email (non-blocking). Denial a
 
 - Zod input validation on client and server (TLD whitelist rejects e.g. `.clm`)
 - Stripe webhook signature verification
-- Better Auth sessions in Postgres, bcrypt 10-round password hashes
+- Better Auth sessions in Postgres, bcrypt 10-round password hashes, public sign-up disabled
+- Every admin server action verifies the session before touching data
 - Timing-safe cron secret comparison
 - Env var validation on boot
 - CSRF (Next.js) and XSS (React escaping) out of the box
@@ -278,7 +301,7 @@ Deploys to Vercel. Required before going live:
 - [ ] Set `NEXT_PUBLIC_SITE_URL` and `BETTER_AUTH_URL` to the OnlineDoctorNote production domain
 - [ ] Set `VERIFICATION_BASE_URL` to `https://phealthclinic.com`
 - [ ] Swap to live Stripe keys and configure the webhook endpoint in the Stripe dashboard
-- [ ] Confirm `PRISMA_DATABASE_URL` points at the production Accelerate connection string
+- [ ] Confirm `DATABASE_URL` points at the production Cloud SQL database
 - [ ] Set `CRON_SECRET` and verify Vercel cron jobs are registered
 - [ ] Verify `RESEND_FROM_EMAIL` domain is verified with Resend
 
@@ -286,7 +309,7 @@ Deploys to Vercel. Required before going live:
 
 ## Releases
 
-See the [GitHub Releases](https://github.com/Data-Buddies-Solutions/onlinedoctornote/releases) page for version history and changelog.
+See the [GitHub Releases](https://github.com/Data-Buddies-Solutions/onlinedoctornote/releases) page for version history.
 
 ---
 

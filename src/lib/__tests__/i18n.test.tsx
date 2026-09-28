@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import sitemap from '@/app/sitemap'
 import {
   englishAlternates,
+  flowMetadata,
   localeFromPathname,
   localizedMetadata,
   localizePath,
@@ -74,13 +75,22 @@ describe('Spanish localization primitives', () => {
     })
     expect(metadata.openGraph).toMatchObject({ locale: 'es_US', url: '/es/faq' })
 
-    const flowMetadata = localizedMetadata({
+    const spanishFlowMetadata = localizedMetadata({
       path: '/review',
       title: 'Review',
       index: false,
     })
-    expect(flowMetadata.alternates).toMatchObject({ canonical: '/es/review' })
-    expect(flowMetadata.robots).toEqual({ index: false, follow: false })
+    expect(spanishFlowMetadata.alternates).toMatchObject({ canonical: '/es/review' })
+    expect(spanishFlowMetadata.robots).toEqual({ index: false, follow: false })
+  })
+
+  it('builds noindex English intake-flow metadata', () => {
+    expect(flowMetadata('/review', 'Review')).toEqual({
+      title: 'Review',
+      alternates: englishAlternates('/review'),
+      robots: { index: false, follow: false },
+    })
+    expect(flowMetadata('/start')).not.toHaveProperty('title')
   })
 
   it('includes reciprocal English and Spanish entries in the sitemap', () => {

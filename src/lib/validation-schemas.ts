@@ -1,8 +1,3 @@
-/**
- * Validation Schemas
- * Zod schemas for form validation
- */
-
 import { z } from 'zod'
 import { isAgeValid } from '@/lib/age-validators'
 import { compareDateOnly, getUTCDateOnlyParts, parseIsoDateOnly } from '@/lib/date-only'
@@ -72,7 +67,6 @@ export const guardianSchema = z.object({
   }),
 })
 
-// Common domain typos and their corrections
 const COMMON_DOMAIN_TYPOS: Record<string, string> = {
   'gnail.com': 'gmail.com',
   'gmai.com': 'gmail.com',
@@ -85,7 +79,6 @@ const COMMON_DOMAIN_TYPOS: Record<string, string> = {
   'yhoo.com': 'yahoo.com',
 }
 
-// Common TLD typos and their corrections
 const COMMON_TLD_TYPOS: Record<string, string> = {
   '.con': '.com',
   '.cmo': '.com',
@@ -99,7 +92,6 @@ const COMMON_TLD_TYPOS: Record<string, string> = {
   '.gvo': '.gov',
 }
 
-// Common valid TLDs (not exhaustive, but covers 95%+ of users)
 const COMMON_TLDS = [
   '.com',
   '.net',
@@ -141,7 +133,6 @@ export const page3Schema = z.object({
     .min(1, 'Email is required')
     .toLowerCase()
     .superRefine((email, ctx) => {
-      // Basic email format check
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
         ctx.addIssue({
@@ -151,11 +142,9 @@ export const page3Schema = z.object({
         return
       }
 
-      // Extract domain from email (everything after @)
       const atIndex = email.indexOf('@')
       const domain = email.slice(atIndex + 1)
 
-      // Check for common domain typos (e.g., gnail.com -> gmail.com)
       const domainSuggestion = COMMON_DOMAIN_TYPOS[domain]
       if (domainSuggestion) {
         const suggestedEmail = email.slice(0, atIndex + 1) + domainSuggestion
@@ -166,7 +155,6 @@ export const page3Schema = z.object({
         return
       }
 
-      // Extract TLD from email
       const lastDotIndex = email.lastIndexOf('.')
       if (lastDotIndex === -1) {
         ctx.addIssue({
@@ -178,7 +166,6 @@ export const page3Schema = z.object({
 
       const tld = email.slice(lastDotIndex)
 
-      // Check for common TLD typos and provide helpful suggestions
       const suggestion = COMMON_TLD_TYPOS[tld]
       if (suggestion) {
         ctx.addIssue({
@@ -188,7 +175,6 @@ export const page3Schema = z.object({
         return
       }
 
-      // Validate TLD is in common TLDs list
       const isValidTLD = COMMON_TLDS.some(
         (validTld) => tld === validTld || email.endsWith(validTld)
       )
@@ -289,7 +275,6 @@ export const page8Schema = z
   })
   .refine(
     (data) => {
-      // Either symptoms array has items OR otherSymptomText is provided
       const hasSymptoms = data.symptoms && data.symptoms.length > 0
       const hasOtherText = !!data.otherSymptomText?.trim()
       return hasSymptoms || hasOtherText
@@ -301,7 +286,6 @@ export const page8Schema = z
   )
   .refine(
     (data) => {
-      // If "other" is selected in symptoms, require otherSymptomText
       if (data.symptoms && data.symptoms.includes('other')) {
         return !!data.otherSymptomText?.trim()
       }

@@ -43,7 +43,6 @@ export default function BasicInfoPage() {
 
   const patientDateOfBirth = useWatch({ control, name: 'patientDateOfBirth' }) || ''
 
-  // Auto-capitalize name fields
   const handleNameChange =
     (field: 'patientFirstName' | 'patientLastName') => (e: React.ChangeEvent<HTMLInputElement>) => {
       const capitalized = e.target.value
@@ -60,7 +59,6 @@ export default function BasicInfoPage() {
     }
 
   const onSubmit = (data: FormData) => {
-    // Check age validation - only for "myself" option
     if (recipient === 'myself' && data.patientDateOfBirth) {
       if (!isAgeValid(data.patientDateOfBirth, 18)) {
         setError('patientDateOfBirth', {
@@ -72,7 +70,6 @@ export default function BasicInfoPage() {
 
     saveFormData(data)
 
-    // Navigate based on recipient
     if (recipient === 'someone_else') {
       router.push('/guardian-info')
     } else {
@@ -80,7 +77,6 @@ export default function BasicInfoPage() {
     }
   }
 
-  // Dynamic title based on recipient
   const pageTitle =
     recipient === 'myself'
       ? 'What is your information?'

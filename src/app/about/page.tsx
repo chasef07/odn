@@ -47,7 +47,6 @@ export function AboutPageContent() {
         </div>
       </section>
 
-      {/* Why We Started */}
       <section className="border-t border-gray-100 bg-gray-50 px-4 py-16 md:px-6 md:py-24">
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-8 text-3xl font-semibold tracking-tight text-gray-900">
@@ -73,7 +72,6 @@ export function AboutPageContent() {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="bg-gray-900 px-4 py-16 md:px-6 md:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="mb-4 text-3xl font-semibold tracking-tight text-white">

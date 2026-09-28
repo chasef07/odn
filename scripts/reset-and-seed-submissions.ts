@@ -128,7 +128,6 @@ async function resetAndSeedSubmissions() {
   try {
     console.log('🧹 Clearing all submissions from database...\n')
 
-    // Delete all submissions
     const deleteResult = await prisma.submission.deleteMany({})
     console.log(`✅ Deleted ${deleteResult.count} submissions\n`)
 

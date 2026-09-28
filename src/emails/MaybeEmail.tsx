@@ -11,7 +11,6 @@ import {
   Hr,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
-import * as React from 'react'
 import {
   DATES_EXCEED_ALLOWED_RANGE_REASON,
   DEFAULT_MAYBE_REASON,

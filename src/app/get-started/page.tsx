@@ -47,13 +47,11 @@ export default function Home() {
           <div className="mb-3 flex justify-end">
             <LanguageSwitch />
           </div>
-          {/* Top Bar: Progress + Trust Badges */}
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <FormProgress currentStep={CURRENT_STEP} />
             </div>
 
-            {/* Horizontal Trust Badges */}
             <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="text-primary h-4 w-4" />
@@ -66,7 +64,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Title */}
           <div className="mb-10 text-center">
             <h1 className="font-display text-foreground mb-4 text-4xl font-bold sm:text-5xl">
               Where are you located?
@@ -76,7 +73,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <FormCard spacing="space-y-2">
               <FormSelect
@@ -92,7 +88,6 @@ export default function Home() {
 
             <FormNavigation backRoute="/" isSubmitting={isSubmitting} />
 
-            {/* Social Proof - Bottom of Form */}
             <div className="space-y-3 pt-4 text-center">
               <div className="flex items-center justify-center gap-1">
                 {[...Array(5)].map((_, i) => (

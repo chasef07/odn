@@ -20,7 +20,6 @@ type FormData = {
 
 export default function AbsenceDatesPage() {
   const router = useRouter()
-  // Use local timezone to match user's calendar date
   const today = format(new Date(), 'yyyy-MM-dd')
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
@@ -41,7 +40,6 @@ export default function AbsenceDatesPage() {
   })
 
   const onSubmit = (data: FormData) => {
-    // Use centralized validation
     const validationData = {
       firstDayOff: data.firstDayOff,
       lastDayOff: data.lastDayOff,
@@ -50,7 +48,6 @@ export default function AbsenceDatesPage() {
     const validationErrors = validateAbsenceDates(validationData)
 
     if (validationErrors.length > 0) {
-      // Set errors on form
       validationErrors.forEach((error) => {
         setError(error.field as keyof FormData, {
           message: error.message,

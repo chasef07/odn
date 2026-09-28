@@ -1,8 +1,3 @@
-/**
- * Admin Dashboard Page
- * Shows statistics and start reviewing button
- */
-
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
@@ -14,7 +9,6 @@ import { LogoutButton } from '@/components/admin/LogoutButton'
 import { getDashboardStats } from './actions'
 
 export default async function AdminDashboardPage() {
-  // SECURITY: Check authentication
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -23,13 +17,11 @@ export default async function AdminDashboardPage() {
     redirect('/admin/login')
   }
 
-  // Fetch real stats from database
   const statsResult = await getDashboardStats()
 
   if (!statsResult.success || !statsResult.data) {
     return (
       <div>
-        {/* Header */}
         <header className="border-b bg-white shadow-sm">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between gap-4">
@@ -63,7 +55,6 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
@@ -76,7 +67,6 @@ export default async function AdminDashboardPage() {
       </header>
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-8">
-          {/* Page Header */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-foreground text-3xl font-bold">Dashboard</h1>
@@ -120,7 +110,6 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Stats Cards */}
           <AdminStats
             pendingCount={pendingCount}
             approvedToday={approvedToday}
@@ -129,7 +118,6 @@ export default async function AdminDashboardPage() {
             manualCount={manualCount}
           />
 
-          {/* Start Reviewing Button */}
           {pendingCount > 0 && (
             <div className="flex justify-center">
               <Link href="/admin/review" className="w-full sm:w-auto">
@@ -140,7 +128,6 @@ export default async function AdminDashboardPage() {
             </div>
           )}
 
-          {/* Empty State */}
           {pendingCount === 0 && (
             <div className="py-8 text-center">
               <h2 className="mb-2 text-2xl font-bold">All Caught Up!</h2>
