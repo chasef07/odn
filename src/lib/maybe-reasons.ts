@@ -71,6 +71,15 @@ export const MAYBE_REASONS = [
       'The doctor reviewed your intake form and needs additional details regarding your request for a note covering dates so far in advance for a current illness.\n\nPlease reply with why these future dates are needed, or let us know if you would like to modify the requested dates.',
   },
   {
+    value: 'UNDER_18',
+    label: 'Under 18 - parent/guardian authorization needed',
+    description: 'Patient is under 18 and needs parent or guardian authorization.',
+    sendsEmail: true,
+    requiresApprovedDays: false,
+    emailMessage:
+      'We reviewed your intake form and noticed that you are under the age of 18. In order to assist you, we require authorization from a parent or guardian.\n\nPlease have your parent or guardian email us from their email address to confirm their authorization and include their full name and date of birth.',
+  },
+  {
     value: 'INTERNAL_ONLY',
     label: 'Other - no message sent, internal issue',
     description: 'Internal cleanup or staff-only review.',
