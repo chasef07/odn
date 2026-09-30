@@ -92,7 +92,15 @@ export const ApprovalEmail = ({
                 <Column>
                   <Text className="m-0 text-base leading-relaxed text-gray-700">
                     Please review the note to make sure that the information is accurate. If you
-                    need us to make any changes, please reply to{' '}
+                    need us to make any changes, please text &ldquo;help&rdquo; to{' '}
+                    <Link
+                      href="sms:+18886611941"
+                      className="font-medium no-underline"
+                      style={{ color: '#009ed9' }}
+                    >
+                      (888) 661-1941
+                    </Link>{' '}
+                    to reach our support team. You can also reply to{' '}
                     <Link
                       href="mailto:hello@onlinedoctornote.com"
                       className="font-medium no-underline"
@@ -117,8 +125,8 @@ export const ApprovalEmail = ({
                     them to scan the QR code on the note.
                   </Text>
                   <Text className="mt-3 mb-0 text-base leading-relaxed text-gray-700">
-                    Please know that we will never provide any personal health information without
-                    your written request.
+                    Please know that if we are contacted to verify a note, we will never provide any
+                    personal health information without your written request.
                   </Text>
                 </Column>
               </Row>

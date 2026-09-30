@@ -148,7 +148,7 @@ describe('ApprovalEmail - Verification Text (employer/school)', () => {
     expect(html).toContain('needs further verification')
     expect(html).toContain('scan the QR code on the note')
     expect(html).toContain(
-      'Please know that we will never provide any personal health information without your written request.'
+      'Please know that if we are contacted to verify a note, we will never provide any personal health information without your written request.'
     )
     expect(html).not.toContain('onlinedoctornote.com/verify')
   })
@@ -338,6 +338,17 @@ describe('ApprovalEmail - Contact Information', () => {
     // Point 1 should mention replying to hello@onlinedoctornote.com for changes
     expect(html).toContain('reply to')
     expect(html).toContain('hello@onlinedoctornote.com')
+  })
+
+  it('should direct patients to text "help" to the support line in point 1', async () => {
+    const html = await render(
+      <ApprovalEmail patientName="John Doe" notePurpose="work" absenceReason="Feeling sick" />
+    )
+
+    expect(html).toContain('help')
+    expect(html).toContain('href="sms:+18886611941"')
+    expect(html).toContain('(888) 661-1941')
+    expect(html).toContain('to reach our support team')
   })
 })
 
