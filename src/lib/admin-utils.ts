@@ -19,6 +19,7 @@ export type DenialReason =
   | 'Refund (Customer)'
   | 'Refund (Denial)'
   | 'Under 18'
+  | 'Accommodations'
   | 'Other'
 
 export const DENIAL_REASON_OPTIONS: {
@@ -62,6 +63,12 @@ export const DENIAL_REASON_OPTIONS: {
     label: 'Under 18',
     description: 'Patient is under 18 years old (minor using parent/guardian info)',
     selectLabel: 'Under 18 - Patient is a minor',
+  },
+  {
+    value: 'Accommodations',
+    label: 'Accommodations',
+    description: 'Request is for workplace or school accommodations',
+    selectLabel: 'Accommodations - Cannot provide accommodation requests',
   },
   {
     value: 'Other',

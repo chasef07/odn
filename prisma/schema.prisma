@@ -153,7 +153,7 @@ model Submission {
   reviewedByUser    User?     @relation("ReviewedByUser", fields: [reviewedByAdminId], references: [id])
 
   // Denial Information (only if status = DENIED)
-  denialReason String? @map("denial_reason") // selectable: "Legal", "7+ days", "Duplicate", "Refund (Customer)", "Refund (Denial)", "Under 18", or "Other"; legacy rows may contain "Refund"
+  denialReason String? @map("denial_reason") // selectable: "Legal", "7+ days", "Duplicate", "Refund (Customer)", "Refund (Denial)", "Under 18", "Accommodations", or "Other"; legacy rows may contain "Refund"
 
   // Maybe Review Information (only if status = MAYBE)
   maybeReason       String?   @map("maybe_reason")

@@ -40,7 +40,7 @@ export function DenialReasonDialog({ open, onOpenChange, onConfirm }: DenialReas
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Select Denial Reason</DialogTitle>
           <DialogDescription>
@@ -48,7 +48,7 @@ export function DenialReasonDialog({ open, onOpenChange, onConfirm }: DenialReas
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="overflow-y-auto py-4">
           <RadioGroup
             value={selectedReason}
             onValueChange={(value) => setSelectedReason(value as DenialReason)}
