@@ -58,8 +58,59 @@ describe('POST /api/verify-payment', () => {
     expect(data).toEqual({
       status: 'succeeded',
       amount: 2999,
+      currency: null,
       email: 'test@example.com',
+      // sha256('test@example.com')
+      emailSha256: '973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b',
     })
+  })
+
+  it('should return currency and hash a normalized email for enhanced conversions', async () => {
+    mockRetrieve.mockResolvedValue({
+      id: 'pi_mock',
+      status: 'succeeded',
+      amount: 2495,
+      currency: 'usd',
+      metadata: { email: '  Test@Example.COM ' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
+      method: 'POST',
+      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(data.currency).toBe('usd')
+    expect(data.emailSha256).toBe(
+      '973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b'
+    )
+  })
+
+  it('should hash Gmail addresses after removing periods and plus suffixes', async () => {
+    mockRetrieve.mockResolvedValue({
+      id: 'pi_mock',
+      status: 'succeeded',
+      amount: 2495,
+      currency: 'usd',
+      metadata: { email: 'Jane.Doe+Shopping@googlemail.com' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
+      method: 'POST',
+      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    // Display email is unchanged; only the hash uses the normalized form
+    expect(data.email).toBe('Jane.Doe+Shopping@googlemail.com')
+    // sha256('janedoe@googlemail.com')
+    expect(data.emailSha256).toBe(
+      '338abf9ef1c8793cadc7bcf51ed595338eb727ed9e06ce3d91d566d60b975937'
+    )
   })
 
   it('should return null email when metadata is missing', async () => {
@@ -78,6 +129,7 @@ describe('POST /api/verify-payment', () => {
     const data = await response.json()
 
     expect(data.email).toBeNull()
+    expect(data.emailSha256).toBeNull()
   })
 
   it('should return null email when metadata.email is empty', async () => {

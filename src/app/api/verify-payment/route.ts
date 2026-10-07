@@ -1,5 +1,11 @@
+import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
+import { normalizeEmailForConversions } from '@/lib/conversion-tracking'
+
+function hashEmail(email: string): string {
+  return createHash('sha256').update(normalizeEmailForConversions(email)).digest('hex')
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,12 +17,15 @@ export async function POST(request: NextRequest) {
 
     // Retrieve the payment intent from Stripe to verify its status
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    const email = paymentIntent.metadata?.email || null
 
     // Return the actual payment status from Stripe along with the email
     return NextResponse.json({
       status: paymentIntent.status,
       amount: paymentIntent.amount,
-      email: paymentIntent.metadata?.email || null,
+      currency: paymentIntent.currency || null,
+      email,
+      emailSha256: email ? hashEmail(email) : null,
     })
   } catch (error) {
     console.error('Error verifying payment:', error)

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { FormLayout } from '@/components/form-layout'
 import { CheckCircle2 } from 'lucide-react'
 import { clearFormData } from '@/lib/form-storage'
+import { stripStripeSecretParams, trackPurchaseOnce } from '@/lib/conversion-tracking'
 
 const CURRENT_STEP = 10
 
@@ -13,6 +14,8 @@ export default function PaymentSuccessPage() {
   const [paymentIntent] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     const params = new URLSearchParams(window.location.search)
+    // Strip the client secret during the first render, before GTM reads the page URL
+    stripStripeSecretParams()
     return params.get('payment_intent')
   })
 
@@ -51,6 +54,14 @@ export default function PaymentSuccessPage() {
           if (data.email) {
             setEmail(data.email)
           }
+
+          // Conversion fires only after Stripe confirms the payment, once per order
+          trackPurchaseOnce({
+            transactionId: paymentIntent,
+            amountCents: data.amount,
+            currency: data.currency || 'usd',
+            emailSha256: data.emailSha256,
+          })
 
           // Clear form data after successful payment verification
           try {
