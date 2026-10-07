@@ -5,7 +5,6 @@ import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedR
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { z } from 'zod'
-import { format, parse } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import Link from 'next/link'
 import { Label } from '@/components/ui/label'
@@ -252,9 +251,9 @@ export default function ReviewPage() {
   const formatDate = (dateString?: string) => {
     if (!dateString) return t('Not provided')
     try {
-      // Parse date in local timezone to avoid off-by-one day issues
-      // dateString format is "yyyy-MM-dd"
-      const date = parse(dateString, 'yyyy-MM-dd', new Date())
+      // dateString format is "yyyy-MM-dd"; read it as midnight UTC so the
+      // UTC formatting below shows the same calendar day in every timezone
+      const date = new Date(`${dateString}T00:00:00Z`)
       return formatInTimeZone(
         date,
         'UTC',
