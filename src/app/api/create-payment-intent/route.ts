@@ -7,6 +7,11 @@ import { FormData } from '@/lib/form-storage'
 import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { getCachedPrice } from '@/lib/stripe-price'
 import { getOfferConfig, normalizeOfferCode, type PriceType } from '@/lib/offer-codes'
+import {
+  ATTRIBUTION_COOKIE,
+  attributionStripeMetadata,
+  parseAttributionCookie,
+} from '@/lib/attribution'
 
 /**
  * Attempts to cancel a Stripe payment intent with retries and exponential backoff
@@ -66,6 +71,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: offerConfig.missingConfigError }, { status: 500 })
     }
 
+    // Traffic source comes only from our first-party cookie, never from the request body
+    const attribution = parseAttributionCookie(request.cookies.get(ATTRIBUTION_COOKIE)?.value)
+    const { attribution: _clientAttribution, ...cleanFormData } = formData as FormData & {
+      attribution?: unknown
+    }
+    const storedFormData = attribution ? { ...cleanFormData, attribution } : cleanFormData
+
     const offerApplied = Boolean(offerConfig)
     const selectedPriceId = offerConfig ? offerPriceId! : process.env.STRIPE_PRICE_ID!
     const priceType: PriceType = offerConfig?.priceType ?? 'standard'
@@ -99,7 +111,7 @@ export async function POST(request: NextRequest) {
       const tempSubmission = await prisma.temporarySubmission.create({
         data: {
           paymentIntentId: `pending_${Date.now()}`, // Temporary placeholder
-          formData: formData as unknown as Record<string, unknown>,
+          formData: storedFormData as unknown as Record<string, unknown>,
           expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days - prevents premature cleanup if payment is delayed
         },
       })
@@ -134,6 +146,7 @@ export async function POST(request: NextRequest) {
           offer_code: offerConfig?.code ?? '',
           offer_price_id: offerApplied ? price.id : '',
           temporarySubmissionId: tempSubmissionId, // Add reference for webhook fallback
+          ...attributionStripeMetadata(attribution),
         },
       })
 

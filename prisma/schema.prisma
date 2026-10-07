@@ -103,6 +103,13 @@ model Submission {
   offerCode             String? @map("offer_code")
   offerPriceId          String? @map("offer_price_id")
 
+  // Marketing attribution (last non-direct touch before checkout; full detail in `attribution`)
+  attributionChannel String? @map("attribution_channel")
+  utmSource          String? @map("utm_source")
+  utmMedium          String? @map("utm_medium")
+  utmCampaign        String? @map("utm_campaign")
+  attribution        Json? // { first, last } touches with click IDs, referrer, landing path
+
   // Status Tracking
   status SubmissionStatus @default(PENDING_REVIEW)
 
@@ -193,6 +200,7 @@ model Submission {
   @@index([email, status])
   @@index([smsPhoneE164])
   @@index([offerCode])
+  @@index([attributionChannel, createdAt])
   @@map("submissions")
 }
 

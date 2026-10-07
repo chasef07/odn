@@ -392,6 +392,49 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
         </Card>
       </div>
 
+      {/* Sales by source */}
+      <Card className="p-0">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-gray-700">Sales by Source</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {currentAnalytics.sourceRows.length === 0 ? (
+            <div className="py-6 text-xs text-gray-400">No data</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-[10px] font-medium tracking-wider text-gray-500 uppercase">
+                  <th className="py-2 text-left font-medium">Source</th>
+                  <th className="py-2 text-right font-medium">Notes</th>
+                  <th className="py-2 text-right font-medium">Net Revenue</th>
+                  <th className="py-2 text-right font-medium">Approved</th>
+                  <th className="py-2 text-right font-medium">Refunded</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentAnalytics.sourceRows.map((row) => (
+                  <tr key={row.key} className="border-b last:border-0">
+                    <td className="py-1.5 font-medium text-gray-900">{row.label}</td>
+                    <td className="py-1.5 text-right text-gray-700 tabular-nums">
+                      {formatNumber(row.notes)}
+                    </td>
+                    <td className="py-1.5 text-right font-medium text-gray-950 tabular-nums">
+                      {formatCurrency(row.netRevenueCents)}
+                    </td>
+                    <td className="py-1.5 text-right text-gray-700 tabular-nums">
+                      {formatPercent(row.approvalRate)}
+                    </td>
+                    <td className="py-1.5 text-right text-gray-700 tabular-nums">
+                      {formatPercent(row.refundRate)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Tables */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="p-0">

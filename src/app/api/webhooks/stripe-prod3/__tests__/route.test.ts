@@ -366,6 +366,62 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(createArg.data.offerPriceId).toBe('price_friends_family_mock')
   })
 
+  it('stores attribution from the temporary submission on the submission', async () => {
+    const touch = {
+      channel: 'reddit',
+      source: 'reddit',
+      medium: 'paid',
+      campaign: 'fall_promo',
+      content: null,
+      term: null,
+      clickIds: { rdt_cid: 'r1' },
+      referrer: null,
+      landingPath: '/',
+      at: '2026-10-07T12:00:00.000Z',
+    }
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_attr',
+      paymentIntentId: 'pi_test_123',
+      formData: { ...validFormData, attribution: { first: touch, last: touch } },
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_attr',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    const createArg = mockSubmissionCreate.mock.calls[0][0]
+    expect(createArg.data.attributionChannel).toBe('reddit')
+    expect(createArg.data.utmSource).toBe('reddit')
+    expect(createArg.data.utmMedium).toBe('paid')
+    expect(createArg.data.utmCampaign).toBe('fall_promo')
+    expect(createArg.data.attribution).toEqual({ first: touch, last: touch })
+  })
+
+  it('leaves attribution empty when the temporary submission has none', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_none',
+      paymentIntentId: 'pi_test_123',
+      formData: validFormData,
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_none',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+    })
+
+    await POST(buildRequest())
+
+    const createArg = mockSubmissionCreate.mock.calls[0][0]
+    expect(createArg.data.attributionChannel).toBeNull()
+    expect(createArg.data.attribution).toBeUndefined()
+  })
+
   it('routes to MAYBE with an internal maybe reason note when absence exceeds 7 days', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
     const badFormData = {

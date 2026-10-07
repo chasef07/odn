@@ -26,6 +26,7 @@ function submission(
     email: overrides.email ?? 'jane@example.com',
     phone: overrides.phone ?? '(555) 111-2222',
     offerCode: overrides.offerCode ?? null,
+    attributionChannel: overrides.attributionChannel ?? null,
     paymentAmount: overrides.paymentAmount ?? 2495,
     stripeRefundId: overrides.stripeRefundId ?? null,
     refundedAt: overrides.refundedAt ?? null,
@@ -211,5 +212,53 @@ describe('business analytics', () => {
     expect(analytics.summary.repeatCustomerRateDeltaPoints).toBeNull()
     expect(analytics.insights.map((insight) => insight.title)).not.toContain('Refund rate watch')
     expect(analytics.insights.map((insight) => insight.title)).not.toContain('Refund rate steady')
+  })
+
+  it('breaks down period sales by attribution source with net revenue and rates', () => {
+    const analytics = buildBusinessAnalytics(
+      [
+        submission({ id: 'r1', attributionChannel: 'reddit', createdAt: daysAgo(1) }),
+        submission({
+          id: 'r2',
+          attributionChannel: 'reddit',
+          status: SubmissionStatus.DENIED,
+          stripeRefundId: 're_1',
+          refundedAt: daysAgo(1),
+          createdAt: daysAgo(2),
+        }),
+        submission({ id: 'g1', attributionChannel: 'google_ads', createdAt: daysAgo(3) }),
+        submission({ id: 'old', createdAt: daysAgo(4) }),
+        submission({ id: 'outside', attributionChannel: 'reddit', createdAt: daysAgo(60) }),
+      ],
+      referenceDate
+    )
+
+    // Equal net revenue, so rows with more notes come first
+    expect(analytics.sourceRows).toEqual([
+      expect.objectContaining({
+        key: 'reddit',
+        label: 'Reddit Ads',
+        notes: 2,
+        netRevenueCents: 2495,
+        approvedNotes: 1,
+        approvalRate: 0.5,
+        refundedNotes: 1,
+        refundRate: 0.5,
+      }),
+      expect.objectContaining({
+        key: 'google_ads',
+        label: 'Google Ads',
+        notes: 1,
+        netRevenueCents: 2495,
+        approvalRate: 1,
+        refundRate: 0,
+      }),
+      expect.objectContaining({
+        key: 'untracked',
+        label: 'Not tracked',
+        notes: 1,
+        netRevenueCents: 2495,
+      }),
+    ])
   })
 })

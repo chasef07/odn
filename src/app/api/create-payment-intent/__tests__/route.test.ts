@@ -55,6 +55,7 @@ vi.mock('stripe', () => {
 
 // Import after mocks
 import { POST } from '../route'
+import { serializeAttributionCookie } from '@/lib/attribution'
 
 describe('POST /api/create-payment-intent', () => {
   let originalEnv: NodeJS.ProcessEnv
@@ -634,6 +635,85 @@ describe('POST /api/create-payment-intent', () => {
         }),
       })
     )
+  })
+
+  it('stores attribution from the first-party cookie and ignores attribution in the body', async () => {
+    const attribution = {
+      first: {
+        channel: 'reddit',
+        source: 'reddit',
+        medium: 'paid',
+        campaign: 'fall_promo',
+        content: null,
+        term: null,
+        clickIds: { rdt_cid: 'r1' },
+        referrer: null,
+        landingPath: '/',
+        at: '2026-10-07T12:00:00.000Z',
+      },
+      last: {
+        channel: 'reddit',
+        source: 'reddit',
+        medium: 'paid',
+        campaign: '20%off',
+        content: null,
+        term: null,
+        clickIds: { rdt_cid: 'r1' },
+        referrer: null,
+        landingPath: '/',
+        at: '2026-10-07T12:00:00.000Z',
+      },
+    } as const
+    mockPrismaCreate.mockResolvedValue({ id: 'temp_attr' })
+    mockPaymentIntentCreate.mockResolvedValue({ id: 'pi_attr', client_secret: 'secret' })
+    mockPrismaUpdate.mockResolvedValue({})
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({
+        formData: { ...mockFormData, attribution: { spoofed: true } },
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        cookie: `odn_attr=${serializeAttributionCookie(attribution)!}`,
+      },
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockPrismaCreate.mock.calls[0][0].data.formData).toEqual({
+      ...mockFormData,
+      attribution,
+    })
+    expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          attr_channel: 'reddit',
+          attr_source: 'reddit',
+          attr_medium: 'paid',
+          attr_campaign: '20%off',
+          attr_first_channel: 'reddit',
+        }),
+      })
+    )
+  })
+
+  it('drops client-supplied attribution when there is no cookie', async () => {
+    mockPrismaCreate.mockResolvedValue({ id: 'temp_no_attr' })
+    mockPaymentIntentCreate.mockResolvedValue({ id: 'pi_no_attr', client_secret: 'secret' })
+    mockPrismaUpdate.mockResolvedValue({})
+
+    const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ formData: { ...mockFormData, attribution: { spoofed: true } } }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    await POST(request)
+
+    expect(mockPrismaCreate.mock.calls[0][0].data.formData).toEqual(mockFormData)
+    expect(mockPaymentIntentCreate.mock.calls[0][0].metadata).not.toHaveProperty('attr_channel')
   })
 
   it('should handle Stripe API errors', async () => {

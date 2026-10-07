@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import './globals.css'
 import '@/lib/env' // Validate environment variables on startup
 import OfferCodeCapture from '@/components/OfferCodeCapture'
+import AttributionCapture from '@/components/AttributionCapture'
 import { I18nProvider } from '@/components/i18n/I18nProvider'
 import { englishAlternates, translate, type Locale } from '@/lib/i18n'
 import { getVerificationBaseUrl, isVerificationHostname } from '@/lib/verification-url'
@@ -201,6 +202,7 @@ export default async function RootLayout({
         )}
         <I18nProvider>
           {!verificationHost && <OfferCodeCapture />}
+          {!verificationHost && <AttributionCapture />}
           {children}
         </I18nProvider>
       </body>

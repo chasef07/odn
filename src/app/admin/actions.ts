@@ -477,6 +477,7 @@ export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {
       email: string
       phone: string
       offerCode: string | null
+      attributionChannel: string | null
       paymentAmount: number | null
       stripeRefundId: string | null
       refundedAt: Date | null
@@ -496,6 +497,7 @@ export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {
           email: true,
           phone: true,
           offerCode: true,
+          attributionChannel: true,
           paymentAmount: true,
           stripeRefundId: true,
           refundedAt: true,

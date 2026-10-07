@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { SubmissionStatus } from '@prisma/client'
+import { Prisma, SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { stripe } from '@/lib/stripe'
 import { logger } from '@/lib/logger'
@@ -11,6 +11,7 @@ import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
 import { INTERNAL_ONLY_MAYBE_REASON } from '@/lib/maybe-reasons'
+import { parseAttribution } from '@/lib/attribution'
 import { revalidatePath } from 'next/cache'
 
 export async function POST(request: NextRequest) {
@@ -150,6 +151,9 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = tempSubmission.formData as FormData
+    const attribution = parseAttribution(
+      (tempSubmission.formData as { attribution?: unknown }).attribution
+    )
 
     // 8. Re-validate paid submission data server-side. This is the last gate
     // before we write a permanent record: even if the payment-intent API was
@@ -207,6 +211,11 @@ export async function POST(request: NextRequest) {
           paymentAmount: paymentIntent.amount,
           offerCode: paymentIntent.metadata?.offer_code || null,
           offerPriceId: paymentIntent.metadata?.offer_price_id || null,
+          attributionChannel: attribution?.last.channel ?? null,
+          utmSource: attribution?.last.source ?? null,
+          utmMedium: attribution?.last.medium ?? null,
+          utmCampaign: attribution?.last.campaign ?? null,
+          attribution: attribution ? (attribution as unknown as Prisma.InputJsonValue) : undefined,
           status: hasValidationFailure ? SubmissionStatus.MAYBE : SubmissionStatus.PENDING_REVIEW,
           denialReason: null,
           maybeReason: hasValidationFailure ? INTERNAL_ONLY_MAYBE_REASON : null,

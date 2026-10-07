@@ -1,5 +1,6 @@
 import { SubmissionStatus } from '@prisma/client'
 import { normalizeOfferCode } from '@/lib/offer-codes'
+import { ATTRIBUTION_CHANNEL_LABELS, type AttributionChannel } from '@/lib/attribution'
 
 export type BusinessAnalyticsRange =
   | '7d'
@@ -27,6 +28,7 @@ export type BusinessAnalyticsSubmissionInput = {
   email: string
   phone: string
   offerCode: string | null
+  attributionChannel?: string | null
   paymentAmount: number | null
   stripeRefundId: string | null
   refundedAt: Date | null
@@ -84,6 +86,17 @@ export type BusinessAnalyticsBreakdownRow = {
   rate: number
 }
 
+export type BusinessAnalyticsSourceRow = {
+  key: string
+  label: string
+  notes: number
+  netRevenueCents: number
+  approvedNotes: number
+  approvalRate: number
+  refundedNotes: number
+  refundRate: number
+}
+
 export type BusinessAnalyticsStateRow = {
   state: string
   notes: number
@@ -112,6 +125,7 @@ export type BusinessAnalytics = {
   summary: BusinessAnalyticsSummary
   trend: BusinessAnalyticsTrendPoint[]
   outcomeBreakdown: BusinessAnalyticsBreakdownRow[]
+  sourceRows: BusinessAnalyticsSourceRow[]
   stateRows: BusinessAnalyticsStateRow[]
   ageBands: BusinessAnalyticsAgeBand[]
   insights: BusinessAnalyticsInsight[]
@@ -604,6 +618,55 @@ function outcomeKey(status: SubmissionStatus): BusinessAnalyticsBreakdownRow['ke
   }
 }
 
+// Orders placed before attribution tracking launched have no channel.
+const UNTRACKED_SOURCE_KEY = 'untracked'
+
+function sourceLabel(key: string): string {
+  if (key === UNTRACKED_SOURCE_KEY) return 'Not tracked'
+  return ATTRIBUTION_CHANNEL_LABELS[key as AttributionChannel] ?? key
+}
+
+function buildSourceRows(
+  periodSubmissions: BusinessAnalyticsSubmissionInput[]
+): BusinessAnalyticsSourceRow[] {
+  const rows = new Map<string, BusinessAnalyticsSourceRow>()
+
+  for (const submission of periodSubmissions) {
+    const key = submission.attributionChannel?.trim() || UNTRACKED_SOURCE_KEY
+    const existing =
+      rows.get(key) ??
+      ({
+        key,
+        label: sourceLabel(key),
+        notes: 0,
+        netRevenueCents: 0,
+        approvedNotes: 0,
+        approvalRate: 0,
+        refundedNotes: 0,
+        refundRate: 0,
+      } satisfies BusinessAnalyticsSourceRow)
+    const paymentAmount = effectivePaymentCents(submission)
+    const refunded = isRefunded(submission)
+
+    existing.notes += 1
+    existing.netRevenueCents += refunded ? 0 : paymentAmount
+    existing.approvedNotes += submission.status === SubmissionStatus.APPROVED ? 1 : 0
+    existing.refundedNotes += refunded ? 1 : 0
+    rows.set(key, existing)
+  }
+
+  return Array.from(rows.values())
+    .map((row) => ({
+      ...row,
+      approvalRate: safeRate(row.approvedNotes, row.notes),
+      refundRate: safeRate(row.refundedNotes, row.notes),
+    }))
+    .sort((a, b) => {
+      if (b.netRevenueCents !== a.netRevenueCents) return b.netRevenueCents - a.netRevenueCents
+      return b.notes - a.notes
+    })
+}
+
 function buildStateRows(
   submissions: BusinessAnalyticsSubmissionInput[]
 ): BusinessAnalyticsStateRow[] {
@@ -875,6 +938,7 @@ export function buildBusinessAnalytics(
     summary,
     trend: buildTrend(periodSubmissions, period),
     outcomeBreakdown: buildOutcomeBreakdown(periodSubmissions),
+    sourceRows: buildSourceRows(periodSubmissions),
     stateRows,
     ageBands: buildAgeBands(allSubmissions, referenceDate),
     insights: buildInsights(summary, stateRows),
