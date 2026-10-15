@@ -584,14 +584,11 @@ describe('approveSubmission - Approval Automation', () => {
       expect(mockSendApprovalEmail).not.toHaveBeenCalled()
     })
 
-    it('should fail if no authenticated doctor session', async () => {
+    it('redirects to the admin login without a session', async () => {
       mockGetSession.mockResolvedValue(null)
 
-      const result = await approveSubmission(mockSubmissionId)
-
-      expect(result).toEqual({
-        success: false,
-        error: 'Failed to approve submission: Unauthorized: No active session',
+      await expect(approveSubmission(mockSubmissionId)).rejects.toMatchObject({
+        digest: expect.stringContaining(';/admin/login;'),
       })
 
       expect(mockFindUnique).not.toHaveBeenCalled()

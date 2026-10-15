@@ -1,21 +1,13 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
 import { Search } from 'lucide-react'
-import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { Button } from '@/components/ui/button'
 import { getMaybeSubmissions, getManualSubmissions } from '@/app/admin/_actions/queues'
 import { MaybePortalTabs } from '@/components/admin/MaybePortalTabs'
+import { requireAdminSession } from '@/lib/admin-session'
 
 export default async function MaybePortalPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
-
-  if (!session?.user) {
-    redirect('/admin/login')
-  }
+  const admin = await requireAdminSession()
 
   const [maybeResult, manualResult] = await Promise.all([
     getMaybeSubmissions(),
@@ -32,7 +24,7 @@ export default async function MaybePortalPage() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground truncate text-sm">{session.user.email}</span>
+              <span className="text-muted-foreground truncate text-sm">{admin.email}</span>
             </div>
             <LogoutButton />
           </div>

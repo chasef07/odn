@@ -1,20 +1,12 @@
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
-import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { FriendsFamilyAnalyticsDashboard } from '@/components/admin/FriendsFamilyAnalyticsDashboard'
 import { getFriendsFamilyAnalytics } from '@/app/admin/_actions/analytics'
+import { requireAdminSession } from '@/lib/admin-session'
 
 export default async function FriendsFamilyAnalyticsPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
-
-  if (!session?.user) {
-    redirect('/admin/login')
-  }
+  const admin = await requireAdminSession()
 
   const analyticsResult = await getFriendsFamilyAnalytics({
     segment: 'best_targets',
@@ -32,7 +24,7 @@ export default async function FriendsFamilyAnalyticsPage() {
               </span>
             </Link>
             <div className="flex items-center gap-4">
-              <span className="hidden text-sm text-gray-600 sm:block">{session.user.email}</span>
+              <span className="hidden text-sm text-gray-600 sm:block">{admin.email}</span>
               <LogoutButton />
             </div>
           </div>

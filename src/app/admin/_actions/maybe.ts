@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { type MaybeApprovedDays, type MaybeReason } from '@/lib/maybe-reasons'
-import { getCurrentDoctor, moveSubmissionToMaybe } from './shared'
+import { moveSubmissionToMaybe } from './shared'
+import { adminAction } from '@/lib/admin-session'
 
 export type MaybeSubmissionInput = {
   reason: MaybeReason | string
@@ -13,26 +14,24 @@ export type MaybeSubmissionInput = {
   approvedDays?: MaybeApprovedDays | number
 }
 
-export async function maybeSubmission(submissionId: string, input: MaybeSubmissionInput) {
-  try {
-    const doctorId = await getCurrentDoctor()
-
-    return await moveSubmissionToMaybe({
-      submissionId,
-      doctorId,
-      input,
-      revalidatePaths: ['/admin', '/admin/review', '/admin/maybe'],
-    })
-  } catch (error) {
-    logger.error('Error marking submission as maybe:', error)
-    return { success: false, error: 'Failed to mark submission as maybe' }
+export const maybeSubmission = adminAction(
+  async ({ doctorId }, submissionId: string, input: MaybeSubmissionInput) => {
+    try {
+      return await moveSubmissionToMaybe({
+        submissionId,
+        doctorId,
+        input,
+        revalidatePaths: ['/admin', '/admin/review', '/admin/maybe'],
+      })
+    } catch (error) {
+      logger.error('Error marking submission as maybe:', error)
+      return { success: false, error: 'Failed to mark submission as maybe' }
+    }
   }
-}
+)
 
-export async function markAsManual(submissionId: string) {
+export const markAsManual = adminAction(async ({ doctorId }, submissionId: string) => {
   try {
-    const doctorId = await getCurrentDoctor()
-
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
       select: { status: true },
@@ -67,4 +66,4 @@ export async function markAsManual(submissionId: string) {
     logger.error('Error marking submission as manual:', error)
     return { success: false, error: 'Failed to mark submission as manual' }
   }
-}
+})

@@ -1,10 +1,8 @@
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { auth } from '@/lib/auth'
 import { SearchPage } from '@/components/admin/SearchPage'
 import { searchSubmissions, type AdminSearchType } from '@/app/admin/_actions/search'
 import { LogoutButton } from '@/components/admin/LogoutButton'
+import { requireAdminSession } from '@/lib/admin-session'
 
 interface PageProps {
   searchParams: Promise<{
@@ -25,13 +23,7 @@ function isAdminSearchType(value: string | undefined): value is AdminSearchType 
 }
 
 export default async function AdminSearchPage({ searchParams }: PageProps) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
-
-  if (!session?.user) {
-    redirect('/admin/login')
-  }
+  const admin = await requireAdminSession()
 
   const params = await searchParams
   const query = params.q || ''
@@ -66,7 +58,7 @@ export default async function AdminSearchPage({ searchParams }: PageProps) {
               </span>
             </Link>
             <div className="flex items-center gap-4">
-              <span className="hidden text-sm text-gray-600 sm:block">{session.user.email}</span>
+              <span className="hidden text-sm text-gray-600 sm:block">{admin.email}</span>
               <LogoutButton />
             </div>
           </div>

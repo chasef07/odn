@@ -8,7 +8,8 @@ import {
   SMS_SUPPORT_STATE,
   SMS_SUPPORT_STATUS,
 } from '@/lib/sms-support-types'
-import { requireAdmin, revalidateSupportPaths } from './shared'
+import { revalidateSupportPaths } from './shared'
+import { adminAction } from '@/lib/admin-session'
 
 const ACTIVE_TICKET_STATUSES = [
   SMS_SUPPORT_STATUS.OPEN,
@@ -116,9 +117,7 @@ export type SupportTicketDetail = Prisma.SmsSupportTicketGetPayload<{
   include: typeof supportTicketDetailInclude
 }>
 
-export async function getSupportTickets(status?: string) {
-  await requireAdmin()
-
+export const getSupportTickets = adminAction(async (_admin, status?: string) => {
   const tickets = status
     ? await prisma.smsSupportTicket.findMany({
         where: { status },
@@ -129,102 +128,100 @@ export async function getSupportTickets(status?: string) {
     : await getDefaultSupportTicketQueue()
 
   return { success: true, tickets: tickets as SupportTicketListItem[] }
-}
+})
 
-export async function getSupportTicket(ticketId: string) {
-  await requireAdmin()
-
+export const getSupportTicket = adminAction(async (_admin, ticketId: string) => {
   const ticket = await prisma.smsSupportTicket.findUnique({
     where: { id: ticketId },
     include: supportTicketDetailInclude,
   })
 
   return { success: true, ticket: ticket as SupportTicketDetail | null }
-}
+})
 
-export async function createSupportTicketFromSubmission(submissionId: string) {
-  try {
-    await requireAdmin()
+export const createSupportTicketFromSubmission = adminAction(
+  async (_admin, submissionId: string) => {
+    try {
+      const submission = await prisma.submission.findUnique({
+        where: { id: submissionId },
+        select: {
+          id: true,
+          smsOptIn: true,
+          smsPhoneE164: true,
+          patientFirstName: true,
+          patientLastName: true,
+        },
+      })
 
-    const submission = await prisma.submission.findUnique({
-      where: { id: submissionId },
-      select: {
-        id: true,
-        smsOptIn: true,
-        smsPhoneE164: true,
-        patientFirstName: true,
-        patientLastName: true,
-      },
-    })
+      if (!submission) return { success: false, error: 'Submission not found' }
 
-    if (!submission) return { success: false, error: 'Submission not found' }
-
-    if (!submission.smsOptIn || !submission.smsPhoneE164) {
-      return {
-        success: false,
-        error: 'Submission has no SMS support consent. Customer must text HELP or opt in first.',
-      }
-    }
-
-    const phoneE164 = submission.smsPhoneE164
-    const phoneState = await prisma.smsPhoneState.findUnique({
-      where: { phoneE164 },
-      select: { optedOutAt: true },
-    })
-
-    if (phoneState?.optedOutAt) {
-      return {
-        success: false,
-        error: 'Phone number is opted out of SMS. Customer must text START before SMS support.',
-      }
-    }
-
-    const existingTicket = await prisma.smsSupportTicket.findFirst({
-      where: {
-        phoneE164,
-        status: { in: ACTIVE_TICKET_STATUSES },
-      },
-      orderBy: { updatedAt: 'desc' },
-      select: { id: true, status: true, submissionId: true },
-    })
-
-    if (existingTicket) {
-      if (
-        existingTicket.status !== SMS_SUPPORT_STATUS.RUNNING_AUTOMATION &&
-        existingTicket.submissionId !== submissionId
-      ) {
-        await prisma.smsSupportTicket.update({
-          where: { id: existingTicket.id },
-          data: { submissionId },
-        })
-        revalidateSupportPaths(existingTicket.id, existingTicket.submissionId)
+      if (!submission.smsOptIn || !submission.smsPhoneE164) {
+        return {
+          success: false,
+          error: 'Submission has no SMS support consent. Customer must text HELP or opt in first.',
+        }
       }
 
-      revalidateSupportPaths(existingTicket.id, submissionId)
-      return { success: true, ticketId: existingTicket.id }
+      const phoneE164 = submission.smsPhoneE164
+      const phoneState = await prisma.smsPhoneState.findUnique({
+        where: { phoneE164 },
+        select: { optedOutAt: true },
+      })
+
+      if (phoneState?.optedOutAt) {
+        return {
+          success: false,
+          error: 'Phone number is opted out of SMS. Customer must text START before SMS support.',
+        }
+      }
+
+      const existingTicket = await prisma.smsSupportTicket.findFirst({
+        where: {
+          phoneE164,
+          status: { in: ACTIVE_TICKET_STATUSES },
+        },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, status: true, submissionId: true },
+      })
+
+      if (existingTicket) {
+        if (
+          existingTicket.status !== SMS_SUPPORT_STATUS.RUNNING_AUTOMATION &&
+          existingTicket.submissionId !== submissionId
+        ) {
+          await prisma.smsSupportTicket.update({
+            where: { id: existingTicket.id },
+            data: { submissionId },
+          })
+          revalidateSupportPaths(existingTicket.id, existingTicket.submissionId)
+        }
+
+        revalidateSupportPaths(existingTicket.id, submissionId)
+        return { success: true, ticketId: existingTicket.id }
+      }
+
+      const ticket = await prisma.smsSupportTicket.create({
+        data: {
+          phoneE164,
+          submissionId,
+          status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+          category: SMS_SUPPORT_CATEGORY.OTHER,
+          state: SMS_SUPPORT_STATE.CSR_REVIEW,
+          source: SMS_SUPPORT_SOURCE.ADMIN_CREATED,
+          adminSummary: `Admin opened support ticket for ${submission.patientFirstName} ${submission.patientLastName}.`,
+        },
+        select: { id: true },
+      })
+
+      revalidateSupportPaths(ticket.id, submissionId)
+
+      return { success: true, ticketId: ticket.id }
+    } catch (error) {
+      console.error('Failed to create support ticket:', error)
+      return { success: false, error: 'Failed to create support ticket' }
     }
-
-    const ticket = await prisma.smsSupportTicket.create({
-      data: {
-        phoneE164,
-        submissionId,
-        status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-        category: SMS_SUPPORT_CATEGORY.OTHER,
-        state: SMS_SUPPORT_STATE.CSR_REVIEW,
-        source: SMS_SUPPORT_SOURCE.ADMIN_CREATED,
-        adminSummary: `Admin opened support ticket for ${submission.patientFirstName} ${submission.patientLastName}.`,
-      },
-      select: { id: true },
-    })
-
-    revalidateSupportPaths(ticket.id, submissionId)
-
-    return { success: true, ticketId: ticket.id }
-  } catch (error) {
-    console.error('Failed to create support ticket:', error)
-    return { success: false, error: 'Failed to create support ticket' }
   }
-}
+)
 
 async function getDefaultSupportTicketQueue() {
   const activeTickets = await prisma.smsSupportTicket.findMany({

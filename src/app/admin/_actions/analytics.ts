@@ -19,7 +19,7 @@ import {
   type BusinessAnalyticsOptions,
   type BusinessAnalyticsRange,
 } from '@/lib/business-analytics'
-import { getCurrentDoctor } from './shared'
+import { adminAction } from '@/lib/admin-session'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -95,46 +95,55 @@ async function fetchFriendsFamilySubmissions(
   return submissions
 }
 
-export async function getFriendsFamilyAnalytics(
-  options: FriendsFamilyAnalyticsOptions = {}
-): Promise<{
-  success: boolean
-  data?: FriendsFamilyAnalytics
-  error?: string
-}> {
-  try {
-    await getCurrentDoctor()
-    const referenceDate = new Date()
-    const submissions = await fetchFriendsFamilySubmissions(referenceDate)
+export const getFriendsFamilyAnalytics = adminAction(
+  async (
+    _admin,
+    options: FriendsFamilyAnalyticsOptions = {}
+  ): Promise<{
+    success: boolean
+    data?: FriendsFamilyAnalytics
+    error?: string
+  }> => {
+    try {
+      const referenceDate = new Date()
+      const submissions = await fetchFriendsFamilySubmissions(referenceDate)
 
-    return { success: true, data: buildFriendsFamilyAnalytics(submissions, referenceDate, options) }
-  } catch (error) {
-    logger.error('Error fetching friends and family analytics:', error)
-    return { success: false, error: 'Failed to fetch friends and family analytics' }
+      return {
+        success: true,
+        data: buildFriendsFamilyAnalytics(submissions, referenceDate, options),
+      }
+    } catch (error) {
+      logger.error('Error fetching friends and family analytics:', error)
+      return { success: false, error: 'Failed to fetch friends and family analytics' }
+    }
   }
-}
+)
 
-export async function exportFriendsFamilyCustomers(options: {
-  segment: FriendsFamilySegmentFilter
-}): Promise<{
-  success: boolean
-  data?: FriendsFamilyCustomerRow[]
-  error?: string
-}> {
-  try {
-    await getCurrentDoctor()
-    const referenceDate = new Date()
-    const submissions = await fetchFriendsFamilySubmissions(referenceDate)
-    const result = buildFriendsFamilyAnalytics(submissions, referenceDate, {
-      segment: options.segment,
-      limit: 50_000,
-    })
-    return { success: true, data: result.customers }
-  } catch (error) {
-    logger.error('Error exporting friends and family customers:', error)
-    return { success: false, error: 'Failed to export customer list' }
+export const exportFriendsFamilyCustomers = adminAction(
+  async (
+    _admin,
+    options: {
+      segment: FriendsFamilySegmentFilter
+    }
+  ): Promise<{
+    success: boolean
+    data?: FriendsFamilyCustomerRow[]
+    error?: string
+  }> => {
+    try {
+      const referenceDate = new Date()
+      const submissions = await fetchFriendsFamilySubmissions(referenceDate)
+      const result = buildFriendsFamilyAnalytics(submissions, referenceDate, {
+        segment: options.segment,
+        limit: 50_000,
+      })
+      return { success: true, data: result.customers }
+    } catch (error) {
+      logger.error('Error exporting friends and family customers:', error)
+      return { success: false, error: 'Failed to export customer list' }
+    }
   }
-}
+)
 
 function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWhereInput | null {
   const separatorIndex = customerKey.indexOf(':')
@@ -198,126 +207,133 @@ function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWh
   return null
 }
 
-export async function getFriendsFamilyCustomerDetail(customerKey: string): Promise<{
-  success: boolean
-  data?: FriendsFamilyCustomerSegment
-  error?: string
-}> {
-  try {
-    await getCurrentDoctor()
+export const getFriendsFamilyCustomerDetail = adminAction(
+  async (
+    _admin,
+    customerKey: string
+  ): Promise<{
+    success: boolean
+    data?: FriendsFamilyCustomerSegment
+    error?: string
+  }> => {
+    try {
+      const where = getFriendsFamilyCustomerWhere(customerKey)
+      if (!where) {
+        return { success: false, error: 'Customer not found' }
+      }
 
-    const where = getFriendsFamilyCustomerWhere(customerKey)
-    if (!where) {
-      return { success: false, error: 'Customer not found' }
-    }
-
-    const submissions = await prisma.submission.findMany({
-      where,
-      select: {
-        id: true,
-        status: true,
-        patientFirstName: true,
-        patientLastName: true,
-        patientDateOfBirth: true,
-        guardianFirstName: true,
-        guardianLastName: true,
-        recipient: true,
-        email: true,
-        phone: true,
-        notePurpose: true,
-        firstDayOff: true,
-        lastDayOff: true,
-        denialReason: true,
-        maybeReason: true,
-        stripeRefundId: true,
-        refundedAt: true,
-        offerCode: true,
-        paymentAmount: true,
-        createdAt: true,
-        reviewedAt: true,
-        approvalEmailSentAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    const customer = buildFriendsFamilyCustomerDetail(submissions, customerKey)
-    if (!customer) {
-      return { success: false, error: 'Customer not found' }
-    }
-
-    return { success: true, data: customer }
-  } catch (error) {
-    logger.error('Error fetching friends and family customer detail:', error)
-    return { success: false, error: 'Failed to fetch customer detail' }
-  }
-}
-
-export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {}): Promise<{
-  success: boolean
-  data?: BusinessAnalytics
-  error?: string
-}> {
-  try {
-    await getCurrentDoctor()
-    const referenceDate = new Date()
-    const range = options.range ?? '30d'
-    const fetchStart = businessAnalyticsFetchStart(range, referenceDate)
-
-    const submissions: Array<{
-      id: string
-      status: SubmissionStatus
-      state: string
-      patientFirstName: string
-      patientLastName: string
-      patientDateOfBirth: Date
-      email: string
-      phone: string
-      offerCode: string | null
-      attributionChannel: string | null
-      paymentAmount: number | null
-      stripeRefundId: string | null
-      refundedAt: Date | null
-      createdAt: Date
-    }> = []
-    let cursor: string | undefined
-    while (submissions.length < BUSINESS_ANALYTICS_MAX_ROWS) {
-      const page = await prisma.submission.findMany({
-        where: { createdAt: { gte: fetchStart } },
+      const submissions = await prisma.submission.findMany({
+        where,
         select: {
           id: true,
           status: true,
-          state: true,
           patientFirstName: true,
           patientLastName: true,
           patientDateOfBirth: true,
+          guardianFirstName: true,
+          guardianLastName: true,
+          recipient: true,
           email: true,
           phone: true,
-          offerCode: true,
-          attributionChannel: true,
-          paymentAmount: true,
+          notePurpose: true,
+          firstDayOff: true,
+          lastDayOff: true,
+          denialReason: true,
+          maybeReason: true,
           stripeRefundId: true,
           refundedAt: true,
+          offerCode: true,
+          paymentAmount: true,
           createdAt: true,
+          reviewedAt: true,
+          approvalEmailSentAt: true,
         },
-        orderBy: { id: 'asc' },
-        take: BUSINESS_ANALYTICS_PAGE_SIZE,
-        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        orderBy: { createdAt: 'desc' },
       })
-      if (page.length === 0) break
-      submissions.push(...page)
-      if (page.length < BUSINESS_ANALYTICS_PAGE_SIZE) break
-      cursor = page[page.length - 1].id
-    }
 
-    return {
-      success: true,
-      data: buildBusinessAnalytics(submissions, referenceDate, {
-        ...options,
-        range,
-      }),
+      const customer = buildFriendsFamilyCustomerDetail(submissions, customerKey)
+      if (!customer) {
+        return { success: false, error: 'Customer not found' }
+      }
+
+      return { success: true, data: customer }
+    } catch (error) {
+      logger.error('Error fetching friends and family customer detail:', error)
+      return { success: false, error: 'Failed to fetch customer detail' }
     }
-  } catch (error) {
-    logger.error('Error fetching business analytics:', error)
-    return { success: false, error: 'Failed to fetch business analytics' }
   }
-}
+)
+
+export const getBusinessAnalytics = adminAction(
+  async (
+    _admin,
+    options: BusinessAnalyticsOptions = {}
+  ): Promise<{
+    success: boolean
+    data?: BusinessAnalytics
+    error?: string
+  }> => {
+    try {
+      const referenceDate = new Date()
+      const range = options.range ?? '30d'
+      const fetchStart = businessAnalyticsFetchStart(range, referenceDate)
+
+      const submissions: Array<{
+        id: string
+        status: SubmissionStatus
+        state: string
+        patientFirstName: string
+        patientLastName: string
+        patientDateOfBirth: Date
+        email: string
+        phone: string
+        offerCode: string | null
+        attributionChannel: string | null
+        paymentAmount: number | null
+        stripeRefundId: string | null
+        refundedAt: Date | null
+        createdAt: Date
+      }> = []
+      let cursor: string | undefined
+      while (submissions.length < BUSINESS_ANALYTICS_MAX_ROWS) {
+        const page = await prisma.submission.findMany({
+          where: { createdAt: { gte: fetchStart } },
+          select: {
+            id: true,
+            status: true,
+            state: true,
+            patientFirstName: true,
+            patientLastName: true,
+            patientDateOfBirth: true,
+            email: true,
+            phone: true,
+            offerCode: true,
+            attributionChannel: true,
+            paymentAmount: true,
+            stripeRefundId: true,
+            refundedAt: true,
+            createdAt: true,
+          },
+          orderBy: { id: 'asc' },
+          take: BUSINESS_ANALYTICS_PAGE_SIZE,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        })
+        if (page.length === 0) break
+        submissions.push(...page)
+        if (page.length < BUSINESS_ANALYTICS_PAGE_SIZE) break
+        cursor = page[page.length - 1].id
+      }
+
+      return {
+        success: true,
+        data: buildBusinessAnalytics(submissions, referenceDate, {
+          ...options,
+          range,
+        }),
+      }
+    } catch (error) {
+      logger.error('Error fetching business analytics:', error)
+      return { success: false, error: 'Failed to fetch business analytics' }
+    }
+  }
+)
