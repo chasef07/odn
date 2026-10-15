@@ -13,7 +13,6 @@ import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { page3Schema } from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
-import { PHONE_VALIDATION } from '@/lib/validation-constants'
 import { useState } from 'react'
 
 type FormData = {
@@ -84,7 +83,6 @@ export default function ContactInfoPage() {
               onChange={handlePhoneChange}
               className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
               placeholder="(555) 123-4567"
-              maxLength={PHONE_VALIDATION.FORMATTED_LENGTH}
               aria-required="true"
               aria-invalid={!!errors.phone}
               aria-describedby={errors.phone ? 'phone-error' : undefined}

@@ -459,7 +459,6 @@ export default function ReviewPage() {
                   onChange={handlePhoneChange}
                   className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
                   placeholder="(555) 123-4567"
-                  maxLength={14}
                   aria-required="true"
                   aria-invalid={!!contactForm.formState.errors.phone}
                   aria-describedby={contactForm.formState.errors.phone ? 'phone-error' : undefined}

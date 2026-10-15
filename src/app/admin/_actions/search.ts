@@ -4,6 +4,7 @@ import { NoteVerificationStatus, Prisma, SubmissionStatus } from '@prisma/client
 import prisma from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { formatDateUTC } from '@/lib/utils'
+import { formatPhoneNumber } from '@/lib/phone-utils'
 import { getVerificationUrl, normalizeMedicalRecordNumber } from '@/lib/note-verification'
 import { adminAction } from '@/lib/admin-session'
 
@@ -191,17 +192,8 @@ export const searchSubmissions = adminAction(
         }
 
         case 'phone': {
-          const digitsOnly = trimmedQuery.replace(/\D/g, '')
-          let formattedPhone = digitsOnly
-          if (digitsOnly.length <= 3) {
-            formattedPhone = digitsOnly
-          } else if (digitsOnly.length <= 6) {
-            formattedPhone = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`
-          } else {
-            formattedPhone = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`
-          }
           whereClause = {
-            phone: { contains: formattedPhone },
+            phone: { contains: formatPhoneNumber(trimmedQuery) },
           }
           break
         }

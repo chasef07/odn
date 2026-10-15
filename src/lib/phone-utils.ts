@@ -1,5 +1,12 @@
+const US_COUNTRY_CODE = '1'
+
+export function toNationalDigits(value: string): string {
+  const digits = value.replace(/\D/g, '')
+  return digits.length === 11 && digits.startsWith(US_COUNTRY_CODE) ? digits.slice(1) : digits
+}
+
 export const formatPhoneNumber = (value: string): string => {
-  const phoneNumber = value.replace(/\D/g, '')
+  const phoneNumber = toNationalDigits(value)
 
   if (phoneNumber.length <= 3) {
     return phoneNumber
@@ -15,10 +22,9 @@ export const formatPhoneNumber = (value: string): string => {
 export function toE164UsPhone(value: string | null | undefined): string | null {
   if (!value) return null
 
-  const digits = value.replace(/\D/g, '')
-  const nationalDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits
+  const nationalDigits = toNationalDigits(value)
 
   if (nationalDigits.length !== 10) return null
 
-  return `+1${nationalDigits}`
+  return `+${US_COUNTRY_CODE}${nationalDigits}`
 }

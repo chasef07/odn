@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatPhoneNumber, toE164UsPhone } from '../phone-utils'
+import { formatPhoneNumber, toE164UsPhone, toNationalDigits } from '../phone-utils'
 
 describe('formatPhoneNumber', () => {
   describe('Empty and short inputs', () => {
@@ -95,8 +95,8 @@ describe('formatPhoneNumber', () => {
       expect(formatPhoneNumber('55512345678')).toBe('(555) 123-4567')
     })
 
-    it('should truncate to 10 digits with country code', () => {
-      expect(formatPhoneNumber('15551234567')).toBe('(155) 512-3456')
+    it('should drop a leading US country code', () => {
+      expect(formatPhoneNumber('15551234567')).toBe('(555) 123-4567')
     })
 
     it('should truncate very long inputs', () => {
@@ -109,8 +109,9 @@ describe('formatPhoneNumber', () => {
       expect(formatPhoneNumber('(415) 555-0123')).toBe('(415) 555-0123')
     })
 
-    it('should handle international format stripped to 10 digits', () => {
-      expect(formatPhoneNumber('+1 555 123 4567')).toBe('(155) 512-3456')
+    it('should format a pasted +1 number as the national number', () => {
+      expect(formatPhoneNumber('+1 555 123 4567')).toBe('(555) 123-4567')
+      expect(formatPhoneNumber('+1 (555) 123-4567')).toBe('(555) 123-4567')
     })
 
     it('should handle phone number with extension removed', () => {
@@ -197,5 +198,20 @@ describe('toE164UsPhone', () => {
     expect(toE164UsPhone('555123456')).toBeNull()
     expect(toE164UsPhone('255512345678')).toBeNull()
     expect(toE164UsPhone(null)).toBeNull()
+  })
+})
+
+describe('toNationalDigits', () => {
+  it('keeps the ten national digits of any US form', () => {
+    expect(toNationalDigits('(555) 123-4567')).toBe('5551234567')
+    expect(toNationalDigits('+1 555 123 4567')).toBe('5551234567')
+    expect(toNationalDigits('15551234567')).toBe('5551234567')
+    expect(toNationalDigits('555.123.4567')).toBe('5551234567')
+  })
+
+  it('only strips a leading 1 from an eleven digit number', () => {
+    expect(toNationalDigits('1555123456')).toBe('1555123456')
+    expect(toNationalDigits('255512345678')).toBe('255512345678')
+    expect(toNationalDigits('')).toBe('')
   })
 })

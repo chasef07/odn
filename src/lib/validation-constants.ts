@@ -4,11 +4,6 @@ export const DATE_LIMITS = {
   MAX_ABSENCE_DAYS: 7,
 } as const
 
-export const PHONE_VALIDATION = {
-  REQUIRED_DIGITS: 10,
-  FORMATTED_LENGTH: 14,
-} as const
-
 export const UI_TIMING = {
   PROCESSING_DELAY_MS: 1500,
 } as const
