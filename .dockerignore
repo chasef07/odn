@@ -1,0 +1,10 @@
+.git
+.next
+node_modules
+coverage
+.env*
+!.env.example
+generated-pdfs
+generated-pdfs.zip
+test-output
+docs-legacy
