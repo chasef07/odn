@@ -1,7 +1,11 @@
 import nextVitals from 'eslint-config-next/core-web-vitals'
 import prettierConfig from 'eslint-config-prettier'
-import localRules from './eslint-rules/no-comments.mjs'
+import noComments from './eslint-rules/no-comments.mjs'
+import envSdk from './eslint-rules/env-sdk.mjs'
 import adminRules from './eslint-rules/admin-server-action.mjs'
+
+const localRules = { rules: { ...noComments.rules, ...envSdk.rules } }
+const TESTS = ['src/**/__tests__/**', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}']
 
 const eslintConfig = [
   ...nextVitals,
@@ -30,6 +34,21 @@ const eslintConfig = [
     },
   },
   {
+    files: ['src/**/*.{ts,tsx,js,jsx}'],
+    ignores: TESTS,
+    rules: {
+      'local/no-sdk-client': 'error',
+      'local/no-import-time-config': 'error',
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx}'],
+    ignores: [...TESTS, 'src/lib/env.ts', 'src/lib/public-env.ts'],
+    rules: {
+      'local/no-process-env': 'error',
+    },
+  },
+  {
     files: ['src/lib/pdf/**/*.{ts,tsx,js,jsx}'],
     rules: {
       'jsx-a11y/alt-text': 'off',
@@ -37,11 +56,7 @@ const eslintConfig = [
   },
   {
     files: ['src/**/*.{ts,tsx,js,jsx}'],
-    ignores: [
-      'src/**/__tests__/**',
-      'src/**/*.test.{ts,tsx}',
-      'src/**/*.spec.{ts,tsx}',
-    ],
+    ignores: TESTS,
     rules: {
       'no-console': ['warn', { allow: ['error', 'warn', 'info'] }],
     },
