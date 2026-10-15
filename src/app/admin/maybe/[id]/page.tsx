@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
-import { getSubmissionById } from '../../actions'
+import { getSubmissionById } from '@/app/admin/_actions/search'
 import { SubmissionEditForm } from '@/components/admin/SubmissionEditForm'
 
 export default async function EditMaybeSubmissionPage({

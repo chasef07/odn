@@ -1,19 +1,14 @@
 'use server'
 
-import { headers } from 'next/headers'
-import { revalidatePath } from 'next/cache'
 import { Prisma } from '@prisma/client'
-import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { sendSupportSms } from '@/lib/sms-support-sms'
-import { retrySupportAutomationJob } from '@/lib/sms-support-jobs'
 import {
   SMS_SUPPORT_CATEGORY,
-  SMS_SUPPORT_JOB_STATUS,
   SMS_SUPPORT_SOURCE,
   SMS_SUPPORT_STATE,
   SMS_SUPPORT_STATUS,
 } from '@/lib/sms-support-types'
+import { requireAdmin, revalidateSupportPaths } from './shared'
 
 const ACTIVE_TICKET_STATUSES = [
   SMS_SUPPORT_STATUS.OPEN,
@@ -116,21 +111,10 @@ const supportTicketDetailInclude = {
 export type SupportTicketListItem = Prisma.SmsSupportTicketGetPayload<{
   include: typeof supportTicketListInclude
 }>
+
 export type SupportTicketDetail = Prisma.SmsSupportTicketGetPayload<{
   include: typeof supportTicketDetailInclude
 }>
-
-async function requireAdmin() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
-
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized')
-  }
-
-  return session.user
-}
 
 export async function getSupportTickets(status?: string) {
   await requireAdmin()
@@ -239,199 +223,6 @@ export async function createSupportTicketFromSubmission(submissionId: string) {
   } catch (error) {
     console.error('Failed to create support ticket:', error)
     return { success: false, error: 'Failed to create support ticket' }
-  }
-}
-
-export async function sendSupportTicketReply(ticketId: string, body: string) {
-  try {
-    await requireAdmin()
-
-    const message = body.trim()
-    if (!message) return { success: false, error: 'Message is required' }
-    if (message.length > 1000) return { success: false, error: 'Message is too long' }
-
-    const ticket = await prisma.smsSupportTicket.findUnique({
-      where: { id: ticketId },
-      select: {
-        id: true,
-        phoneE164: true,
-        submissionId: true,
-      },
-    })
-
-    if (!ticket) return { success: false, error: 'Support ticket not found' }
-
-    const now = new Date()
-
-    const cancelResult = await cancelCancellableSupportJobs({
-      ticketId,
-      now,
-      lastError: 'Ticket replied to by admin before automation completed',
-    })
-    if (!cancelResult.success) return cancelResult
-
-    await prisma.smsSupportTicket.update({
-      where: { id: ticketId },
-      data: {
-        status: SMS_SUPPORT_STATUS.OPEN,
-        state: SMS_SUPPORT_STATE.CSR_REVIEW,
-        adminSummary: 'Admin replied by SMS.',
-        csrAlertedAt: null,
-      },
-    })
-
-    const result = await sendSupportSms({
-      ticketId: ticket.id,
-      submissionId: ticket.submissionId,
-      toPhone: ticket.phoneE164,
-      type: 'SUPPORT_REPLY',
-      body: message,
-    })
-
-    if (!result.success) {
-      const errorMessage = result.error || 'Failed to send SMS'
-      await prisma.smsSupportTicket.update({
-        where: { id: ticketId },
-        data: {
-          status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-          state: SMS_SUPPORT_STATE.CSR_REVIEW,
-          adminSummary: 'Admin reply failed to send by SMS.',
-          failureReason: `Admin SMS reply failed: ${errorMessage}`,
-        },
-      })
-      revalidateSupportPaths(ticketId, ticket.submissionId)
-      return { success: false, error: errorMessage }
-    }
-
-    revalidateSupportPaths(ticketId, ticket.submissionId)
-    return { success: true }
-  } catch (error) {
-    console.error('Failed to send support SMS reply:', error)
-    return { success: false, error: 'Failed to send support SMS reply' }
-  }
-}
-
-export async function closeSupportTicket(ticketId: string) {
-  try {
-    await requireAdmin()
-
-    const now = new Date()
-    const cancelResult = await cancelCancellableSupportJobs({
-      ticketId,
-      now,
-      lastError: 'Ticket closed by admin before automation ran',
-    })
-    if (!cancelResult.success) return cancelResult
-
-    const ticket = await prisma.smsSupportTicket.update({
-      where: { id: ticketId },
-      data: {
-        status: SMS_SUPPORT_STATUS.CLOSED,
-        state: SMS_SUPPORT_STATE.CLOSED,
-        closedAt: now,
-      },
-      select: { submissionId: true },
-    })
-
-    revalidateSupportPaths(ticketId, ticket.submissionId)
-    return { success: true }
-  } catch (error) {
-    console.error('Failed to close support ticket:', error)
-    return { success: false, error: 'Failed to close support ticket' }
-  }
-}
-
-export async function markSupportTicketNeedsCsr(ticketId: string) {
-  try {
-    await requireAdmin()
-
-    const cancelResult = await cancelCancellableSupportJobs({
-      ticketId,
-      now: new Date(),
-      lastError: 'Ticket escalated to admin before automation ran',
-    })
-    if (!cancelResult.success) return cancelResult
-
-    const ticket = await prisma.smsSupportTicket.update({
-      where: { id: ticketId },
-      data: {
-        status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-        state: SMS_SUPPORT_STATE.CSR_REVIEW,
-        closedAt: null,
-      },
-      select: { submissionId: true },
-    })
-
-    revalidateSupportPaths(ticketId, ticket.submissionId)
-    return { success: true }
-  } catch (error) {
-    console.error('Failed to mark support ticket for admin review:', error)
-    return { success: false, error: 'Failed to mark support ticket for admin review' }
-  }
-}
-
-export async function retrySupportTicketAutomation(ticketId: string) {
-  try {
-    await requireAdmin()
-    const result = await retrySupportAutomationJob(ticketId)
-    if (!result.success) return result
-
-    revalidateSupportPaths(ticketId)
-    return { success: true }
-  } catch (error) {
-    console.error('Failed to retry support automation:', error)
-    return { success: false, error: 'Failed to retry support automation' }
-  }
-}
-
-async function cancelCancellableSupportJobs({
-  ticketId,
-  now,
-  lastError,
-}: {
-  ticketId: string
-  now: Date
-  lastError: string
-}): Promise<{ success: true } | { success: false; error: string }> {
-  await prisma.smsSupportJob.updateMany({
-    where: {
-      ticketId,
-      status: { in: [SMS_SUPPORT_JOB_STATUS.QUEUED, SMS_SUPPORT_JOB_STATUS.RUNNING] },
-    },
-    data: {
-      status: SMS_SUPPORT_JOB_STATUS.FAILED,
-      lockedAt: null,
-      lockedBy: null,
-      lastError,
-      completedAt: now,
-    },
-  })
-
-  const finalizingJob = await prisma.smsSupportJob.findFirst({
-    where: {
-      ticketId,
-      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-    },
-    select: { id: true },
-  })
-
-  if (finalizingJob) {
-    return {
-      success: false,
-      error: 'Automation is finalizing the updated note. Refresh in a moment before taking over.',
-    }
-  }
-
-  return { success: true }
-}
-
-function revalidateSupportPaths(ticketId?: string | null, submissionId?: string | null) {
-  revalidatePath('/admin')
-  revalidatePath('/admin/support')
-  if (ticketId) revalidatePath(`/admin/support/${ticketId}`)
-  if (submissionId) {
-    revalidatePath('/admin/search')
-    revalidatePath(`/admin/search/${submissionId}`)
   }
 }
 

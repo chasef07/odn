@@ -5,7 +5,7 @@ import { Search } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
-import { getApprovedSubmissionsForToday } from '../actions'
+import { getApprovedSubmissionsForToday } from '@/app/admin/_actions/queues'
 import { formatDateWithTime } from '@/lib/admin-utils'
 
 export default async function ApprovedSubmissionsPage() {

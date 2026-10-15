@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
-import { getSubmissionById } from '@/app/admin/actions'
+import { getSubmissionById } from '@/app/admin/_actions/search'
 import { SearchSubmissionDetail } from '@/components/admin/SearchSubmissionDetail'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 

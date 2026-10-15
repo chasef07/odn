@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/admin/StatusBadge'
-import { getPatientHistory, type PatientHistoryEntry } from '@/app/admin/actions'
+import { getPatientHistory, type PatientHistoryEntry } from '@/app/admin/_actions/search'
 import { formatDateRange, formatDateWithTime, NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
 
 interface PatientHistoryPopupProps {

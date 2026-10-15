@@ -30,16 +30,13 @@ import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianMode
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import { calculateDaysDifference, formatDateTimeET, getTodayET } from '@/lib/admin-utils'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
-import {
-  updateSubmission,
-  approveSubmission,
-  reApproveSubmission,
-  denySubmission,
-  changeSubmissionStatus,
-  type FormattedSubmission,
-  type MaybeSubmissionInput,
-} from '@/app/admin/actions'
-import { createSupportTicketFromSubmission } from '@/app/admin/support/actions'
+import { updateSubmission } from '@/app/admin/_actions/edits'
+import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/approve'
+import { denySubmission } from '@/app/admin/_actions/deny'
+import { changeSubmissionStatus } from '@/app/admin/_actions/change-status'
+import { type FormattedSubmission } from '@/app/admin/_actions/search'
+import { type MaybeSubmissionInput } from '@/app/admin/_actions/maybe'
+import { createSupportTicketFromSubmission } from '@/app/admin/support/_actions/tickets'
 import { smsStatusLabel } from '@/lib/sms-status'
 import { SubmissionStatus } from '@prisma/client'
 

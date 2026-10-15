@@ -69,11 +69,11 @@ vi.mock('@/lib/sms-support-jobs', () => ({
   retrySupportAutomationJob: vi.fn(),
 }))
 
+import { createSupportTicketFromSubmission } from '@/app/admin/support/_actions/tickets'
 import {
-  createSupportTicketFromSubmission,
   markSupportTicketNeedsCsr,
   sendSupportTicketReply,
-} from './actions'
+} from '@/app/admin/support/_actions/ticket-updates'
 
 describe('createSupportTicketFromSubmission', () => {
   beforeEach(() => {

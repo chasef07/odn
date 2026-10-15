@@ -13,7 +13,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
-import { approveSubmission, denySubmission } from '@/app/admin/actions'
+import { approveSubmission } from '@/app/admin/_actions/approve'
+import { denySubmission } from '@/app/admin/_actions/deny'
 
 interface ManualActionButtonsProps {
   submissionId: string

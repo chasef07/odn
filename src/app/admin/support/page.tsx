@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { SupportTicketQueue } from '@/components/admin/SupportTicketQueue'
-import { getSupportTickets } from '@/app/admin/support/actions'
+import { getSupportTickets } from '@/app/admin/support/_actions/tickets'
 
 interface PageProps {
   searchParams: Promise<{

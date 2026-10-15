@@ -4,7 +4,7 @@ import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { removeGuardianFromAdultSubmission } from '@/app/admin/actions'
+import { removeGuardianFromAdultSubmission } from '@/app/admin/_actions/edits'
 import { calculateAge } from '@/lib/admin-utils'
 import { cn } from '@/lib/utils'
 

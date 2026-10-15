@@ -5,7 +5,7 @@ import { ChevronLeft } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { BusinessAnalyticsDashboard } from '@/components/admin/BusinessAnalyticsDashboard'
-import { getBusinessAnalytics } from '@/app/admin/actions'
+import { getBusinessAnalytics } from '@/app/admin/_actions/analytics'
 
 export default async function BusinessAnalyticsPage() {
   const session = await auth.api.getSession({

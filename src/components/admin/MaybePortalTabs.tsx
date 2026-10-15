@@ -6,7 +6,7 @@ import { MaybeActionButtons } from './MaybeActionButtons'
 import { ManualActionButtons } from './ManualActionButtons'
 import { formatDateWithTime } from '@/lib/admin-utils'
 import { getMaybeReasonLabel } from '@/lib/maybe-reasons'
-import type { MaybeSubmission, ManualSubmission } from '@/app/admin/actions'
+import type { MaybeSubmission, ManualSubmission } from '@/app/admin/_actions/queues'
 
 function formatCalendarDate(dateString: string): string {
   const [year, month, day] = dateString.split('-').map(Number)

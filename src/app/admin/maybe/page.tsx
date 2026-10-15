@@ -5,7 +5,7 @@ import { Search } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { Button } from '@/components/ui/button'
-import { getMaybeSubmissions, getManualSubmissions } from '../actions'
+import { getMaybeSubmissions, getManualSubmissions } from '@/app/admin/_actions/queues'
 import { MaybePortalTabs } from '@/components/admin/MaybePortalTabs'
 
 export default async function MaybePortalPage() {

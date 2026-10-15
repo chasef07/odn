@@ -103,11 +103,8 @@ vi.mock('stripe', () => ({
   },
 }))
 
-import {
-  approveSubmission,
-  removeGuardianFromAdultSubmission,
-  reApproveSubmission,
-} from '../actions'
+import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/approve'
+import { removeGuardianFromAdultSubmission } from '@/app/admin/_actions/edits'
 
 const mockDefaultIssueDate = new Date(Date.UTC(2026, 3, 6))
 const mockVerificationRecord = {

@@ -91,14 +91,11 @@ vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }))
 
-import {
-  changeSubmissionStatus,
-  denySubmission,
-  maybeSubmission,
-  searchSubmissions,
-  updateSubmission,
-  updateReviewClassification,
-} from './actions'
+import { changeSubmissionStatus } from '@/app/admin/_actions/change-status'
+import { denySubmission } from '@/app/admin/_actions/deny'
+import { maybeSubmission } from '@/app/admin/_actions/maybe'
+import { searchSubmissions } from '@/app/admin/_actions/search'
+import { updateSubmission, updateReviewClassification } from '@/app/admin/_actions/edits'
 
 describe('searchSubmissions', () => {
   beforeEach(() => {

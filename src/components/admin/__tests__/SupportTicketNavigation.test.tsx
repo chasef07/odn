@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { SupportTicketDetail as SupportTicketDetailType } from '@/app/admin/support/actions'
+import type { SupportTicketDetail as SupportTicketDetailType } from '@/app/admin/support/_actions/tickets'
 import { SupportTicketDetail } from '../SupportTicketDetail'
 import { SupportTicketQueue } from '../SupportTicketQueue'
 
@@ -8,7 +8,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }))
 
-vi.mock('@/app/admin/support/actions', () => ({
+vi.mock('@/app/admin/support/_actions/ticket-updates', () => ({
   closeSupportTicket: vi.fn(),
   markSupportTicketNeedsCsr: vi.fn(),
   retrySupportTicketAutomation: vi.fn(),

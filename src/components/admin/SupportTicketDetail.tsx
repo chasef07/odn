@@ -11,8 +11,8 @@ import {
   markSupportTicketNeedsCsr,
   retrySupportTicketAutomation,
   sendSupportTicketReply,
-  type SupportTicketDetail as SupportTicketDetailType,
-} from '@/app/admin/support/actions'
+} from '@/app/admin/support/_actions/ticket-updates'
+import { type SupportTicketDetail as SupportTicketDetailType } from '@/app/admin/support/_actions/tickets'
 import {
   supportCategoryLabel,
   supportStatusClass,

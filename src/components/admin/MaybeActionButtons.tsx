@@ -18,8 +18,10 @@ import { ApprovalDialogContent } from '@/components/admin/ApprovalDialogContent'
 import { getTodayET } from '@/lib/admin-utils'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
-import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
-import type { MaybeSubmission } from '@/app/admin/actions'
+import { approveSubmission } from '@/app/admin/_actions/approve'
+import { denySubmission } from '@/app/admin/_actions/deny'
+import { markAsManual } from '@/app/admin/_actions/maybe'
+import type { MaybeSubmission } from '@/app/admin/_actions/queues'
 
 interface MaybeActionButtonsProps {
   submission: MaybeSubmission

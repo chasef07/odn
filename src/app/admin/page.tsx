@@ -6,7 +6,7 @@ import { auth } from '@/lib/auth'
 import { AdminStats } from '@/components/admin/AdminStats'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
-import { getDashboardStats } from './actions'
+import { getDashboardStats } from '@/app/admin/_actions/queues'
 
 export default async function AdminDashboardPage() {
   const session = await auth.api.getSession({

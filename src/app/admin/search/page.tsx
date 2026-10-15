@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { SearchPage } from '@/components/admin/SearchPage'
-import { searchSubmissions, type AdminSearchType } from '@/app/admin/actions'
+import { searchSubmissions, type AdminSearchType } from '@/app/admin/_actions/search'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 
 interface PageProps {

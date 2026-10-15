@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { SupportTicketDetail } from '@/components/admin/SupportTicketDetail'
-import { getSupportTicket } from '@/app/admin/support/actions'
+import { getSupportTicket } from '@/app/admin/support/_actions/tickets'
 
 interface PageProps {
   params: Promise<{

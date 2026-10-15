@@ -5,7 +5,7 @@ import { ChevronLeft } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { FriendsFamilyAnalyticsDashboard } from '@/components/admin/FriendsFamilyAnalyticsDashboard'
-import { getFriendsFamilyAnalytics } from '@/app/admin/actions'
+import { getFriendsFamilyAnalytics } from '@/app/admin/_actions/analytics'
 
 export default async function FriendsFamilyAnalyticsPage() {
   const session = await auth.api.getSession({
