@@ -15,8 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Prisma schema validation/generation needs both URLs because schema.prisma
-  # references a runtime Accelerate URL and a direct migration URL.
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
 jobs:
@@ -109,8 +107,6 @@ jobs:
         run: npm run vercel-build
         env:
           VERCEL_ENV: preview
-          # Build-time placeholders — real values come from Vercel at deploy time.
-          # Values just need to be non-empty strings that pass env-var validation.
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder

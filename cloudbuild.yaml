@@ -1,16 +1,9 @@
-# Builds the app image, applies Prisma migrations, and deploys Cloud Run
-# service odn-${_ENV}. Runs as service account odn-deploy. See docs/CLOUD_RUN.md.
-#
-#   gcloud builds submit --region=us-east4 --config=cloudbuild.yaml \
-#     --service-account=projects/acuity-health-prod/serviceAccounts/odn-deploy@acuity-health-prod.iam.gserviceaccount.com \
-#     --substitutions=_ENV=staging,_SITE_URL=https://...,... .
 substitutions:
   _ENV: staging
   _REGION: us-east4
   _CLOUDSQL_INSTANCE: acuity-health-prod:us-east4:onlinedoctornote-db
   _IMAGE: us-east4-docker.pkg.dev/${PROJECT_ID}/odn/odn-${_ENV}:${BUILD_ID}
   _GIT_SHA: manual
-  # Public origin of the service (used for links, auth callbacks, NEXT_PUBLIC_*).
   _SITE_URL: ''
   _VERIFICATION_BASE_URL: ''
   _RESEND_FROM_EMAIL: ''
@@ -20,7 +13,6 @@ substitutions:
   _STRIPE_PRICE_ID: ''
   _STRIPE_FRIENDS_FAMILY_PRICE_ID: ''
   _STRIPE_DOCTOR_10_PRICE_ID: ''
-  # An empty TELNYX_FROM_NUMBER disables outbound SMS.
   _TELNYX_FROM_NUMBER: ''
   _TELNYX_WEBHOOK_ENABLED: 'false'
   _MIN_INSTANCES: '0'
@@ -71,8 +63,6 @@ steps:
     args: [push, '${_IMAGE}']
     waitFor: [build]
 
-  # Same unix-socket DATABASE_URL as Cloud Run, served by the Cloud SQL Auth
-  # Proxy over IAM, so migrations never need an authorized network.
   - id: migrate
     name: odn-migrate
     entrypoint: bash
