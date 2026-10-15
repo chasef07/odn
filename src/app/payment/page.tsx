@@ -12,7 +12,6 @@ import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 
 const CURRENT_STEP = 10
 
-// Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 type PriceInfo = {
@@ -49,9 +48,6 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
       },
     })
 
-    // This point will only be reached if there is an immediate error when
-    // confirming the payment. Otherwise, your customer will be redirected to
-    // your `return_url`.
     if (error) {
       if (error.type === 'card_error' || error.type === 'validation_error') {
         setMessage(error.message || t('An error occurred'))
@@ -66,7 +62,6 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
   return (
     <LocalizedPage>
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Order Summary */}
         <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
           <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
           <div className="flex items-start justify-between gap-4">
@@ -129,20 +124,16 @@ export default function PaymentPage() {
   const { locale, t } = useI18n()
 
   useEffect(() => {
-    // Create PaymentIntent as soon as the page loads
     const createPaymentIntent = async () => {
       try {
-        // Get form data from localStorage
         const formData = getFormData()
 
-        // Validate form data exists
         if (!formData.email || !formData.patientFirstName) {
           setError(t('Form data is incomplete. Please go back and complete the form.'))
           setLoading(false)
           return
         }
 
-        // Call API with form data
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

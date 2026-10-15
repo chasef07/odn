@@ -1,12 +1,6 @@
-/**
- * Tests for Admin Server Actions - Denial Automation
- * Tests refund processing and email notifications
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { SubmissionStatus } from '@prisma/client'
 
-// Hoist mocks to the top level
 const {
   mockRefundsCreate,
   mockFindUnique,
@@ -40,7 +34,6 @@ const {
   mockGetSession: vi.fn(),
 }))
 
-// Mock Stripe
 vi.mock('stripe', () => {
   return {
     default: class MockStripe {
@@ -51,7 +44,6 @@ vi.mock('stripe', () => {
   }
 })
 
-// Mock Prisma
 vi.mock('@/lib/prisma', () => ({
   default: {
     submission: {
@@ -64,7 +56,6 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-// Mock email utility
 vi.mock('@/lib/email', () => ({
   sendDenialEmail: mockSendDenialEmail,
   sendMaybeEmail: mockSendMaybeEmail,
@@ -84,7 +75,6 @@ vi.mock('@/lib/note-verification', () => ({
   revokeNoteVerificationForSubmission: mockRevokeNoteVerificationForSubmission,
 }))
 
-// Mock Better Auth
 vi.mock('@/lib/auth', () => ({
   auth: {
     api: {
@@ -93,17 +83,14 @@ vi.mock('@/lib/auth', () => ({
   },
 }))
 
-// Mock next/cache
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-// Mock next/headers
 vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }))
 
-// Now import the functions under test
 import {
   changeSubmissionStatus,
   denySubmission,
@@ -313,15 +300,11 @@ describe('denySubmission - Denial Automation', () => {
   }
 
   beforeEach(() => {
-    // Reset all mocks before each test
     vi.clearAllMocks()
 
-    // Default mock implementations
     mockGetSession.mockResolvedValue({
       user: { id: mockDoctorId },
     })
-
-    // Environment variables are managed by global test setup
   })
 
   afterEach(() => {
@@ -330,23 +313,19 @@ describe('denySubmission - Denial Automation', () => {
 
   describe('Successful denial flow', () => {
     it('should successfully deny submission with refund and email', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 }) // Optimistic locking succeeds
+      mockUpdateMany.mockResolvedValue({ count: 1 })
       mockRefundsCreate.mockResolvedValue({
         id: mockRefundId,
-        amount: 2495, // Amount in cents from Stripe refund
+        amount: 2495,
       })
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert
       expect(result).toEqual({ success: true })
 
-      // Verify optimistic locking (database updated first with placeholder)
       expect(mockUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -358,12 +337,11 @@ describe('denySubmission - Denial Automation', () => {
             status: SubmissionStatus.DENIED,
             denialReason: 'Legal',
             reviewedByAdminId: mockDoctorId,
-            stripeRefundId: `pending_${mockSubmissionId}`, // Placeholder
+            stripeRefundId: `pending_${mockSubmissionId}`,
           }),
         })
       )
 
-      // Verify refund was created with correct metadata AND idempotency key
       expect(mockRefundsCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           payment_intent: mockPaymentIntentId,
@@ -375,11 +353,10 @@ describe('denySubmission - Denial Automation', () => {
           }),
         }),
         expect.objectContaining({
-          idempotencyKey: `refund_${mockSubmissionId}_${mockDoctorId}`, // FIX 2: Idempotency key
+          idempotencyKey: `refund_${mockSubmissionId}_${mockDoctorId}`,
         })
       )
 
-      // Verify email was sent
       expect(mockSendDenialEmail).toHaveBeenCalledWith({
         to: 'patient@example.com',
         patientName: 'John Doe',
@@ -397,26 +374,24 @@ describe('denySubmission - Denial Automation', () => {
         body: expect.stringMatching(/denied and refunded[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
       })
 
-      // Verify database was updated with real refund ID and email timestamp
-      expect(mockUpdate).toHaveBeenCalledTimes(2) // 1) Set refund ID, 2) Set email timestamp
+      expect(mockUpdate).toHaveBeenCalledTimes(2)
       expect(mockUpdate).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
           where: { id: mockSubmissionId },
-          data: { stripeRefundId: mockRefundId }, // Replace placeholder with real ID
+          data: { stripeRefundId: mockRefundId },
         })
       )
       expect(mockUpdate).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
           where: { id: mockSubmissionId },
-          data: { denialEmailSentAt: expect.any(Date) }, // Email succeeded
+          data: { denialEmailSentAt: expect.any(Date) },
         })
       )
     })
 
     it('should handle "7+ days" denial reason correctly', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockUpdateMany.mockResolvedValue({ count: 1 })
       mockRefundsCreate.mockResolvedValue({
@@ -426,10 +401,8 @@ describe('denySubmission - Denial Automation', () => {
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      // Act
       const result = await denySubmission(mockSubmissionId, '7+ days')
 
-      // Assert
       expect(result).toEqual({ success: true })
       expect(mockSendDenialEmail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -439,7 +412,6 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should handle "Other" denial reason correctly', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockUpdateMany.mockResolvedValue({ count: 1 })
       mockRefundsCreate.mockResolvedValue({
@@ -449,10 +421,8 @@ describe('denySubmission - Denial Automation', () => {
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Other')
 
-      // Assert
       expect(result).toEqual({ success: true })
       expect(mockSendDenialEmail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -462,7 +432,6 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('persists "Refund (Denial)" as a distinct denial reason', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockUpdateMany.mockResolvedValue({ count: 1 })
       mockRefundsCreate.mockResolvedValue({
@@ -472,10 +441,8 @@ describe('denySubmission - Denial Automation', () => {
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Refund (Denial)')
 
-      // Assert
       expect(result).toEqual({ success: true })
       expect(mockUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -502,54 +469,44 @@ describe('denySubmission - Denial Automation', () => {
 
   describe('Refund failure scenarios (BLOCKING)', () => {
     it('should block denial if Stripe refund fails', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockUpdateMany.mockResolvedValue({ count: 1 })
       mockRefundsCreate.mockRejectedValue(new Error('Insufficient funds'))
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Failed to process refund: Insufficient funds',
       })
 
-      // Verify optimistic lock was acquired
       expect(mockUpdateMany).toHaveBeenCalled()
 
-      // Verify database was rolled back after refund failure
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: mockSubmissionId },
           data: expect.objectContaining({
-            status: SubmissionStatus.PENDING_REVIEW, // Rolled back
+            status: SubmissionStatus.PENDING_REVIEW,
             stripeRefundId: null,
           }),
         })
       )
 
-      // Verify email was NOT sent
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
     })
 
     it('should block denial if payment intent not found in Stripe', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockUpdateMany.mockResolvedValue({ count: 1 })
       mockRefundsCreate.mockRejectedValue(new Error('No such payment_intent'))
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Failed to process refund: No such payment_intent',
       })
 
-      // Verify rollback happened
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -563,7 +520,6 @@ describe('denySubmission - Denial Automation', () => {
 
   describe('Email failure scenarios (NON-BLOCKING)', () => {
     it('should still deny if email fails but refund succeeds', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockUpdateMany.mockResolvedValue({ count: 1 })
       mockRefundsCreate.mockResolvedValue({
@@ -573,24 +529,19 @@ describe('denySubmission - Denial Automation', () => {
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockRejectedValue(new Error('Email service unavailable'))
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert - Should succeed with warning
       expect(result).toEqual({
         success: true,
         warning: 'Submission denied and refunded, but email notification failed to send',
       })
 
-      // Verify refund was processed
       expect(mockRefundsCreate).toHaveBeenCalled()
 
-      // Verify email was attempted
       expect(mockSendDenialEmail).toHaveBeenCalled()
       expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
 
-      // Verify database was updated with refund ID but NOT email timestamp
-      expect(mockUpdate).toHaveBeenCalledTimes(1) // Only refund ID update, no email timestamp
+      expect(mockUpdate).toHaveBeenCalledTimes(1)
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: mockSubmissionId },
@@ -602,13 +553,10 @@ describe('denySubmission - Denial Automation', () => {
 
   describe('Validation scenarios', () => {
     it('should fail if submission not found', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(null)
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Submission not found',
@@ -616,16 +564,13 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if submission already denied', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue({
         ...mockSubmission,
         status: SubmissionStatus.DENIED,
       })
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Cannot deny submission with status: DENIED',
@@ -633,16 +578,13 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if submission already approved', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue({
         ...mockSubmission,
         status: SubmissionStatus.APPROVED,
       })
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Cannot deny submission with status: APPROVED',
@@ -650,16 +592,13 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if no payment intent ID exists', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue({
         ...mockSubmission,
         stripePaymentIntentId: null,
       })
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'No payment intent ID found for this submission',
@@ -667,16 +606,13 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if refund already processed (idempotency check)', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue({
         ...mockSubmission,
         stripeRefundId: 're_existing_refund',
       })
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert
       expect(result).toEqual({
         success: false,
         error: 'Refund already processed for this submission',
@@ -684,13 +620,10 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if no authenticated doctor session', async () => {
-      // Arrange
       mockGetSession.mockResolvedValue(null)
 
-      // Act
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert - Should return error (not throw)
       expect(result).toEqual({
         success: false,
         error: expect.stringContaining('Unauthorized'),
@@ -700,23 +633,20 @@ describe('denySubmission - Denial Automation', () => {
 
   describe('Payment amount calculation', () => {
     it('should convert cents to dollars correctly for email', async () => {
-      // Arrange
       mockFindUnique.mockResolvedValue(mockSubmission)
       mockUpdateMany.mockResolvedValue({ count: 1 })
       mockRefundsCreate.mockResolvedValue({
         id: mockRefundId,
-        amount: 2495, // 2495 cents from Stripe
+        amount: 2495,
       })
       mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      // Act
       await denySubmission(mockSubmissionId, 'Legal')
 
-      // Assert - 2495 cents = $24.95
       expect(mockSendDenialEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          refundAmount: 24.95, // Correctly converted to dollars
+          refundAmount: 24.95,
         })
       )
     })

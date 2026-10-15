@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { isLocalOptOut, isOptInKeyword, verifyTelnyxWebhookSignature } from '@/lib/telnyx'
 import { handleInboundSupportSms } from '@/lib/sms-support'
+import { isUniqueConstraintError } from '@/lib/prisma-errors'
 
 type TelnyxWebhookEvent = {
   data?: {
@@ -392,8 +393,4 @@ function parseDate(value: string | null | undefined): Date | null {
   if (!value) return null
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
 }

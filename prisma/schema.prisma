@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums
 enum SubmissionStatus {
   PENDING_REVIEW
   APPROVED
@@ -23,7 +20,6 @@ enum NoteVerificationStatus {
   REVOKED
 }
 
-// Better Auth - User table (admin/doctor accounts)
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -32,7 +28,6 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  // Relations
   accounts            Account[]
   sessions            Session[]
   reviewedSubmissions Submission[] @relation("ReviewedByUser")
@@ -40,7 +35,6 @@ model User {
   @@map("users")
 }
 
-// Better Auth - Account table (stores passwords and OAuth data)
 model Account {
   id           String    @id @default(uuid())
   userId       String    @map("user_id")
@@ -50,18 +44,15 @@ model Account {
   refreshToken String?   @map("refresh_token")
   idToken      String?   @map("id_token")
   expiresAt    DateTime? @map("expires_at")
-  password     String? // bcrypt hashed password
+  password     String?
 
-  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Indexes for performance
   @@index([userId])
   @@index([userId, providerId])
   @@map("accounts")
 }
 
-// Better Auth - Session table
 model Session {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
@@ -72,16 +63,13 @@ model Session {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Indexes for performance
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
 }
 
-// Temporary storage during payment processing
 model TemporarySubmission {
   id              String   @id @default(uuid())
   paymentIntentId String   @unique @map("payment_intent_id")
@@ -93,40 +81,32 @@ model TemporarySubmission {
   @@map("temporary_submissions")
 }
 
-// Permanent submission storage
 model Submission {
-  // Primary Keys & IDs
   id                    String  @id @default(uuid())
   stripePaymentIntentId String  @unique @map("stripe_payment_intent_id")
   paymentAmount         Int?    @map("payment_amount")
   offerCode             String? @map("offer_code")
   offerPriceId          String? @map("offer_price_id")
 
-  // Marketing attribution (last non-direct touch before checkout; full detail in `attribution`)
   attributionChannel String? @map("attribution_channel")
   utmSource          String? @map("utm_source")
   utmMedium          String? @map("utm_medium")
   utmCampaign        String? @map("utm_campaign")
-  attribution        Json? // { first, last } touches with click IDs, referrer, landing path
+  attribution        Json?
 
-  // Status Tracking
   status SubmissionStatus @default(PENDING_REVIEW)
 
-  // State Selection
   state String
 
-  // Patient Information
-  recipient          String // 'myself' or 'someone_else'
+  recipient          String
   patientFirstName   String   @map("patient_first_name")
   patientLastName    String   @map("patient_last_name")
   patientDateOfBirth DateTime @map("patient_date_of_birth") @db.Date
 
-  // Guardian Information (conditional - only if recipient = 'someone_else')
   guardianFirstName   String?   @map("guardian_first_name")
   guardianLastName    String?   @map("guardian_last_name")
   guardianDateOfBirth DateTime? @map("guardian_date_of_birth") @db.Date
 
-  // Contact Information
   email             String
   phone             String
   smsOptIn          Boolean   @default(false) @map("sms_opt_in")
@@ -134,59 +114,46 @@ model Submission {
   smsConsentVersion String?   @map("sms_consent_version")
   smsPhoneE164      String?   @map("sms_phone_e164")
 
-  // Note Details
-  notePurpose      String  @map("note_purpose") // 'work', 'school', 'both', 'other'
+  notePurpose      String  @map("note_purpose")
   otherNotePurpose String? @map("other_note_purpose")
 
-  // Absence Dates
   firstDayOff DateTime @map("first_day_off") @db.Date
   lastDayOff  DateTime @map("last_day_off") @db.Date
 
-  // Absence Reason
   absenceReason      String  @map("absence_reason")
   otherAbsenceReason String? @map("other_absence_reason")
 
-  // Symptoms (conditional - array of strings)
-  symptoms         Json? // ["Fever", "Cough", "Fatigue"]
+  symptoms         Json?
   otherSymptomText String? @map("other_symptom_text")
 
-  // Additional Information
   additionalInformation String? @map("additional_information") @db.Text
 
-  // Admin Review Fields (filled when doctor reviews)
   reviewedAt        DateTime? @map("reviewed_at")
   reviewedByAdminId String?   @map("reviewed_by_admin_id")
   reviewedByUser    User?     @relation("ReviewedByUser", fields: [reviewedByAdminId], references: [id])
 
-  // Denial Information (only if status = DENIED)
-  denialReason String? @map("denial_reason") // selectable: "Legal", "7+ days", "Duplicate", "Refund (Customer)", "Refund (Denial)", "Under 18", "Accommodations", or "Other"; legacy rows may contain "Refund"
+  denialReason String? @map("denial_reason")
 
-  // Maybe Review Information (only if status = MAYBE)
   maybeReason       String?   @map("maybe_reason")
   maybeInternalNote String?   @map("maybe_internal_note") @db.Text
   maybeApprovedDays Int?      @map("maybe_approved_days")
   maybeEmailSentAt  DateTime? @map("maybe_email_sent_at")
 
-  // Refund Tracking
-  stripeRefundId String?   @map("stripe_refund_id") // "re_1ABC123..."
-  refundedAt     DateTime? @map("refunded_at") // When refund was initiated
+  stripeRefundId String?   @map("stripe_refund_id")
+  refundedAt     DateTime? @map("refunded_at")
 
-  // Email Delivery Tracking
   approvalEmailSentAt    DateTime? @map("approval_email_sent_at")
   denialEmailSentAt      DateTime? @map("denial_email_sent_at")
   followUpEmailClaimedAt DateTime? @map("follow_up_email_claimed_at")
   followUpEmailSentAt    DateTime? @map("follow_up_email_sent_at")
 
-  // PDF approval render options used when a support automation reissues a note
   approvalDiagnosis        String?  @map("approval_diagnosis") @db.Text
   approvalWithRestrictions Boolean? @map("approval_with_restrictions")
 
-  // Public note verification snapshot
   noteVerifications NoteVerification[]
   smsMessages       SmsMessage[]
   smsSupportTickets SmsSupportTicket[]
 
-  // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

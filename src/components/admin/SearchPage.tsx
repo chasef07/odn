@@ -1,13 +1,8 @@
 'use client'
 
-/**
- * Search Page Component
- * Main search interface for finding submissions by name, email, phone, submission ID, or Medical Record #
- */
-
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { StatusBadge } from '@/components/admin/StatusBadge'
+import { NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
 import { searchSubmissions, type AdminSearchType, type SearchSubmission } from '@/app/admin/actions'
 
 interface SearchPageProps {
@@ -27,14 +23,6 @@ interface SearchPageProps {
   initialQuery?: string
   initialSearchType?: AdminSearchType
   initialPage?: number
-}
-
-const NOTE_PURPOSE_LABELS: Record<string, string> = {
-  work: 'Work',
-  school: 'School',
-  both: 'Work & School',
-  travel: 'Travel',
-  other: 'Other',
 }
 
 function isAdminSearchType(value: string): value is AdminSearchType {
@@ -55,7 +43,6 @@ export function SearchPage({
   initialPage = 1,
 }: SearchPageProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
   const [query, setQuery] = useState(initialQuery)
@@ -90,7 +77,6 @@ export function SearchPage({
         setTotal(result.total || 0)
         setPage(newPage)
 
-        // Update URL with search params
         const params = new URLSearchParams()
         params.set('q', query.trim())
         params.set('type', searchType)
@@ -122,7 +108,6 @@ export function SearchPage({
 
   return (
     <div className="space-y-6">
-      {/* Search Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Search Submissions</h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -130,7 +115,6 @@ export function SearchPage({
         </p>
       </div>
 
-      {/* Search Form */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -179,23 +163,19 @@ export function SearchPage({
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
 
-      {/* Results */}
       {results.length > 0 ? (
         <div className="space-y-4">
-          {/* Results Count */}
           <p className="text-sm text-gray-500">
             {total} result{total !== 1 ? 's' : ''} found
             {totalPages > 1 && ` (page ${page} of ${totalPages})`}
           </p>
 
-          {/* Results Cards (Mobile) */}
           <div className="space-y-3 sm:hidden">
             {results.map((submission) => (
               <Link
@@ -230,7 +210,6 @@ export function SearchPage({
             ))}
           </div>
 
-          {/* Results Table (Desktop) */}
           <div className="hidden overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm sm:block">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -294,7 +273,6 @@ export function SearchPage({
             </table>
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between">
               <Button

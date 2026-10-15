@@ -1,15 +1,5 @@
-import type { Metadata } from 'next'
-import { englishAlternates } from '@/lib/i18n'
+import { FlowLayout, flowMetadata } from '@/lib/i18n'
 
-export const metadata: Metadata = {
-  title: 'Contact Information',
-  alternates: englishAlternates('/contact-info'),
-  robots: {
-    index: false,
-    follow: false,
-  },
-}
+export const metadata = flowMetadata('/contact-info', 'Contact Information')
 
-export default function ContactInfoLayout({ children }: { children: React.ReactNode }) {
-  return children
-}
+export default FlowLayout

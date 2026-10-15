@@ -106,17 +106,9 @@ export function getMaybeReasonConfig(reason: string | null | undefined): MaybeRe
   return MAYBE_REASONS.find((item) => item.value === reason) ?? null
 }
 
-export function isMaybeReason(reason: string): reason is MaybeReason {
-  return getMaybeReasonConfig(reason) !== null
-}
-
 export function getMaybeReasonLabel(reason: string | null | undefined): string {
   if (!reason) return 'No reason recorded'
   return getMaybeReasonConfig(reason)?.label ?? 'Unknown reason'
-}
-
-export function maybeReasonSendsEmail(reason: string | null | undefined): boolean {
-  return getMaybeReasonConfig(reason)?.sendsEmail ?? false
 }
 
 export function maybeReasonRequiresApprovedDays(reason: string | null | undefined): boolean {

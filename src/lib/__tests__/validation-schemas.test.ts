@@ -265,7 +265,6 @@ describe('Validation Schemas', () => {
         expect(result.success).toBe(true)
       })
 
-      // TLD typo detection tests
       it('should reject .con typo and suggest .com', () => {
         const result = page3Schema.safeParse({ ...validData, email: 'test@example.con' })
         expect(result.success).toBe(false)
@@ -307,7 +306,6 @@ describe('Validation Schemas', () => {
         }
       })
 
-      // Domain typo detection tests
       it('should reject gnail.com and suggest gmail.com', () => {
         const result = page3Schema.safeParse({ ...validData, email: 'test@gnail.com' })
         expect(result.success).toBe(false)

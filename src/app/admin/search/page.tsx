@@ -1,8 +1,3 @@
-/**
- * Admin Search Page
- * Search submissions by name, email, phone, submission ID, or Medical Record #
- */
-
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -30,7 +25,6 @@ function isAdminSearchType(value: string | undefined): value is AdminSearchType 
 }
 
 export default async function AdminSearchPage({ searchParams }: PageProps) {
-  // Check authentication
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -39,13 +33,11 @@ export default async function AdminSearchPage({ searchParams }: PageProps) {
     redirect('/admin/login')
   }
 
-  // Parse search params
   const params = await searchParams
   const query = params.q || ''
   const searchType = isAdminSearchType(params.type) ? params.type : 'name'
   const page = parseInt(params.page || '1', 10)
 
-  // Fetch initial results if query exists
   let initialResults: Awaited<ReturnType<typeof searchSubmissions>>['submissions'] = []
   let initialTotal = 0
 
@@ -65,7 +57,6 @@ export default async function AdminSearchPage({ searchParams }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
@@ -83,7 +74,6 @@ export default async function AdminSearchPage({ searchParams }: PageProps) {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Back Link */}
         <div className="mb-6">
           <Link
             href="/admin"
@@ -101,7 +91,6 @@ export default async function AdminSearchPage({ searchParams }: PageProps) {
           </Link>
         </div>
 
-        {/* Search Interface */}
         <SearchPage
           initialResults={initialResults}
           initialTotal={initialTotal}

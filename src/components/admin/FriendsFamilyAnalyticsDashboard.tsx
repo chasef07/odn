@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import { Download } from 'lucide-react'
 import { exportFriendsFamilyCustomers, getFriendsFamilyAnalytics } from '@/app/admin/actions'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { formatCurrency, formatNumber, formatShortDate } from '@/lib/analytics-format'
 import { cn } from '@/lib/utils'
 import type {
   FriendsFamilyAnalytics,
@@ -40,29 +41,6 @@ const SEGMENT_TABS: SegmentTab[] = [
   },
   { key: 'all_customers', label: 'All Customers' },
 ]
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat('en-US').format(value)
-}
-
-function formatCurrency(cents: number, showCents = false): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: showCents ? 2 : 0,
-    maximumFractionDigits: showCents ? 2 : 0,
-  }).format(cents / 100)
-}
-
-function formatShortDate(iso: string | null): string {
-  if (!iso) return '—'
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(iso))
-}
 
 function csvEscape(value: string): string {
   if (value === '') return ''
@@ -176,7 +154,6 @@ export function FriendsFamilyAnalyticsDashboard({
   const activeSegmentDescription =
     SEGMENT_TABS.find((tab) => tab.key === activeSegment)?.description ?? null
 
-  // No Refunds is ranked by note volume, so the targeting score is irrelevant.
   const showScore = activeSegment !== 'no_refunds'
 
   const handleSegmentChange = (segment: SegmentTabKey) => {
@@ -224,7 +201,6 @@ export function FriendsFamilyAnalyticsDashboard({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-gray-950">Customer Segments</h1>
@@ -240,7 +216,6 @@ export function FriendsFamilyAnalyticsDashboard({
         </div>
       )}
 
-      {/* KPI tiles */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile label="No Refunds" value={formatNumber(summary.noRefunds)} />
         <KpiTile label="Repeat Customers" value={formatNumber(summary.repeatCustomers)} />
@@ -253,7 +228,6 @@ export function FriendsFamilyAnalyticsDashboard({
         />
       </div>
 
-      {/* Segment table */}
       <Card className="p-0">
         <CardHeader className="pb-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -10,7 +10,6 @@ export default function Footer() {
     <footer className="border-t border-gray-100 bg-white px-4 py-12 md:px-6">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col items-center gap-8 text-center md:flex-row md:justify-between md:text-left">
-          {/* Contact Info */}
           <div className="flex flex-col gap-3 sm:flex-row sm:gap-8">
             <a
               href="mailto:hello@onlinedoctornote.com"
@@ -29,7 +28,6 @@ export default function Footer() {
             </a>
           </div>
 
-          {/* Links */}
           <div className="flex flex-wrap justify-center gap-6 text-sm md:justify-end">
             <Link
               href={path('/faq')}

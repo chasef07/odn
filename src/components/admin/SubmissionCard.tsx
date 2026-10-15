@@ -1,8 +1,3 @@
-/**
- * SubmissionCard Component
- * Displays detailed information about a single patient submission
- */
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -25,7 +20,6 @@ import {
   calculateDaysDifference,
   formatFullDate,
   formatDateWithTime,
-  formatNotePurpose,
 } from '@/lib/admin-utils'
 
 interface SubmissionCardProps {
@@ -82,7 +76,6 @@ export function SubmissionCard({
   const dayCount = calculateDaysDifference(submission.firstDayOff, submission.lastDayOff)
   const hasGuardian = submission.recipient === 'someone_else'
 
-  // Parse symptoms from JSON
   const symptoms = submission.symptoms
     ? Array.isArray(submission.symptoms)
       ? submission.symptoms
@@ -99,7 +92,6 @@ export function SubmissionCard({
 
   return (
     <Card className="mx-auto w-full max-w-2xl">
-      {/* Progress indicator */}
       <CardHeader className="border-b py-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Submission Review</CardTitle>
@@ -110,7 +102,6 @@ export function SubmissionCard({
       </CardHeader>
 
       <CardContent className="space-y-2.5 py-3">
-        {/* Patient Information */}
         <div className="space-y-1.5">
           <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Patient Information
@@ -152,7 +143,6 @@ export function SubmissionCard({
           </div>
         </div>
 
-        {/* Guardian Information (if applicable) */}
         {hasGuardian && submission.guardianFirstName && (
           <div className="space-y-1.5 border-t pt-2">
             <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
@@ -189,7 +179,6 @@ export function SubmissionCard({
           onRemoved={onGuardianRemoved}
         />
 
-        {/* Note Request */}
         <div className="space-y-1.5 border-t pt-2">
           <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Note Request
@@ -298,14 +287,12 @@ export function SubmissionCard({
           </div>
         )}
 
-        {/* PDF Options */}
         {(onEvaluationDateChange || onDiagnosisChange || onWithRestrictionsChange) && (
           <div className="space-y-2 border-t pt-2">
             <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               PDF Options
             </h3>
 
-            {/* Evaluation Date */}
             {onEvaluationDateChange && (
               <div className="space-y-1">
                 <Label htmlFor="evaluationDate" className="text-muted-foreground text-xs">
@@ -321,7 +308,6 @@ export function SubmissionCard({
               </div>
             )}
 
-            {/* Diagnosis */}
             {onDiagnosisChange && (
               <div className="space-y-1">
                 <Label htmlFor="diagnosis" className="text-muted-foreground text-xs">
@@ -338,7 +324,6 @@ export function SubmissionCard({
               </div>
             )}
 
-            {/* Restrictions Toggle */}
             {onWithRestrictionsChange && (
               <div className="flex items-center gap-2 pt-1">
                 <Switch
@@ -354,7 +339,6 @@ export function SubmissionCard({
           </div>
         )}
 
-        {/* Submitted */}
         <div className="space-y-1.5 border-t pt-2">
           <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Submitted

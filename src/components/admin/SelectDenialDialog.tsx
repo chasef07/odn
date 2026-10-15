@@ -1,11 +1,5 @@
 'use client'
 
-/**
- * Select Denial Dialog Component
- * Shared denial dialog with Select dropdown and custom "Other" input
- * Used by MaybeActionButtons and ManualActionButtons
- */
-
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -51,7 +45,6 @@ export function SelectDenialDialog({
   const [denialReason, setDenialReason] = useState<string>('')
   const [otherReason, setOtherReason] = useState('')
 
-  // Reset state when dialog opens — intentional prop-driven reset
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local dialog fields when it opens

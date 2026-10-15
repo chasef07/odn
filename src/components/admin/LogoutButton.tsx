@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * Logout Button Component
- * Allows doctors to sign out of the admin portal
- */
-
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 

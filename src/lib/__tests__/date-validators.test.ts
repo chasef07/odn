@@ -6,7 +6,6 @@ describe('validateAbsenceDates', () => {
   let today: Date
 
   beforeEach(() => {
-    // Mock consistent "today" for predictable testing
     today = new Date('2025-01-15')
     today.setHours(0, 0, 0, 0)
     vi.setSystemTime(today)
@@ -36,7 +35,7 @@ describe('validateAbsenceDates', () => {
     it('should return no errors for exactly 7-day absence (boundary)', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-21', // 7 days total (Jan 15-21 inclusive)
+        lastDayOff: '2025-01-21',
       }
 
       const errors = validateAbsenceDates(data)
@@ -103,7 +102,7 @@ describe('validateAbsenceDates', () => {
     it('should reject last day before first day', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-20',
-        lastDayOff: '2025-01-19', // Before first day
+        lastDayOff: '2025-01-19',
       }
 
       const errors = validateAbsenceDates(data)
@@ -117,7 +116,7 @@ describe('validateAbsenceDates', () => {
     it('should reject absence period exceeding 7 days', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-22', // 8 days total (Jan 15-22 inclusive)
+        lastDayOff: '2025-01-22',
       }
 
       const errors = validateAbsenceDates(data)
@@ -131,7 +130,7 @@ describe('validateAbsenceDates', () => {
     it('should reject absence period of 15 days', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-29', // 15 days total (Jan 15-29 inclusive)
+        lastDayOff: '2025-01-29',
       }
 
       const errors = validateAbsenceDates(data)
@@ -147,27 +146,24 @@ describe('validateAbsenceDates', () => {
 
       const data: DatesFormData = {
         firstDayOff: tenDaysAgo,
-        lastDayOff: '2025-02-10', // Way beyond 7 days
+        lastDayOff: '2025-02-10',
       }
 
       const errors = validateAbsenceDates(data)
       expect(errors.length).toBeGreaterThan(1)
 
-      // Should include first day error
       expect(errors.some((e) => e.field === 'firstDayOff')).toBe(true)
 
-      // Should include last day error (exceeds 7 days)
       expect(errors.some((e) => e.field === 'lastDayOff')).toBe(true)
     })
 
     it('should return both last day errors when last < first AND exceeds 7 days', () => {
       const data: DatesFormData = {
         firstDayOff: '2025-02-01',
-        lastDayOff: '2025-01-10', // Before first day
+        lastDayOff: '2025-01-10',
       }
 
       const errors = validateAbsenceDates(data)
-      // Only the "before first day" check will trigger since lastDay < firstDay
       expect(errors).toHaveLength(1)
       expect(errors[0].field).toBe('lastDayOff')
       expect(errors[0].message).toContain('on or after first day')
@@ -190,7 +186,7 @@ describe('validateAbsenceDates', () => {
 
       const data: DatesFormData = {
         firstDayOff: '2024-02-28',
-        lastDayOff: '2024-03-01', // Crosses leap day
+        lastDayOff: '2024-03-01',
       }
 
       const errors = validateAbsenceDates(data)
@@ -202,7 +198,7 @@ describe('validateAbsenceDates', () => {
 
       const data: DatesFormData = {
         firstDayOff: '2024-12-28',
-        lastDayOff: '2025-01-02', // Crosses into new year
+        lastDayOff: '2025-01-02',
       }
 
       const errors = validateAbsenceDates(data)
@@ -214,7 +210,7 @@ describe('validateAbsenceDates', () => {
 
       const data: DatesFormData = {
         firstDayOff: '2025-01-28',
-        lastDayOff: '2025-02-03', // Crosses into February
+        lastDayOff: '2025-02-03',
       }
 
       const errors = validateAbsenceDates(data)

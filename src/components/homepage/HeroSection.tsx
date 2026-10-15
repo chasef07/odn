@@ -15,7 +15,6 @@ export default function HeroSection() {
     <section className="relative overflow-hidden bg-white px-5 py-10 md:px-6 md:py-16">
       <div className="mx-auto max-w-6xl">
         <div className="grid items-center gap-6 md:grid-cols-2 md:gap-12">
-          {/* Left - Text Content */}
           <div className="order-1 text-left">
             <h1 className="font-hero animate-fade-in-up mb-3 text-4xl leading-[1.1] font-bold tracking-tight text-gray-900 md:text-5xl lg:text-6xl">
               {t("Get a Doctor's Note")}
@@ -24,7 +23,6 @@ export default function HeroSection() {
                   locale === 'es' ? 'text-[clamp(1.5rem,7.6vw,2.25rem)] sm:text-[inherit]' : ''
                 }`}
               >
-                {/* Invisible placeholder to reserve line height */}
                 <span aria-hidden="true" className="invisible">
                   {t(heroPhrases[0])}
                 </span>
@@ -40,14 +38,11 @@ export default function HeroSection() {
               </span>
             </h1>
 
-            {/* Rating */}
             <div className="animate-fade-in stagger-1 mb-6">
               <div className="flex items-center">
-                {/* 4 full stars */}
                 {[...Array(4)].map((_, i) => (
                   <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
                 ))}
-                {/* Half star */}
                 <div className="relative h-4 w-4">
                   <Star className="absolute h-4 w-4 text-gray-300" />
                   <div className="absolute overflow-hidden" style={{ width: '70%' }}>
@@ -60,7 +55,6 @@ export default function HeroSection() {
               </p>
             </div>
 
-            {/* CTA */}
             <div className="animate-fade-in-up stagger-2 flex flex-col items-start">
               <button
                 onClick={() => router.push(path('/start'))}
@@ -76,7 +70,6 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* Right - Doctor Note */}
           <div className="order-2 flex justify-center">
             <div className="animate-fade-in-up stagger-1">
               <Image

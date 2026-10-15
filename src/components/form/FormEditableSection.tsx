@@ -4,31 +4,22 @@ import { useI18n } from '@/components/i18n/I18nProvider'
 import { translateReactTree } from '@/lib/i18n'
 
 interface FormEditableSectionProps {
-  /** Unique section identifier */
   sectionId: string
 
-  /** Section title */
   title: string
 
-  /** Currently editing section */
   editingSection: string | null
 
-  /** Callback when edit button clicked */
   onEdit: (sectionId: string) => void
 
-  /** Callback when cancel button clicked */
   onCancel: (sectionId: string) => void
 
-  /** Callback when save button clicked */
   onSave: () => void
 
-  /** Content to display in view mode */
   viewContent: ReactNode
 
-  /** Content to display in edit mode (form fields) */
   editContent: ReactNode
 
-  /** Custom aria label for edit button */
   editAriaLabel?: string
 }
 
@@ -49,7 +40,6 @@ export function FormEditableSection({
   return (
     <div className="border-border/40 rounded-xl border bg-white p-4 shadow-sm md:p-6">
       {isEditing ? (
-        // Edit Mode
         <div className="space-y-3">
           <h3 className="text-foreground text-sm font-semibold">{t(title)}</h3>
 
@@ -73,7 +63,6 @@ export function FormEditableSection({
           </div>
         </div>
       ) : (
-        // View Mode
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <h3 className="text-foreground text-sm font-semibold">{t(title)}</h3>

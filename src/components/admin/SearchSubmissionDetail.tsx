@@ -1,13 +1,7 @@
 'use client'
 
-/**
- * Search Submission Detail Component
- * Full view and edit interface for a submission found via search
- */
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,14 +25,10 @@ import {
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
+import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
-import {
-  DENIAL_REASON_OPTIONS,
-  calculateDaysDifference,
-  formatDateTimeET,
-  getTodayET,
-} from '@/lib/admin-utils'
+import { calculateDaysDifference, formatDateTimeET, getTodayET } from '@/lib/admin-utils'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import {
   updateSubmission,
@@ -57,7 +47,6 @@ interface SearchSubmissionDetailProps {
   submission: FormattedSubmission
 }
 
-// Helper function to parse YYYY-MM-DD string to Date at noon UTC
 function parseDateSafe(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number)
   return new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
@@ -114,16 +103,12 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const [isSupportTicketPending, setIsSupportTicketPending] = useState(false)
   const isActionDisabled = isLoading || isGuardianRemovalPending || isSupportTicketPending
 
-  // Dialog states
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [showDenialDialog, setShowDenialDialog] = useState(false)
   const [showMaybeDialog, setShowMaybeDialog] = useState(false)
   const [showManualDialog, setShowManualDialog] = useState(false)
-  const [denialReason, setDenialReason] = useState('')
-  const [otherDenialReason, setOtherDenialReason] = useState('')
   const [maybeError, setMaybeError] = useState<string | null>(null)
 
-  // Form state
   const [patientFirstName, setPatientFirstName] = useState(submission.patientFirstName)
   const [patientLastName, setPatientLastName] = useState(submission.patientLastName)
   const [patientDateOfBirth, setPatientDateOfBirth] = useState(
@@ -152,14 +137,10 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     submission.additionalInformation || ''
   )
 
-  // Evaluation date for PDF (ephemeral - not stored in database)
-  // Defaults to today in Eastern Time to match the admin portal and PDF defaults
   const [evaluationDate, setEvaluationDate] = useState<string>(getTodayET())
 
-  // Diagnosis for PDF (ephemeral - not stored in database)
   const [diagnosis, setDiagnosis] = useState('')
 
-  // Restrictions toggle for PDF (ephemeral - not stored in database)
   const [withRestrictions, setWithRestrictions] = useState(true)
   const suggestedMaybeReason =
     calculateDaysDifference(firstDayOff, lastDayOff) > 7
@@ -220,11 +201,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Branch on current status:
-      //   - APPROVED: call reApproveSubmission to regenerate the PDF and resend
-      //     the email. approveSubmission rejects already-approved submissions,
-      //     so wiring the button to it silently did nothing for the patient.
-      //   - Otherwise: call approveSubmission as usual.
       const isReApproval = submission.status === SubmissionStatus.APPROVED
       const result = isReApproval
         ? await reApproveSubmission(
@@ -259,9 +235,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     }
   }
 
-  const handleDeny = async () => {
-    const finalReason = denialReason === 'Other' ? otherDenialReason : denialReason
-
+  const handleDeny = async (finalReason: string) => {
     if (!finalReason) {
       setError('Please select or enter a denial reason')
       return
@@ -271,7 +245,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
 
     try {
-      // Use changeSubmissionStatus for already approved submissions
       const result =
         submission.status === SubmissionStatus.APPROVED
           ? await changeSubmissionStatus(submission.id, SubmissionStatus.DENIED, finalReason)
@@ -369,8 +342,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     return formatDateTimeET(date)
   }
 
-  // Determine which action buttons to show based on current status
-  const showApproveButton = true // Can always re-approve or approve
+  const showApproveButton = true
   const showDenyButton = submission.status !== SubmissionStatus.DENIED
   const showMaybeButton = submission.status !== SubmissionStatus.MAYBE
   const showManualButton = submission.status !== SubmissionStatus.MANUAL
@@ -399,7 +371,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
   return (
     <div className="space-y-6">
-      {/* Status & Actions Header */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -419,11 +390,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             )}
             {showDenyButton && (
               <Button
-                onClick={() => {
-                  setDenialReason('')
-                  setOtherDenialReason('')
-                  setShowDenialDialog(true)
-                }}
+                onClick={() => setShowDenialDialog(true)}
                 disabled={isActionDisabled}
                 variant="destructive"
                 size="sm"
@@ -480,7 +447,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         </div>
       </div>
 
-      {/* Status Messages */}
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-600">{error}</p>
@@ -492,7 +458,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         </div>
       )}
 
-      {/* Edit/View Toggle */}
       <div className="flex justify-end">
         {!isEditing ? (
           <Button onClick={() => setIsEditing(true)} variant="outline">
@@ -510,9 +475,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         )}
       </div>
 
-      {/* Form Sections */}
       <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-        {/* Patient Information */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-gray-900">Patient Information</h2>
@@ -565,7 +528,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </div>
         </div>
 
-        {/* Guardian Information */}
         {(guardianFirstName || guardianLastName || recipient === 'someone_else') && (
           <div className="space-y-4 border-t pt-6">
             <h2 className="text-lg font-semibold text-gray-900">Guardian Information</h2>
@@ -617,7 +579,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </div>
         )}
 
-        {/* Contact Information */}
         <div className="space-y-4 border-t pt-6">
           <h2 className="text-lg font-semibold text-gray-900">Contact Information</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -654,7 +615,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </div>
         </div>
 
-        {/* SMS Log */}
         <div className="space-y-4 border-t pt-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-semibold text-gray-900">SMS Log</h2>
@@ -737,7 +697,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           )}
         </div>
 
-        {/* Note Details */}
         <div className="space-y-4 border-t pt-6">
           <h2 className="text-lg font-semibold text-gray-900">Note Details</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -832,7 +791,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </div>
         </div>
 
-        {/* Absence Dates */}
         <div className="space-y-4 border-t pt-6">
           <h2 className="text-lg font-semibold text-gray-900">Absence Dates</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -865,7 +823,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </div>
         </div>
 
-        {/* Absence Reason */}
         <div className="space-y-4 border-t pt-6">
           <h2 className="text-lg font-semibold text-gray-900">Absence Reason</h2>
           <div className="space-y-2">
@@ -902,7 +859,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           )}
         </div>
 
-        {/* Symptoms */}
         <div className="space-y-4 border-t pt-6">
           <h2 className="text-lg font-semibold text-gray-900">Symptoms</h2>
           <div className="space-y-2">
@@ -940,7 +896,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           )}
         </div>
 
-        {/* Additional Information */}
         <div className="space-y-4 border-t pt-6">
           <h2 className="text-lg font-semibold text-gray-900">Additional Information</h2>
           <div className="space-y-2">
@@ -990,7 +945,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         </div>
       )}
 
-      {/* Submission Metadata */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-6">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Submission Details</h2>
         <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -1031,8 +985,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         </dl>
       </div>
 
-      {/* Dialogs */}
-      {/* Approval Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
         <DialogContent>
           <DialogHeader>
@@ -1063,72 +1015,21 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         </DialogContent>
       </Dialog>
 
-      {/* Denial Dialog */}
-      <Dialog open={showDenialDialog} onOpenChange={setShowDenialDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deny Submission?</DialogTitle>
-            <DialogDescription>
-              {submission.status === SubmissionStatus.APPROVED && submission.stripeRefundId
-                ? 'This submission was already refunded. No additional refund will be processed.'
-                : 'This will process a full refund and send a denial notification to the patient.'}
-            </DialogDescription>
-          </DialogHeader>
-          {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              <strong>Error:</strong> {error}
-            </div>
-          )}
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Reason for Denial</Label>
-              <Select value={denialReason} onValueChange={setDenialReason}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DENIAL_REASON_OPTIONS.map((reason) => (
-                    <SelectItem key={reason.value} value={reason.value}>
-                      {reason.selectLabel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {denialReason === 'Other' && (
-              <div className="space-y-2">
-                <Label>Please specify</Label>
-                <Input
-                  value={otherDenialReason}
-                  onChange={(e) => setOtherDenialReason(e.target.value)}
-                  placeholder="Enter reason for denial"
-                  disabled={isLoading}
-                />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDenialDialog(false)}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDeny}
-              disabled={
-                isLoading || !denialReason || (denialReason === 'Other' && !otherDenialReason)
-              }
-              variant="destructive"
-            >
-              {isLoading ? 'Processing...' : 'Deny & Refund'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SelectDenialDialog
+        open={showDenialDialog}
+        onOpenChange={setShowDenialDialog}
+        onConfirm={handleDeny}
+        isLoading={isLoading}
+        error={error}
+        title="Deny Submission?"
+        description={
+          submission.status === SubmissionStatus.APPROVED && submission.stripeRefundId
+            ? 'This submission was already refunded. No additional refund will be processed.'
+            : 'This will process a full refund and send a denial notification to the patient.'
+        }
+        confirmLabel="Deny & Refund"
+      />
 
-      {/* Maybe Dialog */}
       <MaybeReasonDialog
         open={showMaybeDialog}
         onOpenChange={setShowMaybeDialog}
@@ -1139,7 +1040,6 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         canSendEmail={submission.status === SubmissionStatus.PENDING_REVIEW}
       />
 
-      {/* Manual Dialog */}
       <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
         <DialogContent>
           <DialogHeader>

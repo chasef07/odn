@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-// Mock Stripe using vi.hoisted
 const { mockRetrieve } = vi.hoisted(() => ({
   mockRetrieve: vi.fn(),
 }))
@@ -21,7 +20,6 @@ vi.mock('stripe', () => {
   }
 })
 
-// Import after mock
 import { POST } from '../route'
 
 describe('POST /api/verify-payment', () => {
@@ -60,7 +58,6 @@ describe('POST /api/verify-payment', () => {
       amount: 2999,
       currency: null,
       email: 'test@example.com',
-      // sha256('test@example.com')
       emailSha256: '973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b',
     })
   })
@@ -105,9 +102,7 @@ describe('POST /api/verify-payment', () => {
     const response = await POST(request)
     const data = await response.json()
 
-    // Display email is unchanged; only the hash uses the normalized form
     expect(data.email).toBe('Jane.Doe+Shopping@googlemail.com')
-    // sha256('janedoe@googlemail.com')
     expect(data.emailSha256).toBe(
       '338abf9ef1c8793cadc7bcf51ed595338eb727ed9e06ce3d91d566d60b975937'
     )
@@ -148,7 +143,6 @@ describe('POST /api/verify-payment', () => {
     const response = await POST(request)
     const data = await response.json()
 
-    // Empty string is falsy, so || null returns null
     expect(data.email).toBeNull()
   })
 
@@ -356,7 +350,6 @@ describe('POST /api/verify-payment', () => {
     const response = await POST(request)
     const data = await response.json()
 
-    // Error should be logged (even in production) but not exposed to client
     expect(consoleSpy).toHaveBeenCalledWith('Error verifying payment:', expect.any(Error))
     expect(data.error).toBe('Invalid payment intent')
     expect(data.error).not.toContain('Sensitive')

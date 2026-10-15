@@ -15,6 +15,7 @@ import {
   SMS_SUPPORT_STATUS,
 } from '@/lib/sms-support-types'
 import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
+import { isUniqueConstraintError } from '@/lib/prisma-errors'
 
 const STALE_RUNNING_JOB_MS = 15 * 60 * 1000
 const STALE_COMMITTING_MESSAGE =
@@ -378,10 +379,6 @@ async function failJobAndEscalateToCsr({
     submissionId: ticket.submissionId,
     summary,
   })
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
 }
 
 function automationPayloadsMatch(

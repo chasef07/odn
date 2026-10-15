@@ -5,7 +5,6 @@ async function testDatabaseWrite() {
   try {
     console.log('🧪 Testing Database Write Operations...\n')
 
-    // Test data
     const testData = {
       stripePaymentIntentId: `pi_test_${Date.now()}`,
       status: SubmissionStatus.PENDING_REVIEW,
@@ -36,7 +35,6 @@ async function testDatabaseWrite() {
     console.log(`   Last Day Off: ${submission.lastDayOff}`)
     console.log(`   Payment Intent: ${submission.stripePaymentIntentId}`)
 
-    // Verify we can read it back
     console.log('\n🔍 Reading submission back from database...')
     const retrieved = await prisma.submission.findUnique({
       where: { id: submission.id },
@@ -49,7 +47,6 @@ async function testDatabaseWrite() {
       console.log('❌ Failed to retrieve submission')
     }
 
-    // Clean up - delete test submission
     console.log('\n🧹 Cleaning up test data...')
     await prisma.submission.delete({
       where: { id: submission.id },

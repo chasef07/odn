@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { getBusinessAnalytics } from '@/app/admin/actions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +10,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { formatCurrency, formatNumber, formatShortDate } from '@/lib/analytics-format'
 import { cn } from '@/lib/utils'
 import type { BusinessAnalytics, BusinessAnalyticsRange } from '@/lib/business-analytics'
 
@@ -28,7 +28,6 @@ const RANGE_OPTIONS: RangeOption[] = [
   { key: 'yearly', label: 'Yearly' },
 ]
 
-// Per-bucket unit shown in the chart titles ("Net Revenue / month", etc.)
 function rangeUnit(range: BusinessAnalyticsRange): string {
   switch (range) {
     case 'monthly':
@@ -61,19 +60,6 @@ const outcomeDotColors: Record<string, string> = {
   manual: '#7c3aed',
 }
 
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat('en-US').format(value)
-}
-
-function formatCurrency(cents: number, showCents = false): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: showCents ? 2 : 0,
-    maximumFractionDigits: showCents ? 2 : 0,
-  }).format(cents / 100)
-}
-
 function formatCompactDollars(value: number): string {
   if (Math.abs(value) >= 1000) return `$${Math.round(value / 1000)}k`
   return `$${Math.round(value)}`
@@ -91,89 +77,14 @@ function formatPercent(value: number): string {
   }).format(value)
 }
 
-function formatShortDate(iso: string | null): string {
-  if (!iso) return '—'
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(iso))
-}
-
-type DeltaConfig = {
-  text: string
-  positive: boolean
-  neutral?: boolean
-}
-
-function pctDelta(value: number | null): DeltaConfig | null {
-  if (value === null) return null
-  if (value === 0) return { text: '0%', positive: true, neutral: true }
-  const rounded = Math.abs(value).toFixed(Math.abs(value) >= 10 ? 0 : 1)
-  return {
-    text: `${value >= 0 ? '+' : '−'}${rounded}%`,
-    positive: value >= 0,
-  }
-}
-
-function pointsDelta(value: number | null): DeltaConfig | null {
-  if (value === null) return null
-  if (value === 0) return { text: '0pp', positive: true, neutral: true }
-  const points = Math.abs(value * 100).toFixed(1)
-  return {
-    text: `${value >= 0 ? '+' : '−'}${points}pp`,
-    positive: value >= 0,
-  }
-}
-
-function DeltaBadge({ delta, invert = false }: { delta: DeltaConfig | null; invert?: boolean }) {
-  if (!delta) return null
-  if (delta.neutral) {
-    return (
-      <span className="inline-flex items-center text-xs font-medium text-gray-500 tabular-nums">
-        {delta.text}
-      </span>
-    )
-  }
-  const isGood = invert ? !delta.positive : delta.positive
-  const Icon = delta.positive ? ArrowUpRight : ArrowDownRight
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-0.5 text-xs font-medium tabular-nums',
-        isGood ? 'text-emerald-600' : 'text-red-600'
-      )}
-    >
-      <Icon className="size-3" />
-      {delta.text}
-    </span>
-  )
-}
-
-function KpiTile({
-  label,
-  value,
-  delta,
-  invertDelta = false,
-}: {
-  label: string
-  value: string
-  delta?: DeltaConfig | null
-  invertDelta?: boolean
-}) {
+function KpiTile({ label, value }: { label: string; value: string }) {
   return (
     <Card className="p-0">
       <CardContent className="flex flex-col gap-2 p-4">
         <div className="text-[10px] font-medium tracking-wider text-gray-500 uppercase">
           {label}
         </div>
-        <div className="flex items-baseline justify-between gap-2">
-          <div className="text-2xl font-semibold text-gray-950 tabular-nums sm:text-3xl">
-            {value}
-          </div>
-          <DeltaBadge delta={delta ?? null} invert={invertDelta} />
-        </div>
+        <div className="text-2xl font-semibold text-gray-950 tabular-nums sm:text-3xl">{value}</div>
       </CardContent>
     </Card>
   )
@@ -209,12 +120,6 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
     [currentAnalytics.outcomeBreakdown]
   )
 
-  // Show roughly 6-8 X axis ticks regardless of point count
-  const xAxisInterval = useMemo(() => {
-    if (trendData.length <= 8) return 0
-    return Math.max(0, Math.floor(trendData.length / 6) - 1)
-  }, [trendData.length])
-
   const handleRangeChange = (range: BusinessAnalyticsRange) => {
     if (range === activeRange) return
     setError(null)
@@ -233,7 +138,6 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-gray-950">Analytics</h1>
@@ -276,7 +180,6 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
         </div>
       )}
 
-      {/* KPI tiles */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Gross Revenue" value={formatCurrency(summary.grossRevenueCents)} />
         <KpiTile label="Net Revenue" value={formatCurrency(summary.netRevenueCents)} />
@@ -285,7 +188,6 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
         <KpiTile label="Refund Rate" value={formatPercent(summary.refundRate)} />
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="p-0">
           <CardHeader className="px-4 pt-3 pb-1">
@@ -392,7 +294,6 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
         </Card>
       </div>
 
-      {/* Sales by source */}
       <Card className="p-0">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-gray-700">Sales by Source</CardTitle>
@@ -435,7 +336,6 @@ export function BusinessAnalyticsDashboard({ analytics }: { analytics: BusinessA
         </CardContent>
       </Card>
 
-      {/* Tables */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="p-0">
           <CardHeader className="pb-2">

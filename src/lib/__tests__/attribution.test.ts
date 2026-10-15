@@ -128,7 +128,6 @@ describe('cookie round trip and validation', () => {
     visit('https://onlinedoctornote.com/?rdt_cid=r1&utm_source=reddit')
   )
 
-  // Browsers store the encoded value; Next's request.cookies hands us the decoded one.
   const roundTrip = (value: AttributionData) =>
     parseAttributionCookie(decodeURIComponent(serializeAttributionCookie(value)!))
 

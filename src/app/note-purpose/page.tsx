@@ -137,7 +137,6 @@ export default function NotePurposePage() {
           variant="large-buttons"
         />
 
-        {/* Show text input when "Other" is selected */}
         {selectedPurpose === 'other' && (
           <div className="space-y-2">
             <Textarea

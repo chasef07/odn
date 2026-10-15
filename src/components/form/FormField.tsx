@@ -5,25 +5,18 @@ import { Label } from '@/components/ui/label'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface FormFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
-  /** Unique field identifier */
   id: string
 
-  /** Display label text */
   label: string
 
-  /** React Hook Form register return value */
   register: UseFormRegisterReturn
 
-  /** Error object from react-hook-form */
   error?: FieldError
 
-  /** Input type (default: "text") */
   type?: string
 
-  /** Placeholder text */
   placeholder?: string
 
-  /** Whether field is required (default: true) */
   required?: boolean
 }
 

@@ -3,7 +3,7 @@ import { Manrope, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
 import { headers } from 'next/headers'
 import './globals.css'
-import '@/lib/env' // Validate environment variables on startup
+import '@/lib/env'
 import OfferCodeCapture from '@/components/OfferCodeCapture'
 import AttributionCapture from '@/components/AttributionCapture'
 import { I18nProvider } from '@/components/i18n/I18nProvider'
@@ -127,7 +127,6 @@ export default async function RootLayout({
       <head>
         {!verificationHost && (
           <>
-            {/* Google Tag Manager */}
             <Script id="gtm" strategy="afterInteractive">
               {`
               (function (w, d, s, l, i) {
@@ -145,9 +144,7 @@ export default async function RootLayout({
               })(window, document, 'script', 'dataLayer', 'GTM-PJPQQ5V4');
             `}
             </Script>
-            {/* End Google Tag Manager */}
 
-            {/* Structured Data - MedicalBusiness */}
             <script
               type="application/ld+json"
               dangerouslySetInnerHTML={{
@@ -188,7 +185,6 @@ export default async function RootLayout({
       <body className={`${sans.variable} ${dmSans.variable} antialiased`}>
         {!verificationHost && (
           <>
-            {/* Google Tag Manager (noscript) */}
             <noscript>
               <iframe
                 src="https://www.googletagmanager.com/ns.html?id=GTM-PJPQQ5V4"
@@ -197,7 +193,6 @@ export default async function RootLayout({
                 style={{ display: 'none', visibility: 'hidden' }}
               ></iframe>
             </noscript>
-            {/* End Google Tag Manager (noscript) */}
           </>
         )}
         <I18nProvider>

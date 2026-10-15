@@ -42,7 +42,6 @@ export default function GuardianInfoPage() {
 
   const guardianDateOfBirth = useWatch({ control, name: 'guardianDateOfBirth' }) || ''
 
-  // Auto-capitalize name fields
   const handleNameChange =
     (field: 'guardianFirstName' | 'guardianLastName') =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,7 +59,6 @@ export default function GuardianInfoPage() {
     }
 
   const onSubmit = (data: FormData) => {
-    // Check age validation - guardian must be 18+
     if (data.guardianDateOfBirth) {
       if (!isAgeValid(data.guardianDateOfBirth, 18)) {
         setError('guardianDateOfBirth', {

@@ -15,11 +15,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment intent ID is required' }, { status: 400 })
     }
 
-    // Retrieve the payment intent from Stripe to verify its status
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
     const email = paymentIntent.metadata?.email || null
 
-    // Return the actual payment status from Stripe along with the email
     return NextResponse.json({
       status: paymentIntent.status,
       amount: paymentIntent.amount,

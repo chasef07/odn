@@ -37,7 +37,6 @@ export default function SymptomsPage() {
     },
   })
 
-  // Redirect if this page shouldn't be shown for this absence reason
   useEffect(() => {
     if (absenceReason === "Doctor's appointment" || absenceReason === 'Other') {
       router.push(getNextRoute('/symptoms', recipient)!)
@@ -46,11 +45,9 @@ export default function SymptomsPage() {
 
   const symptoms = useWatch({ control, name: 'symptoms' }) || []
 
-  // Get available symptoms based on absence reason
   const availableSymptoms = SYMPTOMS_BY_REASON[absenceReason] || []
 
   const onSubmit = (data: FormData) => {
-    // Validation
     if (!data.symptoms || data.symptoms.length === 0) {
       const errorMessage =
         absenceReason === 'Taking care of someone'
@@ -62,7 +59,6 @@ export default function SymptomsPage() {
       return
     }
 
-    // If "Other" symptom is selected, require text description
     if (data.symptoms.includes('Other') && !data.otherSymptomText?.trim()) {
       setError('otherSymptomText', {
         message: 'Please describe other symptoms',
@@ -75,7 +71,6 @@ export default function SymptomsPage() {
     router.push(getNextRoute('/symptoms', recipient)!)
   }
 
-  // Dynamic title and description based on absence reason
   const pageTitle =
     absenceReason === 'Taking care of someone'
       ? 'Who are you taking care of?'
@@ -109,7 +104,6 @@ export default function SymptomsPage() {
           gridClassName="grid gap-2.5 sm:grid-cols-2 md:grid-cols-3"
         />
 
-        {/* Show text input when "Other" is selected */}
         {symptoms.includes('Other') && (
           <div className="space-y-2">
             <Textarea

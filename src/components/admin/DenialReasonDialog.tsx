@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * Denial Reason Dialog Component
- * Pop-up for selecting denial reason when doctor denies a submission
- */
-
 import { useState } from 'react'
 import {
   Dialog,

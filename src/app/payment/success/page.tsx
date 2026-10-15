@@ -10,17 +10,14 @@ import { stripStripeSecretParams, trackPurchaseOnce } from '@/lib/conversion-tra
 const CURRENT_STEP = 10
 
 export default function PaymentSuccessPage() {
-  // Get payment intent from URL on client side (lazy initialization avoids setState in effect)
   const [paymentIntent] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     const params = new URLSearchParams(window.location.search)
-    // Strip the client secret during the first render, before GTM reads the page URL
     stripStripeSecretParams()
     return params.get('payment_intent')
   })
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() => {
-    // If no payment intent on mount, start with error state
     if (typeof window === 'undefined') return 'loading'
     const params = new URLSearchParams(window.location.search)
     return params.get('payment_intent') ? 'loading' : 'error'
@@ -33,7 +30,6 @@ export default function PaymentSuccessPage() {
       return
     }
 
-    // Verify the payment status with Stripe
     const verifyPayment = async () => {
       try {
         const response = await fetch('/api/verify-payment', {
@@ -55,7 +51,6 @@ export default function PaymentSuccessPage() {
             setEmail(data.email)
           }
 
-          // Conversion fires only after Stripe confirms the payment, once per order
           trackPurchaseOnce({
             transactionId: paymentIntent,
             amountCents: data.amount,
@@ -63,12 +58,10 @@ export default function PaymentSuccessPage() {
             emailSha256: data.emailSha256,
           })
 
-          // Clear form data after successful payment verification
           try {
             clearFormData()
           } catch (clearError) {
             console.warn('Failed to clear form data:', clearError)
-            // Non-critical - don't show error to user
           }
         } else {
           setStatus('error')

@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * Manual Action Buttons Component
- * Approve or Deny actions for Manual submissions (no automation - no PDF/email/refund)
- */
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -28,11 +23,9 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
-  // Approval modal state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
 
-  // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
   const [denialError, setDenialError] = useState<string | null>(null)
 
@@ -50,7 +43,7 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
 
       if (result.success) {
         setShowApprovalDialog(false)
-        router.refresh() // Refresh to remove from list
+        router.refresh()
       } else {
         setApprovalError(result.error || 'Unknown error')
         setIsLoading(false)
@@ -75,7 +68,7 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
 
       if (result.success) {
         setShowDenialDialog(false)
-        router.refresh() // Refresh to remove from list
+        router.refresh()
       } else {
         setDenialError(result.error || 'Unknown error')
         setIsLoading(false)
@@ -108,7 +101,6 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
         </Button>
       </div>
 
-      {/* Approval Confirmation Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
         <DialogContent>
           <DialogHeader>
@@ -144,7 +136,6 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
         </DialogContent>
       </Dialog>
 
-      {/* Denial Confirmation Dialog */}
       <SelectDenialDialog
         open={showDenialDialog}
         onOpenChange={setShowDenialDialog}

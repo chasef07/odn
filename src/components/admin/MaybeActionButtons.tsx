@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * Maybe Action Buttons Component
- * Approve, Deny, or Edit actions for Maybe submissions
- */
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -19,7 +14,8 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { ApprovalDialogContent, getTodayLocal } from '@/components/admin/ApprovalDialogContent'
+import { ApprovalDialogContent } from '@/components/admin/ApprovalDialogContent'
+import { getTodayET } from '@/lib/admin-utils'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { approveSubmission, denySubmission, markAsManual } from '@/app/admin/actions'
@@ -40,18 +36,15 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
   const [isGuardianRemovalPending, setIsGuardianRemovalPending] = useState(false)
   const isActionDisabled = isLoading || isGuardianRemovalPending
 
-  // Approval modal state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
-  const [evaluationDate, setEvaluationDate] = useState(getTodayLocal())
+  const [evaluationDate, setEvaluationDate] = useState(getTodayET())
   const [diagnosis, setDiagnosis] = useState('')
   const [withRestrictions, setWithRestrictions] = useState(true)
 
-  // Denial modal state
   const [showDenialDialog, setShowDenialDialog] = useState(false)
   const [denialError, setDenialError] = useState<string | null>(null)
 
-  // Manual note modal state
   const [showManualDialog, setShowManualDialog] = useState(false)
   const [manualError, setManualError] = useState<string | null>(null)
 
@@ -64,9 +57,9 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
 
   const handleApproveClick = () => {
     setApprovalError(null)
-    setEvaluationDate(getTodayLocal())
+    setEvaluationDate(getTodayET())
     setDiagnosis('')
-    setWithRestrictions(true) // Reset to default when opening dialog
+    setWithRestrictions(true)
     setShowApprovalDialog(true)
   }
 
@@ -85,7 +78,7 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
       if (result.success) {
         setShowApprovalDialog(false)
         setDiagnosis('')
-        router.refresh() // Refresh to remove from list
+        router.refresh()
       } else {
         setApprovalError(result.error || 'Unknown error')
         setIsLoading(false)
@@ -110,7 +103,7 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
 
       if (result.success) {
         setShowDenialDialog(false)
-        router.refresh() // Refresh to remove from list
+        router.refresh()
       } else {
         setDenialError(result.error || 'Unknown error')
         setIsLoading(false)
@@ -135,7 +128,7 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
 
       if (result.success) {
         setShowManualDialog(false)
-        router.refresh() // Refresh to move to manual notes tab
+        router.refresh()
       } else {
         setManualError(result.error || 'Unknown error')
         setIsLoading(false)
@@ -171,7 +164,6 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
         </Button>
       </div>
 
-      {/* Approval Confirmation Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
         <DialogContent>
           <DialogHeader>
@@ -232,7 +224,6 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Denial Confirmation Dialog */}
       <SelectDenialDialog
         open={showDenialDialog}
         onOpenChange={setShowDenialDialog}
@@ -244,7 +235,6 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
         confirmLabel="Deny & Refund"
       />
 
-      {/* Manual Note Confirmation Dialog */}
       <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
         <DialogContent>
           <DialogHeader>

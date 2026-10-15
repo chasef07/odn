@@ -2,18 +2,14 @@ import {
   Body,
   Container,
   Head,
-  Heading,
   Html,
   Preview,
   Section,
   Text,
   Link,
   Hr,
-  Row,
-  Column,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
-import * as React from 'react'
 
 interface BounceAlertEmailProps {
   bouncedEmail: string
@@ -28,19 +24,16 @@ interface BounceAlertEmailProps {
 
 export const BounceAlertEmail = ({
   bouncedEmail,
-  bounceReason,
   emailType,
   patientFirstName,
   patientLastName,
   patientPhone,
   submissionId,
-  submissionStatus,
 }: BounceAlertEmailProps) => {
   const currentYear = new Date().getFullYear()
   const hasSubmission = !!(patientFirstName && patientLastName)
   const patientName = hasSubmission ? `${patientFirstName} ${patientLastName}` : 'Unknown'
 
-  // Map email type to human-readable names
   const emailTypeNames = {
     approval: 'Approval Email',
     denial: 'Denial Email',
@@ -49,7 +42,6 @@ export const BounceAlertEmail = ({
     unknown: 'Unknown Email Type',
   }
 
-  // Admin portal link
   const adminLink = submissionId
     ? `https://onlinedoctornote.com/admin/review?id=${submissionId}`
     : 'https://onlinedoctornote.com/admin'
@@ -61,14 +53,12 @@ export const BounceAlertEmail = ({
       <Tailwind>
         <Body className="bg-gray-50 font-sans">
           <Container className="mx-auto my-8 max-w-2xl">
-            {/* Header */}
             <Section className="rounded-t-2xl border-b-2 border-red-600 bg-white px-8 py-4">
               <Text className="m-0 text-2xl font-bold" style={{ color: '#dc2626' }}>
                 OnlineDoctorNote
               </Text>
             </Section>
 
-            {/* Main Content */}
             <Section className="bg-white px-8 py-8">
               <Text className="mb-6 text-base leading-relaxed text-gray-900">Hi Jason,</Text>
 
@@ -109,7 +99,6 @@ export const BounceAlertEmail = ({
 
                   <Hr className="my-6 border-gray-200" />
 
-                  {/* Admin Portal Link */}
                   <Section className="rounded-xl bg-gray-50 p-6">
                     <Text className="m-0 mb-3 text-sm text-gray-700">
                       <strong>View in Admin Portal:</strong>
@@ -144,7 +133,6 @@ export const BounceAlertEmail = ({
               )}
             </Section>
 
-            {/* Footer */}
             <Section className="rounded-b-2xl bg-gray-100 px-8 py-6">
               <Text className="m-0 text-center text-xs leading-relaxed text-gray-600">
                 © {currentYear} Online Doctor&apos;s Note

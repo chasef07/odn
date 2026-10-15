@@ -1,8 +1,3 @@
-/**
- * State Medical License Numbers
- * Maps US states to doctor's medical license numbers
- */
-
 export const STATE_LICENSES: Record<string, string> = {
   Alabama: '50601',
   Arizona: '76271',
@@ -57,11 +52,6 @@ export interface StateLicenseInfo {
   licenseNumber: string
 }
 
-/**
- * Get medical license information for a specific state
- * @param state - The US state name (e.g., "Texas", "California")
- * @returns License info object if state is found, null otherwise
- */
 export function getStateLicense(state: string): StateLicenseInfo | null {
   const licenseNumber = STATE_LICENSES[state]
 

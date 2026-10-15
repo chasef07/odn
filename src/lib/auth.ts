@@ -1,8 +1,3 @@
-/**
- * Better Auth Configuration
- * Handles authentication for admin portal
- */
-
 import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import bcrypt from 'bcryptjs'
@@ -15,11 +10,11 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // Disable for admin portal (internal use only)
+    disableSignUp: true,
+    requireEmailVerification: false,
     minPasswordLength: 8,
     maxPasswordLength: 128,
     password: {
-      // Use bcrypt for password hashing (industry standard)
       hash: async (password: string) => {
         return bcrypt.hash(password, 10)
       },
@@ -30,22 +25,19 @@ export const auth = betterAuth({
   },
 
   session: {
-    expiresIn: 60 * 60 * 24 * 30, // 30 days
-    updateAge: 60 * 60 * 24, // Update session every 24 hours
+    expiresIn: 60 * 60 * 24 * 30,
+    updateAge: 60 * 60 * 24,
     cookieCache: {
-      enabled: true, // Enable for better performance
-      maxAge: 5 * 60, // Cache for 5 minutes
+      enabled: true,
+      maxAge: 5 * 60,
     },
   },
 
-  // Security configuration
   secret: process.env.BETTER_AUTH_SECRET!,
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
   basePath: '/api/auth',
 
-  // CSRF protection - trust localhost and production domain only
   trustedOrigins: ['http://localhost:3000', process.env.BETTER_AUTH_URL || ''].filter(Boolean),
 })
 
-// Export type-safe client inference
 export type Session = typeof auth.$Infer.Session

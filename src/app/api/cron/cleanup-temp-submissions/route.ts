@@ -2,31 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'crypto'
 import prisma from '@/lib/prisma'
 
-/**
- * Cleanup Job for Expired TemporarySubmissions
- *
- * This endpoint is called by Vercel Cron every hour to delete expired
- * TemporarySubmissions (older than 24 hours).
- *
- * Security: Protected by CRON_SECRET environment variable.
- * Vercel automatically sends this as: Authorization: Bearer ${CRON_SECRET}
- *
- * Configure in vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/cleanup-temp-submissions",
- *     "schedule": "0 * * * *"
- *   }]
- * }
- */
-
 export async function GET(request: NextRequest) {
   try {
-    // 🔒 SECURITY: Verify the request is from Vercel Cron
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
-    // Validate CRON_SECRET is set (should be caught by env validation, but extra safety)
     if (!cronSecret) {
       console.error('❌ CRON_SECRET not configured', {
         timestamp: new Date().toISOString(),
@@ -36,7 +16,6 @@ export async function GET(request: NextRequest) {
 
     const expectedAuth = `Bearer ${cronSecret}`
 
-    // Use timing-safe comparison to prevent timing attacks
     const isValid =
       authHeader &&
       authHeader.length === expectedAuth.length &&
@@ -52,8 +31,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // ✅ Authorized - proceed with cleanup
-    // Delete expired TemporarySubmissions with retry logic for transient failures
     let result
     let retries = 3
     let lastError
@@ -63,26 +40,23 @@ export async function GET(request: NextRequest) {
         result = await prisma.temporarySubmission.deleteMany({
           where: {
             expiresAt: {
-              lt: new Date(), // Less than current time
+              lt: new Date(),
             },
           },
         })
 
-        // Success - break out of retry loop
         break
       } catch (error) {
         lastError = error
         console.error(`❌ Cleanup attempt ${i + 1}/${retries} failed:`, error)
 
         if (i < retries - 1) {
-          // Wait before retry with exponential backoff: 1s, 2s, 4s
           const waitTime = 1000 * Math.pow(2, i)
           await new Promise((resolve) => setTimeout(resolve, waitTime))
         }
       }
     }
 
-    // If all retries failed, return error
     if (!result) {
       console.error('❌ All cleanup retries failed', {
         retries,

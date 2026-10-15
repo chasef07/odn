@@ -1,8 +1,3 @@
-/**
- * Admin Server Actions
- * Handle all admin review operations with database persistence
- */
-
 'use server'
 
 import { NoteVerificationStatus, Prisma, SubmissionStatus } from '@prisma/client'
@@ -57,7 +52,6 @@ import {
 } from '@/lib/business-analytics'
 import { SMS_SUPPORT_STATUS } from '@/lib/sms-support-types'
 
-// Export shared submission types for components
 export type MaybeSubmission = Awaited<ReturnType<typeof getMaybeSubmissions>>['submissions'][number]
 export type ManualSubmission = Awaited<
   ReturnType<typeof getManualSubmissions>
@@ -87,14 +81,10 @@ const DASHBOARD_COUNT_LIMIT = 1000
 const DASHBOARD_TODAY_LIST_LIMIT = 250
 const FRIENDS_FAMILY_LOOKBACK_DAYS = 365
 const FRIENDS_FAMILY_PAGE_SIZE = 4000
-// Hard safety cap to prevent runaway queries (well above expected ~50k/year).
 const FRIENDS_FAMILY_MAX_ROWS = 100_000
 const BUSINESS_ANALYTICS_PAGE_SIZE = 4000
 const BUSINESS_ANALYTICS_MAX_ROWS = 100_000
 
-/**
- * Get current logged-in doctor's session
- */
 async function getCurrentDoctor() {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -144,26 +134,21 @@ async function getLimitedSupportTicketCount(
 function businessAnalyticsFetchStart(range: BusinessAnalyticsRange, referenceDate: Date): Date {
   if (range === '7d') return daysBefore(referenceDate, 14)
   if (range === '30d' || range === '90d') return daysBefore(referenceDate, 180)
-  // 12-month view needs ~13 months; 8-quarter view needs ~25 months.
   if (range === 'monthly') return daysBefore(referenceDate, 400)
   if (range === 'quarterly') return daysBefore(referenceDate, 770)
-  // 'all' and 'yearly' need the full history.
   if (range === 'all' || range === 'yearly') return new Date('2000-01-01T00:00:00.000Z')
   return daysBefore(referenceDate, FRIENDS_FAMILY_LOOKBACK_DAYS)
 }
 
-/**
- * Get all pending submissions for review
- * @returns Array of submissions with PENDING_REVIEW status, oldest first
- */
 export async function getSubmissionsForReview() {
   try {
+    await getCurrentDoctor()
     const submissions = await prisma.submission.findMany({
       where: {
         status: SubmissionStatus.PENDING_REVIEW,
       },
       orderBy: {
-        createdAt: 'asc', // FIFO - oldest first
+        createdAt: 'asc',
       },
     })
 
@@ -174,13 +159,9 @@ export async function getSubmissionsForReview() {
   }
 }
 
-/**
- * Get dashboard statistics
- * @returns Counts for pending, approved today, denied today, maybe
- */
 export async function getDashboardStats() {
   try {
-    // Business day starts at 6am ET (not midnight UTC)
+    await getCurrentDoctor()
     const today = getBusinessDayStart()
     const [
       pendingCount,
@@ -190,28 +171,22 @@ export async function getDashboardStats() {
       manualCount,
       needsAdminSupportCount,
     ] = await Promise.all([
-      // Pending reviews
       getLimitedSubmissionCount({ status: SubmissionStatus.PENDING_REVIEW }),
 
-      // Approved today
       getLimitedSubmissionCount({
         status: SubmissionStatus.APPROVED,
         reviewedAt: { gte: today },
       }),
 
-      // Denied today
       getLimitedSubmissionCount({
         status: SubmissionStatus.DENIED,
         reviewedAt: { gte: today },
       }),
 
-      // Maybe (all time)
       getLimitedSubmissionCount({ status: SubmissionStatus.MAYBE }),
 
-      // Manual (all time)
       getLimitedSubmissionCount({ status: SubmissionStatus.MANUAL }),
 
-      // SMS support tickets requiring admin attention
       getLimitedSupportTicketCount({ status: SMS_SUPPORT_STATUS.NEEDS_CSR }),
     ])
 
@@ -232,17 +207,11 @@ export async function getDashboardStats() {
   }
 }
 
-/**
- * Get customer-level friends and family segmentation analytics.
- * This is analytics-only: no outreach state, no emails, and no schema writes.
- */
 async function fetchFriendsFamilySubmissions(
   referenceDate: Date
 ): Promise<FriendsFamilySubmissionInput[]> {
   const lookbackStart = daysBefore(referenceDate, FRIENDS_FAMILY_LOOKBACK_DAYS)
 
-  // Prisma Accelerate caps responses at ~5MB, so we paginate via id cursor
-  // to grab ALL submissions in the lookback window without hitting that cap.
   const submissions: FriendsFamilySubmissionInput[] = []
   let cursor: string | undefined
   while (submissions.length < FRIENDS_FAMILY_MAX_ROWS) {
@@ -306,10 +275,6 @@ export async function getFriendsFamilyAnalytics(
   }
 }
 
-/**
- * Export the full customer segment list for CSV download.
- * Skips the summary payload so the response is just the customer rows.
- */
 export async function exportFriendsFamilyCustomers(options: {
   segment: FriendsFamilySegmentFilter
 }): Promise<{
@@ -394,9 +359,6 @@ function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWh
   return null
 }
 
-/**
- * Get a single customer's timeline and score breakdown for the friends/family analytics drawer.
- */
 export async function getFriendsFamilyCustomerDetail(customerKey: string): Promise<{
   success: boolean
   data?: FriendsFamilyCustomerSegment
@@ -451,9 +413,6 @@ export async function getFriendsFamilyCustomerDetail(customerKey: string): Promi
   }
 }
 
-/**
- * Get business-focused admin analytics for revenue, volume, geography, and customer quality.
- */
 export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {}): Promise<{
   success: boolean
   data?: BusinessAnalytics
@@ -465,8 +424,6 @@ export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {
     const range = options.range ?? '30d'
     const fetchStart = businessAnalyticsFetchStart(range, referenceDate)
 
-    // Paginate via id cursor to grab ALL submissions in the window
-    // (Prisma Accelerate caps responses at ~5MB; ~300+/day would blow a single fetch).
     const submissions: Array<{
       id: string
       status: SubmissionStatus
@@ -526,13 +483,9 @@ export async function getBusinessAnalytics(options: BusinessAnalyticsOptions = {
   }
 }
 
-/**
- * Get approved submissions for today
- * @returns Array of approved submissions with name, email, and approval timestamp
- */
 export async function getApprovedSubmissionsForToday() {
   try {
-    // Business day starts at 6am ET (not midnight UTC)
+    await getCurrentDoctor()
     const today = getBusinessDayStart()
     const submissions = await prisma.submission.findMany({
       where: {
@@ -547,7 +500,7 @@ export async function getApprovedSubmissionsForToday() {
         approvalEmailSentAt: true,
       },
       orderBy: {
-        approvalEmailSentAt: 'desc', // Newest first
+        approvalEmailSentAt: 'desc',
       },
       take: DASHBOARD_TODAY_LIST_LIMIT,
     })
@@ -559,13 +512,9 @@ export async function getApprovedSubmissionsForToday() {
   }
 }
 
-/**
- * Get denied submissions for today
- * @returns Array of denied submissions with name, email, and denial timestamp
- */
 export async function getDeniedSubmissionsForToday() {
   try {
-    // Business day starts at 6am ET (not midnight UTC)
+    await getCurrentDoctor()
     const today = getBusinessDayStart()
     const submissions = await prisma.submission.findMany({
       where: {
@@ -580,7 +529,7 @@ export async function getDeniedSubmissionsForToday() {
         denialEmailSentAt: true,
       },
       orderBy: {
-        denialEmailSentAt: 'desc', // Newest first
+        denialEmailSentAt: 'desc',
       },
       take: DASHBOARD_TODAY_LIST_LIMIT,
     })
@@ -592,15 +541,6 @@ export async function getDeniedSubmissionsForToday() {
   }
 }
 
-/**
- * Get monthly limit data for a patient
- * @param patientFirstName - Patient first name
- * @param patientLastName - Patient last name
- * @param patientDateOfBirth - Patient date of birth
- * @param firstDayOff - First day of absence request
- * @param lastDayOff - Last day of absence request
- * @returns Monthly usage data
- */
 export async function getMonthlyLimitData(
   patientFirstName: string,
   patientLastName: string,
@@ -609,7 +549,7 @@ export async function getMonthlyLimitData(
   lastDayOff: Date
 ) {
   try {
-    // Use the existing utility function
+    await getCurrentDoctor()
     const result = await wouldExceedMonthlyLimit(
       patientFirstName,
       patientLastName,
@@ -689,9 +629,6 @@ export async function removeGuardianFromAdultSubmission(submissionId: string) {
   }
 }
 
-/**
- * Patient history entry for display in admin portal
- */
 export type PatientHistoryEntry = {
   id: string
   patientFirstName: string
@@ -706,15 +643,6 @@ export type PatientHistoryEntry = {
   denialReason: string | null
 }
 
-/**
- * Get past submissions for a patient (by name + DOB or email)
- * @param patientFirstName - Patient first name
- * @param patientLastName - Patient last name
- * @param patientDateOfBirth - Patient date of birth
- * @param email - Patient email
- * @param currentSubmissionId - Current submission ID to exclude from results
- * @returns Array of past submissions
- */
 export async function getPatientHistory(
   patientFirstName: string,
   patientLastName: string,
@@ -723,6 +651,7 @@ export async function getPatientHistory(
   currentSubmissionId: string
 ): Promise<{ success: boolean; data?: PatientHistoryEntry[]; error?: string }> {
   try {
+    await getCurrentDoctor()
     const submissions = await prisma.submission.findMany({
       where: {
         id: { not: currentSubmissionId },
@@ -775,14 +704,6 @@ export async function getPatientHistory(
   }
 }
 
-/**
- * Approve a submission with PDF generation and email notification
- * @param submissionId - Submission ID to approve
- * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
- * @param diagnosis - Optional diagnosis text to include in the PDF
- * @param withRestrictions - Whether to include ", with no restrictions" text in PDF (defaults to true)
- * @returns Success status with detailed error messages
- */
 export async function approveSubmission(
   submissionId: string,
   evaluationDate?: string,
@@ -792,7 +713,6 @@ export async function approveSubmission(
   try {
     const doctorId = await getCurrentDoctor()
 
-    // Step 1: Fetch submission to get status and patient details
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
     })
@@ -801,7 +721,6 @@ export async function approveSubmission(
       return { success: false, error: 'Submission not found' }
     }
 
-    // Allow approval from PENDING_REVIEW, MAYBE, or MANUAL status
     if (
       submission.status !== SubmissionStatus.PENDING_REVIEW &&
       submission.status !== SubmissionStatus.MAYBE &&
@@ -813,11 +732,9 @@ export async function approveSubmission(
       }
     }
 
-    // Check if this is a manual approval (skip automation)
     const isManual = submission.status === SubmissionStatus.MANUAL
 
     if (isManual) {
-      // Manual approval: Skip PDF generation and email sending
       const now = new Date()
       await prisma.submission.update({
         where: { id: submissionId },
@@ -826,13 +743,12 @@ export async function approveSubmission(
           reviewedByAdminId: doctorId,
           reviewedAt: now,
           denialReason: null,
-          approvalEmailSentAt: null, // No email sent for manual approvals
+          approvalEmailSentAt: null,
           approvalDiagnosis: null,
           approvalWithRestrictions: null,
         },
       })
 
-      // Revalidate admin pages
       revalidatePath('/admin')
       revalidatePath('/admin/review')
       revalidatePath('/admin/maybe')
@@ -842,12 +758,10 @@ export async function approveSubmission(
       return { success: true }
     }
 
-    // Standard approval: create a verifier for this issued PDF, generate PDF, approve, then email
     const issueDate = parseIssueDateInput(evaluationDate)
     const noteVerification = await createNoteVerification(submission, issueDate)
     const verificationUrl = getVerificationUrl(noteVerification.verificationSlug)
 
-    // Step 2: Generate QR + PDF (BLOCKING - must succeed before status changes)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
@@ -862,7 +776,6 @@ export async function approveSubmission(
       logger.info(`PDF generated: ${pdfFilename} for submission ${submissionId}`)
     } catch (pdfError) {
       await revokeNoteVerificationById(noteVerification.id)
-      // PDF generation failed - DO NOT approve submission
       logger.error('PDF generation failed:', pdfError)
       return {
         success: false,
@@ -870,8 +783,6 @@ export async function approveSubmission(
       }
     }
 
-    // Step 3: Mark approved before the email leaves. This prevents patients from receiving
-    // a QR-linked PDF whose verifier record is not active yet.
     const now = new Date()
     const approvalUpdate = await prisma.submission.updateMany({
       where: {
@@ -898,7 +809,6 @@ export async function approveSubmission(
     }
     await revokeOtherNoteVerificationsForSubmission(submissionId, noteVerification.id, now)
 
-    // Step 4: Send approval email with PDF attachment (NON-BLOCKING - log warning if fails)
     const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
     let emailWarning: string | undefined
 
@@ -927,17 +837,14 @@ export async function approveSubmission(
 
       logger.info(`Approval email sent to ${submission.email} for submission ${submissionId}`)
     } catch (emailError) {
-      // Email failed but PDF generated successfully and the verifier exists.
       logger.error('Failed to send approval email:', emailError)
       emailWarning = 'Submission approved, but email notification failed to send'
     }
 
-    // Revalidate admin pages
     revalidatePath('/admin')
     revalidatePath('/admin/review')
     revalidatePath('/admin/maybe')
 
-    // Return success with optional warning
     if (emailWarning) {
       return { success: true, warning: emailWarning }
     }
@@ -952,17 +859,10 @@ export async function approveSubmission(
   }
 }
 
-/**
- * Deny a submission with reason, process refund, and send email notification
- * @param submissionId - Submission ID to deny
- * @param reason - Denial reason (Legal, 7+ days, Other)
- * @returns Success status with detailed error messages
- */
 export async function denySubmission(submissionId: string, reason: string) {
   try {
     const doctorId = await getCurrentDoctor()
 
-    // Step 1: Fetch submission to get payment intent ID and patient details
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
       select: {
@@ -983,7 +883,6 @@ export async function denySubmission(submissionId: string, reason: string) {
       return { success: false, error: 'Submission not found' }
     }
 
-    // Allow denial from PENDING_REVIEW, MAYBE, or MANUAL status
     if (
       submission.status !== SubmissionStatus.PENDING_REVIEW &&
       submission.status !== SubmissionStatus.MAYBE &&
@@ -995,11 +894,9 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     }
 
-    // Check if this is a manual denial (skip automation)
     const isManual = submission.status === SubmissionStatus.MANUAL
 
     if (isManual) {
-      // Manual denial: Skip refund processing and email sending
       const now = new Date()
       await prisma.submission.update({
         where: { id: submissionId },
@@ -1008,13 +905,11 @@ export async function denySubmission(submissionId: string, reason: string) {
           denialReason: reason,
           reviewedByAdminId: doctorId,
           reviewedAt: now,
-          denialEmailSentAt: null, // No email sent for manual denials
-          // No refund fields set (stripeRefundId, refundedAt remain null)
+          denialEmailSentAt: null,
         },
       })
       await revokeNoteVerificationForSubmission(submissionId, now)
 
-      // Revalidate admin pages
       revalidatePath('/admin')
       revalidatePath('/admin/review')
       revalidatePath('/admin/maybe')
@@ -1025,8 +920,6 @@ export async function denySubmission(submissionId: string, reason: string) {
       return { success: true }
     }
 
-    // Standard denial: Process refund and send email
-
     if (!submission.stripePaymentIntentId) {
       return {
         success: false,
@@ -1034,7 +927,6 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     }
 
-    // Idempotency check: Prevent duplicate refunds
     if (submission.stripeRefundId) {
       return {
         success: false,
@@ -1042,8 +934,6 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     }
 
-    // Step 2: Update database FIRST (with optimistic locking to prevent race conditions)
-    // This prevents two doctors from denying the same submission simultaneously
     const now = new Date()
     const updateResult = await prisma.submission.updateMany({
       where: {
@@ -1051,19 +941,18 @@ export async function denySubmission(submissionId: string, reason: string) {
         status: {
           in: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
         },
-        stripeRefundId: null, // Only if not already refunded
+        stripeRefundId: null,
       },
       data: {
         status: SubmissionStatus.DENIED,
         denialReason: reason,
         reviewedByAdminId: doctorId,
         reviewedAt: now,
-        stripeRefundId: `pending_${submissionId}`, // Placeholder - will be replaced after refund
+        stripeRefundId: `pending_${submissionId}`,
         refundedAt: now,
       },
     })
 
-    // If no rows were updated, another doctor already reviewed this
     if (updateResult.count === 0) {
       return {
         success: false,
@@ -1071,8 +960,6 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     }
 
-    // Step 3: Process Stripe refund (BLOCKING - must succeed)
-    // FIX 2: Add idempotency key to prevent duplicate refunds on network retry
     let refund: Stripe.Refund
     const idempotencyKey = `refund_${submissionId}_${doctorId}`
 
@@ -1088,19 +975,18 @@ export async function denySubmission(submissionId: string, reason: string) {
           },
         },
         {
-          idempotencyKey: idempotencyKey, // Prevents duplicate refunds on retry (24h cache)
+          idempotencyKey: idempotencyKey,
         }
       )
 
       logger.info(`Refund processed: ${refund.id} for submission ${submissionId}`)
     } catch (stripeError) {
-      // CRITICAL: Refund failed - rollback database status
       logger.error('Stripe refund failed:', stripeError)
 
       await prisma.submission.update({
         where: { id: submissionId },
         data: {
-          status: SubmissionStatus.PENDING_REVIEW, // Rollback to original status
+          status: SubmissionStatus.PENDING_REVIEW,
           stripeRefundId: null,
           reviewedByAdminId: null,
           reviewedAt: null,
@@ -1115,18 +1001,16 @@ export async function denySubmission(submissionId: string, reason: string) {
       }
     }
 
-    // Step 4: Update database with actual refund ID (replace placeholder)
     await prisma.submission.update({
       where: { id: submissionId },
       data: {
-        stripeRefundId: refund.id, // Replace placeholder with real Stripe refund ID
+        stripeRefundId: refund.id,
       },
     })
     await revokeNoteVerificationForSubmission(submissionId, now)
 
-    // Step 5: Send denial email (NON-BLOCKING - log error but don't fail)
     const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
-    const refundAmountDollars = refund.amount / 100 // Convert cents to dollars from Stripe refund
+    const refundAmountDollars = refund.amount / 100
     let emailSentAt: Date | undefined
     let emailWarning: string | undefined
 
@@ -1147,28 +1031,24 @@ export async function denySubmission(submissionId: string, reason: string) {
 
       logger.info(`Denial email sent to ${submission.email} for submission ${submissionId}`)
     } catch (emailError) {
-      // Email failed but refund succeeded - log error but continue
       logger.error('Failed to send denial email:', emailError)
       emailWarning = 'Submission denied and refunded, but email notification failed to send'
     }
 
-    // Step 6: Update email timestamp if email succeeded
     if (emailSentAt) {
       await prisma.submission.update({
         where: { id: submissionId },
         data: {
-          denialEmailSentAt: emailSentAt, // Only set if email succeeded
+          denialEmailSentAt: emailSentAt,
         },
       })
     }
 
-    // Revalidate admin pages
     revalidatePath('/admin')
     revalidatePath('/admin/review')
     revalidatePath('/admin/maybe')
     revalidatePath('/admin/denied')
 
-    // Return success with optional warning
     if (emailWarning) {
       return { success: true, warning: emailWarning }
     }
@@ -1183,12 +1063,6 @@ export async function denySubmission(submissionId: string, reason: string) {
   }
 }
 
-/**
- * Mark a submission as maybe (needs further review)
- * @param submissionId - Submission ID to mark as maybe
- * @param input - Maybe reason and optional internal note
- * @returns Success status
- */
 export async function maybeSubmission(submissionId: string, input: MaybeSubmissionInput) {
   try {
     const doctorId = await getCurrentDoctor()
@@ -1318,16 +1192,10 @@ async function moveSubmissionToMaybe({
   return { success: true, warning: emailWarning }
 }
 
-/**
- * Mark a submission as manual (doctor will handle note manually)
- * @param submissionId - Submission ID to mark as manual
- * @returns Success status
- */
 export async function markAsManual(submissionId: string) {
   try {
     const doctorId = await getCurrentDoctor()
 
-    // Verify submission is in MAYBE status
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
       select: { status: true },
@@ -1353,7 +1221,6 @@ export async function markAsManual(submissionId: string) {
       },
     })
 
-    // Revalidate admin pages
     revalidatePath('/admin')
     revalidatePath('/admin/review')
     revalidatePath('/admin/maybe')
@@ -1365,13 +1232,9 @@ export async function markAsManual(submissionId: string) {
   }
 }
 
-/**
- * Get all submissions with MAYBE status
- * @returns Array of maybe submissions with patient info
- */
 export async function getMaybeSubmissions() {
   try {
-    await getCurrentDoctor() // Verify authentication
+    await getCurrentDoctor()
 
     const submissions = await prisma.submission.findMany({
       where: {
@@ -1395,11 +1258,10 @@ export async function getMaybeSubmissions() {
         reviewedAt: true,
       },
       orderBy: {
-        reviewedAt: 'desc', // Most recent first
+        reviewedAt: 'desc',
       },
     })
 
-    // Format dates consistently using UTC components to avoid timezone shifts
     const formattedSubmissions = submissions.map((sub) => ({
       id: sub.id,
       patientFirstName: sub.patientFirstName,
@@ -1425,13 +1287,9 @@ export async function getMaybeSubmissions() {
   }
 }
 
-/**
- * Get all submissions with MANUAL status
- * @returns Array of manual submissions with patient info
- */
 export async function getManualSubmissions() {
   try {
-    await getCurrentDoctor() // Verify authentication
+    await getCurrentDoctor()
 
     const submissions = await prisma.submission.findMany({
       where: {
@@ -1447,11 +1305,10 @@ export async function getManualSubmissions() {
         reviewedAt: true,
       },
       orderBy: {
-        reviewedAt: 'desc', // Most recent first
+        reviewedAt: 'desc',
       },
     })
 
-    // Format dates consistently using UTC components to avoid timezone shifts
     const formattedSubmissions = submissions.map((sub) => ({
       id: sub.id,
       patientFirstName: sub.patientFirstName,
@@ -1469,7 +1326,6 @@ export async function getManualSubmissions() {
   }
 }
 
-// Type for search result submissions
 export type SearchSubmission = {
   id: string
   patientFirstName: string
@@ -1484,14 +1340,6 @@ export type SearchSubmission = {
 
 export type AdminSearchType = 'name' | 'email' | 'id' | 'phone' | 'medicalRecord'
 
-/**
- * Search submissions by name, email, phone, submission ID, or Medical Record #
- * @param query - Search query string
- * @param searchType - Type of search
- * @param page - Page number (1-indexed)
- * @param limit - Results per page
- * @returns Paginated search results
- */
 export async function searchSubmissions({
   query,
   searchType,
@@ -1509,7 +1357,7 @@ export async function searchSubmissions({
   error?: string
 }> {
   try {
-    await getCurrentDoctor() // Verify authentication
+    await getCurrentDoctor()
 
     if (!query || query.trim().length === 0) {
       return { success: true, submissions: [], total: 0 }
@@ -1518,15 +1366,12 @@ export async function searchSubmissions({
     const skip = (page - 1) * limit
     const trimmedQuery = query.trim()
 
-    // Build where clause based on search type
     let whereClause: Prisma.SubmissionWhereInput = {}
 
     switch (searchType) {
       case 'name': {
-        // Split query into parts for flexible matching
         const nameParts = trimmedQuery.split(/\s+/)
         if (nameParts.length === 1) {
-          // Single term: search both first and last name
           whereClause = {
             OR: [
               { patientFirstName: { contains: nameParts[0], mode: 'insensitive' } },
@@ -1534,7 +1379,6 @@ export async function searchSubmissions({
             ],
           }
         } else {
-          // Multiple terms: first matches firstName, last matches lastName
           whereClause = {
             AND: [
               { patientFirstName: { contains: nameParts[0], mode: 'insensitive' } },
@@ -1554,7 +1398,6 @@ export async function searchSubmissions({
         break
 
       case 'id':
-        // Support both full UUID and partial ID (prefix match)
         whereClause = {
           id: { startsWith: trimmedQuery.toLowerCase() },
         }
@@ -1572,9 +1415,7 @@ export async function searchSubmissions({
       }
 
       case 'phone': {
-        // Strip non-digits and format to match stored format (XXX) XXX-XXXX
         const digitsOnly = trimmedQuery.replace(/\D/g, '')
-        // Format the digits to match how phones are stored in the database
         let formattedPhone = digitsOnly
         if (digitsOnly.length <= 3) {
           formattedPhone = digitsOnly
@@ -1590,7 +1431,6 @@ export async function searchSubmissions({
       }
     }
 
-    // Execute search with pagination
     const [submissions, total] = await Promise.all([
       prisma.submission.findMany({
         where: whereClause,
@@ -1631,7 +1471,6 @@ export async function searchSubmissions({
   }
 }
 
-// Type for submission with formatted date strings (for client components)
 type SubmissionWithNoteVerifications = Prisma.SubmissionGetPayload<{
   include: { noteVerifications: true }
 }>
@@ -1652,16 +1491,11 @@ export type FormattedSubmission = Omit<
   smsPhoneE164: string | null
 }
 
-/**
- * Get single submission by ID for editing
- * @param submissionId - Submission ID to fetch
- * @returns Full submission data with dates formatted consistently
- */
 export async function getSubmissionById(
   submissionId: string
 ): Promise<{ success: true; submission: FormattedSubmission } | { success: false; error: string }> {
   try {
-    await getCurrentDoctor() // Verify authentication
+    await getCurrentDoctor()
 
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
@@ -1703,7 +1537,6 @@ export async function getSubmissionById(
         })
       : null
 
-    // Return submission with formatted date fields
     const formattedSubmission: FormattedSubmission = {
       ...submission,
       patientDateOfBirth: formatDateUTC(submission.patientDateOfBirth),
@@ -1731,12 +1564,6 @@ export async function getSubmissionById(
   }
 }
 
-/**
- * Update editable submission fields without changing status.
- * @param submissionId - Submission ID to update
- * @param data - Updated submission data
- * @returns Success status
- */
 export async function updateSubmission(
   submissionId: string,
   data: {
@@ -1761,7 +1588,7 @@ export async function updateSubmission(
   }
 ) {
   try {
-    await getCurrentDoctor() // Verify authentication
+    await getCurrentDoctor()
 
     let updateData: typeof data & {
       smsOptIn?: boolean
@@ -1803,7 +1630,6 @@ export async function updateSubmission(
             }
     }
 
-    // Update submission with new values without changing status.
     await prisma.submission.update({
       where: { id: submissionId },
       data: {
@@ -1812,7 +1638,6 @@ export async function updateSubmission(
       },
     })
 
-    // Revalidate admin pages
     revalidatePath('/admin/review')
     revalidatePath('/admin/maybe')
     revalidatePath(`/admin/maybe/${submissionId}`)
@@ -1826,11 +1651,6 @@ export async function updateSubmission(
   }
 }
 
-/**
- * Update review-only classification fields while a submission is still pending review.
- * This prevents stale review tabs from editing classifications after another admin
- * has already approved, denied, or moved the submission out of the review queue.
- */
 export async function updateReviewClassification(
   submissionId: string,
   data: {
@@ -1869,15 +1689,6 @@ export async function updateReviewClassification(
   }
 }
 
-/**
- * Re-approve an already approved submission (generates new PDF and sends new email)
- * Use this when edits were made to an approved submission and a new note is needed
- * @param submissionId - Submission ID to re-approve
- * @param evaluationDate - Optional date string (YYYY-MM-DD) for the PDF "Date Issued" field
- * @param diagnosis - Optional diagnosis text to include in the PDF
- * @param withRestrictions - Whether to include ", with no restrictions" text in PDF (defaults to true)
- * @returns Success status with optional warning
- */
 export async function reApproveSubmission(
   submissionId: string,
   evaluationDate?: string,
@@ -1887,7 +1698,6 @@ export async function reApproveSubmission(
   try {
     const doctorId = await getCurrentDoctor()
 
-    // Fetch submission
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
     })
@@ -1900,7 +1710,6 @@ export async function reApproveSubmission(
     const noteVerification = await createNoteVerification(submission, issueDate)
     const verificationUrl = getVerificationUrl(noteVerification.verificationSlug)
 
-    // Generate QR + new PDF (BLOCKING - must succeed)
     let pdfBuffer: Buffer
     let pdfFilename: string
     try {
@@ -1922,7 +1731,6 @@ export async function reApproveSubmission(
       }
     }
 
-    // Update database before sending the QR-linked PDF.
     const now = new Date()
     const approvalUpdate = await prisma.submission.updateMany({
       where: {
@@ -1949,7 +1757,6 @@ export async function reApproveSubmission(
     }
     await revokeOtherNoteVerificationsForSubmission(submissionId, noteVerification.id, now)
 
-    // Send new approval email (NON-BLOCKING)
     const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
     let emailWarning: string | undefined
 
@@ -1982,7 +1789,6 @@ export async function reApproveSubmission(
       emailWarning = 'Re-approval processed, but email notification failed to send'
     }
 
-    // Revalidate pages
     revalidatePath('/admin')
     revalidatePath('/admin/search')
     revalidatePath(`/admin/search/${submissionId}`)
@@ -2002,14 +1808,6 @@ export async function reApproveSubmission(
   }
 }
 
-/**
- * Change submission status with appropriate handling for each transition
- * Handles complex cases like denying after approval (check refund status)
- * @param submissionId - Submission ID to change
- * @param newStatus - Target status
- * @param denialReason - Required if newStatus is DENIED
- * @returns Success status with optional warning
- */
 export async function changeSubmissionStatus(
   submissionId: string,
   newStatus: SubmissionStatus,
@@ -2019,7 +1817,6 @@ export async function changeSubmissionStatus(
   try {
     const doctorId = await getCurrentDoctor()
 
-    // Fetch current submission
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
     })
@@ -2031,11 +1828,8 @@ export async function changeSubmissionStatus(
     const currentStatus = submission.status
     const now = new Date()
 
-    // Handle different status transitions
     switch (newStatus) {
       case SubmissionStatus.APPROVED: {
-        // For approval, use the regular approveSubmission or reApproveSubmission
-        // This function handles simpler status changes
         return {
           success: false,
           error: 'Use approveSubmission or reApproveSubmission for approvals',
@@ -2047,16 +1841,13 @@ export async function changeSubmissionStatus(
           return { success: false, error: 'Denial reason is required' }
         }
 
-        // Check if already denied
         if (currentStatus === SubmissionStatus.DENIED) {
           return { success: false, error: 'Submission is already denied' }
         }
 
-        // Check if refund already processed
         const alreadyRefunded = !!submission.stripeRefundId
 
         if (alreadyRefunded) {
-          // Already refunded - just update status and send email
           await prisma.submission.update({
             where: { id: submissionId },
             data: {
@@ -2069,7 +1860,6 @@ export async function changeSubmissionStatus(
           })
           await revokeNoteVerificationForSubmission(submissionId, now)
 
-          // Try to send denial email (NON-BLOCKING)
           let emailWarning: string | undefined
           try {
             const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
@@ -2104,12 +1894,10 @@ export async function changeSubmissionStatus(
           }
         }
 
-        // Need to process refund
         if (!submission.stripePaymentIntentId) {
           return { success: false, error: 'No payment intent ID found for this submission' }
         }
 
-        // Process refund
         const idempotencyKey = `refund_${submissionId}_${doctorId}_change`
         let refund: Stripe.Refund
 
@@ -2134,7 +1922,6 @@ export async function changeSubmissionStatus(
           }
         }
 
-        // Update database with refund info
         await prisma.submission.update({
           where: { id: submissionId },
           data: {
@@ -2149,7 +1936,6 @@ export async function changeSubmissionStatus(
         })
         await revokeNoteVerificationForSubmission(submissionId, now)
 
-        // Send denial email (NON-BLOCKING)
         let emailWarning: string | undefined
         try {
           const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
@@ -2200,7 +1986,6 @@ export async function changeSubmissionStatus(
       }
 
       case SubmissionStatus.MANUAL: {
-        // Simple status change to MANUAL
         await prisma.submission.update({
           where: { id: submissionId },
           data: {
@@ -2221,7 +2006,6 @@ export async function changeSubmissionStatus(
       }
 
       case SubmissionStatus.PENDING_REVIEW: {
-        // Allow moving back to pending (rare case)
         await prisma.submission.update({
           where: { id: submissionId },
           data: {

@@ -119,7 +119,6 @@ describe('formatPhoneNumber', () => {
     })
 
     it('should handle progressive typing simulation', () => {
-      // Simulates user typing one digit at a time
       expect(formatPhoneNumber('5')).toBe('5')
       expect(formatPhoneNumber('55')).toBe('55')
       expect(formatPhoneNumber('555')).toBe('555')

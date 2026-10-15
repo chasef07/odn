@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { sendBounceAlertEmail, resend } from '@/lib/email'
 import { emailBounceSms } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
+import { isUniqueConstraintError } from '@/lib/prisma-errors'
 
 interface ResendBounceEvent {
   type: 'email.bounced'
@@ -19,7 +20,6 @@ interface ResendBounceEvent {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Get raw body and webhook headers
     const body = await request.text()
     const svixId = request.headers.get('svix-id')
     const svixTimestamp = request.headers.get('svix-timestamp')
@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing webhook headers' }, { status: 400 })
     }
 
-    // 2. Verify signature using Resend SDK
     let event: ResendBounceEvent
     try {
       event = resend.webhooks.verify({
@@ -47,7 +46,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
-    // 3. Filter for bounce events only
     if (event.type !== 'email.bounced') {
       return NextResponse.json({ received: true }, { status: 200 })
     }
@@ -70,12 +68,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 4. Extract bounce data
     const bouncedEmail = event.data.to[0]
     const bounceReason = event.data.bounce_reason || 'Unknown reason'
     const emailSubject = event.data.subject
 
-    // 5. Identify email type from subject
     let emailType: 'approval' | 'denial' | 'payment_confirmation' | 'follow_up' | 'unknown' =
       'unknown'
     if (emailSubject.includes("Your Doctor's Note is Approved")) {
@@ -88,7 +84,6 @@ export async function POST(request: NextRequest) {
       emailType = 'follow_up'
     }
 
-    // 6. Query submissions by email. Customer SMS only sends for unambiguous matches.
     let submission = null
     let canSendBounceSms = false
     try {
@@ -111,10 +106,8 @@ export async function POST(request: NextRequest) {
       canSendBounceSms = matchingSubmissions.length === 1
     } catch (dbError) {
       console.error('Database query error:', dbError)
-      // Continue without submission data - we'll send alert anyway
     }
 
-    // 7. Send customer bounce SMS when opted in. Failure must not block the alert.
     if (canSendBounceSms && submission?.smsOptIn) {
       await sendTransactionalSmsForSubmission({
         submission,
@@ -129,7 +122,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 8. Send alert email (non-blocking)
     try {
       await sendBounceAlertEmail({
         bouncedEmail,
@@ -141,7 +133,6 @@ export async function POST(request: NextRequest) {
         console.info('Bounce alert email sent successfully')
       }
     } catch (emailError) {
-      // Log error but still return 200 OK to prevent retries
       console.error('Failed to send bounce alert email:', emailError)
       return NextResponse.json({ received: true, warning: 'Alert email failed' }, { status: 200 })
     }
@@ -175,8 +166,4 @@ async function claimResendWebhookEvent({
     if (isUniqueConstraintError(error)) return false
     throw error
   }
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
 }

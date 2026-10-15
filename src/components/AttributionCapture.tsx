@@ -25,7 +25,6 @@ export default function AttributionCapture() {
   useEffect(() => {
     try {
       const url = new URL(window.location.href)
-      // Returning from Stripe is not a new visit.
       if (url.pathname.endsWith('/payment/success')) return
 
       const existing = parseAttributionCookie(readCookie(ATTRIBUTION_COOKIE))
@@ -38,9 +37,7 @@ export default function AttributionCapture() {
 
       const secure = window.location.protocol === 'https:' ? '; Secure' : ''
       document.cookie = `${ATTRIBUTION_COOKIE}=${value}; Max-Age=${ATTRIBUTION_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secure}`
-    } catch {
-      // Attribution is best effort and must never break the page.
-    }
+    } catch {}
   }, [])
 
   return null

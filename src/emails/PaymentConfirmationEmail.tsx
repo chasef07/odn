@@ -14,7 +14,6 @@ import {
   Column,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
-import * as React from 'react'
 
 interface PaymentConfirmationEmailProps {
   patientName: string
@@ -26,7 +25,6 @@ export const PaymentConfirmationEmail = ({
   submissionId = '550E8400',
 }: PaymentConfirmationEmailProps) => {
   const currentYear = new Date().getFullYear()
-  // Format submission ID as short version (first 8 chars uppercase)
   const shortId = submissionId.toUpperCase().substring(0, 8)
 
   return (
@@ -36,14 +34,12 @@ export const PaymentConfirmationEmail = ({
       <Tailwind>
         <Body className="bg-gray-50 font-sans">
           <Container className="mx-auto my-8 max-w-2xl">
-            {/* Header with Logo */}
             <Section className="rounded-t-2xl border-b border-gray-200 bg-white px-8 py-4">
               <Text className="m-0 text-2xl font-bold" style={{ color: '#009ed9' }}>
                 OnlineDoctorNote
               </Text>
             </Section>
 
-            {/* Main Content */}
             <Section className="bg-white px-8 py-8">
               <Text className="mb-6 text-base leading-relaxed text-gray-900">
                 Hi <strong>{patientName}</strong>,
@@ -54,7 +50,6 @@ export const PaymentConfirmationEmail = ({
                 submitted and is now under review by our medical team.
               </Text>
 
-              {/* Submission ID Card */}
               <Section
                 className="mb-8 rounded-2xl bg-white p-6"
                 style={{ border: '2px solid #009ed9' }}
@@ -69,7 +64,6 @@ export const PaymentConfirmationEmail = ({
                 </Text>
               </Section>
 
-              {/* What's Next Section */}
               <Section className="mb-8">
                 <Heading className="mb-4 text-xl font-bold text-gray-900">
                   What happens next?
@@ -119,7 +113,6 @@ export const PaymentConfirmationEmail = ({
 
               <Hr className="my-8 border-gray-200" />
 
-              {/* Help Section */}
               <Section className="mt-8 rounded-xl bg-gray-50 p-6">
                 <Heading className="m-0 mb-2 text-base font-bold text-gray-900">Need Help?</Heading>
                 <Text className="m-0 text-sm leading-relaxed text-gray-700">
@@ -137,7 +130,6 @@ export const PaymentConfirmationEmail = ({
                 </Text>
               </Section>
 
-              {/* FAQ Button */}
               <Section className="mt-6 text-center">
                 <Button
                   href="https://onlinedoctornote.com/"
@@ -149,7 +141,6 @@ export const PaymentConfirmationEmail = ({
               </Section>
             </Section>
 
-            {/* Footer */}
             <Section className="rounded-b-2xl bg-gray-100 px-8 py-6">
               <Text className="m-0 text-center text-xs leading-relaxed text-gray-600">
                 © {currentYear} Online Doctor&apos;s Note. All rights reserved.

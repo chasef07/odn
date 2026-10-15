@@ -135,7 +135,6 @@
   }
 }
 
-/* Homepage Animation Keyframes */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -188,7 +187,6 @@
   }
 }
 
-/* Animation Classes */
 .animate-fade-in-up {
   animation: fadeInUp 0.6s ease-out forwards;
   opacity: 0;
@@ -212,7 +210,6 @@
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
-/* Stagger Delays */
 .stagger-1 {
   animation-delay: 0.1s;
 }
@@ -229,7 +226,6 @@
   animation-delay: 0.5s;
 }
 
-/* Scroll-snap Carousel Utilities */
 .snap-container {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
@@ -246,7 +242,6 @@
   scroll-snap-stop: always;
 }
 
-/* Infinite scroll animation for stats bar */
 @keyframes scroll {
   0% {
     transform: translateX(0);
@@ -260,7 +255,6 @@
   animation: scroll 30s linear infinite;
 }
 
-/* Hero Heartbeat Line Animation */
 @keyframes heartbeat-line {
   0% {
     stroke-dashoffset: 1000;
@@ -412,7 +406,6 @@
   opacity: 0;
 }
 
-/* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-fade-in,

@@ -23,7 +23,6 @@ export default function Header() {
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const { t, path } = useI18n()
 
-  // Prevent body scroll when mobile menu is open
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.style.overflow = 'hidden'
@@ -35,21 +34,17 @@ export default function Header() {
     }
   }, [mobileMenuOpen])
 
-  // Focus trap and keyboard handling for mobile menu
   useEffect(() => {
     if (!mobileMenuOpen) return
 
-    // Focus the close button when menu opens
     closeButtonRef.current?.focus()
 
-    // Handle escape key
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMobileMenuOpen(false)
       }
     }
 
-    // Handle tab key for focus trap
     const handleTab = (e: KeyboardEvent) => {
       if (e.key !== 'Tab' || !mobileMenuRef.current) return
 
@@ -79,7 +74,6 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white lg:bg-white/80 lg:backdrop-blur-xl">
-      {/* Skip to main content link - for keyboard/screen reader users */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[60] focus:rounded-md focus:bg-[#009ed9] focus:px-4 focus:py-2 focus:text-white focus:ring-2 focus:ring-white focus:outline-none"
@@ -87,7 +81,6 @@ export default function Header() {
         {t('Skip to main content')}
       </a>
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-3 py-4 sm:px-4 lg:px-6">
-        {/* Text Logo */}
         <Link href={path('/')} className="shrink-0">
           <span className="text-lg font-bold tracking-tight sm:text-2xl">
             <span className="text-[#009ed9]">Online</span>
@@ -95,7 +88,6 @@ export default function Header() {
           </span>
         </Link>
 
-        {/* Desktop Navigation */}
         <div className="hidden items-center gap-6 lg:flex">
           {navLinks.map((link) => (
             <Link
@@ -133,7 +125,6 @@ export default function Header() {
         </div>
       </nav>
 
-      {/* Mobile Menu - Full Screen Overlay */}
       {mobileMenuOpen && (
         <div
           ref={mobileMenuRef}
@@ -143,7 +134,6 @@ export default function Header() {
           aria-label={t('Mobile menu')}
         >
           <div className="flex h-full flex-col px-6 pt-20">
-            {/* Navigation Links */}
             <div className="flex flex-col gap-2">
               {navLinks.map((link) => (
                 <Link
@@ -157,7 +147,6 @@ export default function Header() {
               ))}
             </div>
 
-            {/* CTA Button */}
             <div className="mt-8">
               <button
                 onClick={() => {
@@ -175,7 +164,6 @@ export default function Header() {
               </p>
             </div>
 
-            {/* Contact Info at Bottom */}
             <div className="mt-auto pb-8 text-center">
               <p className="text-sm text-gray-500">{t('Questions? Call us')}</p>
               <a href="tel:917-300-8543" className="text-lg font-medium text-gray-900">

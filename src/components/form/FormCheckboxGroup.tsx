@@ -7,25 +7,18 @@ interface CheckboxOption {
 }
 
 interface FormCheckboxGroupProps {
-  /** Unique field identifier */
   fieldName: string
 
-  /** Screen reader legend text */
   legend: string
 
-  /** Array of checkbox options */
   options: CheckboxOption[]
 
-  /** React Hook Form register return value */
   register: UseFormRegisterReturn
 
-  /** Error object from react-hook-form */
   error?: FieldError
 
-  /** Currently selected values */
   selectedValues?: string[]
 
-  /** Grid layout classes (default: "grid gap-3 sm:grid-cols-2") */
   gridClassName?: string
 }
 

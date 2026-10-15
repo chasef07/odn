@@ -1,8 +1,3 @@
-/**
- * Friends & Family Analytics Page
- * Customer segmentation for the doctor10 (10% off) offer.
- */
-
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'

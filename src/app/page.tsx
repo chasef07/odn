@@ -45,16 +45,12 @@ export function HomePageContent() {
       <Header />
 
       <main id="main-content">
-        {/* Hero Section - Client Component */}
         <HeroSection />
 
-        {/* Why Use Us - Server Component */}
         <WhyUseUsSection />
 
-        {/* How It Works - Client Component */}
         <HowItWorksSection />
 
-        {/* What's Included - Server Component */}
         <section className="bg-gradient-to-b from-gray-50 to-white px-4 py-20 md:px-6 md:py-28">
           <div className="mx-auto max-w-6xl">
             <div className="mb-10 text-center md:mb-14">
@@ -63,9 +59,7 @@ export function HomePageContent() {
               </h2>
             </div>
 
-            {/* Doctor image + feature cards layout */}
             <div className="grid items-start gap-10 lg:grid-cols-[340px_1fr] lg:gap-14">
-              {/* Doctor image column */}
               <div className="flex flex-col items-center lg:sticky lg:top-8">
                 <div className="relative mx-auto w-56 sm:w-64 lg:w-full">
                   <Image
@@ -82,7 +76,6 @@ export function HomePageContent() {
                 </p>
               </div>
 
-              {/* Feature cards column */}
               <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
                 {[
                   {
@@ -129,7 +122,6 @@ export function HomePageContent() {
                       </div>
                     </div>
 
-                    {/* Subtle hover accent */}
                     <div className="absolute -top-12 -right-12 h-24 w-24 rounded-full bg-[#009ed9]/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   </div>
                 ))}
@@ -138,7 +130,6 @@ export function HomePageContent() {
           </div>
         </section>
 
-        {/* Testimonials - Server Component */}
         <section className="bg-gray-50 px-4 py-20 md:px-6 md:py-28">
           <div className="mx-auto max-w-6xl">
             <div className="mb-16 text-center">
@@ -202,7 +193,6 @@ export function HomePageContent() {
           </div>
         </section>
 
-        {/* Final CTA - Client Component */}
         <FinalCTASection />
       </main>
 

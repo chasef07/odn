@@ -120,6 +120,19 @@ export function supportStatusLabel(status: string): string {
   }
 }
 
+export function supportStatusClass(status: string): string {
+  switch (status) {
+    case SMS_SUPPORT_STATUS.NEEDS_CSR:
+      return 'rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700'
+    case SMS_SUPPORT_STATUS.RUNNING_AUTOMATION:
+      return 'rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700'
+    case SMS_SUPPORT_STATUS.CLOSED:
+      return 'rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700'
+    default:
+      return 'rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700'
+  }
+}
+
 export function supportCategoryLabel(category: string | null | undefined): string {
   if (!category) return 'Uncategorized'
 

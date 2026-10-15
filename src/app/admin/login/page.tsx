@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * Admin Login Page
- * Allows doctors to log in to the admin portal
- */
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'

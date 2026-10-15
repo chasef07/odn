@@ -1,14 +1,8 @@
 'use client'
 
-/**
- * Approval Dialog Content Component
- * Reusable content for approval dialogs with evaluation date picker and diagnosis input
- */
-
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { getTodayET } from '@/lib/admin-utils'
 
 interface ApprovalDialogContentProps {
   evaluationDate: string
@@ -72,12 +66,4 @@ export function ApprovalDialogContent({
       )}
     </div>
   )
-}
-
-/**
- * Get today's date in YYYY-MM-DD format in Eastern Time
- * Admin portal and PDF "Date Issued" defaults are always Eastern Time
- */
-export function getTodayLocal(): string {
-  return getTodayET()
 }

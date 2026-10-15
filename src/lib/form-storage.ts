@@ -1,54 +1,37 @@
-/**
- * Form Storage Utilities
- * Handles localStorage persistence for form data
- */
-
 export interface FormData {
-  // Get Started - State Selection
   state?: string
 
-  // Page 1 - Who is this for?
   recipient?: 'myself' | 'someone_else' | null
 
-  // Page 2 - Patient Information
   patientFirstName?: string
   patientLastName?: string
-  patientDateOfBirth?: string // ISO format
+  patientDateOfBirth?: string
 
-  // Page 3 (Guardian Info - conditional)
   guardianFirstName?: string
   guardianLastName?: string
-  guardianDateOfBirth?: string // ISO format
+  guardianDateOfBirth?: string
 
-  // Page 4 - Contact Information
   email?: string
   phone?: string
   smsOptIn?: boolean
 
-  // Page 5 - Note Purpose
   notePurpose?: 'work' | 'school' | 'both' | 'travel' | 'legal' | 'other' | null
   otherNotePurpose?: string
 
-  // Page 6 - Absence Dates
-  firstDayOff?: string // ISO format
-  lastDayOff?: string // ISO format
+  firstDayOff?: string
+  lastDayOff?: string
 
-  // Page 7 - Absence Reason
   absenceReason?: string | null
   otherAbsenceReason?: string
 
-  // Page 8 - Symptoms (conditional)
   symptoms?: string[]
   otherSymptomText?: string
 
-  // Page 9 - Additional Information
   additionalInformation?: string
 
-  // Page 10 - Review & Terms
   certifyAccurate?: boolean
   agreeTerms?: boolean
 
-  // Offer links
   offerCode?: string
 }
 
@@ -72,11 +55,9 @@ export function getFormData(): FormData {
   try {
     return JSON.parse(stored)
   } catch (error) {
-    // Only log in development mode
     if (process.env.NODE_ENV === 'development') {
       console.warn('Failed to parse form data from storage, resetting:', error)
     }
-    // Clear the corrupted data
     localStorage.removeItem(FORM_STORAGE_KEY)
     return {}
   }

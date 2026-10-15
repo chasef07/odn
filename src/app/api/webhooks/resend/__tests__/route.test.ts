@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-// Mock Resend using vi.hoisted
 const { mockResendVerify } = vi.hoisted(() => ({
   mockResendVerify: vi.fn(),
 }))
@@ -21,7 +20,6 @@ vi.mock('resend', () => {
   }
 })
 
-// Mock Prisma using vi.hoisted
 const { mockPrismaFindFirst, mockResendWebhookCreate } = vi.hoisted(() => ({
   mockPrismaFindFirst: vi.fn(),
   mockResendWebhookCreate: vi.fn(),
@@ -38,7 +36,6 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-// Mock sendBounceAlertEmail using vi.hoisted
 const { mockSendBounceAlertEmail } = vi.hoisted(() => ({
   mockSendBounceAlertEmail: vi.fn(),
 }))
@@ -59,7 +56,6 @@ vi.mock('@/lib/telnyx', () => ({
   sendTransactionalSmsForSubmission: mockSendTransactionalSmsForSubmission,
 }))
 
-// Import after mocks
 import { POST } from '../route'
 
 describe('POST /api/webhooks/resend', () => {
@@ -94,7 +90,6 @@ describe('POST /api/webhooks/resend', () => {
       }),
       headers: {
         'Content-Type': 'application/json',
-        // Missing svix-id, svix-timestamp, svix-signature
       },
     })
 
@@ -721,7 +716,6 @@ describe('POST /api/webhooks/resend', () => {
 
     expect(response.status).toBe(200)
     expect(data.received).toBe(true)
-    // Should still send alert email even if DB query fails
     expect(mockSendBounceAlertEmail).toHaveBeenCalledWith({
       bouncedEmail: 'john@example.com',
       bounceReason: 'mailbox_full',
@@ -779,7 +773,6 @@ describe('POST /api/webhooks/resend', () => {
         email_id: 'email_123',
         to: ['john@example.com'],
         subject: 'Test',
-        // bounce_reason is missing
         from: 'noreply@onlinedoctornote.com',
         created_at: '2025-01-01T00:00:00Z',
       },

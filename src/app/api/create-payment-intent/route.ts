@@ -14,13 +14,6 @@ import {
   parseAttributionCookie,
 } from '@/lib/attribution'
 
-/**
- * Attempts to cancel a Stripe payment intent with retries and exponential backoff
- * @param stripe Stripe instance
- * @param paymentIntentId Payment intent ID to cancel
- * @param maxRetries Maximum number of retry attempts (default: 3)
- * @returns true if cancellation succeeded, false otherwise
- */
 async function cancelPaymentIntentWithRetry(
   stripe: Stripe,
   paymentIntentId: string,
@@ -35,13 +28,11 @@ async function cancelPaymentIntentWithRetry(
       logger.error(`Failed to cancel payment intent (attempt ${i + 1}/${maxRetries}):`, error)
 
       if (i < maxRetries - 1) {
-        // Wait before retry with exponential backoff: 100ms, 200ms, 400ms
         await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, i)))
       }
     }
   }
 
-  // All retries failed
   logger.error('CRITICAL: Failed to cancel payment intent after all retries', {
     paymentIntentId,
   })
@@ -50,7 +41,6 @@ async function cancelPaymentIntentWithRetry(
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse request body
     const body = await request.json()
     const { formData, offerCode } = body as { formData: FormData; offerCode?: string }
 
@@ -72,7 +62,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: offerConfig.missingConfigError }, { status: 500 })
     }
 
-    // Traffic source comes only from our first-party cookie, never from the request body
     const attribution = parseAttributionCookie(request.cookies.get(ATTRIBUTION_COOKIE)?.value)
     const { attribution: _clientAttribution, ...cleanFormData } = formData as FormData & {
       attribution?: unknown
@@ -83,7 +72,6 @@ export async function POST(request: NextRequest) {
     const selectedPriceId = offerConfig ? offerPriceId! : process.env.STRIPE_PRICE_ID!
     const priceType: PriceType = offerConfig?.priceType ?? 'standard'
 
-    // 4. Fetch price from Stripe (cached for 1 hour)
     let price: Stripe.Price
     try {
       price = await getCachedPrice(selectedPriceId)
@@ -95,7 +83,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate price has required fields
     if (!price.unit_amount || !price.currency) {
       logger.error('Invalid price object - missing unit_amount or currency:', price)
       return NextResponse.json(
@@ -104,16 +91,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 5. Create TemporarySubmission FIRST with placeholder payment intent ID
-    // This ensures the database record exists before the PaymentIntent is created,
-    // preventing race conditions where webhooks fire before DB writes complete
     let tempSubmissionId: string
     try {
       const tempSubmission = await prisma.temporarySubmission.create({
         data: {
-          paymentIntentId: `pending_${Date.now()}`, // Temporary placeholder
+          paymentIntentId: `pending_${Date.now()}`,
           formData: storedFormData as unknown as Prisma.InputJsonValue,
-          expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days - prevents premature cleanup if payment is delayed
+          expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
         },
       })
       tempSubmissionId = tempSubmission.id
@@ -127,8 +111,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 6. Create Stripe payment intent SECOND with reference to temp submission
-    // The metadata.temporarySubmissionId provides a fallback lookup path for webhooks
     let paymentIntent: Stripe.PaymentIntent
     try {
       paymentIntent = await stripe.paymentIntents.create({
@@ -146,7 +128,7 @@ export async function POST(request: NextRequest) {
           price_type: priceType,
           offer_code: offerConfig?.code ?? '',
           offer_price_id: offerApplied ? price.id : '',
-          temporarySubmissionId: tempSubmissionId, // Add reference for webhook fallback
+          temporarySubmissionId: tempSubmissionId,
           ...attributionStripeMetadata(attribution),
         },
       })
@@ -155,7 +137,6 @@ export async function POST(request: NextRequest) {
     } catch (stripeError) {
       logger.error('Stripe API error:', stripeError)
 
-      // Cleanup: Delete the temporary submission we just created
       try {
         await prisma.temporarySubmission.delete({
           where: { id: tempSubmissionId },
@@ -171,8 +152,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 7. Update TemporarySubmission with real payment intent ID
-    // This links the database record to the actual Stripe payment
     try {
       await prisma.temporarySubmission.update({
         where: { id: tempSubmissionId },
@@ -185,17 +164,14 @@ export async function POST(request: NextRequest) {
     } catch (updateError) {
       logger.error('Failed to update TemporarySubmission with payment intent ID:', updateError)
 
-      // CRITICAL: We have a payment intent AND a temp submission, but they're not linked
       logger.error('CRITICAL: Payment intent created but update failed', {
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmissionId,
         email: formData.email,
       })
 
-      // Try to cancel payment intent with retry logic
       const cancelSucceeded = await cancelPaymentIntentWithRetry(stripe, paymentIntent.id)
 
-      // Try to delete temp submission
       try {
         await prisma.temporarySubmission.delete({
           where: { id: tempSubmissionId },
@@ -206,8 +182,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (!cancelSucceeded) {
-        // Payment intent exists but couldn't be canceled - webhook might still process it
-        // The metadata.temporarySubmissionId will allow webhook to find the temp submission
         logger.error(
           'CRITICAL: PaymentIntent may still be active, webhook can use metadata fallback'
         )
@@ -219,7 +193,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 8. Success - return client secret
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       amount: price.unit_amount,

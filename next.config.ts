@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Cache static assets (images, fonts) for 1 year
         source: '/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif|woff|woff2)',
         headers: [
           {
@@ -22,7 +21,6 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Cache Next.js static chunks for 1 year
         source: '/_next/static/:path*',
         headers: [
           {
@@ -32,7 +30,6 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Apply security headers to all routes
         source: '/:path*',
         headers: [
           {

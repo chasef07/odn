@@ -5,16 +5,12 @@ import { ArrowLeft } from 'lucide-react'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface FormNavigationProps {
-  /** Route to navigate to when clicking back button */
   backRoute: string
 
-  /** Text for the submit/continue button (default: "Continue") */
   submitText?: string
 
-  /** Whether the form is currently submitting */
   isSubmitting?: boolean
 
-  /** Override back button click handler (optional) */
   onBackClick?: () => void
 }
 

@@ -1,9 +1,3 @@
-/**
- * Environment Variable Validation
- * Validates required environment variables on startup
- * Fails fast if critical config is missing
- */
-
 const requiredEnvVars = [
   'DATABASE_URL',
   'STRIPE_SECRET_KEY',
@@ -31,7 +25,6 @@ export function validateEnvironment() {
     )
   }
 
-  // Validate STRIPE_PRICE_ID format
   const priceId = process.env.STRIPE_PRICE_ID
   if (priceId && !priceId.startsWith('price_')) {
     throw new Error('STRIPE_PRICE_ID must start with "price_"')
@@ -47,7 +40,6 @@ export function validateEnvironment() {
     throw new Error('STRIPE_DOCTOR_10_PRICE_ID must start with "price_"')
   }
 
-  // Warn about optional but recommended variables
   if (!process.env.RESEND_FROM_EMAIL && process.env.NODE_ENV === 'development') {
     console.warn('⚠️  RESEND_FROM_EMAIL not set, using default: noreply@onlinedoctornote.com')
   }
@@ -57,7 +49,6 @@ export function validateEnvironment() {
   }
 }
 
-// Validate on module load (server-side only)
 if (typeof window === 'undefined') {
   validateEnvironment()
 }

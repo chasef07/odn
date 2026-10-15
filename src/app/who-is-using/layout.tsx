@@ -1,12 +1,5 @@
-import type { Metadata } from 'next'
-import { englishAlternates } from '@/lib/i18n'
+import { FlowLayout, flowMetadata } from '@/lib/i18n'
 
-export const metadata: Metadata = {
-  title: 'Who Is Using This Note',
-  alternates: englishAlternates('/who-is-using'),
-  robots: { index: false, follow: false },
-}
+export const metadata = flowMetadata('/who-is-using', 'Who Is Using This Note')
 
-export default function WhoIsUsingLayout({ children }: { children: React.ReactNode }) {
-  return children
-}
+export default FlowLayout

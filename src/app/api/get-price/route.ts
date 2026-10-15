@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCachedPrice } from '@/lib/stripe-price'
 
-/**
- * GET /api/get-price
- * Fetches the current price from Stripe Price ID (with 1-hour cache)
- * Returns formatted amount, currency, and price ID
- */
 export async function GET() {
   try {
     const price = await getCachedPrice(process.env.STRIPE_PRICE_ID!)

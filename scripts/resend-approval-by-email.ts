@@ -1,20 +1,7 @@
-/**
- * Resend Approval Emails by Email Address
- *
- * This script resends approval emails for specific patient email addresses.
- * Useful when you know which patients were affected by the Cloudflare outage.
- *
- * Usage:
- *   - Dry run: npx tsx scripts/resend-approval-by-email.ts patient@example.com
- *   - Send: npx tsx scripts/resend-approval-by-email.ts patient@example.com --send
- *   - Multiple emails: npx tsx scripts/resend-approval-by-email.ts email1@test.com email2@test.com --send
- */
-
 import { PrismaClient } from '@prisma/client'
 import { sendApprovalEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 
-// Use direct DATABASE_URL instead of Prisma Accelerate for scripts
 const prisma = new PrismaClient({
   datasources: {
     db: {
@@ -31,9 +18,6 @@ interface ResendResult {
   error?: string
 }
 
-/**
- * Find approved submissions for a specific email
- */
 async function findApprovedSubmissions(email: string) {
   const submissions = await prisma.submission.findMany({
     where: {
@@ -48,9 +32,6 @@ async function findApprovedSubmissions(email: string) {
   return submissions
 }
 
-/**
- * Resend approval email with PDF attachment
- */
 async function resendApprovalEmail(submissionId: string): Promise<void> {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
@@ -60,11 +41,9 @@ async function resendApprovalEmail(submissionId: string): Promise<void> {
     throw new Error(`Submission ${submissionId} not found`)
   }
 
-  // Generate PDF
   const pdfBuffer = await generateDoctorNotePDF(submission)
   const pdfFilename = generatePDFFilename(submission.id)
 
-  // Send email
   const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
   await sendApprovalEmail({
     to: submission.email,
@@ -75,7 +54,6 @@ async function resendApprovalEmail(submissionId: string): Promise<void> {
     pdfFilename,
   })
 
-  // Update database to mark email as sent
   await prisma.submission.update({
     where: { id: submissionId },
     data: {
@@ -84,13 +62,9 @@ async function resendApprovalEmail(submissionId: string): Promise<void> {
   })
 }
 
-/**
- * Main function
- */
 async function main() {
   const args = process.argv.slice(2)
 
-  // Separate emails from flags
   const emails = args.filter((arg) => !arg.startsWith('--'))
   const shouldSend = args.includes('--send')
 
@@ -110,7 +84,6 @@ async function main() {
   try {
     const allResults: ResendResult[] = []
 
-    // Process each email
     for (const email of emails) {
       console.log(`📧 Looking up: ${email}`)
 
@@ -123,7 +96,6 @@ async function main() {
 
       console.log(`   ✅ Found ${submissions.length} approved submission(s)\n`)
 
-      // Display each submission
       submissions.forEach((submission, index) => {
         const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
         const reviewedDate = submission.reviewedAt?.toLocaleDateString() || 'Unknown'
@@ -140,7 +112,6 @@ async function main() {
         console.log('')
       })
 
-      // Add to results for potential sending
       submissions.forEach((submission) => {
         allResults.push({
           email: submission.email,
@@ -162,17 +133,11 @@ async function main() {
       console.log('ℹ️  To actually send/resend these emails, add --send flag:')
       console.log(`   npx tsx scripts/resend-approval-by-email.ts ${emails.join(' ')} --send\n`)
 
-      // Show what will happen
-      const alreadySent = allResults.filter((r) => {
-        const sub = prisma.submission.findUnique({ where: { id: r.submissionId } })
-        return false // simplified for dry run
-      })
       console.log(`📊 Summary: ${allResults.length} email(s) will be sent`)
       console.log('   Note: Emails already sent will be resent (with updated timestamp)')
       return
     }
 
-    // Actually send emails
     console.log('━'.repeat(60))
     console.log('📤 SENDING EMAILS...\n')
 
@@ -194,7 +159,6 @@ async function main() {
       }
     }
 
-    // Print summary
     console.log('━'.repeat(60))
     console.log('📊 FINAL SUMMARY')
     console.log('━'.repeat(60))
@@ -222,7 +186,6 @@ async function main() {
   }
 }
 
-// Run the script
 main().catch((error) => {
   console.error('Fatal error:', error)
   process.exit(1)

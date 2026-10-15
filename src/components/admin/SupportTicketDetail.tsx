@@ -13,7 +13,11 @@ import {
   sendSupportTicketReply,
   type SupportTicketDetail as SupportTicketDetailType,
 } from '@/app/admin/support/actions'
-import { supportCategoryLabel, supportStatusLabel } from '@/lib/sms-support-types'
+import {
+  supportCategoryLabel,
+  supportStatusClass,
+  supportStatusLabel,
+} from '@/lib/sms-support-types'
 import { formatDateUTC } from '@/lib/utils'
 import { formatDateTimeET } from '@/lib/admin-utils'
 
@@ -77,7 +81,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={statusClass(ticket.status)}>
+              <span className={supportStatusClass(ticket.status)}>
                 {supportStatusLabel(ticket.status)}
               </span>
               <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
@@ -163,7 +167,9 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
                       <span className="font-medium uppercase">{message.direction}</span>
                       <span>
-                        {formatDateTime(message.receivedAt || message.sentAt || message.createdAt)}
+                        {formatDateTimeET(
+                          message.receivedAt || message.sentAt || message.createdAt
+                        )}
                       </span>
                     </div>
                     <p className="mt-2 text-sm whitespace-pre-wrap text-gray-800">{message.body}</p>
@@ -246,7 +252,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                       </span>
                       <span className="text-xs text-gray-500">Attempts: {job.attempts}</span>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">{formatDateTime(job.createdAt)}</p>
+                    <p className="mt-1 text-xs text-gray-500">{formatDateTimeET(job.createdAt)}</p>
                     {job.lastError && <p className="mt-2 text-xs text-red-700">{job.lastError}</p>}
                   </div>
                 ))
@@ -257,20 +263,4 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
       </div>
     </div>
   )
-}
-
-function statusClass(status: string): string {
-  if (status === 'NEEDS_CSR')
-    return 'rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700'
-  if (status === 'RUNNING_AUTOMATION') {
-    return 'rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700'
-  }
-  if (status === 'CLOSED') {
-    return 'rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700'
-  }
-  return 'rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700'
-}
-
-function formatDateTime(date: Date): string {
-  return formatDateTimeET(date)
 }
