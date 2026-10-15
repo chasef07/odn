@@ -1,6 +1,7 @@
 import nextVitals from 'eslint-config-next/core-web-vitals'
 import prettierConfig from 'eslint-config-prettier'
 import localRules from './eslint-rules/no-comments.mjs'
+import adminRules from './eslint-rules/admin-server-action.mjs'
 
 const eslintConfig = [
   ...nextVitals,
@@ -19,6 +20,13 @@ const eslintConfig = [
     plugins: { local: localRules },
     rules: {
       'local/no-comments': 'error',
+    },
+  },
+  {
+    files: ['src/app/admin/**/*.{ts,tsx}'],
+    plugins: { admin: adminRules },
+    rules: {
+      'admin/server-action': 'error',
     },
   },
   {
