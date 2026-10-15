@@ -27,7 +27,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Fill in `.env.local` before you start the dev server. Generate `CRON_SECRET` with `openssl rand -hex 32` and `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. `npm install` also runs `prisma generate`. `npm run db:local` starts a local database with Prisma Dev.
+Fill in `.env.local` before you start the dev server. `VERIFICATION_BASE_URL` is the host in QR codes and verification links, and it can differ from `NEXT_PUBLIC_SITE_URL`. `BETTER_AUTH_URL` is the app's own origin, so it changes per environment. Generate `CRON_SECRET` with `openssl rand -hex 32` and `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. `npm install` also runs `prisma generate`. `npm run db:local` starts a local database with Prisma Dev.
 
 To receive Stripe webhooks locally, run `stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3` and copy the printed `whsec_` value into `STRIPE_WEBHOOK_SECRET`.
 
