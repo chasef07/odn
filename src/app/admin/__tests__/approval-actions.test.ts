@@ -117,6 +117,7 @@ const mockVerificationRecord = {
 }
 const mockVerificationPdfInfo = {
   medicalRecordNumber: 'A7B3C9D2',
+  verificationUrl: 'https://verify.test/v_testslug',
   qrCodeDataUrl: 'data:image/png;base64,qr',
 }
 
@@ -172,7 +173,7 @@ describe('approveSubmission - Approval Automation', () => {
     })
     mockUpdateMany.mockResolvedValue({ count: 1 })
     mockCreateNoteVerification.mockResolvedValue(mockVerificationRecord)
-    mockGetVerificationUrl.mockReturnValue(mockVerificationPdfInfo.verificationUrl)
+    mockGetVerificationUrl.mockImplementation((slug: string) => `https://verify.test/${slug}`)
     mockGenerateQrCodeDataUrl.mockResolvedValue(mockVerificationPdfInfo.qrCodeDataUrl)
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
   })
@@ -749,7 +750,7 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
       return new Date(Date.UTC(year, month - 1, day))
     })
     mockCreateNoteVerification.mockResolvedValue(mockVerificationRecord)
-    mockGetVerificationUrl.mockReturnValue(mockVerificationPdfInfo.verificationUrl)
+    mockGetVerificationUrl.mockImplementation((slug: string) => `https://verify.test/${slug}`)
     mockGenerateQrCodeDataUrl.mockResolvedValue(mockVerificationPdfInfo.qrCodeDataUrl)
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
   })
