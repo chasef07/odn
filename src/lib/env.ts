@@ -1,54 +1,72 @@
-const requiredEnvVars = [
-  'DATABASE_URL',
-  'STRIPE_SECRET_KEY',
-  'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
-  'STRIPE_WEBHOOK_SECRET',
-  'STRIPE_PRICE_ID',
-  'CRON_SECRET',
-  'BETTER_AUTH_SECRET',
-  'RESEND_API_KEY',
-  'RESEND_WEBHOOK_SECRET',
-] as const
+import { z } from 'zod'
+import { parseEnvVar } from '@/lib/public-env'
 
-export function validateEnvironment() {
-  const missing: string[] = []
+const nonEmpty = z.string().trim().min(1)
+const priceId = nonEmpty.startsWith('price_', 'must start with "price_"')
+const origin = z
+  .url({ protocol: /^https?$/ })
+  .refine((value) => {
+    const url = new URL(value)
+    return !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash
+  }, 'must be an HTTP(S) origin without a path')
+  .transform((value) => new URL(value).origin)
 
-  for (const varName of requiredEnvVars) {
-    if (!process.env[varName]) {
-      missing.push(varName)
-    }
-  }
+const switchFlag = z.enum(['true', 'false']).transform((value) => value === 'true')
 
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables:\n${missing.map((v) => `  - ${v}`).join('\n')}`
-    )
-  }
+const schema = {
+  DATABASE_URL: nonEmpty,
+  STRIPE_SECRET_KEY: nonEmpty,
+  STRIPE_WEBHOOK_SECRET: nonEmpty,
+  STRIPE_PRICE_ID: priceId,
+  STRIPE_FRIENDS_FAMILY_PRICE_ID: priceId.optional(),
+  STRIPE_DOCTOR_10_PRICE_ID: priceId.optional(),
+  CRON_SECRET: nonEmpty,
+  BETTER_AUTH_SECRET: nonEmpty,
+  BETTER_AUTH_URL: z.url(),
+  RESEND_API_KEY: nonEmpty,
+  RESEND_WEBHOOK_SECRET: nonEmpty,
+  RESEND_FROM_EMAIL: nonEmpty,
+  DOCTOR_NAME: nonEmpty,
+  DOCTOR_CREDENTIALS: nonEmpty,
+  DOCTOR_SIGNATURE_URL: nonEmpty,
+  DOCTOR_NPI: nonEmpty.default('1558307702'),
+  VERIFICATION_BASE_URL: origin,
+  TELNYX_API_KEY: nonEmpty.optional(),
+  TELNYX_FROM_NUMBER: nonEmpty.optional(),
+  TELNYX_PUBLIC_KEY: nonEmpty.optional(),
+  TELNYX_WEBHOOK_ENABLED: switchFlag.default(true),
+} satisfies Record<string, z.ZodType>
 
-  const priceId = process.env.STRIPE_PRICE_ID
-  if (priceId && !priceId.startsWith('price_')) {
-    throw new Error('STRIPE_PRICE_ID must start with "price_"')
-  }
+type Schema = typeof schema
+type EnvName = keyof Schema
+export type ServerEnv = { readonly [K in EnvName]: z.output<Schema[K]> }
 
-  const friendsFamilyPriceId = process.env.STRIPE_FRIENDS_FAMILY_PRICE_ID
-  if (friendsFamilyPriceId && !friendsFamilyPriceId.startsWith('price_')) {
-    throw new Error('STRIPE_FRIENDS_FAMILY_PRICE_ID must start with "price_"')
-  }
+const names = Object.keys(schema) as EnvName[]
 
-  const doctor10PriceId = process.env.STRIPE_DOCTOR_10_PRICE_ID
-  if (doctor10PriceId && !doctor10PriceId.startsWith('price_')) {
-    throw new Error('STRIPE_DOCTOR_10_PRICE_ID must start with "price_"')
-  }
-
-  if (!process.env.RESEND_FROM_EMAIL && process.env.NODE_ENV === 'development') {
-    console.warn('⚠️  RESEND_FROM_EMAIL not set, using default: noreply@onlinedoctornote.com')
-  }
-
-  if (process.env.NODE_ENV === 'development') {
-    console.info('✅ Environment variables validated successfully')
-  }
+function read<K extends EnvName>(name: K): ServerEnv[K] {
+  const fieldSchema: z.ZodType = schema[name]
+  return parseEnvVar(name, fieldSchema, process.env[name]) as ServerEnv[K]
 }
 
-if (typeof window === 'undefined') {
-  validateEnvironment()
+export const env = Object.defineProperties(
+  {},
+  Object.fromEntries(names.map((name) => [name, { enumerable: true, get: () => read(name) }]))
+) as ServerEnv
+
+export function serverEnvProblems(): string[] {
+  return names.flatMap((name) => {
+    try {
+      read(name)
+      return []
+    } catch (error) {
+      return [error instanceof Error ? error.message : String(error)]
+    }
+  })
+}
+
+export function exitOnInvalidServerEnv(): void {
+  const problems = serverEnvProblems()
+  if (problems.length === 0) return
+  console.error(`Invalid server configuration:\n${problems.join('\n')}`)
+  process.exit(1)
 }

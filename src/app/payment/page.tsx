@@ -9,10 +9,11 @@ import { FormLayout } from '@/components/form-layout'
 import { getFormData } from '@/lib/form-storage'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { LocalizedPage } from '@/components/i18n/LocalizedPage'
+import { publicEnv } from '@/lib/public-env'
 
 const CURRENT_STEP = 10
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+const stripePromise = loadStripe(publicEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
 
 type PriceInfo = {
   amount: number

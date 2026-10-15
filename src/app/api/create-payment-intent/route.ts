@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
 import { stripe } from '@/lib/stripe'
+import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { FormData } from '@/lib/form-storage'
 import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
@@ -15,7 +16,6 @@ import {
 } from '@/lib/attribution'
 
 async function cancelPaymentIntentWithRetry(
-  stripe: Stripe,
   paymentIntentId: string,
   maxRetries = 3
 ): Promise<boolean> {
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     const normalizedOfferCode = normalizeOfferCode(offerCode ?? formData.offerCode)
     const offerConfig = getOfferConfig(normalizedOfferCode)
-    const offerPriceId = offerConfig ? process.env[offerConfig.priceEnvVar]?.trim() : null
+    const offerPriceId = offerConfig ? env[offerConfig.priceEnvVar] : undefined
 
     if (offerConfig && !offerPriceId) {
       logger.error(offerConfig.missingConfigLog)
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const storedFormData = attribution ? { ...cleanFormData, attribution } : cleanFormData
 
     const offerApplied = Boolean(offerConfig)
-    const selectedPriceId = offerConfig ? offerPriceId! : process.env.STRIPE_PRICE_ID!
+    const selectedPriceId = offerPriceId ?? env.STRIPE_PRICE_ID
     const priceType: PriceType = offerConfig?.priceType ?? 'standard'
 
     let price: Stripe.Price
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
         email: formData.email,
       })
 
-      const cancelSucceeded = await cancelPaymentIntentWithRetry(stripe, paymentIntent.id)
+      const cancelSucceeded = await cancelPaymentIntentWithRetry(paymentIntent.id)
 
       try {
         await prisma.temporarySubmission.delete({
