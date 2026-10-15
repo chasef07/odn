@@ -296,7 +296,9 @@ Approval generates a PDF (blocking) then sends an email (non-blocking). Denial a
 
 ## Deployment
 
-Deploys to Vercel. Required before going live:
+Production deploys to Vercel. Staging runs on Cloud Run; see [docs/CLOUD_RUN.md](docs/CLOUD_RUN.md) for deploys, crons, and the production cutover runbook.
+
+Required before going live:
 
 - [ ] Set `NEXT_PUBLIC_SITE_URL` and `BETTER_AUTH_URL` to the OnlineDoctorNote production domain
 - [ ] Set `VERIFICATION_BASE_URL` to `https://phealthclinic.com`

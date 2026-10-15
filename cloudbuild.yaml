@@ -1,0 +1,114 @@
+# Builds the app image, applies Prisma migrations, and deploys Cloud Run
+# service odn-${_ENV}. Runs as service account odn-deploy. See docs/CLOUD_RUN.md.
+#
+#   gcloud builds submit --region=us-east4 --config=cloudbuild.yaml \
+#     --service-account=projects/acuity-health-prod/serviceAccounts/odn-deploy@acuity-health-prod.iam.gserviceaccount.com \
+#     --substitutions=_ENV=staging,_SITE_URL=https://...,... .
+substitutions:
+  _ENV: staging
+  _REGION: us-east4
+  _CLOUDSQL_INSTANCE: acuity-health-prod:us-east4:onlinedoctornote-db
+  _IMAGE: us-east4-docker.pkg.dev/${PROJECT_ID}/odn/odn-${_ENV}:${BUILD_ID}
+  _GIT_SHA: manual
+  # Public origin of the service (used for links, auth callbacks, NEXT_PUBLIC_*).
+  _SITE_URL: ''
+  _VERIFICATION_BASE_URL: ''
+  _RESEND_FROM_EMAIL: ''
+  _DOCTOR_NAME: ''
+  _DOCTOR_CREDENTIALS: ''
+  _DOCTOR_SIGNATURE_URL: /images/doctor-signature.png
+  _STRIPE_PRICE_ID: ''
+  _STRIPE_FRIENDS_FAMILY_PRICE_ID: ''
+  _STRIPE_DOCTOR_10_PRICE_ID: ''
+  # An empty TELNYX_FROM_NUMBER disables outbound SMS.
+  _TELNYX_FROM_NUMBER: ''
+  _TELNYX_WEBHOOK_ENABLED: 'false'
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '3'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  dynamicSubstitutions: true
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/${PROJECT_ID}/secrets/odn-${_ENV}-stripe-publishable-key/versions/latest
+      env: STRIPE_PUBLISHABLE_KEY
+    - versionName: projects/${PROJECT_ID}/secrets/odn-${_ENV}-database-url/versions/latest
+      env: DATABASE_URL
+
+steps:
+  - id: check-substitutions
+    name: bash
+    args:
+      - -c
+      - |
+        for pair in "_SITE_URL=${_SITE_URL}" "_VERIFICATION_BASE_URL=${_VERIFICATION_BASE_URL}" \
+          "_RESEND_FROM_EMAIL=${_RESEND_FROM_EMAIL}" "_DOCTOR_NAME=${_DOCTOR_NAME}" \
+          "_DOCTOR_CREDENTIALS=${_DOCTOR_CREDENTIALS}" "_STRIPE_PRICE_ID=${_STRIPE_PRICE_ID}"; do
+          [ -n "$${pair#*=}" ] || { echo "Substitution $${pair%%=*} is required" >&2; exit 1; }
+        done
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    secretEnv: [STRIPE_PUBLISHABLE_KEY]
+    args:
+      - -c
+      - |
+        docker build --target runtime \
+          --build-arg NEXT_PUBLIC_SITE_URL='${_SITE_URL}' \
+          --build-arg NEXT_PUBLIC_BETTER_AUTH_URL='${_SITE_URL}' \
+          --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="$$STRIPE_PUBLISHABLE_KEY" \
+          --tag '${_IMAGE}' .
+
+  - id: build-migrate
+    name: gcr.io/cloud-builders/docker
+    args: [build, --target, migrate, --tag, odn-migrate, .]
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, '${_IMAGE}']
+    waitFor: [build]
+
+  # Same unix-socket DATABASE_URL as Cloud Run, served by the Cloud SQL Auth
+  # Proxy over IAM, so migrations never need an authorized network.
+  - id: migrate
+    name: odn-migrate
+    entrypoint: bash
+    secretEnv: [DATABASE_URL]
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        mkdir -p /cloudsql
+        cloud-sql-proxy --unix-socket /cloudsql '${_CLOUDSQL_INSTANCE}' &
+        socket='/cloudsql/${_CLOUDSQL_INSTANCE}/.s.PGSQL.5432'
+        for _ in $$(seq 30); do [ -S "$$socket" ] && break; sleep 1; done
+        cd /app && node_modules/.bin/prisma migrate deploy
+    waitFor: [build-migrate]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - odn-${_ENV}
+      - --image=${_IMAGE}
+      - --region=${_REGION}
+      - --service-account=odn-${_ENV}@${PROJECT_ID}.iam.gserviceaccount.com
+      - --add-cloudsql-instances=${_CLOUDSQL_INSTANCE}
+      - --no-invoker-iam-check
+      - --port=3000
+      - --cpu=1
+      - --memory=1Gi
+      - --timeout=300
+      - --min-instances=${_MIN_INSTANCES}
+      - --max-instances=${_MAX_INSTANCES}
+      - --update-labels=commit-sha=${_GIT_SHA}
+      - >-
+        --set-env-vars=^|^BETTER_AUTH_URL=${_SITE_URL}|VERIFICATION_BASE_URL=${_VERIFICATION_BASE_URL}|RESEND_FROM_EMAIL=${_RESEND_FROM_EMAIL}|DOCTOR_NAME=${_DOCTOR_NAME}|DOCTOR_CREDENTIALS=${_DOCTOR_CREDENTIALS}|DOCTOR_SIGNATURE_URL=${_DOCTOR_SIGNATURE_URL}|STRIPE_PRICE_ID=${_STRIPE_PRICE_ID}|STRIPE_FRIENDS_FAMILY_PRICE_ID=${_STRIPE_FRIENDS_FAMILY_PRICE_ID}|STRIPE_DOCTOR_10_PRICE_ID=${_STRIPE_DOCTOR_10_PRICE_ID}|TELNYX_FROM_NUMBER=${_TELNYX_FROM_NUMBER}|TELNYX_WEBHOOK_ENABLED=${_TELNYX_WEBHOOK_ENABLED}
+      - >-
+        --set-secrets=DATABASE_URL=odn-${_ENV}-database-url:latest,STRIPE_SECRET_KEY=odn-${_ENV}-stripe-secret-key:latest,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=odn-${_ENV}-stripe-publishable-key:latest,STRIPE_WEBHOOK_SECRET=odn-${_ENV}-stripe-webhook-secret:latest,BETTER_AUTH_SECRET=odn-${_ENV}-better-auth-secret:latest,CRON_SECRET=odn-${_ENV}-cron-secret:latest,RESEND_API_KEY=odn-${_ENV}-resend-api-key:latest,RESEND_WEBHOOK_SECRET=odn-${_ENV}-resend-webhook-secret:latest,TELNYX_API_KEY=odn-${_ENV}-telnyx-api-key:latest,TELNYX_PUBLIC_KEY=odn-${_ENV}-telnyx-public-key:latest
+    waitFor: [push, migrate]
