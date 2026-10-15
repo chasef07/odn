@@ -117,7 +117,7 @@ const mockVerificationRecord = {
 }
 const mockVerificationPdfInfo = {
   medicalRecordNumber: 'A7B3C9D2',
-  verificationUrl: 'https://verify.test/v_testslug',
+  verificationUrl: `https://verify.test/${mockVerificationRecord.verificationSlug}`,
   qrCodeDataUrl: 'data:image/png;base64,qr',
 }
 

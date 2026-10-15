@@ -7,13 +7,12 @@ const SLASHES = /^\s*\/\//
 const SHEBANG = /^#!/
 const DOCKERFILE_DIRECTIVE = /^#\s*(syntax|escape|check)\s*=/
 const HASH_OR_TRAILING_HASH = /(^|\s)#/
-const HASH_FILES = new Set(['.gitignore', '.dockerignore', '.prettierignore'])
 
 function commentRule(file) {
   const name = basename(file)
   if (file.startsWith('prisma/migrations/')) return null
   if (name.startsWith('.env')) return { comment: HASH_OR_TRAILING_HASH }
-  if (/\.(ya?ml|toml)$/.test(name) || HASH_FILES.has(name)) return { comment: HASH }
+  if (/\.(ya?ml|toml)$/.test(name) || name.endsWith('ignore')) return { comment: HASH }
   if (name.startsWith('Dockerfile')) return { comment: HASH, directive: DOCKERFILE_DIRECTIVE }
   if (/\.(prisma|json)$/.test(name)) return { comment: SLASHES }
   return null
@@ -28,12 +27,14 @@ const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclud
 const problems = []
 for (const file of files) {
   const rule = commentRule(file)
+  let inLeadingDirectives = true
   readFileSync(file, 'utf8')
     .split('\n')
     .forEach((line, index) => {
+      inLeadingDirectives &&= Boolean(rule.directive?.test(line))
       if (!rule.comment.test(line)) return
       if (index === 0 && SHEBANG.test(line)) return
-      if (rule.directive?.test(line)) return
+      if (inLeadingDirectives) return
       problems.push(`${file}:${index + 1}: ${line.trim()}`)
     })
 }

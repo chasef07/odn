@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
-const docs = process.argv.slice(2).length > 0 ? process.argv.slice(2) : ['AGENTS.md', 'README.md']
+const args = process.argv.slice(2)
+const docs = args.length > 0 ? args : ['AGENTS.md', 'README.md']
 
 const files = new Set(
   execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
@@ -22,11 +23,8 @@ const topDirs = [...dirs].filter((dir) => !dir.includes('/'))
 const basenames = new Set([...files].map((file) => file.split('/').pop()))
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-const scripts = new Set(Object.keys(pkg.scripts ?? {}))
-const dependencies = [
-  ...Object.keys(pkg.dependencies ?? {}),
-  ...Object.keys(pkg.devDependencies ?? {}),
-]
+const scripts = new Set(Object.keys(pkg.scripts))
+const dependencies = [...Object.keys(pkg.dependencies), ...Object.keys(pkg.devDependencies)]
 const lockedPackages = JSON.parse(readFileSync('package-lock.json', 'utf8')).packages
 const npxTools = new Set(
   dependencies.flatMap((name) => [
@@ -36,21 +34,24 @@ const npxTools = new Set(
 )
 
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const segment = String.raw`(?:[\w.-]|\[[\w.-]+\]|\([\w.-]+\))+`
 const pathPattern = new RegExp(
-  `(?<![\\w/.:@-])(?:${topDirs.map(escape).join('|')})(?:/(?:[\\w.-]|\\[[\\w.-]+\\])+)+`,
+  String.raw`(?<![\w/.:@-])(?:\.\/)?((?:${topDirs.map(escape).join('|')})(?:\/${segment})+)`,
   'g'
 )
 const fileNamePattern = /`([\w.-]+\.(?:ts|tsx|mjs|js|json|ya?ml|prisma|md|sql|toml))`/g
 
 function lineProblems(line) {
   const problems = []
-  for (const [, script] of line.matchAll(/\bnpm run ([\w:.-]+)/g))
+  for (const [, match] of line.matchAll(/\bnpm run ([\w:.-]+)/g)) {
+    const script = match.replace(/\.+$/, '')
     if (!scripts.has(script)) problems.push(`npm script "${script}" is not in package.json`)
+  }
   for (const [, script] of line.matchAll(/\bnpm (test|start)\b/g))
     if (!scripts.has(script)) problems.push(`npm script "${script}" is not in package.json`)
-  for (const [, tool] of line.matchAll(/\bnpx ([a-z@][\w@/.-]*)/g))
+  for (const [, tool] of line.matchAll(/\bnpx (?:-\S+ )*([a-z@][\w@/.-]*)/g))
     if (!npxTools.has(tool)) problems.push(`"npx ${tool}" is not provided by any dependency`)
-  for (const [match] of line.matchAll(pathPattern)) {
+  for (const [, match] of line.matchAll(pathPattern)) {
     const path = match.replace(/\.+$/, '')
     if (!files.has(path) && !dirs.has(path)) problems.push(`path ${path} does not exist`)
   }
