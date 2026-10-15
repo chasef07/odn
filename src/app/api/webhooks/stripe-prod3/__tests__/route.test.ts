@@ -106,7 +106,7 @@ function buildRequest(): NextRequest {
 }
 
 function buildEvent(
-  paymentIntent: Record<string, unknown> = {
+  paymentIntent: Partial<Stripe.PaymentIntent> = {
     id: 'pi_test_123',
     amount: 2495,
     currency: 'usd',

@@ -335,6 +335,25 @@ describe('POST /api/verify-payment', () => {
     expect(response.headers.get('content-type')).toContain('application/json')
   })
 
+  it('does not expose Stripe error details in the response', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRetrieve.mockRejectedValue(new Error('Sensitive error details'))
+
+    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
+      method: 'POST',
+      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(consoleSpy).toHaveBeenCalledWith('Error verifying payment:', expect.any(Error))
+    expect(data.error).toBe('Invalid payment intent')
+    expect(JSON.stringify(data)).not.toContain('Sensitive')
+
+    consoleSpy.mockRestore()
+  })
+
   it('should handle malformed JSON in request body', async () => {
     const request = new NextRequest('http://localhost:3000/api/verify-payment', {
       method: 'POST',

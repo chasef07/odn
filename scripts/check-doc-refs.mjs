@@ -36,9 +36,11 @@ const npxTools = new Set(
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const segment = String.raw`(?:[\w.-]|\[[\w.-]+\]|\([\w.-]+\))+`
 const pathPattern = new RegExp(
-  String.raw`(?<![\w/.:@-])(?:\.\/)?((?:${topDirs.map(escape).join('|')})(?:\/${segment})+)`,
+  String.raw`(?<![\w/.:@-])(?:\.\/)?(${segment}(?:\/${segment})+)`,
   'g'
 )
+const repoPathStart = new RegExp(`^(?:${topDirs.map(escape).join('|')})/`)
+const fileExtension = /\.[a-z]+$/
 const fileNamePattern = /`([\w.-]+\.(?:ts|tsx|mjs|js|json|ya?ml|prisma|md|sql|toml))`/g
 
 function lineProblems(line) {
@@ -49,10 +51,13 @@ function lineProblems(line) {
   }
   for (const [, script] of line.matchAll(/\bnpm (test|start)\b/g))
     if (!scripts.has(script)) problems.push(`npm script "${script}" is not in package.json`)
-  for (const [, tool] of line.matchAll(/\bnpx (?:-\S+ )*([a-z@][\w@/.-]*)/g))
+  for (const [, match] of line.matchAll(/\bnpx (?:-\S+ )*([a-z@][\w@/.-]*)/g)) {
+    const tool = match.replace(/(?<=.)@[^/]*$/, '')
     if (!npxTools.has(tool)) problems.push(`"npx ${tool}" is not provided by any dependency`)
+  }
   for (const [, match] of line.matchAll(pathPattern)) {
     const path = match.replace(/\.+$/, '')
+    if (!repoPathStart.test(path) && !fileExtension.test(path)) continue
     if (!files.has(path) && !dirs.has(path)) problems.push(`path ${path} does not exist`)
   }
   for (const [, name] of line.matchAll(fileNamePattern))

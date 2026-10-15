@@ -31,7 +31,7 @@ Fill in `.env.local` before you start the dev server. Generate `CRON_SECRET` wit
 
 To receive Stripe webhooks locally, run `stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3` and copy the printed `whsec_` value into `STRIPE_WEBHOOK_SECRET`.
 
-Admin accounts come from `scripts/create-doctor-user.ts`, which reads `ADMIN_EMAIL`, `ADMIN_NAME` and `ADMIN_PASSWORD`. The repo has no TypeScript runner for the files in `scripts/`.
+Creating an admin account has no supported command today. `scripts/create-doctor-user.ts` creates one from `ADMIN_EMAIL`, `ADMIN_NAME` and `ADMIN_PASSWORD`, but `package.json` has no TypeScript runner for the files in `scripts/`.
 
 ## Check your work
 
