@@ -10,10 +10,12 @@ import { FormCard } from '@/components/form/FormCard'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
+import { backRoute, nextRoute } from '@/lib/intake'
 import { contactSchema } from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
 import { useState } from 'react'
+
+const ROUTE = '/contact-info'
 
 type FormData = {
   email: string
@@ -23,7 +25,6 @@ type FormData = {
 export default function ContactInfoPage() {
   const router = useRouter()
   const savedData = getFormData()
-  const recipient = savedData.recipient || 'myself'
   const [phoneDisplay, setPhoneDisplay] = useState(savedData.phone || '')
 
   const {
@@ -45,18 +46,15 @@ export default function ContactInfoPage() {
     setValue('phone', formatted)
   }
 
-  const currentStep = getStepNumber('/contact-info', recipient)
-  const backRoute = getBackRoute('/contact-info', recipient)!
-
   const onSubmit = (data: FormData) => {
     saveFormData(data)
 
-    router.push(getNextRoute('/contact-info', recipient)!)
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   return (
     <FormLayout
-      currentStep={currentStep}
+      route={ROUTE}
       title="How can we reach you?"
       description="Your information is private and will never be used for marketing purposes."
       usePersonalization={true}
@@ -95,7 +93,7 @@ export default function ContactInfoPage() {
           </div>
         </FormCard>
 
-        <FormNavigation backRoute={backRoute} isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

@@ -11,8 +11,9 @@ import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { patientSchema } from '@/lib/validation-schemas'
 import type { z } from 'zod'
+import { backRoute, nextRoute } from '@/lib/intake'
 
-const CURRENT_STEP = 3
+const ROUTE = '/basic-info'
 
 type FormData = z.input<typeof patientSchema>
 
@@ -57,11 +58,7 @@ export default function BasicInfoPage() {
   const onSubmit = (data: FormData) => {
     saveFormData(data)
 
-    if (recipient === 'someone_else') {
-      router.push('/guardian-info')
-    } else {
-      router.push('/contact-info')
-    }
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   const pageTitle =
@@ -70,7 +67,7 @@ export default function BasicInfoPage() {
       : 'Please provide information about the person who needs this note'
 
   return (
-    <FormLayout currentStep={CURRENT_STEP} title={pageTitle} description="">
+    <FormLayout route={ROUTE} title={pageTitle} description="">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
           <div className="space-y-4">
@@ -106,7 +103,7 @@ export default function BasicInfoPage() {
           </div>
         </FormCard>
 
-        <FormNavigation backRoute="/who-is-using" isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

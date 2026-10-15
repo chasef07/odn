@@ -8,11 +8,12 @@ import { FormRadioGroup } from '@/components/form/FormRadioGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { recipientSchema } from '@/lib/validation-schemas'
+import { backRoute, nextRoute } from '@/lib/intake'
 import { ShieldCheck, DollarSign } from 'lucide-react'
 import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 
-const CURRENT_STEP = 2
+const ROUTE = '/who-is-using'
 
 type FormData = {
   recipient: 'myself' | 'someone_else' | null
@@ -20,6 +21,7 @@ type FormData = {
 
 export default function WhoIsUsingPage() {
   const router = useRouter()
+  const savedData = getFormData()
 
   const {
     register,
@@ -28,7 +30,7 @@ export default function WhoIsUsingPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(recipientSchema),
-    defaultValues: getFormData(),
+    defaultValues: savedData,
   })
 
   const recipient = useWatch({ control, name: 'recipient' })
@@ -36,7 +38,7 @@ export default function WhoIsUsingPage() {
   const onSubmit = (data: FormData) => {
     saveFormData(data)
 
-    router.push('/basic-info')
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   return (
@@ -48,7 +50,7 @@ export default function WhoIsUsingPage() {
           </div>
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
-              <FormProgress currentStep={CURRENT_STEP} />
+              <FormProgress route={ROUTE} />
             </div>
 
             <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">
@@ -87,7 +89,7 @@ export default function WhoIsUsingPage() {
               gridClassName="flex flex-wrap gap-4 justify-center"
             />
 
-            <FormNavigation backRoute="/get-started" isSubmitting={isSubmitting} />
+            <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
           </form>
         </main>
       </div>

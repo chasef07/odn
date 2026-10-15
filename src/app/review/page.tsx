@@ -14,7 +14,7 @@ import { FormEditableSection } from '@/components/form/FormEditableSection'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { getFormData, saveFormData } from '@/lib/form-storage'
-import { getBackRoute, getStepNumber } from '@/lib/form-steps'
+import { backRoute } from '@/lib/intake'
 import {
   patientSchema,
   guardianSchema,
@@ -26,6 +26,8 @@ import { formatPhoneNumber } from '@/lib/phone-utils'
 import { UI_TIMING } from '@/lib/validation-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { es } from 'date-fns/locale'
+
+const ROUTE = '/review'
 
 type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 
@@ -54,7 +56,6 @@ export default function ReviewPage() {
   const router = useRouter()
   const [formData, setFormData] = useState(getFormData())
   const recipient = formData.recipient || 'myself'
-  const currentStep = getStepNumber('/review', recipient)
   const [editingSection, setEditingSection] = useState<EditSection>(null)
   const [phoneDisplay, setPhoneDisplay] = useState(formData.phone || '')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -215,7 +216,7 @@ export default function ReviewPage() {
 
   return (
     <FormLayout
-      currentStep={currentStep}
+      route={ROUTE}
       title="Review your information"
       description="Please review all details carefully before continuing to payment."
       usePersonalization={true}
@@ -558,7 +559,7 @@ export default function ReviewPage() {
         </div>
 
         <FormNavigation
-          backRoute={getBackRoute('/review', recipient)!}
+          backRoute={backRoute(ROUTE, formData)}
           submitText="Continue to Payment"
           isSubmitting={isSubmitting}
         />

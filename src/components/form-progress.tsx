@@ -1,30 +1,29 @@
 import { Progress } from '@/components/ui/progress'
-import { PROGRESS_VALUES } from '@/lib/form-constants'
 import { getFormData } from '@/lib/form-storage'
+import { stepNumber, totalSteps } from '@/lib/intake'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface FormProgressProps {
-  currentStep: number
+  route: string
 }
 
-export function FormProgress({ currentStep }: FormProgressProps) {
+export function FormProgress({ route }: FormProgressProps) {
   const { t } = useI18n()
-  const progressValue = PROGRESS_VALUES[currentStep as keyof typeof PROGRESS_VALUES] || 0
-
-  const savedData = getFormData()
-  const recipient = savedData.recipient || 'myself'
-  const totalSteps = recipient === 'someone_else' ? 11 : 10
+  const draft = getFormData()
+  const current = stepNumber(route, draft)
+  const total = totalSteps(draft)
+  const progressValue = Math.round((current / (total + 1)) * 100)
 
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-primary text-sm font-semibold tracking-wide">
-          {t('Step')} {currentStep} {t('of')} {totalSteps}
+          {t('Step')} {current} {t('of')} {total}
         </p>
       </div>
       <Progress value={progressValue} className="bg-primary/10 h-2" />
       <p className="text-muted-foreground text-xs font-medium tracking-wide">
-        {Math.round(progressValue)}% {t('complete')}
+        {progressValue}% {t('complete')}
       </p>
     </div>
   )

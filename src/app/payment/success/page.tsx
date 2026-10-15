@@ -7,8 +7,6 @@ import { CheckCircle2 } from 'lucide-react'
 import { clearFormData } from '@/lib/form-storage'
 import { stripStripeSecretParams, trackPurchaseOnce } from '@/lib/conversion-tracking'
 
-const CURRENT_STEP = 10
-
 export default function PaymentSuccessPage() {
   const [paymentIntent] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
@@ -77,11 +75,9 @@ export default function PaymentSuccessPage() {
   if (status === 'loading') {
     return (
       <FormLayout
-        currentStep={CURRENT_STEP}
         title="Processing Payment"
         description="Please wait while we confirm your payment"
         usePersonalization={false}
-        hideProgressAndBadges={true}
       >
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -96,11 +92,9 @@ export default function PaymentSuccessPage() {
   if (status === 'error') {
     return (
       <FormLayout
-        currentStep={CURRENT_STEP}
         title="Payment Error"
         description="There was an issue with your payment"
         usePersonalization={false}
-        hideProgressAndBadges={true}
       >
         <div className="rounded-xl border border-red-200 bg-red-50 p-6">
           <p className="mb-2 font-medium text-red-600">Payment verification failed</p>
@@ -114,11 +108,9 @@ export default function PaymentSuccessPage() {
 
   return (
     <FormLayout
-      currentStep={CURRENT_STEP}
       title="Payment Successful"
       description="Your doctor's note is being processed"
       usePersonalization={true}
-      hideProgressAndBadges={true}
     >
       <div className="space-y-6">
         <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center">

@@ -11,6 +11,7 @@ import {
   totalSteps,
 } from '@/lib/intake'
 import { ABSENCE_REASONS } from '@/lib/form-constants'
+import robots from '@/app/robots'
 
 const today = new Date()
 const isoDate = (date: Date) => date.toISOString().slice(0, 10)
@@ -105,7 +106,7 @@ describe('INTAKE_STEPS navigation', () => {
     expect(stepNumber('/review', guardianSick)).toBe(11)
   })
 
-  it('gives an excluded step the number it would have, instead of crashing the page', () => {
+  it('numbers an excluded step by its position in the table', () => {
     expect(stepNumber('/guardian-info', sick)).toBe(4)
     expect(stepNumber('/symptoms', appointment)).toBe(8)
   })
@@ -122,6 +123,16 @@ describe('INTAKE_STEPS navigation', () => {
     expect(backRoute('/contact-info', sick)).toBe('/basic-info')
     expect(backRoute('/contact-info', guardianSick)).toBe('/guardian-info')
     expect(backRoute('/review', sick)).toBe('/additional-info')
+  })
+
+  it('keeps every intake route out of robots for every crawler rule', () => {
+    const rules = robots().rules
+    for (const rule of Array.isArray(rules) ? rules : [rules]) {
+      const disallow = rule.disallow as string[]
+      expect(INTAKE_STEPS.map((step) => step.route).filter((r) => !disallow.includes(r))).toEqual(
+        []
+      )
+    }
   })
 
   it('throws for an unknown route or a step past either end', () => {

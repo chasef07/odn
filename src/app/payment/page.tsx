@@ -11,8 +11,6 @@ import { useI18n } from '@/components/i18n/I18nProvider'
 import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 import { publicEnv } from '@/lib/public-env'
 
-const CURRENT_STEP = 10
-
 const stripePromise = loadStripe(publicEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
 
 type PriceInfo = {
@@ -186,11 +184,9 @@ export default function PaymentPage() {
   if (loading) {
     return (
       <FormLayout
-        currentStep={CURRENT_STEP}
         title="Payment"
         description="Secure payment powered by Stripe"
         usePersonalization={false}
-        hideProgressAndBadges={true}
       >
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -205,11 +201,9 @@ export default function PaymentPage() {
   if (error) {
     return (
       <FormLayout
-        currentStep={CURRENT_STEP}
         title="Payment"
         description="Secure payment powered by Stripe"
         usePersonalization={false}
-        hideProgressAndBadges={true}
       >
         <div className="rounded-xl border border-red-200 bg-red-50 p-6">
           <p className="text-red-600">{error}</p>
@@ -220,11 +214,9 @@ export default function PaymentPage() {
 
   return (
     <FormLayout
-      currentStep={CURRENT_STEP}
       title="Payment"
       description="Secure payment powered by Stripe"
       usePersonalization={false}
-      hideProgressAndBadges={true}
     >
       {clientSecret && (
         <Elements options={options} stripe={stripePromise}>
