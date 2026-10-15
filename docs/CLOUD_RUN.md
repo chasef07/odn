@@ -46,7 +46,7 @@ Staging never uses live credentials:
 - Resend: `odn-staging-resend-api-key` is a non-working placeholder, so email
   sends fail visibly in the logs. Resend has no test mode; add a key restricted
   to a staging sending domain if staging email is needed.
-- Telnyx: `TELNYX_FROM_NUMBER` is empty (outbound SMS is skipped) and
+- Telnyx: `TELNYX_SMS_ENABLED=false` (outbound SMS is skipped) and
   `TELNYX_WEBHOOK_ENABLED=false`. The Telnyx secrets are placeholders.
 - PDFs are signed as `Dr. Staging Test, MD (staging)`.
 
@@ -114,7 +114,7 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
 4. **Deploy `odn-production`.** Run `cloudbuild.yaml` with `_ENV=production`,
    `_SITE_URL=https://onlinedoctornote.com`,
    `_VERIFICATION_BASE_URL=https://phealthclinic.com`, the live price IDs,
-   `TELNYX_FROM_NUMBER`, `_TELNYX_WEBHOOK_ENABLED=true`, `_MIN_INSTANCES=1`,
+   `_TELNYX_SMS_ENABLED=true`, `_TELNYX_FROM_NUMBER`, `_TELNYX_WEBHOOK_ENABLED=true`, `_MIN_INSTANCES=1`,
    and the real doctor name/credentials. Its migrate step is a no-op if the
    schema is current. The deploy sets `--no-invoker-iam-check`, so the
    service is public.

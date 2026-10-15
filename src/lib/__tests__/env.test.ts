@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { env, serverEnvProblems } from '@/lib/env'
+import { env, serverEnvProblems, telnyxSmsSender } from '@/lib/env'
 import { publicEnv } from '@/lib/public-env'
 
 describe('server env', () => {
@@ -41,6 +41,30 @@ describe('server env', () => {
     vi.stubEnv('TELNYX_WEBHOOK_ENABLED', 'false')
 
     expect(env.TELNYX_WEBHOOK_ENABLED).toBe(false)
+  })
+
+  it('turns SMS off only when TELNYX_SMS_ENABLED is false', () => {
+    vi.stubEnv('TELNYX_SMS_ENABLED', 'false')
+    expect(telnyxSmsSender()).toBeNull()
+
+    vi.stubEnv('TELNYX_SMS_ENABLED', '')
+    expect(() => telnyxSmsSender()).toThrow('Environment variable TELNYX_SMS_ENABLED is not set')
+  })
+
+  it('fails loudly when SMS is on without its credentials', () => {
+    vi.stubEnv('TELNYX_SMS_ENABLED', 'true')
+    vi.stubEnv('TELNYX_API_KEY', 'KEY123')
+    vi.stubEnv('TELNYX_FROM_NUMBER', '')
+
+    expect(() => telnyxSmsSender()).toThrow(
+      'TELNYX_SMS_ENABLED is true, so TELNYX_API_KEY and TELNYX_FROM_NUMBER must be set'
+    )
+    expect(serverEnvProblems()).toEqual([
+      'TELNYX_SMS_ENABLED is true, so TELNYX_API_KEY and TELNYX_FROM_NUMBER must be set',
+    ])
+
+    vi.stubEnv('TELNYX_FROM_NUMBER', '+15555550100')
+    expect(telnyxSmsSender()).toEqual({ apiKey: 'KEY123', from: '+15555550100' })
   })
 
   it('reports every missing var at startup', () => {

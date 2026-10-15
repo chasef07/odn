@@ -41,7 +41,7 @@ jobs:
             --config=cloudbuild.yaml \
             --suppress-logs \
             --service-account=projects/acuity-health-prod/serviceAccounts/odn-deploy@acuity-health-prod.iam.gserviceaccount.com \
-            --substitutions="^|^_ENV=staging|_GIT_SHA=${GITHUB_SHA}|_SITE_URL=${SITE_URL}|_VERIFICATION_BASE_URL=${SITE_URL}|_RESEND_FROM_EMAIL=hello@updates.onlinedoctornote.com|_DOCTOR_NAME=Dr. Staging Test|_DOCTOR_CREDENTIALS=MD (staging)|_STRIPE_PRICE_ID=price_1UNGDXPOlfpeoqYjaZUgZLh6" \
+            --substitutions="^|^_ENV=staging|_GIT_SHA=${GITHUB_SHA}|_SITE_URL=${SITE_URL}|_VERIFICATION_BASE_URL=${SITE_URL}|_RESEND_FROM_EMAIL=hello@updates.onlinedoctornote.com|_DOCTOR_NAME=Dr. Staging Test|_DOCTOR_CREDENTIALS=MD (staging)|_STRIPE_PRICE_ID=price_1UNGDXPOlfpeoqYjaZUgZLh6|_TELNYX_SMS_ENABLED=false" \
             .
         env:
           SITE_URL: https://odn-staging-1006405058436.us-east4.run.app

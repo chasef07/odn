@@ -31,6 +31,7 @@ const schema = {
   DOCTOR_SIGNATURE_URL: nonEmpty,
   DOCTOR_NPI: nonEmpty.default('1558307702'),
   VERIFICATION_BASE_URL: origin,
+  TELNYX_SMS_ENABLED: switchFlag,
   TELNYX_API_KEY: nonEmpty.optional(),
   TELNYX_FROM_NUMBER: nonEmpty.optional(),
   TELNYX_PUBLIC_KEY: nonEmpty.optional(),
@@ -53,10 +54,24 @@ export const env = Object.defineProperties(
   Object.fromEntries(names.map((name) => [name, { enumerable: true, get: () => read(name) }]))
 ) as ServerEnv
 
+export function telnyxSmsSender(): { apiKey: string; from: string } | null {
+  if (!env.TELNYX_SMS_ENABLED) return null
+  const apiKey = env.TELNYX_API_KEY
+  const from = env.TELNYX_FROM_NUMBER
+  if (!apiKey || !from) {
+    throw new Error(
+      'TELNYX_SMS_ENABLED is true, so TELNYX_API_KEY and TELNYX_FROM_NUMBER must be set'
+    )
+  }
+  return { apiKey, from }
+}
+
+const checks: (() => unknown)[] = [...names.map((name) => () => read(name)), telnyxSmsSender]
+
 export function serverEnvProblems(): string[] {
-  return names.flatMap((name) => {
+  return checks.flatMap((check) => {
     try {
-      read(name)
+      check()
       return []
     } catch (error) {
       return [error instanceof Error ? error.message : String(error)]

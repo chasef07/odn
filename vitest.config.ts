@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
         DOCTOR_CREDENTIALS: 'MD FACEP',
         DOCTOR_SIGNATURE_URL: '/images/doctor-signature.png',
         VERIFICATION_BASE_URL: 'https://phealthclinic.com',
+        TELNYX_SMS_ENABLED: 'false',
         ...env,
       },
       include: ['**/*.{test,spec}.{ts,tsx}'],
