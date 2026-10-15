@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: offerConfig.missingConfigError }, { status: 500 })
     }
 
-    // Traffic source comes only from our first-party cookie, never from the request body
     const attribution = parseAttributionCookie(request.cookies.get(ATTRIBUTION_COOKIE)?.value)
     const { attribution: _clientAttribution, ...cleanFormData } = formData as FormData & {
       attribution?: unknown

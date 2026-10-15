@@ -1,12 +1,3 @@
-/**
- * Marketing Attribution
- * Records where a visitor came from (UTMs, ad click IDs, referrer) in a
- * first-party cookie so each paid order can be credited to one source.
- *
- * Model: first touch is the first visit we saw; last touch is the most recent
- * non-direct visit. Direct visits never overwrite an earlier campaign touch.
- */
-
 export const ATTRIBUTION_COOKIE = 'odn_attr'
 export const ATTRIBUTION_MAX_AGE_SECONDS = 90 * 24 * 60 * 60
 
@@ -112,7 +103,6 @@ const SOCIAL_HOST_PATTERNS = [
   /(^|\.)pinterest\.com$/,
 ]
 
-// Payment and wallet redirects send customers back to us; they are not traffic sources.
 const IGNORED_REFERRER_PATTERNS = [
   /(^|\.)stripe\.com$/,
   /(^|\.)stripe\.network$/,
@@ -174,7 +164,6 @@ export function classifyChannel({
   if (medium === 'email') return 'email'
   if (medium === 'sms') return 'sms'
   if (source) return 'other_campaign'
-  // fbclid is appended to organic Facebook/Instagram links too, so alone it means social.
   if (clickIds.fbclid) return 'social'
 
   if (referrerHost) {
@@ -186,10 +175,6 @@ export function classifyChannel({
   return 'direct'
 }
 
-/**
- * Build a touch from the current page URL and document.referrer.
- * Only the referrer's origin + path and the landing path are kept (no query strings).
- */
 export function touchFromVisit(
   pageUrl: URL,
   referrer: string | null | undefined,
@@ -212,9 +197,7 @@ export function touchFromVisit(
         referrerHost = host
         referrerValue = cleanValue(`${ref.origin}${ref.pathname}`)
       }
-    } catch {
-      // Malformed referrer: treat as none.
-    }
+    } catch {}
   }
 
   const source = cleanLower(params.get('utm_source'))
@@ -279,7 +262,6 @@ function parseTouch(value: unknown): AttributionTouch | null {
   }
 }
 
-/** Validate untrusted attribution data (cookie or stored JSON). Returns null if unusable. */
 export function parseAttribution(value: unknown): AttributionData | null {
   if (!value || typeof value !== 'object') return null
   const raw = value as Record<string, unknown>
@@ -289,10 +271,6 @@ export function parseAttribution(value: unknown): AttributionData | null {
   return { first, last }
 }
 
-/**
- * Parse the cookie's already URI-decoded value (Next's request.cookies decodes it;
- * on the client, decode the raw document.cookie value first).
- */
 export function parseAttributionCookie(
   cookieValue: string | null | undefined
 ): AttributionData | null {
@@ -312,11 +290,6 @@ function summaryOnly(touch: AttributionTouch): AttributionTouch {
   return { ...withoutDetail(touch), clickIds: {}, landingPath: null }
 }
 
-/**
- * URI-encoded cookie value, shrinking optional detail until it fits the size
- * limit. Returns null when even the smallest form is too large, so the caller
- * keeps the existing cookie instead of writing one the browser would reject.
- */
 export function serializeAttributionCookie(data: AttributionData): string | null {
   const candidates: AttributionData[] = [
     data,
@@ -330,7 +303,6 @@ export function serializeAttributionCookie(data: AttributionData): string | null
   return null
 }
 
-/** Compact summary for Stripe PaymentIntent metadata (visible in the Stripe dashboard). */
 export function attributionStripeMetadata(data: AttributionData | null): Record<string, string> {
   if (!data) return {}
   const { first, last } = data

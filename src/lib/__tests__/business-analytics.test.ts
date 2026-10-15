@@ -231,7 +231,6 @@ describe('business analytics', () => {
       referenceDate
     )
 
-    // Equal net revenue, so rows with more notes come first
     expect(analytics.sourceRows).toEqual([
       expect.objectContaining({
         key: 'reddit',

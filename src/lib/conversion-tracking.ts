@@ -1,8 +1,3 @@
-/**
- * Conversion Tracking
- * Pushes confirmed purchases to the GTM dataLayer for Google Ads and Reddit.
- */
-
 declare global {
   interface Window {
     dataLayer?: Record<string, unknown>[]
@@ -13,7 +8,6 @@ export const PURCHASE_EVENT = 'purchase'
 
 const TRACKED_KEY_PREFIX = 'odn-purchase-tracked:'
 
-// Stripe appends these to the return_url. The client secret must never reach ad pixels.
 const STRIPE_SECRET_PARAMS = ['payment_intent_client_secret']
 
 export interface PurchaseConversion {
@@ -23,10 +17,6 @@ export interface PurchaseConversion {
   emailSha256?: string | null
 }
 
-/**
- * Remove Stripe's client secret from the address bar so tags that read the
- * page URL (Google Ads, Reddit) never receive it.
- */
 export function stripStripeSecretParams(): void {
   if (typeof window === 'undefined') return
 
@@ -55,18 +45,9 @@ function hasTracked(transactionId: string): boolean {
 function markTracked(transactionId: string): void {
   try {
     localStorage.setItem(TRACKED_KEY_PREFIX + transactionId, new Date().toISOString())
-  } catch {
-    // Storage unavailable (private mode). Ad platforms still dedupe on transaction_id.
-  }
+  } catch {}
 }
 
-/**
- * Push a single purchase event per payment intent. Refreshes and revisits of
- * the success page are no-ops, and the transaction_id lets Google Ads and
- * Reddit drop any duplicate that slips through.
- *
- * Returns true when an event was pushed.
- */
 export function trackPurchaseOnce(conversion: PurchaseConversion): boolean {
   if (typeof window === 'undefined') return false
   if (!conversion.transactionId || hasTracked(conversion.transactionId)) return false
@@ -90,8 +71,6 @@ export function trackPurchaseOnce(conversion: PurchaseConversion): boolean {
 
 const GMAIL_DOMAINS = new Set(['gmail.com', 'googlemail.com'])
 
-// Google Ads enhanced conversions normalization: trim and lowercase, and for Gmail
-// addresses drop periods and any +suffix from the username before hashing.
 export function normalizeEmailForConversions(email: string): string {
   const normalized = email.trim().toLowerCase()
   const at = normalized.lastIndexOf('@')

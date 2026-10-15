@@ -581,7 +581,6 @@ function outcomeKey(status: SubmissionStatus): BusinessAnalyticsBreakdownRow['ke
   }
 }
 
-// Orders placed before attribution tracking launched have no channel.
 const UNTRACKED_SOURCE_KEY = 'untracked'
 
 function sourceLabel(key: string): string {

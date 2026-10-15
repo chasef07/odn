@@ -13,7 +13,6 @@ export default function PaymentSuccessPage() {
   const [paymentIntent] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     const params = new URLSearchParams(window.location.search)
-    // Strip the client secret during the first render, before GTM reads the page URL
     stripStripeSecretParams()
     return params.get('payment_intent')
   })
