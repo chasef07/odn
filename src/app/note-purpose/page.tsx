@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { LEGAL_NOTE_PURPOSE_ERROR, page5Schema } from '@/lib/validation-schemas'
+import { LEGAL_NOTE_PURPOSE_ERROR, notePurposeSchema } from '@/lib/validation-schemas'
 import { NOTE_PURPOSES } from '@/lib/form-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
@@ -76,7 +76,7 @@ export default function NotePurposePage() {
     clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page5Schema),
+    resolver: zodResolver(notePurposeSchema),
     defaultValues: {
       notePurpose: savedData.notePurpose || null,
       otherNotePurpose: savedData.otherNotePurpose || '',

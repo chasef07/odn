@@ -10,7 +10,7 @@ import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page6Schema } from '@/lib/validation-schemas'
+import { absenceDatesSchema } from '@/lib/validation-schemas'
 import { validateAbsenceDates } from '@/lib/date-validators'
 
 type FormData = {
@@ -31,7 +31,7 @@ export default function AbsenceDatesPage() {
     formState: { errors, isSubmitting },
     setError,
   } = useForm<FormData>({
-    resolver: zodResolver(page6Schema),
+    resolver: zodResolver(absenceDatesSchema),
     defaultValues: {
       ...getFormData(),
       firstDayOff: getFormData().firstDayOff || today,

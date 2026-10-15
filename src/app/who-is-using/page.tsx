@@ -7,7 +7,7 @@ import { FormProgress } from '@/components/form-progress'
 import { FormRadioGroup } from '@/components/form/FormRadioGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { page1Schema } from '@/lib/validation-schemas'
+import { recipientSchema } from '@/lib/validation-schemas'
 import { ShieldCheck, DollarSign } from 'lucide-react'
 import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
@@ -27,7 +27,7 @@ export default function WhoIsUsingPage() {
     control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page1Schema),
+    resolver: zodResolver(recipientSchema),
     defaultValues: getFormData(),
   })
 

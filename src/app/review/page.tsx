@@ -16,11 +16,11 @@ import { FormNavigation } from '@/components/form/FormNavigation'
 import { getFormData, saveFormData } from '@/lib/form-storage'
 import { getBackRoute, getStepNumber } from '@/lib/form-steps'
 import {
-  page2Schema,
+  patientSchema,
   guardianSchema,
-  page3Schema,
-  page6Schema,
-  page10Schema,
+  contactSchema,
+  absenceDatesSchema,
+  termsSchema,
 } from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
 import { validateAbsenceDates } from '@/lib/date-validators'
@@ -31,8 +31,8 @@ import { es } from 'date-fns/locale'
 
 type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 
-type TermsFormInput = z.input<typeof page10Schema>
-type TermsFormData = z.output<typeof page10Schema>
+type TermsFormInput = z.input<typeof termsSchema>
+type TermsFormData = z.output<typeof termsSchema>
 
 type PersonalFormData = {
   patientFirstName: string
@@ -71,7 +71,7 @@ export default function ReviewPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<TermsFormInput, unknown, TermsFormData>({
-    resolver: zodResolver(page10Schema),
+    resolver: zodResolver(termsSchema),
     defaultValues: {
       certifyAccurate: false,
       agreeTerms: false,
@@ -80,7 +80,7 @@ export default function ReviewPage() {
   })
 
   const personalForm = useForm<PersonalFormData>({
-    resolver: zodResolver(page2Schema),
+    resolver: zodResolver(patientSchema),
     defaultValues: {
       patientFirstName: formData.patientFirstName || '',
       patientLastName: formData.patientLastName || '',
@@ -98,7 +98,7 @@ export default function ReviewPage() {
   })
 
   const contactForm = useForm<ContactFormData>({
-    resolver: zodResolver(page3Schema),
+    resolver: zodResolver(contactSchema),
     defaultValues: {
       email: formData.email || '',
       phone: formData.phone || '',
@@ -107,7 +107,7 @@ export default function ReviewPage() {
   })
 
   const datesForm = useForm<DatesFormData>({
-    resolver: zodResolver(page6Schema),
+    resolver: zodResolver(absenceDatesSchema),
     defaultValues: {
       firstDayOff: formData.firstDayOff || '',
       lastDayOff: formData.lastDayOff || '',

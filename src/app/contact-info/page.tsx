@@ -11,7 +11,7 @@ import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page3Schema } from '@/lib/validation-schemas'
+import { contactSchema } from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
 import { useState } from 'react'
 
@@ -32,7 +32,7 @@ export default function ContactInfoPage() {
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page3Schema),
+    resolver: zodResolver(contactSchema),
     defaultValues: {
       email: savedData.email || '',
       phone: savedData.phone || '',

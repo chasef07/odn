@@ -9,7 +9,7 @@ import { FormNavigation } from '@/components/form/FormNavigation'
 import { Input } from '@/components/ui/input'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page7Schema } from '@/lib/validation-schemas'
+import { absenceReasonSchema } from '@/lib/validation-schemas'
 import { ABSENCE_REASONS } from '@/lib/form-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
@@ -32,7 +32,7 @@ export default function AbsenceReasonPage() {
     control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page7Schema),
+    resolver: zodResolver(absenceReasonSchema),
     defaultValues: getFormData(),
   })
 

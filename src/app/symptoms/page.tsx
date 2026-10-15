@@ -10,11 +10,11 @@ import { FormCheckboxGroup } from '@/components/form/FormCheckboxGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page8Schema } from '@/lib/validation-schemas'
+import { symptomsSchema } from '@/lib/validation-schemas'
 import { SYMPTOMS_BY_REASON } from '@/lib/form-constants'
 import { z } from 'zod'
 
-type FormData = z.infer<typeof page8Schema>
+type FormData = z.infer<typeof symptomsSchema>
 
 export default function SymptomsPage() {
   const router = useRouter()
@@ -30,7 +30,7 @@ export default function SymptomsPage() {
     formState: { errors, isSubmitting },
     setError,
   } = useForm<FormData>({
-    resolver: zodResolver(page8Schema),
+    resolver: zodResolver(symptomsSchema),
     defaultValues: {
       symptoms: savedData.symptoms || [],
       otherSymptomText: savedData.otherSymptomText || '',

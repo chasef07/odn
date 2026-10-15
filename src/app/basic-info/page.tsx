@@ -9,7 +9,7 @@ import { FormField } from '@/components/form/FormField'
 import { DateOfBirthInput } from '@/components/form/DateOfBirthInput'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { page2Schema } from '@/lib/validation-schemas'
+import { patientSchema } from '@/lib/validation-schemas'
 import { isAgeValid } from '@/lib/age-validators'
 
 const CURRENT_STEP = 3
@@ -33,7 +33,7 @@ export default function BasicInfoPage() {
     setValue,
     control,
   } = useForm<FormData>({
-    resolver: zodResolver(page2Schema),
+    resolver: zodResolver(patientSchema),
     defaultValues: {
       patientFirstName: savedData.patientFirstName || '',
       patientLastName: savedData.patientLastName || '',

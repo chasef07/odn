@@ -8,7 +8,7 @@ import { FormCard } from '@/components/form/FormCard'
 import { FormSelect } from '@/components/form/FormSelect'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { page4Schema } from '@/lib/validation-schemas'
+import { stateSchema } from '@/lib/validation-schemas'
 import { AVAILABLE_STATES } from '@/lib/form-constants'
 import { ShieldCheck, DollarSign, Star } from 'lucide-react'
 import { LocalizedPage } from '@/components/i18n/LocalizedPage'
@@ -28,7 +28,7 @@ export default function Home() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page4Schema),
+    resolver: zodResolver(stateSchema),
     defaultValues: {
       state: getFormData().state || '',
     },

@@ -44,7 +44,7 @@ const dateOfBirthField = z
     }
   })
 
-export const page1Schema = z
+export const recipientSchema = z
   .object({
     recipient: z.enum(['myself', 'someone_else']).nullable(),
   })
@@ -53,7 +53,7 @@ export const page1Schema = z
     path: ['recipient'],
   })
 
-export const page2Schema = z.object({
+export const patientSchema = z.object({
   patientFirstName: nameField('First name'),
   patientLastName: nameField('Last name'),
   patientDateOfBirth: dateOfBirthField,
@@ -126,7 +126,7 @@ const COMMON_TLDS = [
   '.com.br',
 ]
 
-export const page3Schema = z.object({
+export const contactSchema = z.object({
   email: z
     .string()
     .trim()
@@ -202,14 +202,14 @@ export const page3Schema = z.object({
     ),
 })
 
-export const page4Schema = z.object({
+export const stateSchema = z.object({
   state: z.string().min(1, 'Please select your state'),
 })
 
 export const LEGAL_NOTE_PURPOSE_ERROR =
   'Thank you for your interest in our services. Unfortunately, our notes cannot be used for legal matters, including jury duty, court, probation, or similar obligations. We apologize for any inconvenience.'
 
-export const page5Schema = z
+export const notePurposeSchema = z
   .object({
     notePurpose: z.enum(['work', 'school', 'both', 'travel', 'legal', 'other']).nullable(),
     otherNotePurpose: z
@@ -238,12 +238,12 @@ export const page5Schema = z
     }
   )
 
-export const page6Schema = z.object({
+export const absenceDatesSchema = z.object({
   firstDayOff: z.string().min(1, 'Please select start date'),
   lastDayOff: z.string().min(1, 'Please select end date'),
 })
 
-export const page7Schema = z
+export const absenceReasonSchema = z
   .object({
     absenceReason: z.string().nullable(),
     otherAbsenceReason: z.string().max(200, 'Reason must be less than 200 characters').optional(),
@@ -265,7 +265,7 @@ export const page7Schema = z
     }
   )
 
-export const page8Schema = z
+export const symptomsSchema = z
   .object({
     symptoms: z.array(z.string()).optional(),
     otherSymptomText: z
@@ -297,7 +297,7 @@ export const page8Schema = z
     }
   )
 
-export const page9Schema = z.object({
+export const additionalInfoSchema = z.object({
   additionalInformation: z
     .string()
     .max(1000, 'Additional information must be less than 1000 characters')
@@ -305,7 +305,7 @@ export const page9Schema = z.object({
     .transform((val) => val?.trim()),
 })
 
-export const page10Schema = z.object({
+export const termsSchema = z.object({
   certifyAccurate: z.boolean().refine((val) => val === true, {
     message: 'You must certify that the information is accurate',
   }),

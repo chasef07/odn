@@ -8,7 +8,7 @@ import { FormLayout } from '@/components/form-layout'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page9Schema } from '@/lib/validation-schemas'
+import { additionalInfoSchema } from '@/lib/validation-schemas'
 
 type FormData = {
   additionalInformation?: string
@@ -31,7 +31,7 @@ export default function AdditionalInfoPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page9Schema),
+    resolver: zodResolver(additionalInfoSchema),
     defaultValues: {
       additionalInformation: savedData.additionalInformation || '',
     },
