@@ -66,7 +66,7 @@ describe('POST /api/create-payment-intent', () => {
   }
 
   const mockFormData: FormData = {
-    state: 'CA',
+    state: 'California',
     recipient: 'myself',
     patientFirstName: 'John',
     patientLastName: 'Doe',
@@ -77,7 +77,8 @@ describe('POST /api/create-payment-intent', () => {
     notePurpose: 'work',
     firstDayOff: _daysFromToday(-1),
     lastDayOff: _daysFromToday(1),
-    absenceReason: 'illness',
+    absenceReason: 'Feeling sick',
+    symptoms: ['Fever or chills'],
   }
 
   beforeEach(() => {
@@ -86,6 +87,7 @@ describe('POST /api/create-payment-intent', () => {
     process.env.STRIPE_PRICE_ID = 'price_test_mock'
     process.env.STRIPE_FRIENDS_FAMILY_PRICE_ID = 'price_friends_family_mock'
     process.env.STRIPE_DOCTOR_10_PRICE_ID = 'price_doctor_10_mock'
+    process.env.INTAKE_VALIDATION_ENFORCED = 'true'
     vi.clearAllMocks()
 
     mockPricesRetrieve.mockImplementation(async (priceId: string) => {
@@ -197,7 +199,7 @@ describe('POST /api/create-payment-intent', () => {
 
   it('should return 400 if required fields are missing', async () => {
     const incompleteFormData = {
-      state: 'CA',
+      state: 'California',
       recipient: 'myself',
     }
 
@@ -211,7 +213,7 @@ describe('POST /api/create-payment-intent', () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toContain('Missing required fields')
+    expect(data.error).toBe('First name is required')
   })
 
   it('should validate guardian fields when recipient is someone_else', async () => {
@@ -230,7 +232,125 @@ describe('POST /api/create-payment-intent', () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toContain('Guardian information is required')
+    expect(data.error).toBe('Guardian first name is required')
+  })
+
+  describe('log-only mode', () => {
+    beforeEach(() => {
+      process.env.INTAKE_VALIDATION_ENFORCED = 'false'
+      mockPrismaCreate.mockResolvedValue({ id: 'temp_shadow' })
+      mockPaymentIntentCreate.mockResolvedValue({
+        id: 'pi_shadow',
+        client_secret: 'pi_shadow_secret',
+        amount: 2495,
+        currency: 'usd',
+      })
+      mockPrismaUpdate.mockResolvedValue({})
+    })
+
+    it('is the default when INTAKE_VALIDATION_ENFORCED is unset', async () => {
+      delete process.env.INTAKE_VALIDATION_ENFORCED
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/create-payment-intent', {
+          method: 'POST',
+          body: JSON.stringify({ formData: { ...mockFormData, state: 'CA' } }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+
+      expect(response.status).toBe(200)
+      expect(consoleWarn).toHaveBeenCalledWith(
+        'Intake failed validation rules',
+        expect.objectContaining({ enforced: false })
+      )
+      consoleWarn.mockRestore()
+    })
+
+    it('logs a rule failure with its field and lets the payment proceed', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/create-payment-intent', {
+          method: 'POST',
+          body: JSON.stringify({ formData: { ...mockFormData, notePurpose: 'legal' } }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+
+      expect(response.status).toBe(200)
+      expect(mockPaymentIntentCreate).toHaveBeenCalledTimes(1)
+      expect(consoleWarn).toHaveBeenCalledWith('Intake failed validation rules', {
+        enforced: false,
+        issues: [{ field: 'notePurpose', message: expect.stringMatching(/legal matters/) }],
+      })
+      consoleWarn.mockRestore()
+    })
+
+    it('still rejects data that could not be persisted after payment', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/create-payment-intent', {
+          method: 'POST',
+          body: JSON.stringify({ formData: { ...mockFormData, phone: 5551234567 } }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Phone number is required')
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+      expect(consoleWarn).toHaveBeenCalledWith(
+        'Intake rejected before payment: data cannot be persisted',
+        expect.objectContaining({
+          issues: expect.arrayContaining([expect.objectContaining({ field: 'phone' })]),
+        })
+      )
+      consoleWarn.mockRestore()
+    })
+
+    it('fails loudly when INTAKE_VALIDATION_ENFORCED is not true or false', async () => {
+      process.env.INTAKE_VALIDATION_ENFORCED = 'shadow'
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/create-payment-intent', {
+          method: 'POST',
+          body: JSON.stringify({ formData: { ...mockFormData, state: 'CA' } }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+
+      expect(response.status).toBe(500)
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('accepts an accented name, a .es email, and a +1 phone', async () => {
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/create-payment-intent', {
+          method: 'POST',
+          body: JSON.stringify({
+            formData: {
+              ...mockFormData,
+              patientFirstName: 'José',
+              patientLastName: 'Muñoz',
+              email: 'jose@correo.es',
+              phone: '+1 555 123 4567',
+            },
+          }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+
+      expect(response.status).toBe(200)
+      expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ metadata: expect.objectContaining({ email: 'jose@correo.es' }) })
+      )
+    })
   })
 
   it('should call Stripe with correct parameters', async () => {
@@ -974,7 +1094,7 @@ describe('POST /api/create-payment-intent', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toMatch(/valid patient date of birth/i)
+      expect(data.error).toMatch(/cannot be in the future/i)
       expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
     })
 
@@ -998,7 +1118,7 @@ describe('POST /api/create-payment-intent', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toMatch(/valid patient date of birth/i)
+      expect(data.error).toMatch(/valid date of birth/i)
       expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
     })
 

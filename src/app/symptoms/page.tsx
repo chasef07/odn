@@ -28,7 +28,6 @@ export default function SymptomsPage() {
     handleSubmit,
     control,
     formState: { errors, isSubmitting },
-    setError,
   } = useForm<FormData>({
     resolver: zodResolver(symptomsSchema),
     defaultValues: {
@@ -48,24 +47,6 @@ export default function SymptomsPage() {
   const availableSymptoms = SYMPTOMS_BY_REASON[absenceReason] || []
 
   const onSubmit = (data: FormData) => {
-    if (!data.symptoms || data.symptoms.length === 0) {
-      const errorMessage =
-        absenceReason === 'Taking care of someone'
-          ? 'Please select your relationship'
-          : 'Please select at least one symptom'
-      setError('symptoms', {
-        message: errorMessage,
-      })
-      return
-    }
-
-    if (data.symptoms.includes('Other') && !data.otherSymptomText?.trim()) {
-      setError('otherSymptomText', {
-        message: 'Please describe other symptoms',
-      })
-      return
-    }
-
     saveFormData(data)
 
     router.push(getNextRoute('/symptoms', recipient)!)

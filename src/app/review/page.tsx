@@ -23,8 +23,6 @@ import {
   termsSchema,
 } from '@/lib/validation-schemas'
 import { formatPhoneNumber } from '@/lib/phone-utils'
-import { validateAbsenceDates } from '@/lib/date-validators'
-import { isAgeValid } from '@/lib/age-validators'
 import { UI_TIMING } from '@/lib/validation-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { es } from 'date-fns/locale'
@@ -34,11 +32,7 @@ type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 type TermsFormInput = z.input<typeof termsSchema>
 type TermsFormData = z.output<typeof termsSchema>
 
-type PersonalFormData = {
-  patientFirstName: string
-  patientLastName: string
-  patientDateOfBirth: string
-}
+type PersonalFormData = z.input<typeof patientSchema>
 
 type GuardianFormData = {
   guardianFirstName: string
@@ -82,6 +76,7 @@ export default function ReviewPage() {
   const personalForm = useForm<PersonalFormData>({
     resolver: zodResolver(patientSchema),
     defaultValues: {
+      recipient: formData.recipient ?? null,
       patientFirstName: formData.patientFirstName || '',
       patientLastName: formData.patientLastName || '',
       patientDateOfBirth: formData.patientDateOfBirth || '',
@@ -162,14 +157,6 @@ export default function ReviewPage() {
   }
 
   const handleSavePersonal = personalForm.handleSubmit((data) => {
-    if (recipient === 'myself' && data.patientDateOfBirth) {
-      if (!isAgeValid(data.patientDateOfBirth, 18)) {
-        personalForm.setError('patientDateOfBirth', {
-          message: 'You must be 18 or older to request a note for yourself',
-        })
-        return
-      }
-    }
     saveFormData(data)
     setFormData(getFormData())
     setEditingSection(null)
@@ -195,22 +182,6 @@ export default function ReviewPage() {
   })
 
   const handleSaveDates = datesForm.handleSubmit((data) => {
-    const validationData = {
-      firstDayOff: data.firstDayOff,
-      lastDayOff: data.lastDayOff,
-    }
-
-    const validationErrors = validateAbsenceDates(validationData)
-
-    if (validationErrors.length > 0) {
-      validationErrors.forEach((error) => {
-        datesForm.setError(error.field as keyof DatesFormData, {
-          message: error.message,
-        })
-      })
-      return
-    }
-
     saveFormData(data)
     setFormData(getFormData())
     setEditingSection(null)

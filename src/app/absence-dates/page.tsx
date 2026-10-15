@@ -11,7 +11,6 @@ import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
 import { absenceDatesSchema } from '@/lib/validation-schemas'
-import { validateAbsenceDates } from '@/lib/date-validators'
 
 type FormData = {
   firstDayOff: string
@@ -29,7 +28,6 @@ export default function AbsenceDatesPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
   } = useForm<FormData>({
     resolver: zodResolver(absenceDatesSchema),
     defaultValues: {
@@ -40,22 +38,6 @@ export default function AbsenceDatesPage() {
   })
 
   const onSubmit = (data: FormData) => {
-    const validationData = {
-      firstDayOff: data.firstDayOff,
-      lastDayOff: data.lastDayOff,
-    }
-
-    const validationErrors = validateAbsenceDates(validationData)
-
-    if (validationErrors.length > 0) {
-      validationErrors.forEach((error) => {
-        setError(error.field as keyof FormData, {
-          message: error.message,
-        })
-      })
-      return
-    }
-
     saveFormData(data)
 
     router.push(getNextRoute('/absence-dates', recipient)!)

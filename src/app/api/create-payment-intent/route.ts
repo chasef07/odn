@@ -6,7 +6,7 @@ import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { FormData } from '@/lib/form-storage'
-import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
+import { parseIntake } from '@/lib/intake'
 import { getCachedPrice } from '@/lib/stripe-price'
 import { getOfferConfig, normalizeOfferCode, type PriceType } from '@/lib/offer-codes'
 import {
@@ -42,18 +42,29 @@ async function cancelPaymentIntentWithRetry(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { formData, offerCode } = body as { formData: FormData; offerCode?: string }
+    const { formData, offerCode } = body as { formData?: unknown; offerCode?: unknown }
 
     if (!formData) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 })
     }
 
-    const validation = validatePaidSubmissionData(formData)
-    if (validation.errors.length > 0) {
-      return NextResponse.json({ error: validation.errors[0] }, { status: 400 })
+    const intake = parseIntake(formData)
+    if (intake.kind === 'shape_failure') {
+      logger.warn('Intake rejected before payment: data cannot be persisted', {
+        issues: intake.issues,
+      })
+      return NextResponse.json({ error: intake.issues[0].message }, { status: 400 })
+    }
+    if (intake.kind === 'rule_failure') {
+      const enforced = env.INTAKE_VALIDATION_ENFORCED
+      logger.warn('Intake failed validation rules', { enforced, issues: intake.issues })
+      if (enforced) {
+        return NextResponse.json({ error: intake.issues[0].message }, { status: 400 })
+      }
     }
 
-    const normalizedOfferCode = normalizeOfferCode(offerCode ?? formData.offerCode)
+    const draft = formData as FormData
+    const normalizedOfferCode = normalizeOfferCode(offerCode ?? draft.offerCode)
     const offerConfig = getOfferConfig(normalizedOfferCode)
     const offerPriceId = offerConfig ? env[offerConfig.priceEnvVar] : undefined
 
@@ -63,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     const attribution = parseAttributionCookie(request.cookies.get(ATTRIBUTION_COOKIE)?.value)
-    const { attribution: _clientAttribution, ...cleanFormData } = formData as FormData & {
+    const { attribution: _clientAttribution, ...cleanFormData } = draft as FormData & {
       attribution?: unknown
     }
     const storedFormData = attribution ? { ...cleanFormData, attribution } : cleanFormData
@@ -123,7 +134,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           product: 'doctors-note',
           service: 'online-doctors-note',
-          email: formData.email || '',
+          email: intake.data.email,
           price_id: price.id,
           price_type: priceType,
           offer_code: offerConfig?.code ?? '',
@@ -167,7 +178,7 @@ export async function POST(request: NextRequest) {
       logger.error('CRITICAL: Payment intent created but update failed', {
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmissionId,
-        email: formData.email,
+        email: intake.data.email,
       })
 
       const cancelSucceeded = await cancelPaymentIntentWithRetry(paymentIntent.id)

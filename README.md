@@ -13,10 +13,10 @@ A Next.js app that sells doctor's notes for work or school. A patient fills in a
 
 ## How a request moves
 
-1. The intake pages run in the order of `FORM_STEPS` in `src/lib/form-steps.ts`, which ends at `/review`. `/guardian-info` shows only when the note is for someone else.
+1. The intake pages run in the order of `INTAKE_STEPS` in `src/lib/intake.ts`, which ends at `/review`. The table also drives the progress bar, the back links and `robots.ts`. `/guardian-info` shows only when the note is for someone else, and `/symptoms` is skipped for a doctor's appointment or an other reason.
 2. The patient continues to `/approved`, then pays on `/payment`.
-3. `src/app/api/create-payment-intent` saves the form as a `TemporarySubmission` and creates the Stripe payment intent.
-4. The Stripe webhook at `src/app/api/webhooks/stripe-prod3` turns the paid `TemporarySubmission` into a `Submission`.
+3. `src/app/api/create-payment-intent` parses the form with `parseIntake` from `src/lib/intake.ts`, which runs the same zod schemas the form steps use from `src/lib/validation-schemas.ts`. Data that cannot be stored is rejected with a 400. A rule failure, such as an under-18 patient, is logged and the payment proceeds unless `INTAKE_VALIDATION_ENFORCED=true`, which turns the log into a 400. The route then saves the form as a `TemporarySubmission` and creates the Stripe payment intent.
+4. The Stripe webhook at `src/app/api/webhooks/stripe-prod3` turns the paid `TemporarySubmission` into a `Submission`. A paid draft that fails a rule is stored as `MAYBE` for the doctor. Only a draft that cannot be stored returns a retryable 500.
 5. A doctor reviews the `Submission` under `/admin`.
 
 ## Run it locally

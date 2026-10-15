@@ -5,12 +5,11 @@ import prisma from '@/lib/prisma'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
-import { FormData } from '@/lib/form-storage'
 import { sendPaymentConfirmationEmail } from '@/lib/email'
 import { purchaseConfirmationSms, SMS_CONSENT_VERSION } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
 import { toE164UsPhone } from '@/lib/phone-utils'
-import { validatePaidSubmissionData } from '@/lib/paid-submission-validation'
+import { parseIntake } from '@/lib/intake'
 import { INTERNAL_ONLY_MAYBE_REASON } from '@/lib/maybe-reasons'
 import { parseAttribution } from '@/lib/attribution'
 import { revalidatePath } from 'next/cache'
@@ -123,24 +122,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Temporary submission not found' }, { status: 500 })
     }
 
-    const formData = tempSubmission.formData as FormData
     const attribution = parseAttribution(
       (tempSubmission.formData as { attribution?: unknown }).attribution
     )
 
-    const validation = validatePaidSubmissionData(formData)
-    const validationReasons = validation.errors
-    const hasValidationFailure = validationReasons.length > 0
+    const intake = parseIntake(tempSubmission.formData)
 
-    if (!validation.canPersistSubmission) {
+    if (intake.kind === 'shape_failure') {
       logger.error('PAID SUBMISSION CANNOT BE PERSISTED - leaving webhook retryable', {
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmission.id,
-        email: formData.email,
-        patientFirstName: formData.patientFirstName,
-        patientLastName: formData.patientLastName,
-        reasons: validationReasons,
+        reasons: intake.issues.map((issue) => `${issue.field}: ${issue.message}`),
       })
 
       return NextResponse.json(
@@ -149,21 +142,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (hasValidationFailure) {
+    const flagged = intake.kind === 'rule_failure'
+    const reasons = flagged ? intake.issues.map((issue) => `${issue.field}: ${issue.message}`) : []
+
+    if (flagged) {
       logger.error('PAID SUBMISSION FAILED SERVER-SIDE VALIDATION - routing to MAYBE queue', {
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmission.id,
-        email: formData.email,
-        patientFirstName: formData.patientFirstName,
-        patientLastName: formData.patientLastName,
-        reasons: validationReasons,
+        reasons,
       })
     }
 
+    const data = intake.data
+
     let submission: Awaited<ReturnType<typeof prisma.submission.create>>
     try {
-      const smsOptedIn = formData.smsOptIn === true
       submission = await prisma.submission.create({
         data: {
           stripePaymentIntentId: paymentIntent.id,
@@ -175,40 +169,35 @@ export async function POST(request: NextRequest) {
           utmMedium: attribution?.last.medium ?? null,
           utmCampaign: attribution?.last.campaign ?? null,
           attribution: attribution ? (attribution as unknown as Prisma.InputJsonValue) : undefined,
-          status: hasValidationFailure ? SubmissionStatus.MAYBE : SubmissionStatus.PENDING_REVIEW,
+          status: flagged ? SubmissionStatus.MAYBE : SubmissionStatus.PENDING_REVIEW,
           denialReason: null,
-          maybeReason: hasValidationFailure ? INTERNAL_ONLY_MAYBE_REASON : null,
-          maybeInternalNote: hasValidationFailure
-            ? `Auto-flagged: ${validationReasons.join('; ')}`
-            : null,
+          maybeReason: flagged ? INTERNAL_ONLY_MAYBE_REASON : null,
+          maybeInternalNote: flagged ? `Auto-flagged: ${reasons.join('; ')}` : null,
           maybeEmailSentAt: null,
 
-          state: formData.state!,
-          recipient: formData.recipient!,
-          patientFirstName: formData.patientFirstName!,
-          patientLastName: formData.patientLastName!,
-          guardianFirstName: formData.guardianFirstName || null,
-          guardianLastName: formData.guardianLastName || null,
-          email: formData.email!,
-          phone: formData.phone!,
-          smsOptIn: smsOptedIn,
-          smsOptInAt: smsOptedIn ? new Date() : null,
-          smsConsentVersion: smsOptedIn ? SMS_CONSENT_VERSION : null,
-          smsPhoneE164: smsOptedIn ? toE164UsPhone(formData.phone) : null,
-          notePurpose: formData.notePurpose!,
-          otherNotePurpose: formData.otherNotePurpose || null,
-          absenceReason: formData.absenceReason!,
-          otherAbsenceReason: formData.otherAbsenceReason || null,
-          symptoms: formData.symptoms
-            ? (formData.symptoms as unknown as Prisma.InputJsonValue)
-            : undefined,
-          otherSymptomText: formData.otherSymptomText || null,
-          additionalInformation: formData.additionalInformation || null,
-
-          patientDateOfBirth: validation.parsedDates.patientDateOfBirth!,
-          guardianDateOfBirth: validation.parsedDates.guardianDateOfBirth,
-          firstDayOff: validation.parsedDates.firstDayOff!,
-          lastDayOff: validation.parsedDates.lastDayOff!,
+          state: data.state,
+          recipient: data.recipient,
+          patientFirstName: data.patientFirstName,
+          patientLastName: data.patientLastName,
+          guardianFirstName: data.guardianFirstName,
+          guardianLastName: data.guardianLastName,
+          email: data.email,
+          phone: data.phone,
+          smsOptIn: data.smsOptIn,
+          smsOptInAt: data.smsOptIn ? new Date() : null,
+          smsConsentVersion: data.smsOptIn ? SMS_CONSENT_VERSION : null,
+          smsPhoneE164: data.smsOptIn ? toE164UsPhone(data.phone) : null,
+          notePurpose: data.notePurpose,
+          otherNotePurpose: data.otherNotePurpose,
+          absenceReason: data.absenceReason,
+          otherAbsenceReason: data.otherAbsenceReason,
+          symptoms: data.symptoms ?? undefined,
+          otherSymptomText: data.otherSymptomText,
+          additionalInformation: data.additionalInformation,
+          patientDateOfBirth: data.patientDateOfBirth,
+          guardianDateOfBirth: data.guardianDateOfBirth,
+          firstDayOff: data.firstDayOff,
+          lastDayOff: data.lastDayOff,
         },
       })
 

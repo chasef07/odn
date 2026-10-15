@@ -19,6 +19,20 @@ export const spanishTranslations: Record<string, string> = {
   '(8am–8pm EST)': '(8 a. m.–8 p. m., hora del este)',
   '(the "Site"), as well as any other related products and services that refer or link to these legal terms (the "Legal Terms") (collectively, the "Services").':
     '(el "Site"), así como cualquier otro producto y servicios relacionados que se refieran o vinculen a estos términos legales (los " Términos legales") (colectivamente, los "Servicios").',
+  'Please select at least one option': 'Seleccione al menos una opción',
+  'Please select a state from the list': 'Seleccione un estado de la lista',
+  'Only letters, spaces, hyphens, apostrophes, and periods are allowed':
+    'Solo se permiten letras, espacios, guiones, apóstrofes y puntos',
+  'Guardian last name must be less than 50 characters':
+    'El apellido del tutor debe tener menos de 50 caracteres',
+  'Guardian first name must be less than 50 characters':
+    'El nombre del tutor debe tener menos de 50 caracteres',
+  'Guardian last name is required': 'Se requiere el apellido del tutor',
+  'Guardian first name is required': 'Se requiere el nombre del tutor',
+  'Last name must be less than 50 characters': 'El apellido debe tener menos de 50 caracteres',
+  'First name must be less than 50 characters': 'El nombre debe tener menos de 50 caracteres',
+  'Last name is required': 'Se requiere el apellido',
+  'First name is required': 'Se requiere el nombre',
   '← Back to Home': '← Volver a casa',
   '1. Our Services': '1. Nuestros Servicios',
   '1. What Information Do We Collect?': '1. ¿Qué información recopilamos?',
@@ -314,8 +328,6 @@ export const spanishTranslations: Record<string, string> = {
   'Guardian Information': 'Información del tutor legal',
   'Guardian Information (Person Filling Out Form)':
     'Información del tutor legal (persona que completa el formulario)',
-  'Guardian information is required when submitting for someone else':
-    'La información de los tutores se requiere cuando se envía para otra persona',
   'Guardian must be 18 years or older': 'El tutor debe tener 18 años o más',
   'Guidelines for Reviews': 'Directrices para los exámenes',
   Hawaii: 'Hawaii',
@@ -492,8 +504,6 @@ export const spanishTranslations: Record<string, string> = {
     'OnlineDoctorNota términos de servicio. Lea nuestros términos y condiciones para utilizar nuestro servicio de documentación médica en línea.',
   'OnlineDoctorNote.com': 'OnlineDoctorNote.com',
   'OnlineDoctorNote.com ·': 'OnlineDoctorNote.com ·',
-  'Only letters, spaces, hyphens, and apostrophes are allowed':
-    'Solo se permiten letras, espacios, guiones y apóstrofos',
   'Open menu': 'Abrir menú',
   'Opting out of marketing and promotional communications':
     'Cómo cancelar las comunicaciones promocionales y de mercadotecnia',
@@ -542,15 +552,12 @@ export const spanishTranslations: Record<string, string> = {
     'Compare la información que figura a continuación con el documento proporcionado para confirmar su validez.',
   'Please contact support if you believe this is an error.':
     'Comuníquese con soporte si considera que se trata de un error.',
-  'Please describe other symptoms': 'Sírvase describir otros síntomas',
   'Please describe the purpose...': 'Describa el propósito...',
   'Please describe your other symptoms': 'Por favor, describa sus otros síntomas',
   'Please describe...': 'Describa los detalles...',
   'Please enter a valid date of birth': 'Ingrese una fecha válida de nacimiento',
   'Please enter a valid email address':
     'Por favor, introduzca una dirección de correo electrónico válida',
-  'Please enter a valid email address with a recognized domain':
-    'Por favor, introduzca una dirección de correo electrónico válida con un dominio reconocido',
   'Please enter a valid first day off': 'Por favor ingrese un primer día válido',
   'Please enter a valid guardian date of birth': 'Ingrese una fecha válida de nacimiento del tutor',
   'Please enter a valid last day off': 'Por favor ingrese un último día válido',
@@ -567,8 +574,6 @@ export const spanishTranslations: Record<string, string> = {
   'Please review all details carefully before continuing to payment.':
     'Revise cuidadosamente todos los datos antes de continuar al pago.',
   'Please select a reason for your absence': 'Seleccione el motivo de su ausencia',
-  'Please select at least one symptom or describe your symptoms':
-    'Por favor, seleccione al menos un síntoma o describa sus síntomas',
   'Please select end date': 'Seleccione la fecha de finalización',
   'Please select start date': 'Seleccione la fecha de inicio',
   'Please select the purpose of this note': 'Seleccione el propósito de esta nota',
@@ -600,8 +605,6 @@ export const spanishTranslations: Record<string, string> = {
     'Médicos certificados que se preocupan por usted. Verificamos su nota si llama su empleador o escuela.',
   'Reason must be less than 200 characters': 'La razón debe ser inferior a 200 caracteres',
   'Receive your note': 'Reciba su nota',
-  'Recipient must be either "myself" or "someone_else"':
-    'El destinatario debe ser "yo mismo" o "alguien else"',
   'Refunds Policy': 'Política de reembolso',
   'Request My Note': 'Solicitar mi nota',
   Restrictions: 'Restricciones',
@@ -961,8 +964,6 @@ export const spanishTranslations: Record<string, string> = {
     'Usted puede revisar, cambiar o terminar su cuenta en cualquier momento, dependiendo de su país, provincia o estado de residencia.',
   'You must agree to the Terms of Service and Privacy Policy':
     'Debe aceptar los Términos de servicio y la Política de privacidad',
-  'You must be 18 or older to fill out this form':
-    'Usted debe tener 18 años o más para llenar este formulario',
   'You must be 18 or older to request a note for yourself':
     'Usted debe tener 18 años o más para solicitar una nota para usted',
   'You must certify that the information is accurate':

@@ -10,7 +10,6 @@ import { DateOfBirthInput } from '@/components/form/DateOfBirthInput'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { guardianSchema } from '@/lib/validation-schemas'
-import { isAgeValid } from '@/lib/age-validators'
 
 const CURRENT_STEP = 4
 
@@ -28,7 +27,6 @@ export default function GuardianInfoPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
     setValue,
     control,
   } = useForm<FormData>({
@@ -59,15 +57,6 @@ export default function GuardianInfoPage() {
     }
 
   const onSubmit = (data: FormData) => {
-    if (data.guardianDateOfBirth) {
-      if (!isAgeValid(data.guardianDateOfBirth, 18)) {
-        setError('guardianDateOfBirth', {
-          message: 'You must be 18 or older to fill out this form',
-        })
-        return
-      }
-    }
-
     saveFormData(data)
 
     router.push('/contact-info')

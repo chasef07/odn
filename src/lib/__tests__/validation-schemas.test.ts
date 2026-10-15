@@ -104,6 +104,35 @@ describe('Validation Schemas', () => {
         expect(result.success).toBe(false)
       })
 
+      it('should accept accented, non-Latin, and suffixed names', () => {
+        for (const name of ['José', 'Muñoz', 'Nguyễn', '李', 'Smith Jr.', "O'Brien-Smith"]) {
+          expect(patientSchema.safeParse({ ...validData, patientFirstName: name }).success).toBe(
+            true
+          )
+        }
+      })
+
+      it('should reject an under-18 patient only when the note is for myself', () => {
+        const minor = new Date()
+        minor.setUTCFullYear(minor.getUTCFullYear() - 10)
+        const patientDateOfBirth = minor.toISOString().split('T')[0]
+        const asMyself = patientSchema.safeParse({
+          ...validData,
+          recipient: 'myself',
+          patientDateOfBirth,
+        })
+        expect(asMyself.success).toBe(false)
+        if (!asMyself.success) {
+          expect(asMyself.error.issues[0].message).toBe(
+            'You must be 18 or older to request a note for yourself'
+          )
+        }
+        expect(
+          patientSchema.safeParse({ ...validData, recipient: 'someone_else', patientDateOfBirth })
+            .success
+        ).toBe(true)
+      })
+
       it('should trim whitespace from first name', () => {
         const result = patientSchema.safeParse({ ...validData, patientFirstName: '  John  ' })
         expect(result.success).toBe(true)
@@ -363,11 +392,30 @@ describe('Validation Schemas', () => {
         }
       })
 
-      it('should reject ymail.com and suggest gmail.com', () => {
+      it('should accept ymail.com, a real Yahoo domain', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'contact@ymail.com' })
-        expect(result.success).toBe(false)
-        if (!result.success) {
-          expect(result.error.issues[0].message).toContain('contact@gmail.com')
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept any letter-only top-level domain', () => {
+        for (const email of [
+          'x@site.es',
+          'x@site.mx',
+          'x@site.xyz',
+          'x@site.museum',
+          'x@site.nl',
+        ]) {
+          expect(contactSchema.safeParse({ ...validData, email }).success).toBe(true)
+        }
+      })
+
+      it('should reject a one-letter or numeric top-level domain', () => {
+        for (const email of ['x@site.c', 'x@site.123', 'x@localhost']) {
+          const result = contactSchema.safeParse({ ...validData, email })
+          expect(result.success).toBe(false)
+          if (!result.success) {
+            expect(result.error.issues[0].message).toBe('Please enter a valid email address')
+          }
         }
       })
 
@@ -456,13 +504,33 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, phone: '555 123 4567' })
         expect(result.success).toBe(true)
       })
+
+      it('should accept US forms with a country code or dots and store the national format', () => {
+        for (const phone of ['+1 555 123 4567', '15551234567', '+15551234567', '555.123.4567']) {
+          const result = contactSchema.safeParse({ ...validData, phone })
+          expect(result.success).toBe(true)
+          if (result.success) {
+            expect(result.data.phone).toBe('(555) 123-4567')
+          }
+        }
+      })
     })
   })
 
   describe('stateSchema - State Selection', () => {
-    it('should accept valid state', () => {
-      const result = stateSchema.safeParse({ state: 'CA' })
+    it('should accept a state from the list', () => {
+      const result = stateSchema.safeParse({ state: 'California' })
       expect(result.success).toBe(true)
+    })
+
+    it('should reject a state outside the list', () => {
+      for (const state of ['CA', 'Puerto Rico', 'california']) {
+        const result = stateSchema.safeParse({ state })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe('Please select a state from the list')
+        }
+      }
     })
 
     it('should reject empty state', () => {
@@ -552,12 +620,53 @@ describe('Validation Schemas', () => {
   })
 
   describe('absenceDatesSchema - Absence Dates', () => {
+    const isoDaysFromToday = (days: number) => {
+      const date = new Date()
+      date.setUTCDate(date.getUTCDate() + days)
+      return date.toISOString().split('T')[0]
+    }
+
     it('should accept valid date range', () => {
       const result = absenceDatesSchema.safeParse({
-        firstDayOff: '2025-01-15',
-        lastDayOff: '2025-01-20',
+        firstDayOff: isoDaysFromToday(-1),
+        lastDayOff: isoDaysFromToday(3),
       })
       expect(result.success).toBe(true)
+    })
+
+    it('should apply the absence window rules', () => {
+      const tooLong = absenceDatesSchema.safeParse({
+        firstDayOff: isoDaysFromToday(0),
+        lastDayOff: isoDaysFromToday(10),
+      })
+      expect(tooLong.success).toBe(false)
+      if (!tooLong.success) {
+        expect(tooLong.error.issues[0]).toMatchObject({
+          path: ['lastDayOff'],
+          message: 'Absence period cannot exceed 7 consecutive days',
+        })
+      }
+      const tooOld = absenceDatesSchema.safeParse({
+        firstDayOff: isoDaysFromToday(-30),
+        lastDayOff: isoDaysFromToday(-30),
+      })
+      expect(tooOld.success).toBe(false)
+      if (!tooOld.success) {
+        expect(tooOld.error.issues[0].message).toBe(
+          'First day off cannot be more than 7 days in the past'
+        )
+      }
+      const notDates = absenceDatesSchema.safeParse({
+        firstDayOff: '10/15/2026',
+        lastDayOff: 'soon',
+      })
+      expect(notDates.success).toBe(false)
+      if (!notDates.success) {
+        expect(notDates.error.issues.map((issue) => issue.message)).toEqual([
+          'Please enter a valid first day off',
+          'Please enter a valid last day off',
+        ])
+      }
     })
 
     it('should reject empty first day off', () => {
@@ -585,7 +694,7 @@ describe('Validation Schemas', () => {
 
   describe('absenceReasonSchema - Absence Reason', () => {
     it('should accept valid absence reason', () => {
-      const result = absenceReasonSchema.safeParse({ absenceReason: 'Illness' })
+      const result = absenceReasonSchema.safeParse({ absenceReason: 'Feeling sick' })
       expect(result.success).toBe(true)
     })
 
@@ -638,8 +747,16 @@ describe('Validation Schemas', () => {
     })
 
     it('should accept non-Other reason without otherAbsenceReason', () => {
-      const result = absenceReasonSchema.safeParse({ absenceReason: 'Illness' })
+      const result = absenceReasonSchema.safeParse({ absenceReason: 'Feeling sick' })
       expect(result.success).toBe(true)
+    })
+
+    it('should reject a reason that is not one of the options', () => {
+      const result = absenceReasonSchema.safeParse({ absenceReason: 'Illness' })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe('Please select a reason for your absence')
+      }
     })
   })
 
@@ -649,15 +766,15 @@ describe('Validation Schemas', () => {
       expect(result.success).toBe(true)
     })
 
-    it('should accept "other" symptom with text description', () => {
+    it('should accept "Other" symptom with text description', () => {
       const result = symptomsSchema.safeParse({
-        symptoms: ['other'],
+        symptoms: ['Other'],
         otherSymptomText: 'Custom symptom description',
       })
       expect(result.success).toBe(true)
     })
 
-    it('should accept symptoms without "other"', () => {
+    it('should accept symptoms without "Other"', () => {
       const result = symptomsSchema.safeParse({ symptoms: ['Fever', 'Headache'] })
       expect(result.success).toBe(true)
     })
@@ -666,31 +783,31 @@ describe('Validation Schemas', () => {
       const result = symptomsSchema.safeParse({ symptoms: [] })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('at least one symptom')
+        expect(result.error.issues[0].message).toBe('Please select at least one option')
       }
     })
 
-    it('should reject "other" symptom without text description', () => {
-      const result = symptomsSchema.safeParse({ symptoms: ['other'] })
+    it('should reject "Other" symptom without text description', () => {
+      const result = symptomsSchema.safeParse({ symptoms: ['Other'] })
       expect(result.success).toBe(false)
       if (!result.success) {
         expect(result.error.issues.some((issue) => issue.message.includes('describe'))).toBe(true)
       }
     })
 
-    it('should reject "other" with empty text', () => {
-      const result = symptomsSchema.safeParse({ symptoms: ['other'], otherSymptomText: '   ' })
+    it('should reject "Other" with empty text', () => {
+      const result = symptomsSchema.safeParse({ symptoms: ['Other'], otherSymptomText: '   ' })
       expect(result.success).toBe(false)
     })
 
-    it('should accept only other symptom text without symptoms array', () => {
+    it('should reject other symptom text without a selected symptom', () => {
       const result = symptomsSchema.safeParse({ otherSymptomText: 'Custom symptoms' })
-      expect(result.success).toBe(true)
+      expect(result.success).toBe(false)
     })
 
     it('should reject other symptom text over 500 characters', () => {
       const result = symptomsSchema.safeParse({
-        symptoms: ['other'],
+        symptoms: ['Other'],
         otherSymptomText: 'a'.repeat(501),
       })
       expect(result.success).toBe(false)
@@ -699,12 +816,47 @@ describe('Validation Schemas', () => {
       }
     })
 
-    it('should accept multiple symptoms including "other" with text', () => {
+    it('should accept multiple symptoms including "Other" with text', () => {
       const result = symptomsSchema.safeParse({
-        symptoms: ['Fever', 'other'],
+        symptoms: ['Fever', 'Other'],
         otherSymptomText: 'Unusual symptom',
       })
       expect(result.success).toBe(true)
+    })
+  })
+
+  describe('customer copy', () => {
+    const schemas = [
+      recipientSchema,
+      patientSchema,
+      guardianSchema,
+      contactSchema,
+      stateSchema,
+      notePurposeSchema,
+      absenceDatesSchema,
+      absenceReasonSchema,
+      symptomsSchema,
+      additionalInfoSchema,
+      termsSchema,
+    ]
+    const drafts = [
+      {},
+      { recipient: 7, patientFirstName: 1, patientDateOfBirth: null, guardianFirstName: [] },
+      { email: 1, phone: 2, state: 3, notePurpose: 4, otherNotePurpose: 5 },
+      { firstDayOff: 1, lastDayOff: 2, absenceReason: 3, otherAbsenceReason: 4 },
+      { symptoms: 'Fever', otherSymptomText: 1, additionalInformation: 1 },
+      { certifyAccurate: 'yes', agreeTerms: 1, smsOptIn: 'no' },
+    ]
+
+    it('never shows a zod default message', () => {
+      const messages = schemas.flatMap((schema) =>
+        drafts.flatMap((draft) => {
+          const result = schema.safeParse(draft)
+          return result.success ? [] : result.error.issues.map((issue) => issue.message)
+        })
+      )
+      expect(messages.length).toBeGreaterThan(20)
+      expect(messages.filter((message) => /^Invalid|expected/i.test(message))).toEqual([])
     })
   })
 
