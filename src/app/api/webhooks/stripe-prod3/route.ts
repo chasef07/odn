@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
           absenceReason: formData.absenceReason!,
           otherAbsenceReason: formData.otherAbsenceReason || null,
           symptoms: formData.symptoms
-            ? (formData.symptoms as unknown as Record<string, unknown>)
+            ? (formData.symptoms as unknown as Prisma.InputJsonValue)
             : undefined,
           otherSymptomText: formData.otherSymptomText || null,
           additionalInformation: formData.additionalInformation || null,

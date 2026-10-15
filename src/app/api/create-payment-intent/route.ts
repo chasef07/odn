@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
       const tempSubmission = await prisma.temporarySubmission.create({
         data: {
           paymentIntentId: `pending_${Date.now()}`, // Temporary placeholder
-          formData: storedFormData as unknown as Record<string, unknown>,
+          formData: storedFormData as unknown as Prisma.InputJsonValue,
           expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days - prevents premature cleanup if payment is delayed
         },
       })

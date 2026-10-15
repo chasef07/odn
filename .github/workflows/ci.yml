@@ -18,7 +18,6 @@ env:
   # Prisma schema validation/generation needs both URLs because schema.prisma
   # references a runtime Accelerate URL and a direct migration URL.
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-  PRISMA_DATABASE_URL: prisma+postgres://localhost:51213/?api_key=ci_placeholder
 
 jobs:
   prisma:

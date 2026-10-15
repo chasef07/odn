@@ -24,7 +24,6 @@ jobs:
     environment: Production
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      PRISMA_DATABASE_URL: ${{ secrets.PRISMA_DATABASE_URL || secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
