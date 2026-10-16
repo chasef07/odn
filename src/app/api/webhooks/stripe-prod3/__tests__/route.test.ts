@@ -105,20 +105,19 @@ function buildRequest(): NextRequest {
   })
 }
 
-function buildEvent(overrides: Partial<Stripe.Event> = {}): Stripe.Event {
+function buildEvent(
+  paymentIntent: Partial<Stripe.PaymentIntent> = {
+    id: 'pi_test_123',
+    amount: 2495,
+    currency: 'usd',
+    metadata: { email: 'john@example.com' },
+  }
+): Stripe.Event {
   return {
     id: 'evt_test',
     type: 'payment_intent.succeeded',
     created: Math.floor(Date.now() / 1000),
-    data: {
-      object: {
-        id: 'pi_test_123',
-        amount: 2495,
-        currency: 'usd',
-        metadata: { email: 'john@example.com' },
-      },
-    },
-    ...overrides,
+    data: { object: paymentIntent },
   } as unknown as Stripe.Event
 }
 
@@ -321,21 +320,17 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
   it('stores friends and family offer metadata on the submission', async () => {
     mockWebhookConstructEvent.mockReturnValue(
       buildEvent({
-        data: {
-          object: {
-            id: 'pi_test_123',
-            amount: 2000,
-            currency: 'usd',
-            metadata: {
-              email: 'john@example.com',
-              price_id: 'price_friends_family_mock',
-              price_type: 'friends_family',
-              offer_code: 'friends20',
-              offer_price_id: 'price_friends_family_mock',
-            },
-          },
+        id: 'pi_test_123',
+        amount: 2000,
+        currency: 'usd',
+        metadata: {
+          email: 'john@example.com',
+          price_id: 'price_friends_family_mock',
+          price_type: 'friends_family',
+          offer_code: 'friends20',
+          offer_price_id: 'price_friends_family_mock',
         },
-      } as Partial<Stripe.Event>)
+      })
     )
     mockTempFindUnique.mockResolvedValue({
       id: 'temp_offer',

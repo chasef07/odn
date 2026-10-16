@@ -50,7 +50,10 @@ describe('Spanish localization primitives', () => {
     )
 
     expect(isValidElement(tree)).toBe(true)
-    const form = tree as React.ReactElement<{ action: string; children: React.ReactElement[] }>
+    const form = tree as React.ReactElement<{
+      action: string
+      children: React.ReactElement<{ href?: string; children?: unknown }>[]
+    }>
     const [input, link] = form.props.children
     expect(form.props.action).toBe('/api/create-payment-intent')
     expect(input.props).toMatchObject({ name: 'notePurpose', value: 'work' })

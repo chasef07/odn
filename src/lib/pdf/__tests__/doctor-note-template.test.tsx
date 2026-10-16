@@ -307,6 +307,32 @@ describe('DoctorNoteTemplate - "may return" sentence', () => {
     expect(text).toContain('may return to school')
     expect(text).toContain('Furthermore')
   })
+
+  it('says "may return to work and school" for notes covering both', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{ ...baseSubmissionData, notePurpose: 'both' }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    expect(extractText(tree)).toContain('may return to work and school')
+  })
+
+  it('names no activity in "may return" for other notes', () => {
+    const tree = (
+      <DoctorNoteTemplate
+        submissionData={{
+          ...baseSubmissionData,
+          notePurpose: 'other',
+          otherNotePurpose: 'volunteer work',
+        }}
+        doctorInfo={mockDoctorInfo}
+        issueDate={new Date('2024-11-08')}
+      />
+    )
+    expect(extractText(tree)).toContain('may return after')
+  })
 })
 
 describe('getConditionPhrase()', () => {
@@ -510,70 +536,5 @@ describe('DoctorNoteTemplate - State License Logic', () => {
   it('should return null for states without license (Alaska)', () => {
     const license = getStateLicense('Alaska')
     expect(license).toBeNull()
-  })
-})
-
-describe('DoctorNoteTemplate - Note Purpose Logic', () => {
-  it('should handle work note purpose', () => {
-    const notePurpose = 'work'
-    const excuseText = notePurpose === 'both' ? 'work or school' : notePurpose
-    expect(excuseText).toBe('work')
-  })
-
-  it('should handle school note purpose', () => {
-    const notePurpose = 'school'
-    const excuseText = notePurpose === 'both' ? 'work or school' : notePurpose
-    expect(excuseText).toBe('school')
-  })
-
-  it('should handle both work and school purpose', () => {
-    const notePurpose = 'both'
-    const excuseText = notePurpose === 'both' ? 'work or school' : notePurpose
-    expect(excuseText).toBe('work or school')
-  })
-
-  it('should handle other note purpose', () => {
-    const notePurpose = 'other'
-    const otherNotePurpose = 'volunteer work'
-    const excuseText = notePurpose === 'other' ? otherNotePurpose : notePurpose
-    expect(excuseText).toBe('volunteer work')
-  })
-})
-
-describe('DoctorNoteTemplate - Absence Reason Detection', () => {
-  it('should detect caregiver absence reason', () => {
-    const absenceReason = 'Taking care of someone'
-    const isCaregiver = absenceReason === 'Taking care of someone'
-    expect(isCaregiver).toBe(true)
-  })
-
-  it('should not detect regular absence as caregiver', () => {
-    const absenceReason = 'Feeling sick'
-    const isCaregiver = absenceReason === 'Taking care of someone'
-    expect(isCaregiver).toBe(false)
-  })
-
-  it('should not detect appointment as caregiver', () => {
-    const absenceReason = "Doctor's appointment"
-    const isCaregiver = absenceReason === 'Taking care of someone'
-    expect(isCaregiver).toBe(false)
-  })
-
-  it("should detect doctor's appointment absence reason", () => {
-    const absenceReason = "Doctor's appointment"
-    const isAppointment = absenceReason === "Doctor's appointment"
-    expect(isAppointment).toBe(true)
-  })
-
-  it("should not detect caregiver as doctor's appointment", () => {
-    const absenceReason = 'Taking care of someone'
-    const isAppointment = absenceReason === "Doctor's appointment"
-    expect(isAppointment).toBe(false)
-  })
-
-  it("should not detect regular absence as doctor's appointment", () => {
-    const absenceReason = 'Feeling sick'
-    const isAppointment = absenceReason === "Doctor's appointment"
-    expect(isAppointment).toBe(false)
   })
 })

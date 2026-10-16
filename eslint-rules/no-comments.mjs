@@ -1,6 +1,7 @@
 const DIRECTIVE_PATTERNS = [
-  /^\s*eslint(-disable|-enable)?(-next-line|-line)?(\s|$)/,
-  /^\s*@ts-(expect-error|ignore|nocheck|check)\b/,
+  /^\s*eslint-(disable|enable)(-next-line|-line)?(\s|$)/,
+  /^\s*(eslint|global)\s+[\w@/-]+\s*:/,
+  /^\s*@ts-(expect-error|ignore|nocheck|check)(\s|$)/,
   /^\/\s*<reference\s/,
 ]
 

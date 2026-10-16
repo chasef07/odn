@@ -1,6 +1,5 @@
 FROM node:22.23.1-bookworm-slim AS base
 
-# Prisma's query engine links against OpenSSL.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
@@ -11,17 +10,14 @@ FROM base AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-# postinstall runs `prisma generate`, so the schema must be present.
 RUN npm ci
 
-# One-shot migration image used by cloudbuild.yaml; never deployed.
 FROM dependencies AS migrate
 
 COPY --from=gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.25.4 /cloud-sql-proxy /usr/local/bin/cloud-sql-proxy
 
 FROM dependencies AS build
 
-# NEXT_PUBLIC_* values are inlined into the bundle at build time.
 ARG NEXT_PUBLIC_SITE_URL
 ARG NEXT_PUBLIC_BETTER_AUTH_URL
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
@@ -29,9 +25,6 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_BETTER_AUTH_URL=$NEXT_PUBLIC_BETTER_AUTH_URL
 ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 COPY . .
-# src/lib/env.ts requires server secrets at module load, including during
-# prerendering. These placeholders exist only in this build step; Cloud Run
-# supplies the real values at runtime.
 RUN DATABASE_URL=postgresql://build:build@localhost:5432/build \
   STRIPE_SECRET_KEY=sk_test_build_placeholder \
   STRIPE_WEBHOOK_SECRET=whsec_build_placeholder \

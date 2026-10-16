@@ -335,11 +335,8 @@ describe('POST /api/verify-payment', () => {
     expect(response.headers.get('content-type')).toContain('application/json')
   })
 
-  it('should not expose error details in production', async () => {
-    const originalNodeEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = 'production'
+  it('does not expose Stripe error details in the response', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
     mockRetrieve.mockRejectedValue(new Error('Sensitive error details'))
 
     const request = new NextRequest('http://localhost:3000/api/verify-payment', {
@@ -352,9 +349,8 @@ describe('POST /api/verify-payment', () => {
 
     expect(consoleSpy).toHaveBeenCalledWith('Error verifying payment:', expect.any(Error))
     expect(data.error).toBe('Invalid payment intent')
-    expect(data.error).not.toContain('Sensitive')
+    expect(JSON.stringify(data)).not.toContain('Sensitive')
 
-    process.env.NODE_ENV = originalNodeEnv
     consoleSpy.mockRestore()
   })
 

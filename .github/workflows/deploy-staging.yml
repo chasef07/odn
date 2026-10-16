@@ -1,7 +1,5 @@
 name: Deploy staging
 
-# Builds main, applies migrations to onlinedoctornote_staging, and deploys
-# Cloud Run service odn-staging. Never touches production. See docs/CLOUD_RUN.md.
 on:
   push:
     branches:

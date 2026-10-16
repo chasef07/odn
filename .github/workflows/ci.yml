@@ -4,24 +4,18 @@ on:
   push:
     branches:
       - main
-      - dev
   pull_request:
-    branches:
-      - main
-      - dev
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Prisma schema validation/generation needs both URLs because schema.prisma
-  # references a runtime Accelerate URL and a direct migration URL.
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
 jobs:
-  prisma:
-    name: Prisma
+  check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,65 +26,8 @@ jobs:
       - run: npm ci
       - name: Validate Prisma schema
         run: npx prisma validate
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-  lint:
-    name: Lint & Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-      - run: npm ci
-      - name: Validate Prisma schema
-        run: npx prisma validate
-      - run: npx prisma generate
-      - name: ESLint
-        run: npm run lint
-      - name: Prettier
-        run: npm run format:check
-
-  typecheck:
-    name: Typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-      - run: npm ci
-      - name: Validate Prisma schema
-        run: npx prisma validate
-      - run: npx prisma generate
-      - name: Typecheck
-        run: npm run typecheck
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-      - run: npm ci
-      - name: Validate Prisma schema
-        run: npx prisma validate
-      - run: npx prisma generate
-      - name: Vitest
-        run: npm test -- --run
-      - name: Upload coverage reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 30
+      - name: npm run check
+        run: npm run check
 
   build:
     name: Build
@@ -104,13 +41,10 @@ jobs:
       - run: npm ci
       - name: Validate Prisma schema
         run: npx prisma validate
-      - run: npx prisma generate
       - name: Vercel build wrapper
         run: npm run vercel-build
         env:
           VERCEL_ENV: preview
-          # Build-time placeholders — real values come from Vercel at deploy time.
-          # Values just need to be non-empty strings that pass env-var validation.
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder

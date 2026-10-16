@@ -1,0 +1,17 @@
+# Agent rules
+
+Run `npm run check` before every push. CI runs the same command on every pull request.
+
+Each rule below names the check that enforces it. A rule that no check enforces does not belong in this file.
+
+| Rule                                                                                                                                                                                                                              | Enforced by                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Code is formatted with Prettier. Run `npm run format` to fix it.                                                                                                                                                                  | `npm run format:check`                                      |
+| ESLint passes with zero warnings.                                                                                                                                                                                                 | `npm run lint`                                              |
+| No comments in JS or TS files, except tool directives such as `eslint-disable` and `@ts-expect-error`. Run `npx eslint --fix` to delete them.                                                                                     | `eslint-rules/no-comments.mjs`, in `npm run lint`           |
+| No comment lines in YAML, TOML, Dockerfiles, ignore files, `.env` files, the Prisma schema or JSON. A shebang and leading Dockerfile parser directives are allowed. `prisma/migrations` is skipped because it is applied history. | `scripts/check-comments.mjs`                                |
+| Source files and test files typecheck.                                                                                                                                                                                            | `npm run typecheck`, with tests included by `tsconfig.json` |
+| Tests pass.                                                                                                                                                                                                                       | `vitest run`, in `npm run check`                            |
+| Every npm script, `npx` tool and repo path named in `AGENTS.md` or `README.md` exists.                                                                                                                                            | `scripts/check-doc-refs.mjs`                                |
+| The Prisma schema is valid.                                                                                                                                                                                                       | `npx prisma validate`, in `.github/workflows/ci.yml`        |
+| The production build succeeds.                                                                                                                                                                                                    | `npm run vercel-build`, in `.github/workflows/ci.yml`       |
