@@ -66,7 +66,6 @@ export async function shouldSendTransactionalSms(
   submission: SmsEligibleSubmission
 ): Promise<boolean> {
   if (!submission.smsOptIn) return false
-  if (!telnyxSmsSender()) return false
 
   const toPhone = submission.smsPhoneE164 || toE164UsPhone(submission.phone)
   if (!toPhone) return false
@@ -187,6 +186,15 @@ export async function sendTransactionalSmsForSubmission({
   body: string
 }): Promise<void> {
   try {
+    if (!telnyxSmsSender()) {
+      if (submission.smsOptIn) {
+        console.info('Transactional SMS skipped because TELNYX_SMS_ENABLED=false:', {
+          submissionId: submission.id,
+          type,
+        })
+      }
+      return
+    }
     if (!(await shouldSendTransactionalSms(submission))) return
 
     const toPhone = submission.smsPhoneE164 || toE164UsPhone(submission.phone)

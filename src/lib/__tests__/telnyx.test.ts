@@ -1,6 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { smsStatusLabel } from '../sms-status'
-import { isLocalOptOut, isOptInKeyword } from '../telnyx'
+import { isLocalOptOut, isOptInKeyword, sendTransactionalSmsForSubmission } from '../telnyx'
+
+const { mockSmsPhoneStateFindUnique } = vi.hoisted(() => ({
+  mockSmsPhoneStateFindUnique: vi.fn(),
+}))
+
+vi.mock('@/lib/prisma', () => ({
+  default: { smsPhoneState: { findUnique: mockSmsPhoneStateFindUnique } },
+}))
 
 describe('Telnyx SMS helpers', () => {
   it('recognizes local opt-out wording', () => {
@@ -30,5 +38,47 @@ describe('Telnyx SMS helpers', () => {
     expect(smsStatusLabel('sending')).toBe('Queued')
     expect(smsStatusLabel('undelivered')).toBe('Failed')
     expect(smsStatusLabel('delivery_unconfirmed')).toBe('Unconfirmed')
+  })
+})
+
+describe('transactional SMS when sending is disabled', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  const submission = {
+    id: 'sub_123',
+    smsOptIn: true,
+    smsPhoneE164: '+15555550100',
+  }
+
+  it('logs one skip line with the submission id and no phone number', async () => {
+    vi.stubEnv('TELNYX_SMS_ENABLED', 'false')
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+    await sendTransactionalSmsForSubmission({ submission, type: 'APPROVAL_SENT', body: 'hello' })
+
+    expect(info).toHaveBeenCalledTimes(1)
+    expect(info).toHaveBeenCalledWith(
+      'Transactional SMS skipped because TELNYX_SMS_ENABLED=false:',
+      { submissionId: 'sub_123', type: 'APPROVAL_SENT' }
+    )
+    expect(JSON.stringify(info.mock.calls)).not.toContain('5555550100')
+    expect(mockSmsPhoneStateFindUnique).not.toHaveBeenCalled()
+    info.mockRestore()
+  })
+
+  it('stays quiet for a submission that never opted in', async () => {
+    vi.stubEnv('TELNYX_SMS_ENABLED', 'false')
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+    await sendTransactionalSmsForSubmission({
+      submission: { ...submission, smsOptIn: false },
+      type: 'APPROVAL_SENT',
+      body: 'hello',
+    })
+
+    expect(info).not.toHaveBeenCalled()
+    info.mockRestore()
   })
 })
