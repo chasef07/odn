@@ -39,7 +39,6 @@ describe('temporary submissions', () => {
     vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
     const pendingCheckout = () =>
       createTemporarySubmission({
-        paymentIntentId: `pending_${Date.now()}`,
         formData,
         expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
       })
@@ -53,19 +52,15 @@ describe('temporary submissions', () => {
     expect(await countTemporarySubmissions()).toBe(2)
   })
 
-  it('creates a row with a generated id and created_at, the given expiry, and the form data round-tripped', async () => {
+  it('creates a row with a generated id, pending payment intent and created_at, the given expiry, and the form data round-tripped', async () => {
     const before = Date.now()
     const expiresAt = new Date('2026-08-06T07:30:00.123Z')
 
-    const created = await createTemporarySubmission({
-      paymentIntentId: 'pending_1',
-      formData,
-      expiresAt,
-    })
+    const created = await createTemporarySubmission({ formData, expiresAt })
 
     expect(created).toEqual({
       id: expect.stringMatching(/^[0-9a-f-]{36}$/),
-      paymentIntentId: 'pending_1',
+      paymentIntentId: expect.stringMatching(/^pending_[0-9a-f-]{36}$/),
       formData,
       createdAt: expect.any(Date),
       expiresAt,

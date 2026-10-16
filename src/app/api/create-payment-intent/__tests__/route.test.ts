@@ -125,7 +125,7 @@ describe('POST /api/create-payment-intent', () => {
 
     mockCreateTemporarySubmission.mockResolvedValue({
       id: mockTempSubmissionId,
-      paymentIntentId: expect.stringMatching(/^pending_/),
+      paymentIntentId: 'pending_00000000-0000-0000-0000-000000000000',
       formData: mockFormData,
       expiresAt: new Date(),
     })
@@ -170,7 +170,6 @@ describe('POST /api/create-payment-intent', () => {
     )
 
     expect(mockCreateTemporarySubmission).toHaveBeenCalledWith({
-      paymentIntentId: expect.stringMatching(/^pending_/),
       formData: mockFormData,
       expiresAt: expect.any(Date),
     })

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { db } from './pool'
 import { count, sql } from './sql'
 import { insert, select, selectAll, set } from './table'
@@ -5,14 +6,13 @@ import { temporarySubmissions } from './tables'
 import type { JsonValue, TemporarySubmission } from './types'
 
 export async function createTemporarySubmission({
-  paymentIntentId,
   formData,
   expiresAt,
 }: {
-  paymentIntentId: string
   formData: JsonValue
   expiresAt: Date
 }): Promise<TemporarySubmission> {
+  const paymentIntentId = `pending_${randomUUID()}`
   const [row] = await db.rows(
     sql`${insert(temporarySubmissions, { paymentIntentId, formData, expiresAt })} RETURNING ${selectAll(temporarySubmissions)}`
   )
