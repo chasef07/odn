@@ -9,7 +9,6 @@ import { cases, now } from './fixtures/intake-cases'
 const BASE_VALIDATOR_BLOB = 'd767ed5bee6f1b7bab0c5434d412799f1d022940'
 
 function baseRejection(draft: unknown): string | null {
-  if (!draft) return 'Form data is required'
   return validatePaidSubmissionData(draft as FormData).errors[0] ?? null
 }
 
@@ -27,7 +26,7 @@ afterAll(() => {
 })
 
 describe('checkout in shadow mode rejects everything the validator at main 147a48e rejected', () => {
-  it('runs the validator main carried at 147a48e, byte for byte', () => {
+  it('fixture is byte-identical to blob d767ed5 at 147a48e', () => {
     const source = readFileSync('src/lib/__tests__/fixtures/checkout-validator-147a48e.ts')
     const blob = createHash('sha1').update(`blob ${source.length}\0`).update(source).digest('hex')
     expect(blob, 'compare with: git rev-parse 147a48e:src/lib/paid-submission-validation.ts').toBe(
@@ -35,7 +34,7 @@ describe('checkout in shadow mode rejects everything the validator at main 147a4
     )
   })
 
-  it('has enough fixtures the base rejected to mean something', () => {
+  it('at least 40 fixtures the base rejected', () => {
     const rejected = cases.filter(([, draft]) => baseRejection(draft) !== null)
     expect(rejected.length).toBeGreaterThanOrEqual(40)
   })
@@ -48,7 +47,7 @@ describe('checkout in shadow mode rejects everything the validator at main 147a4
 })
 
 describe('checkout in shadow mode lets through everything the validator at main 147a48e let through', () => {
-  it('has enough fixtures the base accepted to mean something', () => {
+  it('at least 80 fixtures the base accepted', () => {
     const accepted = cases.filter(([, draft]) => baseRejection(draft) === null)
     expect(accepted.length).toBeGreaterThanOrEqual(80)
   })
