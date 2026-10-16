@@ -1,7 +1,11 @@
-import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import prisma from '@/lib/prisma'
+import {
+  attachPaymentIntentToTemporarySubmission,
+  createTemporarySubmission,
+  deleteTemporarySubmission,
+} from '@/db/temporary-submissions'
+import type { JsonValue } from '@/db/types'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
@@ -121,12 +125,10 @@ export async function POST(request: NextRequest) {
 
     let tempSubmissionId: string
     try {
-      const tempSubmission = await prisma.temporarySubmission.create({
-        data: {
-          paymentIntentId: `pending_${Date.now()}`,
-          formData: storedFormData as unknown as Prisma.InputJsonValue,
-          expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-        },
+      const tempSubmission = await createTemporarySubmission({
+        paymentIntentId: `pending_${Date.now()}`,
+        formData: storedFormData as unknown as JsonValue,
+        expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
       })
       tempSubmissionId = tempSubmission.id
 
@@ -166,9 +168,7 @@ export async function POST(request: NextRequest) {
       logger.error('Stripe API error:', stripeError)
 
       try {
-        await prisma.temporarySubmission.delete({
-          where: { id: tempSubmissionId },
-        })
+        await deleteTemporarySubmission(tempSubmissionId)
         logger.info('Cleaned up TemporarySubmission after Stripe error:', tempSubmissionId)
       } catch (cleanupError) {
         logger.error('Failed to cleanup TemporarySubmission:', cleanupError)
@@ -181,12 +181,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await prisma.temporarySubmission.update({
-        where: { id: tempSubmissionId },
-        data: {
-          paymentIntentId: paymentIntent.id,
-        },
-      })
+      await attachPaymentIntentToTemporarySubmission(tempSubmissionId, paymentIntent.id)
 
       logger.info('TemporarySubmission updated with PaymentIntent ID:', paymentIntent.id)
     } catch (updateError) {
@@ -201,9 +196,7 @@ export async function POST(request: NextRequest) {
       const cancelSucceeded = await cancelPaymentIntentWithRetry(paymentIntent.id)
 
       try {
-        await prisma.temporarySubmission.delete({
-          where: { id: tempSubmissionId },
-        })
+        await deleteTemporarySubmission(tempSubmissionId)
         logger.info('Cleaned up TemporarySubmission after update failure:', tempSubmissionId)
       } catch (cleanupError) {
         logger.error('Failed to cleanup TemporarySubmission after update failure:', cleanupError)

@@ -38,7 +38,7 @@ import { type FormattedSubmission } from '@/app/admin/_actions/search'
 import { type MaybeSubmissionInput } from '@/app/admin/_actions/maybe'
 import { createSupportTicketFromSubmission } from '@/app/admin/support/_actions/tickets'
 import { smsStatusLabel } from '@/lib/sms-status'
-import { SubmissionStatus } from '@prisma/client'
+import { SubmissionStatus } from '@/db/types'
 
 interface SearchSubmissionDetailProps {
   submission: FormattedSubmission

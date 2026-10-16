@@ -1,5 +1,5 @@
 import { renderToBuffer } from '@react-pdf/renderer'
-import { Submission } from '@prisma/client'
+import type { Submission } from '@/db/types'
 import {
   DoctorNoteTemplate,
   DoctorNoteData,

@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { Submission } from '@prisma/client'
+import type { Submission } from '@/db/types'
 import {
   calculateAge,
   formatDateRange,

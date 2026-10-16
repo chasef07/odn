@@ -2,25 +2,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   mockGetSession,
-  mockSubmissionFindUnique,
-  mockSmsPhoneStateFindUnique,
-  mockSmsSupportTicketFindFirst,
-  mockSmsSupportTicketFindUnique,
-  mockSmsSupportTicketCreate,
-  mockSmsSupportTicketUpdate,
-  mockSmsSupportJobFindFirst,
-  mockSmsSupportJobUpdateMany,
+  mockFindSubmissionForSupportTicket,
+  mockFindSmsPhoneOptOut,
+  mockFindActiveSupportTicketSummaryForPhone,
+  mockAssignSupportTicketSubmission,
+  mockCreateAdminSupportTicket,
+  mockFindSupportTicketContact,
+  mockMarkSupportTicketAdminReplied,
+  mockMarkSupportTicketAdminReplyFailed,
+  mockReturnSupportTicketToCsrReview,
+  mockFailQueuedOrRunningSupportJobs,
+  mockFindCommittingSupportJob,
   mockSendSupportSms,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
-  mockSubmissionFindUnique: vi.fn(),
-  mockSmsPhoneStateFindUnique: vi.fn(),
-  mockSmsSupportTicketFindFirst: vi.fn(),
-  mockSmsSupportTicketFindUnique: vi.fn(),
-  mockSmsSupportTicketCreate: vi.fn(),
-  mockSmsSupportTicketUpdate: vi.fn(),
-  mockSmsSupportJobFindFirst: vi.fn(),
-  mockSmsSupportJobUpdateMany: vi.fn(),
+  mockFindSubmissionForSupportTicket: vi.fn(),
+  mockFindSmsPhoneOptOut: vi.fn(),
+  mockFindActiveSupportTicketSummaryForPhone: vi.fn(),
+  mockAssignSupportTicketSubmission: vi.fn(),
+  mockCreateAdminSupportTicket: vi.fn(),
+  mockFindSupportTicketContact: vi.fn(),
+  mockMarkSupportTicketAdminReplied: vi.fn(),
+  mockMarkSupportTicketAdminReplyFailed: vi.fn(),
+  mockReturnSupportTicketToCsrReview: vi.fn(),
+  mockFailQueuedOrRunningSupportJobs: vi.fn(),
+  mockFindCommittingSupportJob: vi.fn(),
   mockSendSupportSms: vi.fn(),
 }))
 
@@ -40,25 +46,26 @@ vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    submission: {
-      findUnique: mockSubmissionFindUnique,
-    },
-    smsPhoneState: {
-      findUnique: mockSmsPhoneStateFindUnique,
-    },
-    smsSupportTicket: {
-      findFirst: mockSmsSupportTicketFindFirst,
-      findUnique: mockSmsSupportTicketFindUnique,
-      create: mockSmsSupportTicketCreate,
-      update: mockSmsSupportTicketUpdate,
-    },
-    smsSupportJob: {
-      findFirst: mockSmsSupportJobFindFirst,
-      updateMany: mockSmsSupportJobUpdateMany,
-    },
-  },
+vi.mock('@/db/submissions', () => ({
+  findSubmissionForSupportTicket: mockFindSubmissionForSupportTicket,
+}))
+
+vi.mock('@/db/sms-support', () => ({
+  findSmsPhoneOptOut: mockFindSmsPhoneOptOut,
+  findActiveSupportTicketSummaryForPhone: mockFindActiveSupportTicketSummaryForPhone,
+  assignSupportTicketSubmission: mockAssignSupportTicketSubmission,
+  createAdminSupportTicket: mockCreateAdminSupportTicket,
+  findActiveSupportTicketsForQueue: vi.fn(),
+  findClosedSupportTicketsForQueue: vi.fn(),
+  findSupportTicketDetail: vi.fn(),
+  findSupportTicketsWithStatus: vi.fn(),
+  findSupportTicketContact: mockFindSupportTicketContact,
+  markSupportTicketAdminReplied: mockMarkSupportTicketAdminReplied,
+  markSupportTicketAdminReplyFailed: mockMarkSupportTicketAdminReplyFailed,
+  closeSupportTicketByAdmin: vi.fn(),
+  returnSupportTicketToCsrReview: mockReturnSupportTicketToCsrReview,
+  failQueuedOrRunningSupportJobs: mockFailQueuedOrRunningSupportJobs,
+  findCommittingSupportJob: mockFindCommittingSupportJob,
 }))
 
 vi.mock('@/lib/sms-support-sms', () => ({
@@ -81,29 +88,32 @@ describe('createSupportTicketFromSubmission', () => {
     mockGetSession.mockResolvedValue({
       user: { id: 'admin_123' },
     })
-    mockSubmissionFindUnique.mockResolvedValue({
+    mockFindSubmissionForSupportTicket.mockResolvedValue({
       id: 'sub_123',
       smsOptIn: true,
       smsPhoneE164: '+15551234567',
       patientFirstName: 'Jane',
       patientLastName: 'Doe',
     })
-    mockSmsPhoneStateFindUnique.mockResolvedValue(null)
-    mockSmsSupportTicketFindFirst.mockResolvedValue(null)
-    mockSmsSupportTicketFindUnique.mockResolvedValue({
+    mockFindSmsPhoneOptOut.mockResolvedValue(null)
+    mockFindActiveSupportTicketSummaryForPhone.mockResolvedValue(null)
+    mockFindSupportTicketContact.mockResolvedValue({
       id: 'ticket_123',
       phoneE164: '+15551234567',
       submissionId: 'sub_123',
     })
-    mockSmsSupportTicketCreate.mockResolvedValue({ id: 'ticket_123' })
-    mockSmsSupportTicketUpdate.mockResolvedValue({ submissionId: 'sub_123' })
-    mockSmsSupportJobFindFirst.mockResolvedValue(null)
-    mockSmsSupportJobUpdateMany.mockResolvedValue({ count: 1 })
+    mockCreateAdminSupportTicket.mockResolvedValue({ id: 'ticket_123' })
+    mockAssignSupportTicketSubmission.mockResolvedValue(undefined)
+    mockMarkSupportTicketAdminReplied.mockResolvedValue(undefined)
+    mockMarkSupportTicketAdminReplyFailed.mockResolvedValue(undefined)
+    mockReturnSupportTicketToCsrReview.mockResolvedValue({ submissionId: 'sub_123' })
+    mockFindCommittingSupportJob.mockResolvedValue(null)
+    mockFailQueuedOrRunningSupportJobs.mockResolvedValue(undefined)
     mockSendSupportSms.mockResolvedValue({ success: true })
   })
 
   it('blocks admin-created SMS tickets when the phone has opted out', async () => {
-    mockSmsPhoneStateFindUnique.mockResolvedValue({
+    mockFindSmsPhoneOptOut.mockResolvedValue({
       optedOutAt: new Date('2026-06-29T12:00:00Z'),
     })
 
@@ -113,15 +123,12 @@ describe('createSupportTicketFromSubmission', () => {
       success: false,
       error: 'Phone number is opted out of SMS. Customer must text START before SMS support.',
     })
-    expect(mockSmsPhoneStateFindUnique).toHaveBeenCalledWith({
-      where: { phoneE164: '+15551234567' },
-      select: { optedOutAt: true },
-    })
-    expect(mockSmsSupportTicketCreate).not.toHaveBeenCalled()
+    expect(mockFindSmsPhoneOptOut).toHaveBeenCalledWith('+15551234567')
+    expect(mockCreateAdminSupportTicket).not.toHaveBeenCalled()
   })
 
   it('reuses any active ticket for the same phone', async () => {
-    mockSmsSupportTicketFindFirst.mockResolvedValue({
+    mockFindActiveSupportTicketSummaryForPhone.mockResolvedValue({
       id: 'ticket_existing',
       submissionId: null,
     })
@@ -129,23 +136,13 @@ describe('createSupportTicketFromSubmission', () => {
     const result = await createSupportTicketFromSubmission('sub_123')
 
     expect(result).toEqual({ success: true, ticketId: 'ticket_existing' })
-    expect(mockSmsSupportTicketFindFirst).toHaveBeenCalledWith({
-      where: {
-        phoneE164: '+15551234567',
-        status: { in: ['OPEN', 'WAITING_CUSTOMER', 'RUNNING_AUTOMATION', 'NEEDS_CSR'] },
-      },
-      orderBy: { updatedAt: 'desc' },
-      select: { id: true, status: true, submissionId: true },
-    })
-    expect(mockSmsSupportTicketUpdate).toHaveBeenCalledWith({
-      where: { id: 'ticket_existing' },
-      data: { submissionId: 'sub_123' },
-    })
-    expect(mockSmsSupportTicketCreate).not.toHaveBeenCalled()
+    expect(mockFindActiveSupportTicketSummaryForPhone).toHaveBeenCalledWith('+15551234567')
+    expect(mockAssignSupportTicketSubmission).toHaveBeenCalledWith('ticket_existing', 'sub_123')
+    expect(mockCreateAdminSupportTicket).not.toHaveBeenCalled()
   })
 
   it('does not relink an active automation ticket to a different submission', async () => {
-    mockSmsSupportTicketFindFirst.mockResolvedValue({
+    mockFindActiveSupportTicketSummaryForPhone.mockResolvedValue({
       id: 'ticket_running',
       status: 'RUNNING_AUTOMATION',
       submissionId: 'sub_original',
@@ -154,31 +151,18 @@ describe('createSupportTicketFromSubmission', () => {
     const result = await createSupportTicketFromSubmission('sub_123')
 
     expect(result).toEqual({ success: true, ticketId: 'ticket_running' })
-    expect(mockSmsSupportTicketUpdate).not.toHaveBeenCalled()
-    expect(mockSmsSupportTicketCreate).not.toHaveBeenCalled()
+    expect(mockAssignSupportTicketSubmission).not.toHaveBeenCalled()
+    expect(mockCreateAdminSupportTicket).not.toHaveBeenCalled()
   })
 
   it('cancels queued automation jobs when admin marks a ticket for review', async () => {
     const result = await markSupportTicketNeedsCsr('ticket_123')
 
     expect(result).toEqual({ success: true })
-    expect(mockSmsSupportTicketUpdate).toHaveBeenCalledWith({
-      where: { id: 'ticket_123' },
-      data: expect.objectContaining({
-        status: 'NEEDS_CSR',
-        state: 'CSR_REVIEW',
-      }),
-      select: { submissionId: true },
-    })
-    expect(mockSmsSupportJobUpdateMany).toHaveBeenCalledWith({
-      where: {
-        ticketId: 'ticket_123',
-        status: { in: ['QUEUED', 'RUNNING'] },
-      },
-      data: expect.objectContaining({
-        status: 'FAILED',
-        lastError: 'Ticket escalated to admin before automation ran',
-      }),
+    expect(mockReturnSupportTicketToCsrReview).toHaveBeenCalledWith('ticket_123')
+    expect(mockFailQueuedOrRunningSupportJobs).toHaveBeenCalledWith('ticket_123', {
+      lastError: 'Ticket escalated to admin before automation ran',
+      completedAt: expect.any(Date),
     })
   })
 
@@ -193,35 +177,21 @@ describe('createSupportTicketFromSubmission', () => {
       type: 'SUPPORT_REPLY',
       body: 'We will handle this manually.',
     })
-    expect(mockSmsSupportTicketUpdate).toHaveBeenCalledWith({
-      where: { id: 'ticket_123' },
-      data: expect.objectContaining({
-        status: 'OPEN',
-        state: 'CSR_REVIEW',
-        adminSummary: 'Admin replied by SMS.',
-        csrAlertedAt: null,
-      }),
+    expect(mockMarkSupportTicketAdminReplied).toHaveBeenCalledWith('ticket_123')
+    expect(mockFailQueuedOrRunningSupportJobs).toHaveBeenCalledWith('ticket_123', {
+      lastError: 'Ticket replied to by admin before automation completed',
+      completedAt: expect.any(Date),
     })
-    expect(mockSmsSupportJobUpdateMany).toHaveBeenCalledWith({
-      where: {
-        ticketId: 'ticket_123',
-        status: { in: ['QUEUED', 'RUNNING'] },
-      },
-      data: expect.objectContaining({
-        status: 'FAILED',
-        lastError: 'Ticket replied to by admin before automation completed',
-      }),
-    })
-    expect(mockSmsSupportJobUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(mockFailQueuedOrRunningSupportJobs.mock.invocationCallOrder[0]).toBeLessThan(
       mockSendSupportSms.mock.invocationCallOrder[0]
     )
-    expect(mockSmsSupportTicketUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(mockMarkSupportTicketAdminReplied.mock.invocationCallOrder[0]).toBeLessThan(
       mockSendSupportSms.mock.invocationCallOrder[0]
     )
   })
 
   it('does not let admin reply while an automation job is finalizing the reissue', async () => {
-    mockSmsSupportJobFindFirst.mockResolvedValue({ id: 'job_finalizing' })
+    mockFindCommittingSupportJob.mockResolvedValue({ id: 'job_finalizing' })
 
     const result = await sendSupportTicketReply('ticket_123', 'We will handle this manually.')
 
@@ -230,6 +200,7 @@ describe('createSupportTicketFromSubmission', () => {
       error: 'Automation is finalizing the updated note. Refresh in a moment before taking over.',
     })
     expect(mockSendSupportSms).not.toHaveBeenCalled()
-    expect(mockSmsSupportTicketUpdate).not.toHaveBeenCalled()
+    expect(mockMarkSupportTicketAdminReplied).not.toHaveBeenCalled()
+    expect(mockMarkSupportTicketAdminReplyFailed).not.toHaveBeenCalled()
   })
 })

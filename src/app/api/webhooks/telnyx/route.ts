@@ -1,9 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { isLocalOptOut, isOptInKeyword, verifyTelnyxWebhookSignature } from '@/lib/telnyx'
 import { handleInboundSupportSms } from '@/lib/sms-support'
-import { isUniqueConstraintError } from '@/lib/prisma-errors'
+import {
+  countSmsOptedInSubmissionsForPhone,
+  findLatestSubmissionIdForInboundSmsPhone,
+} from '@/db/submissions'
+import {
+  findSmsMessageSupportHandledAt,
+  findSmsPhoneConsentState,
+  markSmsMessageSupportHandled,
+  recordSmsMessageFinalized,
+  recordSmsMessageSent,
+  recordSmsPhoneOptIn,
+  recordSmsPhoneOptOut,
+  upsertInboundSmsMessage,
+} from '@/db/sms-support'
+import {
+  findTelnyxEventClaim,
+  insertProcessingTelnyxEvent,
+  markTelnyxEventFailed,
+  markTelnyxEventProcessed,
+  reclaimTelnyxEvent,
+  recordProcessedTelnyxEvent,
+  TELNYX_EVENT_STATUS,
+  type TelnyxEventClaim,
+} from '@/db/webhook-events'
 
 type TelnyxWebhookEvent = {
   data?: {
@@ -33,19 +55,7 @@ type SupportRouteInput = {
   receivedAt: Date
 }
 
-const TELNYX_EVENT_STATUS = {
-  PROCESSED: 'PROCESSED',
-  PROCESSING: 'PROCESSING',
-  FAILED: 'FAILED',
-} as const
-
 const TELNYX_PROCESSING_TIMEOUT_MS = 15 * 60 * 1000
-
-type ExistingTelnyxEvent = {
-  id: string
-  status: string
-  processedAt: Date
-}
 
 export async function POST(request: NextRequest) {
   if (!env.TELNYX_WEBHOOK_ENABLED) {
@@ -79,10 +89,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid Telnyx event' }, { status: 400 })
   }
 
-  const existingEvent = await prisma.telnyxWebhookEvent.findUnique({
-    where: { id: data.id },
-    select: { id: true, status: true, processedAt: true },
-  })
+  const existingEvent = await findTelnyxEventClaim(data.id)
 
   if (existingEvent?.status === TELNYX_EVENT_STATUS.PROCESSED) {
     return NextResponse.json({ received: true }, { status: 200 })
@@ -108,7 +115,7 @@ export async function POST(request: NextRequest) {
               return NextResponse.json({ received: true }, { status: 200 })
             }
 
-            await markSupportMessageHandled(supportRoute.providerMessageId)
+            await markSmsMessageSupportHandled(supportRoute.providerMessageId)
             await handleInboundSupportSms(supportRoute)
             await markTelnyxEventProcessed(data.id)
           } catch (error) {
@@ -132,7 +139,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'SMS message not found for receipt' }, { status: 500 })
   }
 
-  await recordTelnyxEvent(data)
+  await recordProcessedTelnyxEvent({
+    id: data.id,
+    eventType: data.event_type,
+    occurredAt: new Date(data.occurred_at),
+  })
 
   return NextResponse.json({ received: true }, { status: 200 })
 }
@@ -148,31 +159,16 @@ async function handleMessageReceived(
   const body = payload.text || ''
   const eventAt = parseDate(occurredAt) || new Date()
   const receivedAt = parseDate(payload.received_at) || eventAt
-  const submission = from
-    ? await prisma.submission.findFirst({
-        where: { smsPhoneE164: from },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true },
-      })
-    : null
+  const submission = from ? await findLatestSubmissionIdForInboundSmsPhone(from) : null
 
-  await prisma.smsMessage.upsert({
-    where: { providerMessageId: payload.id },
-    update: {
-      providerStatus: payload.from?.status || payload.to?.[0]?.status,
-      receivedAt,
-    },
-    create: {
-      submissionId: submission?.id,
-      type: 'INBOUND',
-      direction: 'inbound',
-      to,
-      from,
-      body,
-      providerMessageId: payload.id,
-      providerStatus: payload.from?.status || payload.to?.[0]?.status,
-      receivedAt,
-    },
+  await upsertInboundSmsMessage({
+    providerMessageId: payload.id,
+    submissionId: submission?.id,
+    to,
+    from,
+    body,
+    providerStatus: payload.from?.status || payload.to?.[0]?.status,
+    receivedAt,
   })
 
   if (!from) return
@@ -183,12 +179,7 @@ async function handleMessageReceived(
   }
 
   if (isOptInKeyword(body)) {
-    const hasPriorOptIn = await prisma.submission.count({
-      where: {
-        smsPhoneE164: from,
-        smsOptIn: true,
-      },
-    })
+    const hasPriorOptIn = await countSmsOptedInSubmissionsForPhone(from)
 
     if (hasPriorOptIn > 0) {
       await applyInboundOptIn(from, eventAt)
@@ -205,56 +196,29 @@ async function handleMessageReceived(
 }
 
 async function applyInboundOptOut(phoneE164: string, occurredAt: Date) {
-  const phoneState = await prisma.smsPhoneState.findUnique({
-    where: { phoneE164 },
-    select: { optedOutAt: true, lastOptInAt: true },
-  })
+  const phoneState = await findSmsPhoneConsentState(phoneE164)
 
   if (phoneState?.optedOutAt && phoneState.optedOutAt > occurredAt) return
   if (phoneState?.lastOptInAt && phoneState.lastOptInAt > occurredAt) return
 
-  await prisma.smsPhoneState.upsert({
-    where: { phoneE164 },
-    update: { optedOutAt: occurredAt },
-    create: { phoneE164, optedOutAt: occurredAt },
-  })
+  await recordSmsPhoneOptOut(phoneE164, occurredAt)
 }
 
 async function applyInboundOptIn(phoneE164: string, occurredAt: Date) {
-  const phoneState = await prisma.smsPhoneState.findUnique({
-    where: { phoneE164 },
-    select: { optedOutAt: true, lastOptInAt: true },
-  })
+  const phoneState = await findSmsPhoneConsentState(phoneE164)
 
   if (phoneState?.optedOutAt && phoneState.optedOutAt > occurredAt) return
   if (phoneState?.lastOptInAt && phoneState.lastOptInAt > occurredAt) return
 
-  await prisma.smsPhoneState.upsert({
-    where: { phoneE164 },
-    update: {
-      optedOutAt: null,
-      lastOptInAt: occurredAt,
-    },
-    create: {
-      phoneE164,
-      optedOutAt: null,
-      lastOptInAt: occurredAt,
-    },
-  })
+  await recordSmsPhoneOptIn(phoneE164, occurredAt)
 }
 
 async function handleMessageSent(payload: TelnyxMessagePayload | undefined, occurredAt: string) {
   if (!payload?.id) return
 
-  await prisma.smsMessage.updateMany({
-    where: {
-      providerMessageId: payload.id,
-      finalizedAt: null,
-    },
-    data: {
-      providerStatus: payload.to?.[0]?.status || 'sent',
-      sentAt: parseDate(payload.sent_at) || new Date(occurredAt),
-    },
+  await recordSmsMessageSent(payload.id, {
+    providerStatus: payload.to?.[0]?.status || 'sent',
+    sentAt: parseDate(payload.sent_at) || new Date(occurredAt),
   })
 }
 
@@ -265,60 +229,34 @@ async function handleMessageFinalized(
   if (!payload?.id) return true
 
   const error = payload.errors?.[0]
-  const result = await prisma.smsMessage.updateMany({
-    where: { providerMessageId: payload.id },
-    data: {
-      providerStatus: payload.to?.[0]?.status || 'delivery_unconfirmed',
-      errorCode: error?.code || null,
-      errorMessage: error?.detail || error?.title || null,
-      finalizedAt: parseDate(payload.completed_at) || new Date(occurredAt),
-    },
+  const finalizedCount = await recordSmsMessageFinalized(payload.id, {
+    providerStatus: payload.to?.[0]?.status || 'delivery_unconfirmed',
+    errorCode: error?.code || null,
+    errorMessage: error?.detail || error?.title || null,
+    finalizedAt: parseDate(payload.completed_at) || new Date(occurredAt),
   })
-  return result.count > 0
+  return finalizedCount > 0
 }
 
 async function isSupportMessageHandled(providerMessageId: string): Promise<boolean> {
-  const message = await prisma.smsMessage.findUnique({
-    where: { providerMessageId },
-    select: { supportHandledAt: true },
-  })
+  const message = await findSmsMessageSupportHandledAt(providerMessageId)
 
   return !!message?.supportHandledAt
 }
 
-async function markSupportMessageHandled(providerMessageId: string): Promise<void> {
-  await prisma.smsMessage.updateMany({
-    where: { providerMessageId },
-    data: { supportHandledAt: new Date() },
-  })
-}
-
-async function recordTelnyxEvent(data: NonNullable<TelnyxWebhookEvent['data']>): Promise<boolean> {
-  try {
-    await prisma.telnyxWebhookEvent.create({
-      data: {
-        id: data.id!,
-        eventType: data.event_type!,
-        occurredAt: new Date(data.occurred_at!),
-        status: TELNYX_EVENT_STATUS.PROCESSED,
-        lastError: null,
-      },
-    })
-    return true
-  } catch (error) {
-    if (isUniqueConstraintError(error)) return false
-    throw error
-  }
-}
-
 async function claimTelnyxEventForSupport(
   data: NonNullable<TelnyxWebhookEvent['data']>,
-  existingEvent: ExistingTelnyxEvent | null
+  existingEvent: TelnyxEventClaim | null
 ): Promise<'claimed' | 'processed' | 'busy'> {
   if (existingEvent?.status === TELNYX_EVENT_STATUS.PROCESSED) return 'processed'
 
   const now = new Date()
   const staleBefore = new Date(now.getTime() - TELNYX_PROCESSING_TIMEOUT_MS)
+  const telnyxEvent = {
+    id: data.id!,
+    eventType: data.event_type!,
+    occurredAt: new Date(data.occurred_at!),
+  }
 
   if (existingEvent) {
     const canRetry =
@@ -327,67 +265,12 @@ async function claimTelnyxEventForSupport(
         existingEvent.processedAt <= staleBefore)
     if (!canRetry) return 'busy'
 
-    const claimed = await prisma.telnyxWebhookEvent.updateMany({
-      where: {
-        id: data.id!,
-        OR: [
-          { status: TELNYX_EVENT_STATUS.FAILED },
-          {
-            status: TELNYX_EVENT_STATUS.PROCESSING,
-            processedAt: { lte: staleBefore },
-          },
-        ],
-      },
-      data: {
-        eventType: data.event_type!,
-        occurredAt: new Date(data.occurred_at!),
-        status: TELNYX_EVENT_STATUS.PROCESSING,
-        lastError: null,
-        processedAt: now,
-      },
-    })
+    const claimed = await reclaimTelnyxEvent(telnyxEvent, { claimedAt: now, staleBefore })
 
-    return claimed.count === 1 ? 'claimed' : 'busy'
+    return claimed === 1 ? 'claimed' : 'busy'
   }
 
-  try {
-    await prisma.telnyxWebhookEvent.create({
-      data: {
-        id: data.id!,
-        eventType: data.event_type!,
-        occurredAt: new Date(data.occurred_at!),
-        status: TELNYX_EVENT_STATUS.PROCESSING,
-        lastError: null,
-        processedAt: now,
-      },
-    })
-    return 'claimed'
-  } catch (error) {
-    if (isUniqueConstraintError(error)) return 'busy'
-    throw error
-  }
-}
-
-async function markTelnyxEventProcessed(eventId: string) {
-  await prisma.telnyxWebhookEvent.updateMany({
-    where: { id: eventId },
-    data: {
-      status: TELNYX_EVENT_STATUS.PROCESSED,
-      lastError: null,
-      processedAt: new Date(),
-    },
-  })
-}
-
-async function markTelnyxEventFailed(eventId: string, error: unknown) {
-  await prisma.telnyxWebhookEvent.updateMany({
-    where: { id: eventId },
-    data: {
-      status: TELNYX_EVENT_STATUS.FAILED,
-      lastError: error instanceof Error ? error.message : 'Unknown support routing error',
-      processedAt: new Date(),
-    },
-  })
+  return (await insertProcessingTelnyxEvent(telnyxEvent, now)) ? 'claimed' : 'busy'
 }
 
 function parseDate(value: string | null | undefined): Date | null {

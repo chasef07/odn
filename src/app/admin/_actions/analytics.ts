@@ -1,7 +1,12 @@
 'use server'
 
-import { Prisma, SubmissionStatus } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import {
+  findBusinessAnalyticsPage,
+  findFriendsFamilyAnalyticsPage,
+  findFriendsFamilyCustomerSubmissions,
+  type CustomerMatch,
+} from '@/db/submissions'
+import type { SubmissionStatus } from '@/db/types'
 import { logger } from '@/lib/logger'
 import { toNationalDigits } from '@/lib/phone-utils'
 import {
@@ -55,38 +60,11 @@ async function fetchFriendsFamilySubmissions(
   const submissions: FriendsFamilySubmissionInput[] = []
   let cursor: string | undefined
   while (submissions.length < FRIENDS_FAMILY_MAX_ROWS) {
-    const page = await prisma.submission.findMany({
-      where: {
-        createdAt: { gte: lookbackStart },
-      },
-      select: {
-        id: true,
-        status: true,
-        patientFirstName: true,
-        patientLastName: true,
-        patientDateOfBirth: true,
-        guardianFirstName: true,
-        guardianLastName: true,
-        recipient: true,
-        email: true,
-        phone: true,
-        notePurpose: true,
-        firstDayOff: true,
-        lastDayOff: true,
-        denialReason: true,
-        maybeReason: true,
-        stripeRefundId: true,
-        refundedAt: true,
-        offerCode: true,
-        paymentAmount: true,
-        createdAt: true,
-        reviewedAt: true,
-        approvalEmailSentAt: true,
-      },
-      orderBy: { id: 'asc' },
-      take: FRIENDS_FAMILY_PAGE_SIZE,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    })
+    const page = await findFriendsFamilyAnalyticsPage(
+      lookbackStart,
+      FRIENDS_FAMILY_PAGE_SIZE,
+      cursor
+    )
     if (page.length === 0) break
     submissions.push(...page)
     if (page.length < FRIENDS_FAMILY_PAGE_SIZE) break
@@ -146,7 +124,7 @@ export const exportFriendsFamilyCustomers = adminAction(
   }
 )
 
-function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWhereInput | null {
+function getFriendsFamilyCustomerMatch(customerKey: string): CustomerMatch | null {
   const separatorIndex = customerKey.indexOf(':')
   if (separatorIndex <= 0) {
     return null
@@ -157,7 +135,7 @@ function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWh
 
   if (keyType === 'email') {
     const email = keyValue.trim().toLowerCase()
-    return email ? { email: { equals: email, mode: 'insensitive' } } : null
+    return email ? { by: 'email', email } : null
   }
 
   if (keyType === 'phone') {
@@ -166,25 +144,7 @@ function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWh
       return null
     }
 
-    const phoneFilters: Prisma.SubmissionWhereInput[] = [{ phone: { contains: digits } }]
-
-    if (digits.length >= 10) {
-      const tenDigits = digits.slice(0, 10)
-      phoneFilters.push({
-        phone: {
-          equals: `(${tenDigits.slice(0, 3)}) ${tenDigits.slice(3, 6)}-${tenDigits.slice(6, 10)}`,
-        },
-      })
-      phoneFilters.push({
-        AND: [
-          { phone: { contains: tenDigits.slice(0, 3) } },
-          { phone: { contains: tenDigits.slice(3, 6) } },
-          { phone: { contains: tenDigits.slice(6, 10) } },
-        ],
-      })
-    }
-
-    return { OR: phoneFilters }
+    return { by: 'phone', digits }
   }
 
   if (keyType === 'patient') {
@@ -198,11 +158,7 @@ function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWh
       return null
     }
 
-    return {
-      patientFirstName: { equals: firstName, mode: 'insensitive' },
-      patientLastName: { equals: lastName, mode: 'insensitive' },
-      patientDateOfBirth: parsedDateOfBirth,
-    }
+    return { by: 'patient', firstName, lastName, dateOfBirth: parsedDateOfBirth }
   }
 
   return null
@@ -218,39 +174,12 @@ export const getFriendsFamilyCustomerDetail = adminAction(
     error?: string
   }> => {
     try {
-      const where = getFriendsFamilyCustomerWhere(customerKey)
-      if (!where) {
+      const match = getFriendsFamilyCustomerMatch(customerKey)
+      if (!match) {
         return { success: false, error: 'Customer not found' }
       }
 
-      const submissions = await prisma.submission.findMany({
-        where,
-        select: {
-          id: true,
-          status: true,
-          patientFirstName: true,
-          patientLastName: true,
-          patientDateOfBirth: true,
-          guardianFirstName: true,
-          guardianLastName: true,
-          recipient: true,
-          email: true,
-          phone: true,
-          notePurpose: true,
-          firstDayOff: true,
-          lastDayOff: true,
-          denialReason: true,
-          maybeReason: true,
-          stripeRefundId: true,
-          refundedAt: true,
-          offerCode: true,
-          paymentAmount: true,
-          createdAt: true,
-          reviewedAt: true,
-          approvalEmailSentAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      })
+      const submissions = await findFriendsFamilyCustomerSubmissions(match)
 
       const customer = buildFriendsFamilyCustomerDetail(submissions, customerKey)
       if (!customer) {
@@ -297,28 +226,11 @@ export const getBusinessAnalytics = adminAction(
       }> = []
       let cursor: string | undefined
       while (submissions.length < BUSINESS_ANALYTICS_MAX_ROWS) {
-        const page = await prisma.submission.findMany({
-          where: { createdAt: { gte: fetchStart } },
-          select: {
-            id: true,
-            status: true,
-            state: true,
-            patientFirstName: true,
-            patientLastName: true,
-            patientDateOfBirth: true,
-            email: true,
-            phone: true,
-            offerCode: true,
-            attributionChannel: true,
-            paymentAmount: true,
-            stripeRefundId: true,
-            refundedAt: true,
-            createdAt: true,
-          },
-          orderBy: { id: 'asc' },
-          take: BUSINESS_ANALYTICS_PAGE_SIZE,
-          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-        })
+        const page = await findBusinessAnalyticsPage(
+          fetchStart,
+          BUSINESS_ANALYTICS_PAGE_SIZE,
+          cursor
+        )
         if (page.length === 0) break
         submissions.push(...page)
         if (page.length < BUSINESS_ANALYTICS_PAGE_SIZE) break

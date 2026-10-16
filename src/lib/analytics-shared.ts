@@ -1,4 +1,4 @@
-import { SubmissionStatus } from '@prisma/client'
+import { SubmissionStatus } from '@/db/types'
 import { toNationalDigits } from '@/lib/phone-utils'
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000

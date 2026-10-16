@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { smsStatusLabel } from '../sms-status'
 import { isLocalOptOut, isOptInKeyword, sendTransactionalSmsForSubmission } from '../telnyx'
 
-const { mockSmsPhoneStateFindUnique } = vi.hoisted(() => ({
-  mockSmsPhoneStateFindUnique: vi.fn(),
+const { mockFindSmsPhoneOptOut } = vi.hoisted(() => ({
+  mockFindSmsPhoneOptOut: vi.fn(),
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  default: { smsPhoneState: { findUnique: mockSmsPhoneStateFindUnique } },
+vi.mock('@/db/sms-support', () => ({
+  findSmsPhoneOptOut: mockFindSmsPhoneOptOut,
 }))
 
 describe('Telnyx SMS helpers', () => {
@@ -64,7 +64,7 @@ describe('transactional SMS when sending is disabled', () => {
       { submissionId: 'sub_123', type: 'APPROVAL_SENT' }
     )
     expect(JSON.stringify(info.mock.calls)).not.toContain('5555550100')
-    expect(mockSmsPhoneStateFindUnique).not.toHaveBeenCalled()
+    expect(mockFindSmsPhoneOptOut).not.toHaveBeenCalled()
     info.mockRestore()
   })
 

@@ -1,7 +1,13 @@
 'use server'
 
-import { NoteVerificationStatus, Prisma, SubmissionStatus } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { findSmsPhoneOptOut } from '@/db/sms-support'
+import {
+  findPatientHistory,
+  findSubmissionForAdminDetail,
+  searchSubmissionsPage,
+  type SubmissionSearch,
+} from '@/db/submissions'
+import type { NoteVerification, Submission, SubmissionStatus } from '@/db/types'
 import { logger } from '@/lib/logger'
 import { formatDateUTC } from '@/lib/utils'
 import { formatPhoneNumber } from '@/lib/phone-utils'
@@ -45,35 +51,12 @@ export const getPatientHistory = adminAction(
     currentSubmissionId: string
   ): Promise<{ success: boolean; data?: PatientHistoryEntry[]; error?: string }> => {
     try {
-      const submissions = await prisma.submission.findMany({
-        where: {
-          id: { not: currentSubmissionId },
-          OR: [
-            {
-              patientFirstName: { equals: patientFirstName, mode: 'insensitive' },
-              patientLastName: { equals: patientLastName, mode: 'insensitive' },
-              patientDateOfBirth: patientDateOfBirth,
-            },
-            {
-              email: { equals: email, mode: 'insensitive' },
-            },
-          ],
-        },
-        select: {
-          id: true,
-          patientFirstName: true,
-          patientLastName: true,
-          email: true,
-          status: true,
-          notePurpose: true,
-          firstDayOff: true,
-          lastDayOff: true,
-          createdAt: true,
-          reviewedAt: true,
-          denialReason: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
+      const submissions = await findPatientHistory({
+        patientFirstName,
+        patientLastName,
+        patientDateOfBirth,
+        email,
+        excludeSubmissionId: currentSubmissionId,
       })
 
       const formatted: PatientHistoryEntry[] = submissions.map((sub) => ({
@@ -140,85 +123,46 @@ export const searchSubmissions = adminAction(
       const skip = (page - 1) * limit
       const trimmedQuery = query.trim()
 
-      let whereClause: Prisma.SubmissionWhereInput = {}
+      let search: SubmissionSearch | null = null
 
       switch (searchType) {
         case 'name': {
           const nameParts = trimmedQuery.split(/\s+/)
           if (nameParts.length === 1) {
-            whereClause = {
-              OR: [
-                { patientFirstName: { contains: nameParts[0], mode: 'insensitive' } },
-                { patientLastName: { contains: nameParts[0], mode: 'insensitive' } },
-              ],
-            }
+            search = { by: 'anyName', term: nameParts[0] }
           } else {
-            whereClause = {
-              AND: [
-                { patientFirstName: { contains: nameParts[0], mode: 'insensitive' } },
-                {
-                  patientLastName: {
-                    contains: nameParts[nameParts.length - 1],
-                    mode: 'insensitive',
-                  },
-                },
-              ],
+            search = {
+              by: 'fullName',
+              firstName: nameParts[0],
+              lastName: nameParts[nameParts.length - 1],
             }
           }
           break
         }
 
         case 'email':
-          whereClause = {
-            email: { contains: trimmedQuery.toLowerCase(), mode: 'insensitive' },
-          }
+          search = { by: 'email', term: trimmedQuery.toLowerCase() }
           break
 
         case 'id':
-          whereClause = {
-            id: { startsWith: trimmedQuery.toLowerCase() },
-          }
+          search = { by: 'idPrefix', prefix: trimmedQuery.toLowerCase() }
           break
 
         case 'medicalRecord': {
-          whereClause = {
-            noteVerifications: {
-              some: {
-                medicalRecordNumber: normalizeMedicalRecordNumber(trimmedQuery),
-              },
-            },
+          search = {
+            by: 'medicalRecordNumber',
+            medicalRecordNumber: normalizeMedicalRecordNumber(trimmedQuery),
           }
           break
         }
 
         case 'phone': {
-          whereClause = {
-            phone: { contains: formatPhoneNumber(trimmedQuery) },
-          }
+          search = { by: 'phone', term: formatPhoneNumber(trimmedQuery) }
           break
         }
       }
 
-      const [submissions, total] = await Promise.all([
-        prisma.submission.findMany({
-          where: whereClause,
-          select: {
-            id: true,
-            patientFirstName: true,
-            patientLastName: true,
-            email: true,
-            status: true,
-            notePurpose: true,
-            firstDayOff: true,
-            lastDayOff: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
-        }),
-        prisma.submission.count({ where: whereClause }),
-      ])
+      const { submissions, total } = await searchSubmissionsPage(search, { skip, take: limit })
 
       const formattedSubmissions: SearchSubmission[] = submissions.map((sub) => ({
         id: sub.id,
@@ -240,9 +184,9 @@ export const searchSubmissions = adminAction(
   }
 )
 
-type SubmissionWithNoteVerifications = Prisma.SubmissionGetPayload<{
-  include: { noteVerifications: true }
-}>
+type SubmissionWithNoteVerifications = Submission & {
+  noteVerifications: NoteVerification[]
+}
 
 export type FormattedSubmission = Omit<
   SubmissionWithNoteVerifications,
@@ -268,44 +212,14 @@ export const getSubmissionById = adminAction(
     { success: true; submission: FormattedSubmission } | { success: false; error: string }
   > => {
     try {
-      const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-        include: {
-          noteVerifications: {
-            where: {
-              status: NoteVerificationStatus.ACTIVE,
-              revokedAt: null,
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
-          smsMessages: {
-            select: {
-              id: true,
-              type: true,
-              direction: true,
-              providerStatus: true,
-              errorCode: true,
-              errorMessage: true,
-              sentAt: true,
-              receivedAt: true,
-              finalizedAt: true,
-              createdAt: true,
-            },
-            orderBy: { createdAt: 'desc' },
-          },
-        },
-      })
+      const submission = await findSubmissionForAdminDetail(submissionId)
 
       if (!submission) {
         return { success: false, error: 'Submission not found' }
       }
 
       const smsPhoneState = submission.smsPhoneE164
-        ? await prisma.smsPhoneState.findUnique({
-            where: { phoneE164: submission.smsPhoneE164 },
-            select: { optedOutAt: true },
-          })
+        ? await findSmsPhoneOptOut(submission.smsPhoneE164)
         : null
 
       const formattedSubmission: FormattedSubmission = {

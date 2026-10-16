@@ -1,4 +1,4 @@
-import { SubmissionStatus } from '@prisma/client'
+import { SubmissionStatus } from '@/db/types'
 
 interface StatusBadgeProps {
   status: SubmissionStatus

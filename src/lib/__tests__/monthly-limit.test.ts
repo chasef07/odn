@@ -1,14 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { SubmissionStatus } from '@prisma/client'
 import { subDays, addDays } from 'date-fns'
 
 const mockFindMany = vi.fn()
-vi.mock('../prisma', () => ({
-  default: {
-    submission: {
-      findMany: (...args: unknown[]) => mockFindMany(...args),
-    },
-  },
+vi.mock('@/db/submissions', () => ({
+  findApprovedSubmissionsOverlapping: (...args: unknown[]) => mockFindMany(...args),
 }))
 
 import { getMonthlyDaysUsed, wouldExceedMonthlyLimit } from '../monthly-limit'
@@ -17,6 +12,12 @@ const testPatient = {
   firstName: 'John',
   lastName: 'Doe',
   dob: new Date('1990-05-15'),
+}
+
+const testPatientIdentity = {
+  patientFirstName: testPatient.firstName,
+  patientLastName: testPatient.lastName,
+  patientDateOfBirth: testPatient.dob,
 }
 
 describe('monthly-limit (rolling 30-day window)', () => {
@@ -106,13 +107,15 @@ describe('monthly-limit (rolling 30-day window)', () => {
         await getMonthlyDaysUsed('JOHN', 'DOE', testPatient.dob, referenceDate)
 
         expect(mockFindMany).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: expect.objectContaining({
-              patientFirstName: { equals: 'JOHN', mode: 'insensitive' },
-              patientLastName: { equals: 'DOE', mode: 'insensitive' },
-              patientDateOfBirth: testPatient.dob,
-            }),
-          })
+          {
+            patientFirstName: 'JOHN',
+            patientLastName: 'DOE',
+            patientDateOfBirth: testPatient.dob,
+          },
+          {
+            windowStart: subDays(referenceDate, 30),
+            windowEnd: subDays(referenceDate, 1),
+          }
         )
       })
     })
@@ -128,14 +131,10 @@ describe('monthly-limit (rolling 30-day window)', () => {
           referenceDate
         )
 
-        expect(mockFindMany).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: expect.objectContaining({
-              firstDayOff: { lte: subDays(referenceDate, 1) },
-              lastDayOff: { gte: subDays(referenceDate, 30) },
-            }),
-          })
-        )
+        expect(mockFindMany).toHaveBeenCalledWith(testPatientIdentity, {
+          windowStart: subDays(referenceDate, 30),
+          windowEnd: subDays(referenceDate, 1),
+        })
       })
     })
 
@@ -300,13 +299,10 @@ describe('monthly-limit (rolling 30-day window)', () => {
           referenceDate
         )
 
-        expect(mockFindMany).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: expect.objectContaining({
-              status: SubmissionStatus.APPROVED,
-            }),
-          })
-        )
+        expect(mockFindMany).toHaveBeenCalledWith(testPatientIdentity, {
+          windowStart: subDays(referenceDate, 30),
+          windowEnd: subDays(referenceDate, 1),
+        })
       })
     })
   })
@@ -397,14 +393,10 @@ describe('monthly-limit (rolling 30-day window)', () => {
         )
 
         expect(result.totalDays).toBe(0)
-        expect(mockFindMany).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: expect.objectContaining({
-              firstDayOff: { lte: subDays(yesterday, 1) },
-              lastDayOff: { gte: subDays(yesterday, 30) },
-            }),
-          })
-        )
+        expect(mockFindMany).toHaveBeenCalledWith(testPatientIdentity, {
+          windowStart: subDays(yesterday, 30),
+          windowEnd: subDays(yesterday, 1),
+        })
       })
 
       it('should handle reference date 7 days in the past', async () => {
@@ -418,14 +410,10 @@ describe('monthly-limit (rolling 30-day window)', () => {
           sevenDaysAgo
         )
 
-        expect(mockFindMany).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: expect.objectContaining({
-              firstDayOff: { lte: subDays(sevenDaysAgo, 1) },
-              lastDayOff: { gte: subDays(sevenDaysAgo, 30) },
-            }),
-          })
-        )
+        expect(mockFindMany).toHaveBeenCalledWith(testPatientIdentity, {
+          windowStart: subDays(sevenDaysAgo, 30),
+          windowEnd: subDays(sevenDaysAgo, 1),
+        })
       })
     })
 
@@ -445,10 +433,10 @@ describe('monthly-limit (rolling 30-day window)', () => {
         expect(result.totalDays).toBe(0)
         expect(mockFindMany).toHaveBeenCalledTimes(1)
 
-        const callArgs = mockFindMany.mock.calls[0][0]
-        expect(callArgs.where.firstDayOff.lte).toBeDefined()
-        expect(callArgs.where.lastDayOff.gte).toBeDefined()
-        expect(callArgs.where.lastDayOff.gte.getMonth()).toBe(1)
+        const window = mockFindMany.mock.calls[0][1]
+        expect(window.windowEnd).toBeDefined()
+        expect(window.windowStart).toBeDefined()
+        expect(window.windowStart.getMonth()).toBe(1)
       })
     })
 
@@ -468,9 +456,9 @@ describe('monthly-limit (rolling 30-day window)', () => {
         expect(result.totalDays).toBe(0)
         expect(mockFindMany).toHaveBeenCalledTimes(1)
 
-        const callArgs = mockFindMany.mock.calls[0][0]
-        expect(callArgs.where.lastDayOff.gte.getFullYear()).toBe(2024)
-        expect(callArgs.where.lastDayOff.gte.getMonth()).toBe(11)
+        const window = mockFindMany.mock.calls[0][1]
+        expect(window.windowStart.getFullYear()).toBe(2024)
+        expect(window.windowStart.getMonth()).toBe(11)
       })
     })
   })

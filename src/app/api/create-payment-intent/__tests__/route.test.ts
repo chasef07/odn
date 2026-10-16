@@ -2,20 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import type { FormData } from '@/lib/form-storage'
 
-const { mockPrismaCreate, mockPrismaUpdate, mockPrismaDelete } = vi.hoisted(() => ({
-  mockPrismaCreate: vi.fn(),
-  mockPrismaUpdate: vi.fn(),
-  mockPrismaDelete: vi.fn(),
-}))
+const { mockCreateTemporarySubmission, mockAttachPaymentIntent, mockDeleteTemporarySubmission } =
+  vi.hoisted(() => ({
+    mockCreateTemporarySubmission: vi.fn(),
+    mockAttachPaymentIntent: vi.fn(),
+    mockDeleteTemporarySubmission: vi.fn(),
+  }))
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    temporarySubmission: {
-      create: mockPrismaCreate,
-      update: mockPrismaUpdate,
-      delete: mockPrismaDelete,
-    },
-  },
+vi.mock('@/db/temporary-submissions', () => ({
+  createTemporarySubmission: mockCreateTemporarySubmission,
+  attachPaymentIntentToTemporarySubmission: mockAttachPaymentIntent,
+  deleteTemporarySubmission: mockDeleteTemporarySubmission,
 }))
 
 const { mockPaymentIntentCreate, mockPaymentIntentCancel, mockPricesRetrieve } = vi.hoisted(() => ({
@@ -126,7 +123,7 @@ describe('POST /api/create-payment-intent', () => {
     const mockPaymentIntentId = 'pi_123456'
     const mockTempSubmissionId = 'temp_123'
 
-    mockPrismaCreate.mockResolvedValue({
+    mockCreateTemporarySubmission.mockResolvedValue({
       id: mockTempSubmissionId,
       paymentIntentId: expect.stringMatching(/^pending_/),
       formData: mockFormData,
@@ -143,7 +140,7 @@ describe('POST /api/create-payment-intent', () => {
       },
     })
 
-    mockPrismaUpdate.mockResolvedValue({
+    mockAttachPaymentIntent.mockResolvedValue({
       id: mockTempSubmissionId,
       paymentIntentId: mockPaymentIntentId,
       formData: mockFormData,
@@ -172,12 +169,10 @@ describe('POST /api/create-payment-intent', () => {
       })
     )
 
-    expect(mockPrismaCreate).toHaveBeenCalledWith({
-      data: {
-        paymentIntentId: expect.stringMatching(/^pending_/),
-        formData: mockFormData,
-        expiresAt: expect.any(Date),
-      },
+    expect(mockCreateTemporarySubmission).toHaveBeenCalledWith({
+      paymentIntentId: expect.stringMatching(/^pending_/),
+      formData: mockFormData,
+      expiresAt: expect.any(Date),
     })
 
     expect(mockPaymentIntentCreate).toHaveBeenCalledWith(
@@ -188,12 +183,7 @@ describe('POST /api/create-payment-intent', () => {
       })
     )
 
-    expect(mockPrismaUpdate).toHaveBeenCalledWith({
-      where: { id: mockTempSubmissionId },
-      data: {
-        paymentIntentId: mockPaymentIntentId,
-      },
-    })
+    expect(mockAttachPaymentIntent).toHaveBeenCalledWith(mockTempSubmissionId, mockPaymentIntentId)
   })
 
   it('should return 400 if formData is missing', async () => {
@@ -251,14 +241,14 @@ describe('POST /api/create-payment-intent', () => {
   describe('log-only mode', () => {
     beforeEach(() => {
       process.env.INTAKE_VALIDATION_ENFORCED = 'false'
-      mockPrismaCreate.mockResolvedValue({ id: 'temp_shadow' })
+      mockCreateTemporarySubmission.mockResolvedValue({ id: 'temp_shadow' })
       mockPaymentIntentCreate.mockResolvedValue({
         id: 'pi_shadow',
         client_secret: 'pi_shadow_secret',
         amount: 2495,
         currency: 'usd',
       })
-      mockPrismaUpdate.mockResolvedValue({})
+      mockAttachPaymentIntent.mockResolvedValue({})
     })
 
     it('is the default when INTAKE_VALIDATION_ENFORCED is unset', async () => {
@@ -418,7 +408,7 @@ describe('POST /api/create-payment-intent', () => {
   it('should call Stripe with correct parameters', async () => {
     const mockTempSubmissionId = 'temp_456'
 
-    mockPrismaCreate.mockResolvedValue({
+    mockCreateTemporarySubmission.mockResolvedValue({
       id: mockTempSubmissionId,
     })
 
@@ -429,7 +419,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaUpdate.mockResolvedValue({})
+    mockAttachPaymentIntent.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -463,7 +453,7 @@ describe('POST /api/create-payment-intent', () => {
   it('should use friends and family price when friends20 offer is supplied', async () => {
     const mockTempSubmissionId = 'temp_friends'
 
-    mockPrismaCreate.mockResolvedValue({
+    mockCreateTemporarySubmission.mockResolvedValue({
       id: mockTempSubmissionId,
     })
 
@@ -474,7 +464,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaUpdate.mockResolvedValue({})
+    mockAttachPaymentIntent.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -513,7 +503,7 @@ describe('POST /api/create-payment-intent', () => {
   it('should use doctor price when doctor10 offer is supplied', async () => {
     const mockTempSubmissionId = 'temp_doctor_10'
 
-    mockPrismaCreate.mockResolvedValue({
+    mockCreateTemporarySubmission.mockResolvedValue({
       id: mockTempSubmissionId,
     })
 
@@ -524,7 +514,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaUpdate.mockResolvedValue({})
+    mockAttachPaymentIntent.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -561,7 +551,7 @@ describe('POST /api/create-payment-intent', () => {
   })
 
   it('should fall back to standard price when offer is invalid', async () => {
-    mockPrismaCreate.mockResolvedValue({ id: 'temp_invalid_offer' })
+    mockCreateTemporarySubmission.mockResolvedValue({ id: 'temp_invalid_offer' })
 
     mockPaymentIntentCreate.mockResolvedValue({
       id: 'pi_standard',
@@ -570,7 +560,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaUpdate.mockResolvedValue({})
+    mockAttachPaymentIntent.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -620,7 +610,7 @@ describe('POST /api/create-payment-intent', () => {
     expect(response.status).toBe(500)
     expect(data.error).toBe('Friends and family offer is not configured. Please contact support.')
     expect(mockPricesRetrieve).not.toHaveBeenCalled()
-    expect(mockPrismaCreate).not.toHaveBeenCalled()
+    expect(mockCreateTemporarySubmission).not.toHaveBeenCalled()
     expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
     expect(consoleError).toHaveBeenCalledWith(
       'Friends and family offer requested but STRIPE_FRIENDS_FAMILY_PRICE_ID is unset'
@@ -645,7 +635,7 @@ describe('POST /api/create-payment-intent', () => {
     expect(response.status).toBe(500)
     expect(data.error).toBe('Doctor offer is not configured. Please contact support.')
     expect(mockPricesRetrieve).not.toHaveBeenCalled()
-    expect(mockPrismaCreate).not.toHaveBeenCalled()
+    expect(mockCreateTemporarySubmission).not.toHaveBeenCalled()
     expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
     expect(consoleError).toHaveBeenCalledWith(
       'Doctor offer requested but STRIPE_DOCTOR_10_PRICE_ID is unset'
@@ -662,7 +652,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaCreate.mockResolvedValue({})
+    mockCreateTemporarySubmission.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -695,7 +685,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaCreate.mockResolvedValue({})
+    mockCreateTemporarySubmission.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -779,7 +769,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaCreate.mockResolvedValue({})
+    mockCreateTemporarySubmission.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -831,9 +821,9 @@ describe('POST /api/create-payment-intent', () => {
         at: '2026-10-07T12:00:00.000Z',
       },
     } as const
-    mockPrismaCreate.mockResolvedValue({ id: 'temp_attr' })
+    mockCreateTemporarySubmission.mockResolvedValue({ id: 'temp_attr' })
     mockPaymentIntentCreate.mockResolvedValue({ id: 'pi_attr', client_secret: 'secret' })
-    mockPrismaUpdate.mockResolvedValue({})
+    mockAttachPaymentIntent.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -849,7 +839,7 @@ describe('POST /api/create-payment-intent', () => {
     const response = await POST(request)
 
     expect(response.status).toBe(200)
-    expect(mockPrismaCreate.mock.calls[0][0].data.formData).toEqual({
+    expect(mockCreateTemporarySubmission.mock.calls[0][0].formData).toEqual({
       ...mockFormData,
       attribution,
     })
@@ -867,9 +857,9 @@ describe('POST /api/create-payment-intent', () => {
   })
 
   it('drops client-supplied attribution when there is no cookie', async () => {
-    mockPrismaCreate.mockResolvedValue({ id: 'temp_no_attr' })
+    mockCreateTemporarySubmission.mockResolvedValue({ id: 'temp_no_attr' })
     mockPaymentIntentCreate.mockResolvedValue({ id: 'pi_no_attr', client_secret: 'secret' })
-    mockPrismaUpdate.mockResolvedValue({})
+    mockAttachPaymentIntent.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -879,7 +869,7 @@ describe('POST /api/create-payment-intent', () => {
 
     await POST(request)
 
-    expect(mockPrismaCreate.mock.calls[0][0].data.formData).toEqual(mockFormData)
+    expect(mockCreateTemporarySubmission.mock.calls[0][0].formData).toEqual(mockFormData)
     expect(mockPaymentIntentCreate.mock.calls[0][0].metadata).not.toHaveProperty('attr_channel')
   })
 
@@ -900,7 +890,7 @@ describe('POST /api/create-payment-intent', () => {
   })
 
   it('should return 500 if database fails to create TemporarySubmission', async () => {
-    mockPrismaCreate.mockRejectedValue(new Error('Database error'))
+    mockCreateTemporarySubmission.mockRejectedValue(new Error('Database error'))
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -921,13 +911,13 @@ describe('POST /api/create-payment-intent', () => {
   it('should handle invalid Stripe key error', async () => {
     const mockTempSubmissionId = 'temp_789'
 
-    mockPrismaCreate.mockResolvedValue({
+    mockCreateTemporarySubmission.mockResolvedValue({
       id: mockTempSubmissionId,
     })
 
     mockPaymentIntentCreate.mockRejectedValue(new Error('Invalid API Key provided'))
 
-    mockPrismaDelete.mockResolvedValue({})
+    mockDeleteTemporarySubmission.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -941,9 +931,7 @@ describe('POST /api/create-payment-intent', () => {
     expect(response.status).toBe(500)
     expect(data.error).toBe('Payment processing error. Please try again.')
 
-    expect(mockPrismaDelete).toHaveBeenCalledWith({
-      where: { id: mockTempSubmissionId },
-    })
+    expect(mockDeleteTemporarySubmission).toHaveBeenCalledWith(mockTempSubmissionId)
   })
 
   it('should handle network errors', async () => {
@@ -974,7 +962,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'eur',
     })
 
-    mockPrismaCreate.mockResolvedValue({})
+    mockCreateTemporarySubmission.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -999,7 +987,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaCreate.mockResolvedValue({})
+    mockCreateTemporarySubmission.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -1026,7 +1014,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaCreate.mockResolvedValue({})
+    mockCreateTemporarySubmission.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -1051,7 +1039,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaCreate.mockResolvedValue({})
+    mockCreateTemporarySubmission.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {
       method: 'POST',
@@ -1209,14 +1197,14 @@ describe('POST /api/create-payment-intent', () => {
     })
 
     it('should accept valid dates within limits', async () => {
-      mockPrismaCreate.mockResolvedValue({ id: 'temp_valid' })
+      mockCreateTemporarySubmission.mockResolvedValue({ id: 'temp_valid' })
       mockPaymentIntentCreate.mockResolvedValue({
         id: 'pi_valid',
         client_secret: 'pi_valid_secret',
         amount: 2495,
         currency: 'usd',
       })
-      mockPrismaUpdate.mockResolvedValue({})
+      mockAttachPaymentIntent.mockResolvedValue({})
 
       const goodData = {
         ...mockFormData,
@@ -1244,7 +1232,7 @@ describe('POST /api/create-payment-intent', () => {
       currency: 'usd',
     })
 
-    mockPrismaCreate.mockRejectedValue(new Error('Connection timeout'))
+    mockCreateTemporarySubmission.mockRejectedValue(new Error('Connection timeout'))
     mockPaymentIntentCancel.mockResolvedValue({})
 
     const request = new NextRequest('http://localhost:3000/api/create-payment-intent', {

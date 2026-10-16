@@ -1,15 +1,22 @@
 'use server'
 
-import { SubmissionStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import {
+  findSubmissionById,
+  markSubmissionDenied,
+  markSubmissionDeniedAndRefunded,
+  markSubmissionManual,
+  recordDenialEmailSent,
+  returnSubmissionToReview,
+} from '@/db/submissions'
+import { SubmissionStatus } from '@/db/types'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { logger } from '@/lib/logger'
 import { sendDenialEmail } from '@/lib/email'
 import { denialSentSms } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
-import { revokeNoteVerificationForSubmission } from '@/lib/note-verification'
+import { revokeNoteVerificationForSubmission } from '@/db/note-verifications'
 import { type MaybeSubmissionInput } from './maybe'
 import { moveSubmissionToMaybe } from './shared'
 import { adminAction } from '@/lib/admin-session'
@@ -23,9 +30,7 @@ export const changeSubmissionStatus = adminAction(
     maybeInput?: MaybeSubmissionInput
   ): Promise<{ success: boolean; error?: string; warning?: string }> => {
     try {
-      const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-      })
+      const submission = await findSubmissionById(submissionId)
 
       if (!submission) {
         return { success: false, error: 'Submission not found' }
@@ -54,15 +59,11 @@ export const changeSubmissionStatus = adminAction(
           const alreadyRefunded = !!submission.stripeRefundId
 
           if (alreadyRefunded) {
-            await prisma.submission.update({
-              where: { id: submissionId },
-              data: {
-                status: SubmissionStatus.DENIED,
-                denialReason,
-                reviewedByAdminId: doctorId,
-                reviewedAt: now,
-                updatedAt: now,
-              },
+            await markSubmissionDenied(submissionId, {
+              denialReason,
+              reviewedByAdminId: doctorId,
+              reviewedAt: now,
+              updatedAt: now,
             })
             await revokeNoteVerificationForSubmission(submissionId, now)
 
@@ -75,10 +76,7 @@ export const changeSubmissionStatus = adminAction(
                 denialReason,
                 refundAmount: (submission.paymentAmount ?? 0) / 100,
               })
-              await prisma.submission.update({
-                where: { id: submissionId },
-                data: { denialEmailSentAt: new Date() },
-              })
+              await recordDenialEmailSent(submissionId, new Date())
               await sendTransactionalSmsForSubmission({
                 submission,
                 type: 'DENIAL_SENT',
@@ -128,17 +126,13 @@ export const changeSubmissionStatus = adminAction(
             }
           }
 
-          await prisma.submission.update({
-            where: { id: submissionId },
-            data: {
-              status: SubmissionStatus.DENIED,
-              denialReason,
-              reviewedByAdminId: doctorId,
-              reviewedAt: now,
-              stripeRefundId: refund.id,
-              refundedAt: now,
-              updatedAt: now,
-            },
+          await markSubmissionDeniedAndRefunded(submissionId, {
+            denialReason,
+            reviewedByAdminId: doctorId,
+            reviewedAt: now,
+            stripeRefundId: refund.id,
+            refundedAt: now,
+            updatedAt: now,
           })
           await revokeNoteVerificationForSubmission(submissionId, now)
 
@@ -152,10 +146,7 @@ export const changeSubmissionStatus = adminAction(
               denialReason,
               refundAmount: refundAmountDollars,
             })
-            await prisma.submission.update({
-              where: { id: submissionId },
-              data: { denialEmailSentAt: new Date() },
-            })
+            await recordDenialEmailSent(submissionId, new Date())
             await sendTransactionalSmsForSubmission({
               submission,
               type: 'DENIAL_SENT',
@@ -192,14 +183,10 @@ export const changeSubmissionStatus = adminAction(
         }
 
         case SubmissionStatus.MANUAL: {
-          await prisma.submission.update({
-            where: { id: submissionId },
-            data: {
-              status: SubmissionStatus.MANUAL,
-              reviewedByAdminId: doctorId,
-              reviewedAt: now,
-              updatedAt: now,
-            },
+          await markSubmissionManual(submissionId, {
+            reviewedByAdminId: doctorId,
+            reviewedAt: now,
+            updatedAt: now,
           })
           await revokeNoteVerificationForSubmission(submissionId, now)
 
@@ -212,15 +199,7 @@ export const changeSubmissionStatus = adminAction(
         }
 
         case SubmissionStatus.PENDING_REVIEW: {
-          await prisma.submission.update({
-            where: { id: submissionId },
-            data: {
-              status: SubmissionStatus.PENDING_REVIEW,
-              reviewedByAdminId: null,
-              reviewedAt: null,
-              updatedAt: now,
-            },
-          })
+          await returnSubmissionToReview(submissionId, now)
           await revokeNoteVerificationForSubmission(submissionId, now)
 
           revalidatePath('/admin')

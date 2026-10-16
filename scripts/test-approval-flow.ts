@@ -1,5 +1,5 @@
 import { config } from 'dotenv'
-import { Submission, SubmissionStatus } from '@prisma/client'
+import { SubmissionStatus, type Submission } from '../src/db/types'
 import { generateDoctorNotePDF } from '../src/lib/pdf/generate-pdf'
 import fs from 'fs'
 import path from 'path'

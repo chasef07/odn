@@ -1,8 +1,14 @@
 'use server'
 
-import { SubmissionStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import {
+  approveManualSubmission,
+  approveReviewableSubmission,
+  findSubmissionById,
+  reapproveSubmission,
+  recordApprovalEmailSent,
+} from '@/db/submissions'
+import { SubmissionStatus } from '@/db/types'
 import { logger } from '@/lib/logger'
 import { sendApprovalEmail } from '@/lib/email'
 import { approvalSentSms } from '@/lib/sms-templates'
@@ -13,9 +19,11 @@ import {
   createNoteVerification,
   getVerificationUrl,
   parseIssueDateInput,
+} from '@/lib/note-verification'
+import {
   revokeNoteVerificationById,
   revokeOtherNoteVerificationsForSubmission,
-} from '@/lib/note-verification'
+} from '@/db/note-verifications'
 import { adminAction } from '@/lib/admin-session'
 
 export const approveSubmission = adminAction(
@@ -27,9 +35,7 @@ export const approveSubmission = adminAction(
     withRestrictions: boolean = true
   ) => {
     try {
-      const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-      })
+      const submission = await findSubmissionById(submissionId)
 
       if (!submission) {
         return { success: false, error: 'Submission not found' }
@@ -50,17 +56,9 @@ export const approveSubmission = adminAction(
 
       if (isManual) {
         const now = new Date()
-        await prisma.submission.update({
-          where: { id: submissionId },
-          data: {
-            status: SubmissionStatus.APPROVED,
-            reviewedByAdminId: doctorId,
-            reviewedAt: now,
-            denialReason: null,
-            approvalEmailSentAt: null,
-            approvalDiagnosis: null,
-            approvalWithRestrictions: null,
-          },
+        await approveManualSubmission(submissionId, {
+          reviewedByAdminId: doctorId,
+          reviewedAt: now,
         })
 
         revalidatePath('/admin')
@@ -104,23 +102,13 @@ export const approveSubmission = adminAction(
       }
 
       const now = new Date()
-      const approvalUpdate = await prisma.submission.updateMany({
-        where: {
-          id: submissionId,
-          status: {
-            in: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
-          },
-        },
-        data: {
-          status: SubmissionStatus.APPROVED,
-          reviewedByAdminId: doctorId,
-          reviewedAt: now,
-          denialReason: null,
-          approvalDiagnosis: diagnosis || null,
-          approvalWithRestrictions: withRestrictions,
-        },
+      const approvedCount = await approveReviewableSubmission(submissionId, {
+        reviewedByAdminId: doctorId,
+        reviewedAt: now,
+        approvalDiagnosis: diagnosis || null,
+        approvalWithRestrictions: withRestrictions,
       })
-      if (approvalUpdate.count !== 1) {
+      if (approvedCount !== 1) {
         await revokeNoteVerificationById(noteVerification.id, now)
         return {
           success: false,
@@ -144,10 +132,7 @@ export const approveSubmission = adminAction(
           pdfFilename,
         })
 
-        await prisma.submission.update({
-          where: { id: submissionId },
-          data: { approvalEmailSentAt: new Date() },
-        })
+        await recordApprovalEmailSent(submissionId, new Date())
 
         await sendTransactionalSmsForSubmission({
           submission,
@@ -189,9 +174,7 @@ export const reApproveSubmission = adminAction(
     withRestrictions: boolean = true
   ) => {
     try {
-      const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-      })
+      const submission = await findSubmissionById(submissionId)
 
       if (!submission) {
         return { success: false, error: 'Submission not found' }
@@ -229,23 +212,13 @@ export const reApproveSubmission = adminAction(
       }
 
       const now = new Date()
-      const approvalUpdate = await prisma.submission.updateMany({
-        where: {
-          id: submissionId,
-          status: SubmissionStatus.APPROVED,
-          updatedAt: submission.updatedAt,
-        },
-        data: {
-          status: SubmissionStatus.APPROVED,
-          reviewedByAdminId: doctorId,
-          reviewedAt: now,
-          denialReason: null,
-          approvalDiagnosis: diagnosis || null,
-          approvalWithRestrictions: withRestrictions,
-          updatedAt: now,
-        },
+      const reapprovedCount = await reapproveSubmission(submissionId, submission.updatedAt, {
+        reviewedByAdminId: doctorId,
+        reviewedAt: now,
+        approvalDiagnosis: diagnosis || null,
+        approvalWithRestrictions: withRestrictions,
       })
-      if (approvalUpdate.count !== 1) {
+      if (reapprovedCount !== 1) {
         await revokeNoteVerificationById(noteVerification.id, now)
         return {
           success: false,
@@ -269,10 +242,7 @@ export const reApproveSubmission = adminAction(
           pdfFilename,
         })
 
-        await prisma.submission.update({
-          where: { id: submissionId },
-          data: { approvalEmailSentAt: new Date() },
-        })
+        await recordApprovalEmailSent(submissionId, new Date())
 
         await sendTransactionalSmsForSubmission({
           submission,

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { SupportTicketDetail as SupportTicketDetailType } from '@/app/admin/support/_actions/tickets'
+import type { SupportTicketDetail as SupportTicketDetailType } from '@/db/sms-support'
 import { SupportTicketDetail } from '../SupportTicketDetail'
 import { SupportTicketQueue } from '../SupportTicketQueue'
 

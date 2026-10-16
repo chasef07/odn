@@ -1,8 +1,17 @@
 'use server'
 
-import { Prisma, SubmissionStatus } from '@prisma/client'
 import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
-import prisma from '@/lib/prisma'
+import { findSupportTicketIdsByStatus } from '@/db/sms-support'
+import {
+  findManualSubmissions,
+  findMaybeSubmissions,
+  findSubmissionIdsByStatus,
+  findSubmissionsApprovedSince,
+  findSubmissionsDeniedSince,
+  findSubmissionsPendingReview,
+  type SubmissionStatusFilter,
+} from '@/db/submissions'
+import { SubmissionStatus, type SmsSupportTicket } from '@/db/types'
 import { logger } from '@/lib/logger'
 import { getBusinessDayStart } from '@/lib/admin-utils'
 import { formatDateUTC } from '@/lib/utils'
@@ -19,13 +28,9 @@ const DASHBOARD_COUNT_LIMIT = 1000
 
 const DASHBOARD_TODAY_LIST_LIMIT = 250
 
-async function getLimitedSubmissionCount(where: Prisma.SubmissionWhereInput): Promise<number> {
+async function getLimitedSubmissionCount(filter: SubmissionStatusFilter): Promise<number> {
   try {
-    const rows = await prisma.submission.findMany({
-      where,
-      select: { id: true },
-      take: DASHBOARD_COUNT_LIMIT + 1,
-    })
+    const rows = await findSubmissionIdsByStatus(filter, DASHBOARD_COUNT_LIMIT + 1)
 
     return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
   } catch (error) {
@@ -34,15 +39,9 @@ async function getLimitedSubmissionCount(where: Prisma.SubmissionWhereInput): Pr
   }
 }
 
-async function getLimitedSupportTicketCount(
-  where: Prisma.SmsSupportTicketWhereInput
-): Promise<number> {
+async function getLimitedSupportTicketCount(status: SmsSupportTicket['status']): Promise<number> {
   try {
-    const rows = await prisma.smsSupportTicket.findMany({
-      where,
-      select: { id: true },
-      take: DASHBOARD_COUNT_LIMIT + 1,
-    })
+    const rows = await findSupportTicketIdsByStatus(status, DASHBOARD_COUNT_LIMIT + 1)
 
     return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
   } catch (error) {
@@ -53,14 +52,7 @@ async function getLimitedSupportTicketCount(
 
 export const getSubmissionsForReview = adminAction(async () => {
   try {
-    const submissions = await prisma.submission.findMany({
-      where: {
-        status: SubmissionStatus.PENDING_REVIEW,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    })
+    const submissions = await findSubmissionsPendingReview()
 
     return { success: true, data: submissions }
   } catch (error) {
@@ -84,19 +76,19 @@ export const getDashboardStats = adminAction(async () => {
 
       getLimitedSubmissionCount({
         status: SubmissionStatus.APPROVED,
-        reviewedAt: { gte: today },
+        reviewedSince: today,
       }),
 
       getLimitedSubmissionCount({
         status: SubmissionStatus.DENIED,
-        reviewedAt: { gte: today },
+        reviewedSince: today,
       }),
 
       getLimitedSubmissionCount({ status: SubmissionStatus.MAYBE }),
 
       getLimitedSubmissionCount({ status: SubmissionStatus.MANUAL }),
 
-      getLimitedSupportTicketCount({ status: SMS_SUPPORT_STATUS.NEEDS_CSR }),
+      getLimitedSupportTicketCount(SMS_SUPPORT_STATUS.NEEDS_CSR),
     ])
 
     return {
@@ -119,23 +111,7 @@ export const getDashboardStats = adminAction(async () => {
 export const getApprovedSubmissionsForToday = adminAction(async () => {
   try {
     const today = getBusinessDayStart()
-    const submissions = await prisma.submission.findMany({
-      where: {
-        status: SubmissionStatus.APPROVED,
-        reviewedAt: { gte: today },
-      },
-      select: {
-        id: true,
-        patientFirstName: true,
-        patientLastName: true,
-        email: true,
-        approvalEmailSentAt: true,
-      },
-      orderBy: {
-        approvalEmailSentAt: 'desc',
-      },
-      take: DASHBOARD_TODAY_LIST_LIMIT,
-    })
+    const submissions = await findSubmissionsApprovedSince(today, DASHBOARD_TODAY_LIST_LIMIT)
 
     return { success: true, data: submissions }
   } catch (error) {
@@ -147,23 +123,7 @@ export const getApprovedSubmissionsForToday = adminAction(async () => {
 export const getDeniedSubmissionsForToday = adminAction(async () => {
   try {
     const today = getBusinessDayStart()
-    const submissions = await prisma.submission.findMany({
-      where: {
-        status: SubmissionStatus.DENIED,
-        reviewedAt: { gte: today },
-      },
-      select: {
-        id: true,
-        patientFirstName: true,
-        patientLastName: true,
-        email: true,
-        denialEmailSentAt: true,
-      },
-      orderBy: {
-        denialEmailSentAt: 'desc',
-      },
-      take: DASHBOARD_TODAY_LIST_LIMIT,
-    })
+    const submissions = await findSubmissionsDeniedSince(today, DASHBOARD_TODAY_LIST_LIMIT)
 
     return { success: true, data: submissions }
   } catch (error) {
@@ -200,31 +160,7 @@ export const getMonthlyLimitData = adminAction(
 
 export const getMaybeSubmissions = adminAction(async () => {
   try {
-    const submissions = await prisma.submission.findMany({
-      where: {
-        status: SubmissionStatus.MAYBE,
-      },
-      select: {
-        id: true,
-        patientFirstName: true,
-        patientLastName: true,
-        email: true,
-        patientDateOfBirth: true,
-        recipient: true,
-        guardianFirstName: true,
-        guardianLastName: true,
-        guardianDateOfBirth: true,
-        firstDayOff: true,
-        lastDayOff: true,
-        maybeReason: true,
-        maybeApprovedDays: true,
-        maybeEmailSentAt: true,
-        reviewedAt: true,
-      },
-      orderBy: {
-        reviewedAt: 'desc',
-      },
-    })
+    const submissions = await findMaybeSubmissions()
 
     const formattedSubmissions = submissions.map((sub) => ({
       id: sub.id,
@@ -253,23 +189,7 @@ export const getMaybeSubmissions = adminAction(async () => {
 
 export const getManualSubmissions = adminAction(async () => {
   try {
-    const submissions = await prisma.submission.findMany({
-      where: {
-        status: SubmissionStatus.MANUAL,
-      },
-      select: {
-        id: true,
-        patientFirstName: true,
-        patientLastName: true,
-        email: true,
-        firstDayOff: true,
-        lastDayOff: true,
-        reviewedAt: true,
-      },
-      orderBy: {
-        reviewedAt: 'desc',
-      },
-    })
+    const submissions = await findManualSubmissions()
 
     const formattedSubmissions = submissions.map((sub) => ({
       id: sub.id,

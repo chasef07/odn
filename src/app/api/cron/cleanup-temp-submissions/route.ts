@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'crypto'
-import prisma from '@/lib/prisma'
+import { deleteExpiredTemporarySubmissions } from '@/db/temporary-submissions'
 import { env } from '@/lib/env'
 
 export async function GET(request: NextRequest) {
@@ -29,13 +29,7 @@ export async function GET(request: NextRequest) {
 
     for (let i = 0; i < retries; i++) {
       try {
-        result = await prisma.temporarySubmission.deleteMany({
-          where: {
-            expiresAt: {
-              lt: new Date(),
-            },
-          },
-        })
+        result = await deleteExpiredTemporarySubmissions(new Date())
 
         break
       } catch (error) {

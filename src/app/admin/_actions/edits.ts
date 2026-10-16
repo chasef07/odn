@@ -1,8 +1,13 @@
 'use server'
 
-import { SubmissionStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import {
+  findSubmissionGuardianDetails,
+  findSubmissionSmsContact,
+  removeSubmissionGuardian,
+  updatePendingSubmissionClassification,
+  updateSubmissionDetails,
+} from '@/db/submissions'
 import { logger } from '@/lib/logger'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { formatDateUTC } from '@/lib/utils'
@@ -12,17 +17,7 @@ import { adminAction } from '@/lib/admin-session'
 export const removeGuardianFromAdultSubmission = adminAction(
   async (_admin, submissionId: string) => {
     try {
-      const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-        select: {
-          id: true,
-          patientDateOfBirth: true,
-          recipient: true,
-          guardianFirstName: true,
-          guardianLastName: true,
-          guardianDateOfBirth: true,
-        },
-      })
+      const submission = await findSubmissionGuardianDetails(submissionId)
 
       if (!submission) {
         return { success: false, error: 'Submission not found' }
@@ -47,16 +42,7 @@ export const removeGuardianFromAdultSubmission = adminAction(
         return { success: true }
       }
 
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: {
-          recipient: 'myself',
-          guardianFirstName: null,
-          guardianLastName: null,
-          guardianDateOfBirth: null,
-          updatedAt: new Date(),
-        },
-      })
+      await removeSubmissionGuardian(submissionId, new Date())
 
       revalidatePath('/admin')
       revalidatePath('/admin/review')
@@ -106,14 +92,7 @@ export const updateSubmission = adminAction(
         smsPhoneE164?: string | null
       } = data
       if (data.phone !== undefined) {
-        const currentSubmission = await prisma.submission.findUnique({
-          where: { id: submissionId },
-          select: {
-            phone: true,
-            smsOptIn: true,
-            smsPhoneE164: true,
-          },
-        })
+        const currentSubmission = await findSubmissionSmsContact(submissionId)
 
         if (!currentSubmission) {
           return { success: false, error: 'Submission not found' }
@@ -139,13 +118,7 @@ export const updateSubmission = adminAction(
               }
       }
 
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: {
-          ...updateData,
-          updatedAt: new Date(),
-        },
-      })
+      await updateSubmissionDetails(submissionId, updateData, new Date())
 
       revalidatePath('/admin/review')
       revalidatePath('/admin/maybe')
@@ -173,18 +146,13 @@ export const updateReviewClassification = adminAction(
     }
   ) => {
     try {
-      const result = await prisma.submission.updateMany({
-        where: {
-          id: submissionId,
-          status: SubmissionStatus.PENDING_REVIEW,
-        },
-        data: {
-          ...data,
-          updatedAt: new Date(),
-        },
-      })
+      const updatedCount = await updatePendingSubmissionClassification(
+        submissionId,
+        data,
+        new Date()
+      )
 
-      if (result.count === 0) {
+      if (updatedCount === 0) {
         return { success: false, error: 'Submission is no longer pending review' }
       }
 

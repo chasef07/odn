@@ -1,13 +1,16 @@
 'use server'
 
-import prisma from '@/lib/prisma'
 import { sendSupportSms } from '@/lib/sms-support-sms'
 import { retrySupportAutomationJob } from '@/lib/sms-support-jobs'
 import {
-  SMS_SUPPORT_JOB_STATUS,
-  SMS_SUPPORT_STATE,
-  SMS_SUPPORT_STATUS,
-} from '@/lib/sms-support-types'
+  closeSupportTicketByAdmin,
+  failQueuedOrRunningSupportJobs,
+  findCommittingSupportJob,
+  findSupportTicketContact,
+  markSupportTicketAdminReplied,
+  markSupportTicketAdminReplyFailed,
+  returnSupportTicketToCsrReview,
+} from '@/db/sms-support'
 import { revalidateSupportPaths } from './shared'
 import { adminAction } from '@/lib/admin-session'
 
@@ -18,14 +21,7 @@ export const sendSupportTicketReply = adminAction(
       if (!message) return { success: false, error: 'Message is required' }
       if (message.length > 1000) return { success: false, error: 'Message is too long' }
 
-      const ticket = await prisma.smsSupportTicket.findUnique({
-        where: { id: ticketId },
-        select: {
-          id: true,
-          phoneE164: true,
-          submissionId: true,
-        },
-      })
+      const ticket = await findSupportTicketContact(ticketId)
 
       if (!ticket) return { success: false, error: 'Support ticket not found' }
 
@@ -38,15 +34,7 @@ export const sendSupportTicketReply = adminAction(
       })
       if (!cancelResult.success) return cancelResult
 
-      await prisma.smsSupportTicket.update({
-        where: { id: ticketId },
-        data: {
-          status: SMS_SUPPORT_STATUS.OPEN,
-          state: SMS_SUPPORT_STATE.CSR_REVIEW,
-          adminSummary: 'Admin replied by SMS.',
-          csrAlertedAt: null,
-        },
-      })
+      await markSupportTicketAdminReplied(ticketId)
 
       const result = await sendSupportSms({
         ticketId: ticket.id,
@@ -58,15 +46,7 @@ export const sendSupportTicketReply = adminAction(
 
       if (!result.success) {
         const errorMessage = result.error || 'Failed to send SMS'
-        await prisma.smsSupportTicket.update({
-          where: { id: ticketId },
-          data: {
-            status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-            state: SMS_SUPPORT_STATE.CSR_REVIEW,
-            adminSummary: 'Admin reply failed to send by SMS.',
-            failureReason: `Admin SMS reply failed: ${errorMessage}`,
-          },
-        })
+        await markSupportTicketAdminReplyFailed(ticketId, `Admin SMS reply failed: ${errorMessage}`)
         revalidateSupportPaths(ticketId, ticket.submissionId)
         return { success: false, error: errorMessage }
       }
@@ -90,15 +70,7 @@ export const closeSupportTicket = adminAction(async (_admin, ticketId: string) =
     })
     if (!cancelResult.success) return cancelResult
 
-    const ticket = await prisma.smsSupportTicket.update({
-      where: { id: ticketId },
-      data: {
-        status: SMS_SUPPORT_STATUS.CLOSED,
-        state: SMS_SUPPORT_STATE.CLOSED,
-        closedAt: now,
-      },
-      select: { submissionId: true },
-    })
+    const ticket = await closeSupportTicketByAdmin(ticketId, now)
 
     revalidateSupportPaths(ticketId, ticket.submissionId)
     return { success: true }
@@ -117,15 +89,7 @@ export const markSupportTicketNeedsCsr = adminAction(async (_admin, ticketId: st
     })
     if (!cancelResult.success) return cancelResult
 
-    const ticket = await prisma.smsSupportTicket.update({
-      where: { id: ticketId },
-      data: {
-        status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-        state: SMS_SUPPORT_STATE.CSR_REVIEW,
-        closedAt: null,
-      },
-      select: { submissionId: true },
-    })
+    const ticket = await returnSupportTicketToCsrReview(ticketId)
 
     revalidateSupportPaths(ticketId, ticket.submissionId)
     return { success: true }
@@ -157,27 +121,9 @@ async function cancelCancellableSupportJobs({
   now: Date
   lastError: string
 }): Promise<{ success: true } | { success: false; error: string }> {
-  await prisma.smsSupportJob.updateMany({
-    where: {
-      ticketId,
-      status: { in: [SMS_SUPPORT_JOB_STATUS.QUEUED, SMS_SUPPORT_JOB_STATUS.RUNNING] },
-    },
-    data: {
-      status: SMS_SUPPORT_JOB_STATUS.FAILED,
-      lockedAt: null,
-      lockedBy: null,
-      lastError,
-      completedAt: now,
-    },
-  })
+  await failQueuedOrRunningSupportJobs(ticketId, { lastError, completedAt: now })
 
-  const finalizingJob = await prisma.smsSupportJob.findFirst({
-    where: {
-      ticketId,
-      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-    },
-    select: { id: true },
-  })
+  const finalizingJob = await findCommittingSupportJob(ticketId)
 
   if (finalizingJob) {
     return {

@@ -1,5 +1,6 @@
-import prisma from '../src/lib/prisma'
-import { SubmissionStatus } from '@prisma/client'
+import { disconnectDatabase } from '../src/db/connection'
+import { deleteSubmissionById, findSubmissionById, insertSubmission } from '../src/db/submissions'
+import { SubmissionStatus } from '../src/db/types'
 
 async function testDatabaseWrite() {
   try {
@@ -23,9 +24,7 @@ async function testDatabaseWrite() {
     }
 
     console.log('📝 Creating test submission...')
-    const submission = await prisma.submission.create({
-      data: testData,
-    })
+    const submission = await insertSubmission(testData)
 
     console.log('✅ Submission created successfully!')
     console.log(`   ID: ${submission.id}`)
@@ -36,9 +35,7 @@ async function testDatabaseWrite() {
     console.log(`   Payment Intent: ${submission.stripePaymentIntentId}`)
 
     console.log('\n🔍 Reading submission back from database...')
-    const retrieved = await prisma.submission.findUnique({
-      where: { id: submission.id },
-    })
+    const retrieved = await findSubmissionById(submission.id)
 
     if (retrieved) {
       console.log('✅ Submission retrieved successfully!')
@@ -48,9 +45,7 @@ async function testDatabaseWrite() {
     }
 
     console.log('\n🧹 Cleaning up test data...')
-    await prisma.submission.delete({
-      where: { id: submission.id },
-    })
+    await deleteSubmissionById(submission.id)
     console.log('✅ Test submission deleted')
 
     console.log('\n✅ Database write test PASSED!')
@@ -61,7 +56,7 @@ async function testDatabaseWrite() {
     console.error('❌ Database write test FAILED:', error)
     throw error
   } finally {
-    await prisma.$disconnect()
+    await disconnectDatabase()
   }
 }
 

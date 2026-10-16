@@ -1,14 +1,11 @@
-import { PrismaClient } from '@prisma/client'
+import { disconnectDatabase } from '@/db/connection'
+import {
+  findApprovedSubmissionsForEmail,
+  findSubmissionById,
+  recordApprovalEmailSent,
+} from '@/db/submissions'
 import { sendApprovalEmail } from '@/lib/email'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
-})
 
 interface ResendResult {
   email: string
@@ -19,23 +16,13 @@ interface ResendResult {
 }
 
 async function findApprovedSubmissions(email: string) {
-  const submissions = await prisma.submission.findMany({
-    where: {
-      email: email.toLowerCase().trim(),
-      status: 'APPROVED',
-    },
-    orderBy: {
-      reviewedAt: 'desc',
-    },
-  })
+  const submissions = await findApprovedSubmissionsForEmail(email.toLowerCase().trim())
 
   return submissions
 }
 
 async function resendApprovalEmail(submissionId: string): Promise<void> {
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-  })
+  const submission = await findSubmissionById(submissionId)
 
   if (!submission) {
     throw new Error(`Submission ${submissionId} not found`)
@@ -54,12 +41,7 @@ async function resendApprovalEmail(submissionId: string): Promise<void> {
     pdfFilename,
   })
 
-  await prisma.submission.update({
-    where: { id: submissionId },
-    data: {
-      approvalEmailSentAt: new Date(),
-    },
-  })
+  await recordApprovalEmailSent(submissionId, new Date())
 }
 
 async function main() {
@@ -182,7 +164,7 @@ async function main() {
     console.error('❌ Script failed:', error)
     throw error
   } finally {
-    await prisma.$disconnect()
+    await disconnectDatabase()
   }
 }
 

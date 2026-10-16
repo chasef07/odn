@@ -1,4 +1,5 @@
-import prisma from '../src/lib/prisma'
+import { createCredentialAccount, createVerifiedUser } from '../src/db/auth'
+import { disconnectDatabase } from '../src/db/connection'
 import bcrypt from 'bcryptjs'
 
 function requireEnv(name: string): string {
@@ -17,26 +18,17 @@ async function createDoctorUser() {
   const hashedPassword = await bcrypt.hash(password, 10)
 
   try {
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name,
-        emailVerified: true,
-      },
-    })
+    const user = await createVerifiedUser({ email, name })
 
-    await prisma.account.create({
-      data: {
-        userId: user.id,
-        accountId: email,
-        providerId: 'credential',
-        password: hashedPassword,
-      },
+    await createCredentialAccount({
+      userId: user.id,
+      accountId: email,
+      password: hashedPassword,
     })
 
     console.log(`Doctor user created: ${email} (${user.id})`)
   } finally {
-    await prisma.$disconnect()
+    await disconnectDatabase()
   }
 }
 

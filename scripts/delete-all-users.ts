@@ -1,21 +1,22 @@
-import prisma from '../src/lib/prisma'
+import { deleteAllAuthAccounts, deleteAllAuthSessions, deleteAllAuthUsers } from '../src/db/auth'
+import { disconnectDatabase } from '../src/db/connection'
 
 async function deleteAllUsers() {
   try {
-    await prisma.session.deleteMany({})
+    await deleteAllAuthSessions()
     console.log('✓ Deleted all sessions')
 
-    await prisma.account.deleteMany({})
+    await deleteAllAuthAccounts()
     console.log('✓ Deleted all accounts')
 
-    await prisma.user.deleteMany({})
+    await deleteAllAuthUsers()
     console.log('✓ Deleted all users')
 
     console.log('\n✅ All users deleted successfully!')
   } catch (error) {
     console.error('❌ Error:', error)
   } finally {
-    await prisma.$disconnect()
+    await disconnectDatabase()
   }
 }
 
