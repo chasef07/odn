@@ -12,7 +12,7 @@ import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { backRoute, nextRoute } from '@/lib/intake'
 import { contactSchema } from '@/lib/validation-schemas'
-import { formatPhoneNumber } from '@/lib/phone-utils'
+import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 import { useState } from 'react'
 
 const ROUTE = '/contact-info'
@@ -41,9 +41,10 @@ export default function ContactInfoPage() {
   })
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value)
-    setPhoneDisplay(formatted)
-    setValue('phone', formatted)
+    const value = e.target.value
+    const display = toNationalDigits(value).length <= 10 ? formatPhoneNumber(value) : value
+    setPhoneDisplay(display)
+    setValue('phone', display)
   }
 
   const onSubmit = (data: FormData) => {

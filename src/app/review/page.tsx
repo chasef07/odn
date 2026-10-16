@@ -14,7 +14,7 @@ import { FormEditableSection } from '@/components/form/FormEditableSection'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { getFormData, saveFormData } from '@/lib/form-storage'
-import { backRoute } from '@/lib/intake'
+import { backRoute, parseIntake } from '@/lib/intake'
 import {
   patientSchema,
   guardianSchema,
@@ -22,7 +22,7 @@ import {
   absenceDatesSchema,
   termsSchema,
 } from '@/lib/validation-schemas'
-import { formatPhoneNumber } from '@/lib/phone-utils'
+import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 import { UI_TIMING } from '@/lib/validation-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { es } from 'date-fns/locale'
@@ -170,9 +170,10 @@ export default function ReviewPage() {
   })
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value)
-    setPhoneDisplay(formatted)
-    contactForm.setValue('phone', formatted)
+    const value = e.target.value
+    const display = toNationalDigits(value).length <= 10 ? formatPhoneNumber(value) : value
+    setPhoneDisplay(display)
+    contactForm.setValue('phone', display)
   }
 
   const handleSaveContact = contactForm.handleSubmit((data) => {
@@ -190,6 +191,11 @@ export default function ReviewPage() {
 
   const onSubmit = (data: TermsFormData) => {
     saveFormData({ smsOptIn: data.smsOptIn === true })
+    const intake = parseIntake(getFormData())
+    if (intake.kind !== 'valid') {
+      router.push(intake.issues[0].route)
+      return
+    }
     setIsProcessing(true)
 
     setTimeout(() => {

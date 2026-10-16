@@ -53,13 +53,19 @@ export async function POST(request: NextRequest) {
       logger.warn('Intake rejected before payment: data cannot be persisted', {
         issues: intake.issues,
       })
-      return NextResponse.json({ error: intake.issues[0].message }, { status: 400 })
+      return NextResponse.json(
+        { error: intake.issues[0].message, route: intake.issues[0].route },
+        { status: 400 }
+      )
     }
     if (intake.kind === 'rule_failure') {
       const enforced = env.INTAKE_VALIDATION_ENFORCED
       logger.warn('Intake failed validation rules', { enforced, issues: intake.issues })
       if (enforced) {
-        return NextResponse.json({ error: intake.issues[0].message }, { status: 400 })
+        return NextResponse.json(
+          { error: intake.issues[0].message, route: intake.issues[0].route },
+          { status: 400 }
+        )
       }
     }
 

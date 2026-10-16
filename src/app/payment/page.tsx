@@ -116,6 +116,7 @@ function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
 }
 
 export default function PaymentPage() {
+  const router = useRouter()
   const [clientSecret, setClientSecret] = useState<string>('')
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -141,6 +142,10 @@ export default function PaymentPage() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          if (errorData.route) {
+            router.replace(errorData.route)
+            return
+          }
           setError(t(errorData.error || 'Failed to create payment intent'))
           return
         }
@@ -169,7 +174,7 @@ export default function PaymentPage() {
     }
 
     createPaymentIntent()
-  }, [t])
+  }, [router, t])
 
   const appearance = {
     theme: 'stripe' as const,

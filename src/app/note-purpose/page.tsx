@@ -108,11 +108,6 @@ export default function NotePurposePage() {
   }
 
   const onSubmit = (data: FormData) => {
-    if (data.notePurpose === 'legal') {
-      setShowLegalMatterDialog(true)
-      return
-    }
-
     saveFormData(data)
 
     router.push(nextRoute(ROUTE, getFormData()))
