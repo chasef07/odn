@@ -19,7 +19,6 @@ const MODULE_LIST = [...new Set(Object.values(TABLE_MODULES))].join(', ')
 
 const CLIENT_FILES = new Set(['src/db/client', 'src/db/pool', 'src/lib/prisma'])
 const INTERNAL_FILES = new Set([
-  'src/db/errors',
   'src/db/sql',
   'src/db/table',
   'src/db/tables',
