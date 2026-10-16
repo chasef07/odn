@@ -29,25 +29,13 @@ const DASHBOARD_COUNT_LIMIT = 1000
 const DASHBOARD_TODAY_LIST_LIMIT = 250
 
 async function getLimitedSubmissionCount(filter: SubmissionStatusFilter): Promise<number> {
-  try {
-    const rows = await findSubmissionIdsByStatus(filter, DASHBOARD_COUNT_LIMIT + 1)
-
-    return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
-  } catch (error) {
-    logger.error('Error fetching limited dashboard count:', error)
-    return 0
-  }
+  const rows = await findSubmissionIdsByStatus(filter, DASHBOARD_COUNT_LIMIT + 1)
+  return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
 }
 
 async function getLimitedSupportTicketCount(status: SmsSupportTicket['status']): Promise<number> {
-  try {
-    const rows = await findSupportTicketIdsByStatus(status, DASHBOARD_COUNT_LIMIT + 1)
-
-    return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
-  } catch (error) {
-    logger.error('Error fetching limited support ticket count:', error)
-    return 0
-  }
+  const rows = await findSupportTicketIdsByStatus(status, DASHBOARD_COUNT_LIMIT + 1)
+  return Math.min(rows.length, DASHBOARD_COUNT_LIMIT)
 }
 
 export const getSubmissionsForReview = adminAction(async () => {
