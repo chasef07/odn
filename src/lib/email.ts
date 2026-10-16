@@ -1,4 +1,6 @@
 import { Resend } from 'resend'
+import { env } from '@/lib/env'
+import { publicEnv } from '@/lib/public-env'
 import { render } from '@react-email/render'
 import DenialEmail from '@/emails/DenialEmail'
 import ApprovalEmail from '@/emails/ApprovalEmail'
@@ -15,13 +17,7 @@ import {
 let resendClient: Resend | null = null
 
 function getResendClient(): Resend {
-  const apiKey =
-    process.env.RESEND_API_KEY || (process.env.NODE_ENV === 'test' ? 're_test_key' : '')
-  if (!apiKey) {
-    throw new Error('RESEND_API_KEY is required to use Resend email')
-  }
-
-  resendClient ??= new Resend(apiKey)
+  resendClient ??= new Resend(env.RESEND_API_KEY)
   return resendClient
 }
 
@@ -33,8 +29,6 @@ export const resend = {
     return getResendClient().webhooks
   },
 }
-
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@onlinedoctornote.com'
 
 function throwIfResendFailed(result: unknown): void {
   if (typeof result !== 'object' || result === null || !('error' in result)) return
@@ -81,7 +75,7 @@ export async function sendDenialEmail({
   refundAmount: number
 }) {
   return sendEmail('denial email', async () => ({
-    from: FROM_EMAIL,
+    from: env.RESEND_FROM_EMAIL,
     replyTo: 'hello@onlinedoctornote.com',
     to,
     subject: "Your Doctor's Note Request - Update",
@@ -109,7 +103,7 @@ export async function sendApprovalEmail({
   pdfFilename: string
 }) {
   return sendEmail('approval email', async () => ({
-    from: FROM_EMAIL,
+    from: env.RESEND_FROM_EMAIL,
     replyTo: 'hello@onlinedoctornote.com',
     to,
     subject: "Your Doctor's Note is Approved!",
@@ -138,7 +132,7 @@ export async function sendPaymentConfirmationEmail({
   return sendEmail(
     'payment confirmation email',
     async () => ({
-      from: FROM_EMAIL,
+      from: env.RESEND_FROM_EMAIL,
       replyTo: 'hello@onlinedoctornote.com',
       to,
       subject: "Payment Confirmed - Your Doctor's Note Request Received",
@@ -160,7 +154,7 @@ export async function sendMaybeEmail({
   approvedDays?: MaybeApprovedDays | null
 }) {
   return sendEmail('maybe email', async () => ({
-    from: FROM_EMAIL,
+    from: env.RESEND_FROM_EMAIL,
     replyTo: 'hello@onlinedoctornote.com',
     to,
     subject:
@@ -185,7 +179,7 @@ export async function sendFollowUpEmail({
   return sendEmail(
     'follow-up email',
     async () => ({
-      from: FROM_EMAIL,
+      from: env.RESEND_FROM_EMAIL,
       replyTo: 'hello@onlinedoctornote.com',
       to,
       subject: 'A thank-you discount from OnlineDoctorNote',
@@ -230,7 +224,7 @@ export async function sendBounceAlertEmail({
       : bouncedEmail
 
     return {
-      from: FROM_EMAIL,
+      from: env.RESEND_FROM_EMAIL,
       to: 'hello@onlinedoctornote.com',
       subject: `🚨 Email Bounce Alert: ${patientName}`,
       html: emailHtml,
@@ -252,11 +246,7 @@ export async function sendSmsSupportTicketAlertEmail({
   submissionId?: string | null
 }) {
   return sendEmail('SMS support ticket alert email', () => {
-    const siteUrl = (
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.BETTER_AUTH_URL ||
-      'https://onlinedoctornote.com'
-    ).replace(/\/+$/, '')
+    const siteUrl = publicEnv.NEXT_PUBLIC_SITE_URL
     const supportUrl = `${siteUrl}/admin/support/${ticketId}`
     const submissionUrl = submissionId ? `${siteUrl}/admin/search/${submissionId}` : null
 
@@ -273,7 +263,7 @@ export async function sendSmsSupportTicketAlertEmail({
     `
 
     return {
-      from: FROM_EMAIL,
+      from: env.RESEND_FROM_EMAIL,
       to: 'hello@onlinedoctornote.com',
       subject: `SMS Support Ticket: ${category || 'Needs Review'}`,
       html: emailHtml,

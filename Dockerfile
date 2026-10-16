@@ -19,21 +19,11 @@ COPY --from=gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.25.4 /cloud-sql-proxy 
 FROM dependencies AS build
 
 ARG NEXT_PUBLIC_SITE_URL
-ARG NEXT_PUBLIC_BETTER_AUTH_URL
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-ENV NEXT_PUBLIC_BETTER_AUTH_URL=$NEXT_PUBLIC_BETTER_AUTH_URL
 ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 COPY . .
-RUN DATABASE_URL=postgresql://build:build@localhost:5432/build \
-  STRIPE_SECRET_KEY=sk_test_build_placeholder \
-  STRIPE_WEBHOOK_SECRET=whsec_build_placeholder \
-  STRIPE_PRICE_ID=price_build_placeholder \
-  CRON_SECRET=build_placeholder \
-  BETTER_AUTH_SECRET=build_placeholder_secret_at_least_32_chars \
-  RESEND_API_KEY=re_build_placeholder \
-  RESEND_WEBHOOK_SECRET=build_placeholder \
-  npm run build
+RUN npm run build
 
 FROM base AS runtime
 

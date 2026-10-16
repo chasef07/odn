@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getCachedPrice } from '@/lib/stripe-price'
+import { env } from '@/lib/env'
 
 export async function GET() {
   try {
-    const price = await getCachedPrice(process.env.STRIPE_PRICE_ID!)
+    const price = await getCachedPrice(env.STRIPE_PRICE_ID)
 
     if (!price.unit_amount || !price.currency) {
       console.error('Invalid price object - missing unit_amount or currency:', price)

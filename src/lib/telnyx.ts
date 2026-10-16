@@ -1,5 +1,6 @@
 import { createPublicKey, verify } from 'crypto'
 import prisma from '@/lib/prisma'
+import { telnyxSmsSender } from '@/lib/env'
 import { toE164UsPhone } from '@/lib/phone-utils'
 export { smsStatusLabel } from '@/lib/sms-status'
 import type { SmsMessageType } from '@/lib/sms-templates'
@@ -65,7 +66,7 @@ export async function shouldSendTransactionalSms(
   submission: SmsEligibleSubmission
 ): Promise<boolean> {
   if (!submission.smsOptIn) return false
-  if (!process.env.TELNYX_API_KEY || !process.env.TELNYX_FROM_NUMBER) return false
+  if (!telnyxSmsSender()) return false
 
   const toPhone = submission.smsPhoneE164 || toE164UsPhone(submission.phone)
   if (!toPhone) return false
@@ -83,13 +84,13 @@ export async function sendTelnyxSms(input: SendTelnyxSmsInput): Promise<{
   providerMessageId?: string
   error?: string
 }> {
-  const from = process.env.TELNYX_FROM_NUMBER
-  const apiKey = process.env.TELNYX_API_KEY
+  const sender = telnyxSmsSender()
   const to = toE164UsPhone(input.toPhone)
 
-  if (!from || !apiKey) {
-    return { success: false, error: 'Telnyx SMS is not configured' }
+  if (!sender) {
+    return { success: false, error: 'Telnyx SMS is disabled (TELNYX_SMS_ENABLED=false)' }
   }
+  const { apiKey, from } = sender
 
   if (!to) {
     return { success: false, error: 'Invalid SMS phone number' }

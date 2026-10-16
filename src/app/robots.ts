@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next'
+import { publicEnv } from '@/lib/public-env'
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://onlinedoctornote.com'
+  const baseUrl = publicEnv.NEXT_PUBLIC_SITE_URL
 
   const formPages = [
     '/get-started',

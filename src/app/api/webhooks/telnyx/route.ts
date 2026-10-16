@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { env } from '@/lib/env'
 import { isLocalOptOut, isOptInKeyword, verifyTelnyxWebhookSignature } from '@/lib/telnyx'
 import { handleInboundSupportSms } from '@/lib/sms-support'
 import { isUniqueConstraintError } from '@/lib/prisma-errors'
@@ -47,7 +48,7 @@ type ExistingTelnyxEvent = {
 }
 
 export async function POST(request: NextRequest) {
-  if (process.env.TELNYX_WEBHOOK_ENABLED === 'false') {
+  if (!env.TELNYX_WEBHOOK_ENABLED) {
     return NextResponse.json({ received: true }, { status: 200 })
   }
 
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     rawBody,
     signature,
     timestamp,
-    publicKey: process.env.TELNYX_PUBLIC_KEY,
+    publicKey: env.TELNYX_PUBLIC_KEY,
   })
 
   if (!isValidSignature) {

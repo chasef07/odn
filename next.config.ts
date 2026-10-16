@@ -1,4 +1,7 @@
 import type { NextConfig } from 'next'
+import { assertPublicEnv } from './src/lib/public-env'
+
+assertPublicEnv()
 
 const nextConfig: NextConfig = {
   output: 'standalone',

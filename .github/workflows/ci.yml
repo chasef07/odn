@@ -44,18 +44,5 @@ jobs:
       - name: Vercel build wrapper
         run: npm run vercel-build
         env:
-          VERCEL_ENV: preview
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
-          STRIPE_SECRET_KEY: sk_test_ci_placeholder
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder
-          STRIPE_PRICE_ID: price_ci_placeholder
-          STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
-          BETTER_AUTH_SECRET: ci_placeholder_secret_at_least_32_chars_long
-          BETTER_AUTH_URL: http://localhost:3000
-          RESEND_API_KEY: re_ci_placeholder
-          RESEND_FROM_EMAIL: ci@example.com
-          RESEND_WEBHOOK_SECRET: ci_placeholder_resend_webhook_secret
-          DOCTOR_NAME: Dr. CI
-          DOCTOR_CREDENTIALS: MD
-          DOCTOR_SIGNATURE_URL: /images/doctor-signature.png
-          CRON_SECRET: ci_placeholder_cron_secret

@@ -18,27 +18,20 @@ describe('verification URL contract', () => {
     expect(getVerificationUrl('v_testslug')).toBe('https://phealthclinic.com/verify/v_testslug')
   })
 
-  it('defaults production verification links to P Health Clinic', () => {
+  it('fails loudly when the verification origin is not configured', () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('VERIFICATION_BASE_URL', '')
-    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://onlinedoctornote.com')
 
-    expect(getVerificationBaseUrl()).toBe('https://phealthclinic.com')
-  })
-
-  it('keeps local verification links local outside production', () => {
-    vi.stubEnv('NODE_ENV', 'development')
-    vi.stubEnv('VERIFICATION_BASE_URL', '')
-    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'http://localhost:3000/')
-
-    expect(getVerificationBaseUrl()).toBe('http://localhost:3000')
+    expect(() => getVerificationBaseUrl()).toThrow(
+      'Environment variable VERIFICATION_BASE_URL is not set'
+    )
   })
 
   it('rejects a configured base URL with a path', () => {
     vi.stubEnv('VERIFICATION_BASE_URL', 'https://phealthclinic.com/verify')
 
     expect(() => getVerificationBaseUrl()).toThrow(
-      'VERIFICATION_BASE_URL must be an HTTP(S) origin without a path'
+      'Environment variable VERIFICATION_BASE_URL is invalid: must be an HTTP(S) origin without a path'
     )
   })
 

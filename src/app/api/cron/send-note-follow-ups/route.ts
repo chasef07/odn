@@ -1,18 +1,13 @@
 import { timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { runFollowUpEmailJob } from '@/lib/follow-up-email-job'
+import { env } from '@/lib/env'
 
 export const maxDuration = 60
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    console.error('CRON_SECRET not configured for note follow-up job')
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
-  }
-
   const authHeader = request.headers.get('authorization')
-  const expectedAuth = `Bearer ${cronSecret}`
+  const expectedAuth = `Bearer ${env.CRON_SECRET}`
   const authorized =
     authHeader !== null &&
     authHeader.length === expectedAuth.length &&

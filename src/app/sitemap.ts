@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next'
+import { publicEnv } from '@/lib/public-env'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://onlinedoctornote.com'
+  const baseUrl = publicEnv.NEXT_PUBLIC_SITE_URL
   const currentDate = new Date()
 
   const pages = [

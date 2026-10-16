@@ -8,7 +8,7 @@ export type OfferConfig = {
   code: string
   missingConfigError: string
   missingConfigLog: string
-  priceEnvVar: string
+  priceEnvVar: 'STRIPE_FRIENDS_FAMILY_PRICE_ID' | 'STRIPE_DOCTOR_10_PRICE_ID'
   priceType: Exclude<PriceType, 'standard'>
 }
 

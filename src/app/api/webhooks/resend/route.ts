@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { sendBounceAlertEmail, resend } from '@/lib/email'
+import { env } from '@/lib/env'
 import { emailBounceSms } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
 import { isUniqueConstraintError } from '@/lib/prisma-errors'
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
           timestamp: svixTimestamp,
           signature: svixSignature,
         },
-        webhookSecret: process.env.RESEND_WEBHOOK_SECRET!,
+        webhookSecret: env.RESEND_WEBHOOK_SECRET,
       }) as ResendBounceEvent
     } catch (error) {
       console.error('Webhook signature verification failed:', error)

@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { Prisma, SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { stripe } from '@/lib/stripe'
+import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { FormData } from '@/lib/form-storage'
 import { sendPaymentConfirmationEmail } from '@/lib/email'
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
+      event = stripe.webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET)
     } catch (signatureError) {
       logger.error('Webhook signature verification failed:', signatureError)
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })

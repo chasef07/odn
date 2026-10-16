@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'crypto'
 import prisma from '@/lib/prisma'
+import { env } from '@/lib/env'
 
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-
-    if (!cronSecret) {
-      console.error('❌ CRON_SECRET not configured', {
-        timestamp: new Date().toISOString(),
-      })
-      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
-    }
-
-    const expectedAuth = `Bearer ${cronSecret}`
+    const expectedAuth = `Bearer ${env.CRON_SECRET}`
 
     const isValid =
       authHeader &&

@@ -6,36 +6,16 @@ import {
   DoctorInfo,
   DoctorNoteVerificationInfo,
 } from './doctor-note-template'
-import { getDefaultIssueDate } from '@/lib/note-verification'
+import { getConfiguredPhysician, getDefaultIssueDate } from '@/lib/note-verification'
+import { env } from '@/lib/env'
 import path from 'path'
 import fs from 'fs'
 
 export const REFERENCE_ID_LENGTH = 12
-const DEFAULT_DOCTOR_NPI = '1558307702'
 
 export function formatReferenceId(submissionId: string, uppercase = false): string {
   const shortId = submissionId.substring(0, REFERENCE_ID_LENGTH)
   return uppercase ? shortId.toUpperCase() : shortId.toLowerCase()
-}
-
-let cachedDoctorInfo: DoctorInfo | null = null
-
-function validateDoctorEnvVars(): DoctorInfo {
-  if (cachedDoctorInfo) return cachedDoctorInfo
-
-  const name = process.env.DOCTOR_NAME
-  const credentials = process.env.DOCTOR_CREDENTIALS
-  const signatureUrl = process.env.DOCTOR_SIGNATURE_URL
-  const npi = process.env.DOCTOR_NPI?.trim() || DEFAULT_DOCTOR_NPI
-
-  if (!name || !credentials || !signatureUrl) {
-    throw new Error(
-      'Missing required doctor environment variables. Please ensure DOCTOR_NAME, DOCTOR_CREDENTIALS, and DOCTOR_SIGNATURE_URL are set in .env.local'
-    )
-  }
-
-  cachedDoctorInfo = { name, credentials, signatureUrl, npi }
-  return cachedDoctorInfo
 }
 
 function submissionToDoctorNoteData(submission: Submission): DoctorNoteData {
@@ -130,13 +110,9 @@ export async function generateDoctorNotePDF(
 ): Promise<Buffer> {
   const finalIssueDate = issueDate || getDefaultIssueDate()
   try {
-    const doctorInfo = validateDoctorEnvVars()
-
-    const resolvedSignaturePath = resolveSignaturePath(doctorInfo.signatureUrl)
-
     const doctorInfoWithResolvedPath: DoctorInfo = {
-      ...doctorInfo,
-      signatureUrl: resolvedSignaturePath,
+      ...getConfiguredPhysician(),
+      signatureUrl: resolveSignaturePath(env.DOCTOR_SIGNATURE_URL),
     }
 
     const submissionData = submissionToDoctorNoteData(submission)

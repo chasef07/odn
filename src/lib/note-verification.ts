@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { NoteVerificationStatus, Prisma, Submission } from '@prisma/client'
 import prisma from '@/lib/prisma'
+import { env } from '@/lib/env'
 import { getStateLicense } from '@/lib/state-licenses'
 import { getTodayET } from '@/lib/admin-utils'
 
@@ -10,7 +11,6 @@ const RECORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const RECORD_LENGTH = 8
 const SLUG_BYTES = 18
 const MAX_CREATE_ATTEMPTS = 5
-const DEFAULT_DOCTOR_NPI = '1558307702'
 
 export type NoteVerificationSnapshot = {
   medicalRecordNumber: string
@@ -95,11 +95,7 @@ export function normalizeMedicalRecordNumber(input: string): string {
 }
 
 export function getConfiguredPhysician() {
-  const name = process.env.DOCTOR_NAME?.trim() || 'Jason Buchwald'
-  const credentials = process.env.DOCTOR_CREDENTIALS?.trim() || 'MD FACEP'
-  const npi = process.env.DOCTOR_NPI?.trim() || DEFAULT_DOCTOR_NPI
-
-  return { name, credentials, npi }
+  return { name: env.DOCTOR_NAME, credentials: env.DOCTOR_CREDENTIALS, npi: env.DOCTOR_NPI }
 }
 
 export function buildNoteVerificationSnapshot(
