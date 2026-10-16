@@ -1295,6 +1295,16 @@ describe('insertSubmission', () => {
     expect(await findSubmissionById(inserted.id)).toEqual(inserted)
   })
 
+  it('reports a second insert for the same payment intent as a duplicate and returns the first row', async () => {
+    await insertSubmission(row)
+
+    await expect(insertSubmission({ ...row, patientFirstName: 'Retry' })).resolves.toMatchObject({
+      inserted: false,
+      submission: { patientFirstName: 'John', stripePaymentIntentId: 'pi_123' },
+    })
+    expect(await countSubmissions()).toBe(1)
+  })
+
   it('applies the column defaults when optional fields are omitted', async () => {
     const {
       status: _status,

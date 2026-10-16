@@ -182,6 +182,32 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(mockSendPaymentConfirmationEmail).toHaveBeenCalledOnce()
   })
 
+  it('acknowledges a concurrent duplicate delivery without emailing or texting again', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockFindTempByPaymentIntent.mockResolvedValue({
+      id: 'temp_dup',
+      paymentIntentId: 'pi_test_123',
+      formData: validFormData,
+    })
+    mockInsertSubmission.mockResolvedValue({
+      submission: {
+        id: 'sub_first',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      },
+      inserted: false,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockInsertSubmission).toHaveBeenCalledOnce()
+    expect(mockSendPaymentConfirmationEmail).not.toHaveBeenCalled()
+    expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
+  })
+
   it('does not resend the purchase email when Stripe retries an existing submission', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
     mockFindSubmissionIdForPaymentIntent.mockResolvedValue({ id: 'sub_existing' })
