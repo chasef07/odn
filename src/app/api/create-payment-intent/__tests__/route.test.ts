@@ -283,7 +283,13 @@ describe('POST /api/create-payment-intent', () => {
       expect(mockPaymentIntentCreate).toHaveBeenCalledTimes(1)
       expect(consoleWarn).toHaveBeenCalledWith('Intake failed validation rules', {
         enforced: false,
-        issues: [{ field: 'notePurpose', message: expect.stringMatching(/legal matters/) }],
+        issues: [
+          {
+            field: 'notePurpose',
+            message: expect.stringMatching(/legal matters/),
+            route: '/note-purpose',
+          },
+        ],
       })
       consoleWarn.mockRestore()
     })

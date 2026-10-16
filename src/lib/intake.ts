@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { parseIsoDateOnlyAsUTCDate } from '@/lib/date-only'
 import type { FormData } from '@/lib/form-storage'
+import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 import {
   absenceDatesSchema,
   absenceReasonSchema,
@@ -18,13 +19,13 @@ export type IntakeDraft = Partial<Record<keyof FormData, unknown>>
 
 export interface IntakeStep {
   route: string
-  schema?: z.ZodType
+  schema?: z.ZodObject<z.ZodRawShape>
   include?: (draft: IntakeDraft) => boolean
 }
 
-export const SYMPTOM_SKIP_REASONS: ReadonlySet<unknown> = new Set(["Doctor's appointment", 'Other'])
+const SYMPTOM_SKIP_REASONS: ReadonlySet<string> = new Set(["Doctor's appointment", 'Other'])
 
-export const INTAKE_STEPS: readonly IntakeStep[] = [
+export const INTAKE_STEPS = [
   { route: '/get-started', schema: stateSchema },
   { route: '/who-is-using', schema: recipientSchema },
   { route: '/basic-info', schema: patientSchema },
@@ -40,31 +41,43 @@ export const INTAKE_STEPS: readonly IntakeStep[] = [
   {
     route: '/symptoms',
     schema: symptomsSchema,
-    include: (draft) => !SYMPTOM_SKIP_REASONS.has(draft.absenceReason),
+    include: (draft) =>
+      typeof draft.absenceReason !== 'string' || !SYMPTOM_SKIP_REASONS.has(draft.absenceReason),
   },
   { route: '/additional-info', schema: additionalInfoSchema },
   { route: '/review' },
-]
+] as const satisfies readonly IntakeStep[]
+
+export type IntakeRoute = (typeof INTAKE_STEPS)[number]['route']
 
 function included(step: IntakeStep, draft: IntakeDraft): boolean {
   return step.include?.(draft) ?? true
 }
 
-function tableIndex(route: string): number {
-  const index = INTAKE_STEPS.findIndex((step) => step.route === route)
-  if (index === -1) throw new Error(`Unknown intake step: ${route}`)
-  return index
+function tableIndex(route: IntakeRoute): number {
+  return INTAKE_STEPS.findIndex((step) => step.route === route)
+}
+
+function stepFields(step: IntakeStep): string[] {
+  return step.schema ? Object.keys(step.schema.shape) : []
+}
+
+const FIELD_ROUTE = new Map<string, IntakeRoute>()
+for (const step of INTAKE_STEPS) {
+  for (const field of stepFields(step)) {
+    if (!FIELD_ROUTE.has(field)) FIELD_ROUTE.set(field, step.route)
+  }
 }
 
 export function stepsFor(draft: IntakeDraft): IntakeStep[] {
   return INTAKE_STEPS.filter((step) => included(step, draft))
 }
 
-export function includesStep(route: string, draft: IntakeDraft): boolean {
+export function includesStep(route: IntakeRoute, draft: IntakeDraft): boolean {
   return included(INTAKE_STEPS[tableIndex(route)], draft)
 }
 
-export function stepNumber(route: string, draft: IntakeDraft): number {
+export function stepNumber(route: IntakeRoute, draft: IntakeDraft): number {
   return INTAKE_STEPS.slice(0, tableIndex(route)).filter((step) => included(step, draft)).length + 1
 }
 
@@ -72,13 +85,13 @@ export function totalSteps(draft: IntakeDraft): number {
   return stepsFor(draft).length
 }
 
-export function nextRoute(route: string, draft: IntakeDraft): string {
+export function nextRoute(route: IntakeRoute, draft: IntakeDraft): IntakeRoute {
   const next = INTAKE_STEPS.slice(tableIndex(route) + 1).find((step) => included(step, draft))
   if (!next) throw new Error(`No intake step after ${route}`)
   return next.route
 }
 
-export function backRoute(route: string, draft: IntakeDraft): string {
+export function backRoute(route: IntakeRoute, draft: IntakeDraft): IntakeRoute {
   const previous = INTAKE_STEPS.slice(0, tableIndex(route))
     .reverse()
     .find((step) => included(step, draft))
@@ -97,12 +110,12 @@ const MISSING = 'Required field is missing'
 const requiredDate = z.string({ error: MISSING }).transform(isoDate)
 const optionalDate = z
   .string({ error: 'Expected a YYYY-MM-DD date' })
-  .optional()
+  .nullish()
   .transform((value, ctx) => (value ? isoDate(value, ctx) : null))
 const requiredText = z.string({ error: MISSING }).trim().min(1, MISSING)
 const optionalText = z
   .string({ error: 'Expected text' })
-  .optional()
+  .nullish()
   .transform((value) => value?.trim() || null)
 
 export const intakeSubmissionSchema = z.object({
@@ -114,8 +127,10 @@ export const intakeSubmissionSchema = z.object({
   guardianFirstName: optionalText,
   guardianLastName: optionalText,
   guardianDateOfBirth: optionalDate,
-  email: requiredText,
-  phone: requiredText,
+  email: requiredText.toLowerCase(),
+  phone: requiredText.transform((value) =>
+    toNationalDigits(value).length === 10 ? formatPhoneNumber(value) : value
+  ),
   notePurpose: requiredText,
   otherNotePurpose: optionalText,
   firstDayOff: requiredDate,
@@ -124,13 +139,13 @@ export const intakeSubmissionSchema = z.object({
   otherAbsenceReason: optionalText,
   symptoms: z
     .array(z.string({ error: 'Expected text' }), { error: 'Expected a list of text' })
-    .optional()
+    .nullish()
     .transform((value) => value ?? null),
   otherSymptomText: optionalText,
   additionalInformation: optionalText,
   smsOptIn: z
     .boolean({ error: 'Expected true or false' })
-    .optional()
+    .nullish()
     .transform((value) => value === true),
 })
 
@@ -139,6 +154,7 @@ export type IntakeSubmission = z.output<typeof intakeSubmissionSchema>
 export interface IntakeIssue {
   field: string
   message: string
+  route: IntakeRoute
 }
 
 export type IntakeParseResult =
@@ -147,31 +163,56 @@ export type IntakeParseResult =
   | { kind: 'shape_failure'; issues: IntakeIssue[] }
 
 function toIssues(error: z.ZodError): IntakeIssue[] {
-  return error.issues.map((issue) => ({
-    field: issue.path.join('.') || 'form',
-    message: issue.message,
-  }))
+  return error.issues.map((issue) => {
+    const field = issue.path.join('.') || 'form'
+    return { field, message: issue.message, route: FIELD_ROUTE.get(field) ?? '/review' }
+  })
+}
+
+function dedupe(issues: IntakeIssue[]): IntakeIssue[] {
+  const seen = new Set<string>()
+  return issues.filter((issue) => {
+    const key = `${issue.field}\n${issue.message}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 export function parseIntake(input: unknown): IntakeParseResult {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    return { kind: 'shape_failure', issues: [{ field: 'form', message: 'Form data is required' }] }
+    return {
+      kind: 'shape_failure',
+      issues: [{ field: 'form', message: 'Form data is required', route: '/review' }],
+    }
   }
   const draft = input as IntakeDraft
 
-  const issues: IntakeIssue[] = []
+  const ruleIssues: IntakeIssue[] = []
   const normalized: Record<string, unknown> = { ...draft }
-  for (const step of stepsFor(draft)) {
+  for (const step of INTAKE_STEPS as readonly IntakeStep[]) {
     if (!step.schema) continue
+    if (!included(step, draft)) {
+      for (const field of stepFields(step)) normalized[field] = undefined
+      continue
+    }
     const result = step.schema.safeParse(draft)
-    if (result.success) Object.assign(normalized, result.data)
-    else issues.push(...toIssues(result.error))
+    if (result.success) {
+      Object.assign(normalized, result.data)
+      continue
+    }
+    ruleIssues.push(...toIssues(result.error))
   }
 
   const shape = intakeSubmissionSchema.safeParse(normalized)
   if (!shape.success) {
-    return { kind: 'shape_failure', issues: [...issues, ...toIssues(shape.error)] }
+    const issues = toIssues(shape.error).map(
+      (issue) => ruleIssues.find((rule) => rule.field === issue.field) ?? issue
+    )
+    return { kind: 'shape_failure', issues: dedupe(issues) }
   }
-  if (issues.length > 0) return { kind: 'rule_failure', data: shape.data, issues }
+  if (ruleIssues.length > 0) {
+    return { kind: 'rule_failure', data: shape.data, issues: dedupe(ruleIssues) }
+  }
   return { kind: 'valid', data: shape.data }
 }

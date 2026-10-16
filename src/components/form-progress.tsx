@@ -1,10 +1,10 @@
 import { Progress } from '@/components/ui/progress'
 import { getFormData } from '@/lib/form-storage'
-import { stepNumber, totalSteps } from '@/lib/intake'
+import { stepNumber, totalSteps, type IntakeRoute } from '@/lib/intake'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface FormProgressProps {
-  route: string
+  route: IntakeRoute
 }
 
 export function FormProgress({ route }: FormProgressProps) {
@@ -12,7 +12,8 @@ export function FormProgress({ route }: FormProgressProps) {
   const draft = getFormData()
   const current = stepNumber(route, draft)
   const total = totalSteps(draft)
-  const progressValue = Math.round((current / (total + 1)) * 100)
+  const stepsThroughPayment = total + 1
+  const progressValue = Math.round((current / stepsThroughPayment) * 100)
 
   return (
     <div className="space-y-3">

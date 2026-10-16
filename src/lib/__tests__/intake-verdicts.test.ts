@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parseIntake, type IntakeParseResult } from '@/lib/intake'
 import { ABSENCE_REASONS, AVAILABLE_STATES, SYMPTOMS_BY_REASON } from '@/lib/form-constants'
 
@@ -8,7 +8,7 @@ const ACCEPT: Verdict = 'valid'
 const RULE: Verdict = 'rule_failure'
 const SHAPE: Verdict = 'shape_failure'
 
-const now = new Date()
+const now = new Date('2026-06-15T12:00:00Z')
 const iso = (date: Date) => date.toISOString().slice(0, 10)
 const daysFromToday = (days: number) => {
   const date = new Date(now)
@@ -128,7 +128,8 @@ for (const phone of ['555123456', '55512345678', 'call me']) {
 add('phone as a number', { ...myself, phone: 5551234567 }, SHAPE)
 
 for (const state of AVAILABLE_STATES) add(`state ${state}`, { ...myself, state }, ACCEPT)
-for (const state of ['CA', 'VA', 'Puerto Rico', 'virginia', ' Virginia', 'Narnia']) {
+add('state with spaces around it', { ...myself, state: ' Virginia ' }, ACCEPT)
+for (const state of ['CA', 'VA', 'Puerto Rico', 'virginia', 'Narnia']) {
   add(`state ${JSON.stringify(state)}`, { ...myself, state }, RULE)
 }
 add('state missing', { ...myself, state: '' }, SHAPE)
@@ -186,10 +187,21 @@ add(
   RULE
 )
 
-for (const name of ["O'Brien", 'Mary-Jane', 'José', 'Muñoz', 'Smith Jr.', 'Nguyễn', '李']) {
+for (const name of [
+  "O'Brien",
+  'O\u2019Brien',
+  'Mary-Jane',
+  'José',
+  'Muñoz',
+  'Smith Jr.',
+  'Nguyễn',
+  '李',
+]) {
   add(`last name ${name}`, { ...myself, patientLastName: name }, ACCEPT)
 }
 add('last name with digits', { ...myself, patientLastName: 'X Æ A-12' }, RULE)
+add('last name of periods', { ...myself, patientLastName: '...' }, RULE)
+add('last name with a tab', { ...myself, patientLastName: 'Doe\tSmith' }, RULE)
 add('last name 51 chars', { ...myself, patientLastName: 'a'.repeat(51) }, RULE)
 add('last name only spaces', { ...myself, patientLastName: '   ' }, SHAPE)
 add('last name missing', { ...myself, patientLastName: undefined }, SHAPE)
@@ -234,6 +246,13 @@ add(
   RULE
 )
 add('empty draft', {}, SHAPE)
+
+beforeAll(() => {
+  vi.useFakeTimers({ now, toFake: ['Date'] })
+})
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 describe('intake verdict per fixture: valid persists as PENDING_REVIEW, rule_failure persists as MAYBE and is a 400 only when INTAKE_VALIDATION_ENFORCED, shape_failure is a 400 before payment and a retryable 500 at the webhook', () => {
   it.each(cases)('%s', (_label, draft, expected) => {

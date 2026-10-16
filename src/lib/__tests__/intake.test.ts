@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   INTAKE_STEPS,
-  SYMPTOM_SKIP_REASONS,
+  type IntakeStep,
+  intakeSubmissionSchema,
   backRoute,
   includesStep,
   nextRoute,
@@ -83,9 +84,9 @@ describe('INTAKE_STEPS navigation', () => {
   })
 
   it('skips symptoms for appointments and other reasons, and counts the steps that remain', () => {
-    expect([...SYMPTOM_SKIP_REASONS]).toEqual(["Doctor's appointment", 'Other'])
-    expect(ABSENCE_REASONS).toEqual(expect.arrayContaining([...SYMPTOM_SKIP_REASONS]))
-    for (const absenceReason of SYMPTOM_SKIP_REASONS) {
+    const skipReasons = ["Doctor's appointment", 'Other']
+    expect(ABSENCE_REASONS).toEqual(expect.arrayContaining(skipReasons))
+    for (const absenceReason of skipReasons) {
       const draft = { recipient: 'myself', absenceReason }
       expect(includesStep('/symptoms', draft)).toBe(false)
       expect(nextRoute('/absence-reason', draft)).toBe('/additional-info')
@@ -135,8 +136,7 @@ describe('INTAKE_STEPS navigation', () => {
     }
   })
 
-  it('throws for an unknown route or a step past either end', () => {
-    expect(() => stepNumber('/nope', sick)).toThrow('Unknown intake step: /nope')
+  it('throws for a step past either end', () => {
     expect(() => nextRoute('/review', sick)).toThrow('No intake step after /review')
     expect(() => backRoute('/get-started', sick)).toThrow('No intake step before /get-started')
   })
@@ -195,7 +195,7 @@ describe('parseIntake', () => {
       [{ ...myself, patientDateOfBirth: yearsAgo(17) }, 'patientDateOfBirth', /18 or older/],
       [{ ...someoneElse, guardianDateOfBirth: yearsAgo(17) }, 'guardianDateOfBirth', /18 years/],
       [{ ...myself, lastDayOff: daysFromToday(10) }, 'lastDayOff', /7 consecutive days/],
-      [{ ...myself, email: 'john@gmail.con' }, 'email', /Did you mean "john@gmail.com"/],
+      [{ ...myself, email: 'john@gmail.con' }, 'email', /Did you mean "\.com"/],
       [{ ...myself, phone: '555123456' }, 'phone', /exactly 10 digits/],
       [{ ...myself, symptoms: [] }, 'symptoms', /at least one option/],
       [{ ...myself, absenceReason: 'illness' }, 'absenceReason', /reason for your absence/],
@@ -206,9 +206,89 @@ describe('parseIntake', () => {
       const result = parseIntake(draft)
       expect(result.kind, field).toBe('rule_failure')
       if (result.kind !== 'rule_failure') continue
-      expect(result.issues[0]).toEqual({ field, message: expect.stringMatching(message) })
+      expect(result.issues[0]).toEqual({
+        field,
+        message: expect.stringMatching(message),
+        route: expect.stringMatching(/^\//),
+      })
       expect(result.data.state).toBe(draft.state)
     }
+  })
+
+  it('normalizes the fields of a step whose other field fails a rule', () => {
+    const result = parseIntake({ ...myself, email: 'John@Gmail.con', phone: '+1 555 123 4567' })
+    expect(result.kind).toBe('rule_failure')
+    if (result.kind !== 'rule_failure') return
+    expect(result.data.email).toBe('john@gmail.con')
+    expect(result.data.phone).toBe('(555) 123-4567')
+  })
+
+  it('names the step that owns each failing field', () => {
+    const result = parseIntake({ ...myself, state: 'CA', lastDayOff: daysFromToday(10) })
+    expect(result.kind).toBe('rule_failure')
+    if (result.kind !== 'rule_failure') return
+    expect(result.issues.map((issue) => [issue.field, issue.route])).toEqual([
+      ['state', '/get-started'],
+      ['lastDayOff', '/absence-dates'],
+    ])
+  })
+
+  it('drops the fields of steps the draft never visits', () => {
+    const result = parseIntake({
+      ...myself,
+      guardianFirstName: 'Jane',
+      guardianDateOfBirth: 'garbage',
+      absenceReason: "Doctor's appointment",
+      symptoms: 'x'.repeat(100000),
+    })
+    expect(result.kind).toBe('valid')
+    if (result.kind !== 'valid') return
+    expect(result.data.guardianFirstName).toBeNull()
+    expect(result.data.guardianDateOfBirth).toBeNull()
+    expect(result.data.symptoms).toBeNull()
+  })
+
+  it('stores a null optional field as null instead of failing the shape', () => {
+    const result = parseIntake({
+      ...myself,
+      otherNotePurpose: null,
+      guardianDateOfBirth: null,
+      symptoms: null,
+      smsOptIn: null,
+      absenceReason: 'Other',
+      otherAbsenceReason: 'Moving',
+    })
+    expect(result.kind).not.toBe('shape_failure')
+    if (result.kind === 'shape_failure') return
+    expect(result.data.otherNotePurpose).toBeNull()
+    expect(result.data.guardianDateOfBirth).toBeNull()
+    expect(result.data.symptoms).toBeNull()
+    expect(result.data.smsOptIn).toBe(false)
+  })
+
+  it('reports a shape failure by the field that blocks storage, not by a rule', () => {
+    const result = parseIntake({ ...myself, state: 'CA', phone: 5551234567 })
+    expect(result.kind).toBe('shape_failure')
+    if (result.kind !== 'shape_failure') return
+    expect(result.issues).toEqual([
+      { field: 'phone', message: 'Phone number is required', route: '/contact-info' },
+    ])
+  })
+
+  it('reports each failing field once', () => {
+    const result = parseIntake({ ...myself, recipient: 'pet' })
+    expect(result.kind).toBe('shape_failure')
+    if (result.kind !== 'shape_failure') return
+    expect(result.issues.filter((issue) => issue.field === 'recipient')).toHaveLength(1)
+  })
+
+  it('stores every field the step schemas collect, plus the SMS consent from the review step', () => {
+    const stepFields = INTAKE_STEPS.flatMap((step: IntakeStep) =>
+      step.schema ? Object.keys(step.schema.shape) : []
+    )
+    expect(new Set(Object.keys(intakeSubmissionSchema.shape))).toEqual(
+      new Set([...stepFields, 'smsOptIn'])
+    )
   })
 
   it('reports shape failures when a required column is missing or the wrong type', () => {

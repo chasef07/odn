@@ -557,7 +557,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const createArg = mockSubmissionCreate.mock.calls[0][0]
     expect(createArg.data.status).toBe('MAYBE')
     expect(createArg.data.maybeInternalNote).toMatch(/state: Please select a state from the list/)
-    expect(createArg.data.maybeInternalNote).toMatch(/email: Did you mean "john@gmail.com"/)
+    expect(createArg.data.maybeInternalNote).toMatch(/email: Did you mean "\.com"/)
   })
 
   it('stores the normalized phone and lowercased email', async () => {

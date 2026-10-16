@@ -3,13 +3,14 @@
 import { ReactNode } from 'react'
 import { ShieldCheck, DollarSign } from 'lucide-react'
 import { FormProgress } from './form-progress'
+import type { IntakeRoute } from '@/lib/intake'
 import { getFirstName } from '@/lib/form-storage'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 import { translateReactTree } from '@/lib/i18n'
 
 interface FormLayoutProps {
-  route?: string
+  route?: IntakeRoute
   title: string
   description: string
   children: ReactNode
