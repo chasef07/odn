@@ -9,12 +9,11 @@ import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { backRoute, nextRoute } from '@/lib/intake'
 import { additionalInfoSchema } from '@/lib/validation-schemas'
+import type { z } from 'zod'
 
 const ROUTE = '/additional-info'
 
-type FormData = {
-  additionalInformation?: string
-}
+type FormData = z.input<typeof additionalInfoSchema>
 
 export default function AdditionalInfoPage() {
   const router = useRouter()

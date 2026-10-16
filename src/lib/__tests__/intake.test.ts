@@ -283,22 +283,33 @@ describe('parseIntake', () => {
     expect(result.data.symptoms).toBeNull()
   })
 
-  it('stores a null optional field as null instead of failing the shape', () => {
+  it('accepts null in every optional field the stored shape accepts', () => {
     const result = parseIntake({
       ...myself,
       otherNotePurpose: null,
+      otherAbsenceReason: null,
+      otherSymptomText: null,
+      additionalInformation: null,
       guardianDateOfBirth: null,
-      symptoms: null,
       smsOptIn: null,
-      absenceReason: 'Other',
-      otherAbsenceReason: 'Moving',
     })
-    expect(result.kind).not.toBe('shape_failure')
-    if (result.kind === 'shape_failure') return
+    expect(result.kind).toBe('valid')
+    if (result.kind !== 'valid') return
     expect(result.data.otherNotePurpose).toBeNull()
+    expect(result.data.otherAbsenceReason).toBeNull()
+    expect(result.data.otherSymptomText).toBeNull()
+    expect(result.data.additionalInformation).toBeNull()
     expect(result.data.guardianDateOfBirth).toBeNull()
-    expect(result.data.symptoms).toBeNull()
     expect(result.data.smsOptIn).toBe(false)
+  })
+
+  it('treats null symptoms as none selected, not as a missing field', () => {
+    const result = parseIntake({ ...myself, symptoms: null })
+    expect(result.kind).toBe('rule_failure')
+    if (result.kind !== 'rule_failure') return
+    expect(result.issues.map((issue) => `${issue.field}:${issue.rule}`)).toEqual([
+      'symptoms:symptoms_none',
+    ])
   })
 
   it('reports a shape failure by the field that blocks storage, not by a rule', () => {

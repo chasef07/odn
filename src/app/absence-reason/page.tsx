@@ -12,13 +12,11 @@ import { backRoute, nextRoute } from '@/lib/intake'
 import { absenceReasonSchema } from '@/lib/validation-schemas'
 import { ABSENCE_REASONS } from '@/lib/form-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
+import type { z } from 'zod'
 
 const ROUTE = '/absence-reason'
 
-type FormData = {
-  absenceReason: string | null
-  otherAbsenceReason?: string
-}
+type FormData = z.input<typeof absenceReasonSchema>
 
 export default function AbsenceReasonPage() {
   const router = useRouter()

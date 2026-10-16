@@ -189,7 +189,7 @@ export const notePurposeSchema = z
     otherNotePurpose: z
       .string({ error: 'Please specify the purpose' })
       .max(500, 'Purpose description must be less than 500 characters')
-      .optional(),
+      .nullish(),
   })
   .refine((data) => data.notePurpose !== null, {
     message: NOTE_PURPOSE_REQUIRED,
@@ -251,7 +251,7 @@ export const absenceReasonSchema = z
     otherAbsenceReason: z
       .string({ error: 'Please specify the reason' })
       .max(200, 'Reason must be less than 200 characters')
-      .optional(),
+      .nullish(),
   })
   .refine((data) => data.absenceReason !== null && ABSENCE_REASON_SET.has(data.absenceReason), {
     message: ABSENCE_REASON_REQUIRED,
@@ -271,11 +271,11 @@ export const symptomsSchema = z
   .object({
     symptoms: z
       .array(z.string({ error: SYMPTOMS_REQUIRED }), { error: SYMPTOMS_REQUIRED })
-      .optional(),
+      .nullish(),
     otherSymptomText: z
       .string({ error: OTHER_SYMPTOM_REQUIRED })
       .max(500, 'Symptom description must be less than 500 characters')
-      .optional(),
+      .nullish(),
   })
   .refine((data) => (data.symptoms?.length ?? 0) > 0, {
     message: SYMPTOMS_REQUIRED,
@@ -292,7 +292,7 @@ export const additionalInfoSchema = z.object({
   additionalInformation: z
     .string({ error: 'Additional information must be text' })
     .max(1000, 'Additional information must be less than 1000 characters')
-    .optional()
+    .nullish()
     .transform((val) => val?.trim()),
 })
 
