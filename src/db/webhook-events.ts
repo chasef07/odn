@@ -1,5 +1,7 @@
-import prisma from './client'
-import { isUniqueConstraintError } from './errors'
+import { db } from './pool'
+import { sql } from './sql'
+import { insert, select, set } from './table'
+import { resendWebhookEvents, telnyxWebhookEvents } from './tables'
 
 export const TELNYX_EVENT_STATUS = {
   PROCESSED: 'PROCESSED',
@@ -20,10 +22,9 @@ export type TelnyxEventClaim = {
 }
 
 export async function findTelnyxEventClaim(id: string): Promise<TelnyxEventClaim | null> {
-  return prisma.telnyxWebhookEvent.findUnique({
-    where: { id },
-    select: { id: true, status: true, processedAt: true },
-  })
+  return db.one(
+    sql`SELECT ${select(telnyxWebhookEvents, ['id', 'status', 'processedAt'])} FROM telnyx_webhook_events WHERE id = ${id}`
+  )
 }
 
 export async function recordProcessedTelnyxEvent({
@@ -31,90 +32,67 @@ export async function recordProcessedTelnyxEvent({
   eventType,
   occurredAt,
 }: TelnyxEvent): Promise<void> {
-  try {
-    await prisma.telnyxWebhookEvent.create({
-      data: {
-        id,
-        eventType,
-        occurredAt,
-        status: TELNYX_EVENT_STATUS.PROCESSED,
-        lastError: null,
-      },
-    })
-  } catch (error) {
-    if (isUniqueConstraintError(error)) return
-    throw error
-  }
+  await db.affected(
+    sql`${insert(telnyxWebhookEvents, {
+      id,
+      eventType,
+      occurredAt,
+      status: TELNYX_EVENT_STATUS.PROCESSED,
+      lastError: null,
+    })} ON CONFLICT DO NOTHING`
+  )
 }
 
 export async function insertProcessingTelnyxEvent(
   { id, eventType, occurredAt }: TelnyxEvent,
   claimedAt: Date
 ): Promise<boolean> {
-  try {
-    await prisma.telnyxWebhookEvent.create({
-      data: {
-        id,
-        eventType,
-        occurredAt,
-        status: TELNYX_EVENT_STATUS.PROCESSING,
-        lastError: null,
-        processedAt: claimedAt,
-      },
-    })
-    return true
-  } catch (error) {
-    if (isUniqueConstraintError(error)) return false
-    throw error
-  }
+  const inserted = await db.affected(
+    sql`${insert(telnyxWebhookEvents, {
+      id,
+      eventType,
+      occurredAt,
+      status: TELNYX_EVENT_STATUS.PROCESSING,
+      lastError: null,
+      processedAt: claimedAt,
+    })} ON CONFLICT DO NOTHING`
+  )
+  return inserted === 1
 }
 
 export async function reclaimTelnyxEvent(
   { id, eventType, occurredAt }: TelnyxEvent,
   { claimedAt, staleBefore }: { claimedAt: Date; staleBefore: Date }
 ): Promise<number> {
-  const claimed = await prisma.telnyxWebhookEvent.updateMany({
-    where: {
-      id,
-      OR: [
-        { status: TELNYX_EVENT_STATUS.FAILED },
-        {
-          status: TELNYX_EVENT_STATUS.PROCESSING,
-          processedAt: { lte: staleBefore },
-        },
-      ],
-    },
-    data: {
+  return db.affected(
+    sql`UPDATE telnyx_webhook_events SET ${set(telnyxWebhookEvents, {
       eventType,
       occurredAt,
       status: TELNYX_EVENT_STATUS.PROCESSING,
       lastError: null,
       processedAt: claimedAt,
-    },
-  })
-  return claimed.count
+    })} WHERE id = ${id} AND (status = ${TELNYX_EVENT_STATUS.FAILED} OR (status = ${TELNYX_EVENT_STATUS.PROCESSING} AND processed_at <= ${staleBefore}))`
+  )
 }
 
 export async function markTelnyxEventProcessed(eventId: string): Promise<void> {
-  await prisma.telnyxWebhookEvent.updateMany({
-    where: { id: eventId },
-    data: {
+  await db.affected(
+    sql`UPDATE telnyx_webhook_events SET ${set(telnyxWebhookEvents, {
       status: TELNYX_EVENT_STATUS.PROCESSED,
       lastError: null,
       processedAt: new Date(),
-    },
-  })
+    })} WHERE id = ${eventId}`
+  )
 }
 
 export async function markTelnyxEventFailed(eventId: string, error: unknown): Promise<void> {
-  await prisma.telnyxWebhookEvent.updateMany({
-    where: { id: eventId },
-    data: {
+  await db.affected(
+    sql`UPDATE telnyx_webhook_events SET ${set(telnyxWebhookEvents, {
       status: TELNYX_EVENT_STATUS.FAILED,
       lastError: error instanceof Error ? error.message : 'Unknown support routing error',
       processedAt: new Date(),
-    },
-  })
+    })} WHERE id = ${eventId}`
+  )
 }
 
 export async function claimResendWebhookEvent({
@@ -126,17 +104,8 @@ export async function claimResendWebhookEvent({
   emailId?: string
   eventType: string
 }): Promise<boolean> {
-  try {
-    await prisma.resendWebhookEvent.create({
-      data: {
-        id,
-        emailId,
-        eventType,
-      },
-    })
-    return true
-  } catch (error) {
-    if (isUniqueConstraintError(error)) return false
-    throw error
-  }
+  const inserted = await db.affected(
+    sql`${insert(resendWebhookEvents, { id, emailId, eventType })} ON CONFLICT DO NOTHING`
+  )
+  return inserted === 1
 }
