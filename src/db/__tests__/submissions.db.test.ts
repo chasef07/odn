@@ -1,10 +1,48 @@
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import {
+  SMS_SUPPORT_AUTOMATION_STATUS,
+  SMS_SUPPORT_JOB_STATUS,
+  SMS_SUPPORT_STATUS,
+} from '@/lib/sms-support-types'
 import { db } from '../pool'
 import { sql } from '../sql'
 import { insert, selectAll } from '../table'
-import { noteVerifications, smsMessages, submissions, users } from '../tables'
 import {
+  noteVerifications,
+  smsMessages,
+  smsSupportJobs,
+  smsSupportTickets,
+  submissions,
+  users,
+} from '../tables'
+import {
+  acknowledgeFollowUpEmailSent,
+  approveManualSubmission,
+  approveReviewableSubmission,
+  commitSupportAutomationSubmissionUpdate,
+  deleteAllSubmissions,
+  deleteSubmissionById,
+  denyManualSubmission,
+  insertSubmission,
+  markMaybeSubmissionManual,
+  markPendingSubmissionMaybe,
+  markSubmissionDenied,
+  markSubmissionDeniedAndRefunded,
+  markSubmissionManual,
+  markSubmissionMaybe,
+  markSubmissionRefundReserved,
+  reapproveSubmission,
+  recordApprovalEmailSent,
+  recordDenialEmailSent,
+  recordMaybeEmailSent,
+  recordSubmissionRefund,
+  releaseFollowUpEmailClaimAt,
+  releaseSubmissionRefundReservation,
+  removeSubmissionGuardian,
+  returnSubmissionToReview,
+  updatePendingSubmissionClassification,
+  updateSubmissionDetails,
   countSmsOptedInSubmissionsForPhone,
   countSubmissions,
   countSubmissionsByStatus,
@@ -921,5 +959,547 @@ describe('sms support lookups', () => {
 
     expect(rows).toHaveLength(2)
     expect(matches).toEqual(expect.arrayContaining(ids(rows)))
+  })
+})
+
+const REVIEWED_AT = new Date('2026-06-01T12:00:00.000Z')
+
+async function reload(id: string): Promise<Submission> {
+  const row = await findSubmissionById(id)
+  if (!row) throw new Error(`submission ${id} missing`)
+  return row
+}
+
+describe('maybe writes', () => {
+  const review = {
+    maybeReason: 'DATES_EXCEED_ALLOWED_RANGE',
+    maybeInternalNote: 'Review date range',
+    maybeApprovedDays: 3,
+    reviewedByAdminId: 'admin_1',
+    reviewedAt: REVIEWED_AT,
+  }
+
+  it('moves a pending submission to maybe with the review stamps, and refuses other states', async () => {
+    await seedAdmin()
+    const pending = await seed({ maybeEmailSentAt: at(0) })
+    const approved = await seed({ status: SubmissionStatus.APPROVED })
+
+    expect(await markPendingSubmissionMaybe(pending.id, review)).toBe(1)
+    expect(await markPendingSubmissionMaybe(approved.id, review)).toBe(0)
+
+    expect(await reload(pending.id)).toEqual({
+      ...pending,
+      status: 'MAYBE',
+      maybeReason: 'DATES_EXCEED_ALLOWED_RANGE',
+      maybeInternalNote: 'Review date range',
+      maybeApprovedDays: 3,
+      maybeEmailSentAt: null,
+      reviewedByAdminId: 'admin_1',
+      reviewedAt: REVIEWED_AT,
+      updatedAt: REVIEWED_AT,
+    })
+    expect(await reload(approved.id)).toEqual(approved)
+  })
+
+  it('moves any submission to maybe without a guard and stamps the maybe email', async () => {
+    await seedAdmin()
+    const approved = await seed({ status: SubmissionStatus.APPROVED })
+
+    await markSubmissionMaybe(approved.id, {
+      ...review,
+      maybeReason: 'OTHER_REVIEW',
+      maybeApprovedDays: null,
+    })
+    await recordMaybeEmailSent(approved.id, at(1))
+
+    const row = await reload(approved.id)
+    expect(row).toMatchObject({
+      status: 'MAYBE',
+      maybeReason: 'OTHER_REVIEW',
+      maybeApprovedDays: null,
+      maybeEmailSentAt: at(1),
+      reviewedAt: REVIEWED_AT,
+    })
+    expect(row.updatedAt.getTime()).toBeGreaterThan(REVIEWED_AT.getTime())
+    await expect(markSubmissionMaybe('missing', review)).rejects.toThrow('not found')
+  })
+})
+
+describe('approval writes', () => {
+  const approval = {
+    reviewedByAdminId: 'admin_1',
+    reviewedAt: REVIEWED_AT,
+    approvalDiagnosis: 'flu',
+    approvalWithRestrictions: true,
+  }
+
+  it('approves pending or maybe submissions, clearing a stale denial reason, and refuses the rest', async () => {
+    await seedAdmin()
+    const pending = await seed({ denialReason: 'stale' })
+    const maybe = await seed({ status: SubmissionStatus.MAYBE })
+    const denied = await seed({ status: SubmissionStatus.DENIED })
+    const approved = await seed({ status: SubmissionStatus.APPROVED })
+
+    expect(await approveReviewableSubmission(pending.id, approval)).toBe(1)
+    expect(await approveReviewableSubmission(maybe.id, approval)).toBe(1)
+    expect(await approveReviewableSubmission(denied.id, approval)).toBe(0)
+    expect(await approveReviewableSubmission(approved.id, approval)).toBe(0)
+
+    const row = await reload(pending.id)
+    expect(row).toMatchObject({
+      status: 'APPROVED',
+      reviewedByAdminId: 'admin_1',
+      reviewedAt: REVIEWED_AT,
+      denialReason: null,
+      approvalDiagnosis: 'flu',
+      approvalWithRestrictions: true,
+    })
+    expect(row.updatedAt.getTime()).toBeGreaterThan(pending.updatedAt.getTime())
+    expect(await reload(denied.id)).toEqual(denied)
+  })
+
+  it('re-approves only the version that was read and stamps updated_at with the review time', async () => {
+    await seedAdmin()
+    const approved = await seed({ status: SubmissionStatus.APPROVED, updatedAt: at(0) })
+    const pending = await seed({ updatedAt: at(0) })
+
+    expect(await reapproveSubmission(approved.id, at(1), approval)).toBe(0)
+    expect(await reapproveSubmission(pending.id, at(0), approval)).toBe(0)
+    expect(await reapproveSubmission(approved.id, at(0), approval)).toBe(1)
+
+    expect(await reload(approved.id)).toMatchObject({
+      status: 'APPROVED',
+      approvalDiagnosis: 'flu',
+      approvalWithRestrictions: true,
+      reviewedAt: REVIEWED_AT,
+      updatedAt: REVIEWED_AT,
+    })
+    expect(await reload(pending.id)).toEqual(pending)
+  })
+
+  it('approves a manual submission clearing approval fields, and records the approval email', async () => {
+    await seedAdmin()
+    const manual = await seed({
+      status: SubmissionStatus.MANUAL,
+      denialReason: 'x',
+      approvalEmailSentAt: at(0),
+      approvalDiagnosis: 'd',
+      approvalWithRestrictions: true,
+    })
+
+    await approveManualSubmission(manual.id, {
+      reviewedByAdminId: 'admin_1',
+      reviewedAt: REVIEWED_AT,
+    })
+    await recordApprovalEmailSent(manual.id, at(2))
+
+    expect(await reload(manual.id)).toMatchObject({
+      status: 'APPROVED',
+      reviewedByAdminId: 'admin_1',
+      reviewedAt: REVIEWED_AT,
+      denialReason: null,
+      approvalEmailSentAt: at(2),
+      approvalDiagnosis: null,
+      approvalWithRestrictions: null,
+    })
+  })
+})
+
+describe('denial and refund writes', () => {
+  const denial = { denialReason: 'Legal', reviewedByAdminId: 'admin_1', reviewedAt: REVIEWED_AT }
+
+  it('reserves the refund only while reviewable and unrefunded, then releases it', async () => {
+    await seedAdmin()
+    const pending = await seed()
+    const maybe = await seed({ status: SubmissionStatus.MAYBE })
+    const refunded = await seed({ stripeRefundId: 're_done' })
+    const denied = await seed({ status: SubmissionStatus.DENIED })
+
+    expect(await markSubmissionRefundReserved(pending.id, denial)).toBe(1)
+    expect(await markSubmissionRefundReserved(maybe.id, denial)).toBe(1)
+    expect(await markSubmissionRefundReserved(refunded.id, denial)).toBe(0)
+    expect(await markSubmissionRefundReserved(denied.id, denial)).toBe(0)
+    expect(await markSubmissionRefundReserved(pending.id, denial)).toBe(0)
+
+    expect(await reload(pending.id)).toMatchObject({
+      status: 'DENIED',
+      denialReason: 'Legal',
+      reviewedByAdminId: 'admin_1',
+      reviewedAt: REVIEWED_AT,
+      stripeRefundId: `pending_${pending.id}`,
+      refundedAt: REVIEWED_AT,
+    })
+
+    await releaseSubmissionRefundReservation(pending.id)
+    expect(await reload(pending.id)).toMatchObject({
+      status: 'PENDING_REVIEW',
+      stripeRefundId: null,
+      reviewedByAdminId: null,
+      reviewedAt: null,
+      refundedAt: null,
+      denialReason: null,
+    })
+
+    await recordSubmissionRefund(maybe.id, 're_real')
+    expect((await reload(maybe.id)).stripeRefundId).toBe('re_real')
+  })
+
+  it('denies with and without a refund, records the denial email, and denies a manual submission', async () => {
+    await seedAdmin()
+    const plain = await seed()
+    const withRefund = await seed()
+    const manual = await seed({ status: SubmissionStatus.MANUAL, denialEmailSentAt: at(0) })
+
+    await markSubmissionDenied(plain.id, { ...denial, updatedAt: at(1) })
+    await recordDenialEmailSent(plain.id, at(2))
+    await markSubmissionDeniedAndRefunded(withRefund.id, {
+      ...denial,
+      updatedAt: at(1),
+      stripeRefundId: 're_1',
+      refundedAt: at(1),
+    })
+    await denyManualSubmission(manual.id, denial)
+
+    expect(await reload(plain.id)).toMatchObject({
+      status: 'DENIED',
+      denialReason: 'Legal',
+      reviewedByAdminId: 'admin_1',
+      reviewedAt: REVIEWED_AT,
+      denialEmailSentAt: at(2),
+    })
+    expect(await reload(withRefund.id)).toMatchObject({
+      status: 'DENIED',
+      stripeRefundId: 're_1',
+      refundedAt: at(1),
+      updatedAt: at(1),
+    })
+    expect(await reload(manual.id)).toMatchObject({
+      status: 'DENIED',
+      denialReason: 'Legal',
+      denialEmailSentAt: null,
+    })
+  })
+})
+
+describe('status and detail edits', () => {
+  it('moves to manual, back to review, and drops the guardian with the given timestamp', async () => {
+    await seedAdmin()
+    const review = { reviewedByAdminId: 'admin_1', reviewedAt: REVIEWED_AT }
+    const maybe = await seed({ status: SubmissionStatus.MAYBE })
+    const pending = await seed()
+    const guarded = await seed({
+      recipient: 'someone_else',
+      guardianFirstName: 'Jane',
+      guardianLastName: 'Doe',
+      guardianDateOfBirth: new Date('1960-01-01T00:00:00.000Z'),
+    })
+
+    await markMaybeSubmissionManual(maybe.id, review)
+    await markSubmissionManual(pending.id, { ...review, updatedAt: at(1) })
+    await removeSubmissionGuardian(guarded.id, at(2))
+
+    const fromMaybe = await reload(maybe.id)
+    expect(fromMaybe).toMatchObject({ status: 'MANUAL', ...review })
+    expect(fromMaybe.updatedAt.getTime()).toBeGreaterThan(maybe.updatedAt.getTime())
+    expect(await reload(pending.id)).toMatchObject({
+      status: 'MANUAL',
+      ...review,
+      updatedAt: at(1),
+    })
+    expect(await reload(guarded.id)).toMatchObject({
+      recipient: 'myself',
+      guardianFirstName: null,
+      guardianLastName: null,
+      guardianDateOfBirth: null,
+      updatedAt: at(2),
+    })
+
+    await returnSubmissionToReview(pending.id, at(3))
+    expect(await reload(pending.id)).toMatchObject({
+      status: 'PENDING_REVIEW',
+      reviewedByAdminId: null,
+      reviewedAt: null,
+      updatedAt: at(3),
+    })
+  })
+
+  it('writes edited details including dates and JSON symptoms, and classifies only pending rows', async () => {
+    const pending = await seed()
+    const approved = await seed({ status: SubmissionStatus.APPROVED })
+
+    await updateSubmissionDetails(
+      pending.id,
+      {
+        phone: '(555) 987-6543',
+        smsOptIn: false,
+        smsOptInAt: null,
+        smsConsentVersion: null,
+        smsPhoneE164: null,
+        firstDayOff: new Date('2026-04-01T00:00:00.000Z'),
+        symptoms: ['Cough'],
+      },
+      at(1)
+    )
+    const classification = {
+      notePurpose: 'school',
+      otherNotePurpose: null,
+      absenceReason: 'Illness',
+      otherAbsenceReason: null,
+    }
+    expect(await updatePendingSubmissionClassification(pending.id, classification, at(2))).toBe(1)
+    expect(await updatePendingSubmissionClassification(approved.id, classification, at(2))).toBe(0)
+
+    expect(await reload(pending.id)).toEqual({
+      ...pending,
+      phone: '(555) 987-6543',
+      firstDayOff: new Date('2026-04-01T00:00:00.000Z'),
+      symptoms: ['Cough'],
+      ...classification,
+      updatedAt: at(2),
+    })
+    expect(await reload(approved.id)).toEqual(approved)
+  })
+})
+
+describe('insertSubmission', () => {
+  const row = {
+    stripePaymentIntentId: 'pi_123',
+    paymentAmount: 2495,
+    status: SubmissionStatus.MAYBE,
+    denialReason: null,
+    attribution: { last: { channel: 'reddit' } },
+    symptoms: ['Fever', 'Cough'],
+    state: 'CA',
+    recipient: 'myself',
+    patientFirstName: 'John',
+    patientLastName: 'Doe',
+    patientDateOfBirth: DOB,
+    email: 'john@example.com',
+    phone: '5551234567',
+    smsOptIn: true,
+    smsOptInAt: at(0),
+    notePurpose: 'work',
+    firstDayOff: FIRST_DAY,
+    lastDayOff: LAST_DAY,
+    absenceReason: 'illness',
+  }
+
+  it('round-trips dates as UTC midnight and JSON columns, filling id and timestamps', async () => {
+    const before = Date.now()
+    const inserted = await insertSubmission(row)
+
+    expect(inserted).toMatchObject({ ...row, maybeReason: null, stripeRefundId: null })
+    expect(inserted.id).toMatch(/^[0-9a-f-]{36}$/)
+    expect(Math.abs(inserted.createdAt.getTime() - before)).toBeLessThan(5000)
+    expect(inserted.updatedAt).toEqual(inserted.createdAt)
+    expect(await findSubmissionById(inserted.id)).toEqual(inserted)
+  })
+
+  it('applies the column defaults when optional fields are omitted', async () => {
+    const {
+      status: _status,
+      symptoms: _symptoms,
+      attribution: _attribution,
+      smsOptIn: _smsOptIn,
+      ...required
+    } = row
+
+    const inserted = await insertSubmission(required)
+
+    expect(inserted).toMatchObject({
+      status: 'PENDING_REVIEW',
+      smsOptIn: false,
+      symptoms: null,
+      attribution: null,
+      guardianFirstName: null,
+    })
+  })
+})
+
+describe('follow-up claim release and acknowledgement', () => {
+  it('releases or acknowledges only the claim this run holds', async () => {
+    const claimedAt = at(0)
+    const held = await seed({ followUpEmailClaimedAt: claimedAt })
+    const otherClaim = await seed({ followUpEmailClaimedAt: at(1) })
+    const sent = await seed({ followUpEmailClaimedAt: claimedAt, followUpEmailSentAt: at(1) })
+
+    await releaseFollowUpEmailClaimAt(otherClaim.id, claimedAt)
+    await releaseFollowUpEmailClaimAt(sent.id, claimedAt)
+    expect((await reload(otherClaim.id)).followUpEmailClaimedAt).toEqual(at(1))
+    expect((await reload(sent.id)).followUpEmailClaimedAt).toEqual(claimedAt)
+
+    expect(await acknowledgeFollowUpEmailSent(otherClaim.id, claimedAt)).toBe(0)
+    expect(await acknowledgeFollowUpEmailSent(held.id, claimedAt)).toBe(1)
+    expect(await acknowledgeFollowUpEmailSent(held.id, claimedAt)).toBe(0)
+    expect(await reload(held.id)).toMatchObject({
+      followUpEmailClaimedAt: null,
+      followUpEmailSentAt: claimedAt,
+    })
+
+    const released = await seed({ followUpEmailClaimedAt: claimedAt })
+    await releaseFollowUpEmailClaimAt(released.id, claimedAt)
+    expect((await reload(released.id)).followUpEmailClaimedAt).toBeNull()
+  })
+})
+
+describe('deletes', () => {
+  it('deletes one row, throws for a missing one, and reports how many a full delete removed', async () => {
+    const first = await seed()
+    await seed()
+    await seed()
+
+    await deleteSubmissionById(first.id)
+    expect(await findSubmissionById(first.id)).toBeNull()
+    await expect(deleteSubmissionById(first.id)).rejects.toThrow('not found')
+    expect(await deleteAllSubmissions()).toBe(2)
+    expect(await countSubmissions()).toBe(0)
+  })
+})
+
+describe('commitSupportAutomationSubmissionUpdate', () => {
+  const committedAt = new Date('2026-06-29T12:00:00.000Z')
+  const submissionUpdatedAt = new Date('2026-06-20T00:00:00.000Z')
+  const updateData = {
+    denialReason: null,
+    reviewedAt: committedAt,
+    updatedAt: committedAt,
+    notePurpose: 'school',
+    otherNotePurpose: null,
+  }
+
+  async function seedTicket(status: string, automationStatus: string): Promise<string> {
+    const id = randomUUID()
+    await db.affected(
+      sql`${insert(smsSupportTickets, {
+        id,
+        phoneE164: '+15551234567',
+        status,
+        state: 'CSR_REVIEW',
+        source: 'INBOUND_SMS',
+        automationStatus,
+        failureReason: 'earlier failure',
+        retryCount: 0,
+      })}`
+    )
+    return id
+  }
+
+  async function seedJob(ticketId: string, status: string): Promise<string> {
+    const id = randomUUID()
+    await db.affected(
+      sql`${insert(smsSupportJobs, { id, ticketId, kind: 'RUN_SUPPORT_AUTOMATION', status, attempts: 1, runAfter: committedAt })}`
+    )
+    return id
+  }
+
+  async function ticketAndJob(ticketId: string, jobId: string) {
+    const [ticket] = await db.rows(
+      sql`SELECT ${selectAll(smsSupportTickets)} FROM sms_support_tickets WHERE id = ${ticketId}`
+    )
+    const [job] = await db.rows(
+      sql`SELECT ${selectAll(smsSupportJobs)} FROM sms_support_jobs WHERE id = ${jobId}`
+    )
+    return { ticket, job }
+  }
+
+  function commit(
+    ticketId: string,
+    jobId: string,
+    submissionId: string,
+    readAt = submissionUpdatedAt
+  ) {
+    return commitSupportAutomationSubmissionUpdate({
+      ticketId,
+      jobId,
+      submissionId,
+      submissionUpdatedAt: readAt,
+      committedAt,
+      updateData,
+    })
+  }
+
+  it('guards the ticket, then the job, then updates the unchanged approved submission', async () => {
+    const ticketId = await seedTicket(
+      SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
+    )
+    const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
+    const submission = await seed({
+      status: SubmissionStatus.APPROVED,
+      updatedAt: submissionUpdatedAt,
+      denialReason: 'x',
+    })
+
+    expect(await commit(ticketId, jobId, submission.id)).toBe('updated')
+
+    const { ticket, job } = await ticketAndJob(ticketId, jobId)
+    expect(ticket.failureReason).toBeNull()
+    expect(job).toMatchObject({ status: SMS_SUPPORT_JOB_STATUS.COMMITTING, lockedAt: committedAt })
+    expect(await reload(submission.id)).toEqual({
+      ...submission,
+      denialReason: null,
+      reviewedAt: committedAt,
+      updatedAt: committedAt,
+      notePurpose: 'school',
+      otherNotePurpose: null,
+    })
+  })
+
+  it('returns cancelled without touching the job or submission when the ticket left automation', async () => {
+    const ticketId = await seedTicket(
+      SMS_SUPPORT_STATUS.NEEDS_CSR,
+      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
+    )
+    const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
+    const submission = await seed({
+      status: SubmissionStatus.APPROVED,
+      updatedAt: submissionUpdatedAt,
+    })
+
+    expect(await commit(ticketId, jobId, submission.id)).toBe('cancelled')
+
+    const { ticket, job } = await ticketAndJob(ticketId, jobId)
+    expect(ticket.failureReason).toBe('earlier failure')
+    expect(job.status).toBe(SMS_SUPPORT_JOB_STATUS.RUNNING)
+    expect(await reload(submission.id)).toEqual(submission)
+  })
+
+  it('returns cancelled without updating the submission when the job is no longer running', async () => {
+    const ticketId = await seedTicket(
+      SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
+    )
+    const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.FAILED)
+    const submission = await seed({
+      status: SubmissionStatus.APPROVED,
+      updatedAt: submissionUpdatedAt,
+    })
+
+    expect(await commit(ticketId, jobId, submission.id)).toBe('cancelled')
+
+    const { job } = await ticketAndJob(ticketId, jobId)
+    expect(job.status).toBe(SMS_SUPPORT_JOB_STATUS.FAILED)
+    expect(await reload(submission.id)).toEqual(submission)
+  })
+
+  it('returns submission_changed when the submission is not approved or changed since it was read', async () => {
+    const ticketId = await seedTicket(
+      SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
+    )
+    const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
+    const changed = await seed({ status: SubmissionStatus.APPROVED, updatedAt: at(0) })
+    const pending = await seed({ updatedAt: submissionUpdatedAt })
+
+    expect(await commit(ticketId, jobId, changed.id)).toBe('submission_changed')
+    expect(await reload(changed.id)).toEqual(changed)
+
+    const secondTicket = await seedTicket(
+      SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
+    )
+    const secondJob = await seedJob(secondTicket, SMS_SUPPORT_JOB_STATUS.RUNNING)
+    expect(await commit(secondTicket, secondJob, pending.id)).toBe('submission_changed')
+    expect(await reload(pending.id)).toEqual(pending)
   })
 })
