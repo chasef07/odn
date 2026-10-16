@@ -6,7 +6,7 @@ async function addTestSubmission() {
   try {
     console.log('🧪 Adding test submission to database...\n')
 
-    const testSubmission = await insertSubmission({
+    const { submission: testSubmission } = await insertSubmission({
       stripePaymentIntentId: `pi_test_manual_${Date.now()}`,
       status: SubmissionStatus.PENDING_REVIEW,
       state: 'CA',

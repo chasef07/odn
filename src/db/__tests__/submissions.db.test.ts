@@ -1286,8 +1286,10 @@ describe('insertSubmission', () => {
 
   it('round-trips dates as UTC midnight and JSON columns, filling id and timestamps', async () => {
     const before = Date.now()
-    const inserted = await insertSubmission(row)
+    const result = await insertSubmission(row)
 
+    expect(result.inserted).toBe(true)
+    const inserted = result.submission
     expect(inserted).toMatchObject({ ...row, maybeReason: null, stripeRefundId: null })
     expect(inserted.id).toMatch(/^[0-9a-f-]{36}$/)
     expect(Math.abs(inserted.createdAt.getTime() - before)).toBeLessThan(5000)
@@ -1314,7 +1316,7 @@ describe('insertSubmission', () => {
       ...required
     } = row
 
-    const inserted = await insertSubmission(required)
+    const { submission: inserted } = await insertSubmission(required)
 
     expect(inserted).toMatchObject({
       status: 'PENDING_REVIEW',

@@ -819,12 +819,24 @@ export type SubmissionInsert = {
   additionalInformation?: string | null
 }
 
-export async function insertSubmission(submission: SubmissionInsert): Promise<Submission> {
-  const row = await db.one(
-    sql`${insert(submissions, submission)} RETURNING ${selectAll(submissions)}`
+export type SubmissionInsertResult = { submission: Submission; inserted: boolean }
+
+export async function insertSubmission(
+  submission: SubmissionInsert
+): Promise<SubmissionInsertResult> {
+  const inserted = await db.one(
+    sql`${insert(submissions, submission)} ON CONFLICT (stripe_payment_intent_id) DO NOTHING RETURNING ${selectAll(submissions)}`
   )
-  if (!row) throw new Error('Submission insert returned no row')
-  return row
+  if (inserted) return { submission: inserted, inserted: true }
+  const existing = await db.one(
+    sql`SELECT ${selectAll(submissions)} FROM submissions WHERE stripe_payment_intent_id = ${submission.stripePaymentIntentId}`
+  )
+  if (!existing) {
+    throw new Error(
+      `Submission for payment intent ${submission.stripePaymentIntentId} was neither inserted nor found`
+    )
+  }
+  return { submission: existing, inserted: false }
 }
 
 export async function findSubmissionIdForPaymentIntent(
