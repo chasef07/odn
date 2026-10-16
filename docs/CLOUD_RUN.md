@@ -49,6 +49,10 @@ Staging never uses live credentials:
 - Telnyx: `TELNYX_SMS_ENABLED=false` (outbound SMS is skipped) and
   `TELNYX_WEBHOOK_ENABLED=false`. The Telnyx secrets are placeholders.
 - PDFs are signed as `Dr. Staging Test, MD (staging)`.
+- Intake validation runs in log-only mode (`INTAKE_VALIDATION_ENFORCED=false`, the
+  `_INTAKE_VALIDATION_ENFORCED` substitution). Rule failures at checkout are logged as
+  `Intake failed validation rules` and the payment proceeds. Set the substitution to
+  `true` to reject them with a 400 instead.
 
 `/verify/staging-smoke-test-slug` reads a fake record (submission
 `staging-smoke-submission`) seeded in the staging database; use it to check
