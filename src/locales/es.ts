@@ -977,7 +977,7 @@ export const spanishTranslations: Record<string, string> = {
   "You'll receive a confirmation email within the next few minutes":
     'Recibirá un correo de confirmación en los próximos minutos',
   "You're in the right place.": 'Está en el lugar indicado.',
-  "You've been approved.": 'Su solicitud ha sido aprobada.',
+  "You've been pre-approved.": 'Su solicitud ha sido preaprobada.',
   'Your Contributions are not false, inaccurate, or misleading.':
     'Sus contribuciones no son falsas, inexactas o engañosas.',
   'Your Contributions are not obscene, lewd, or otherwise objectionable.':
