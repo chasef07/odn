@@ -64,6 +64,19 @@ describe('POST /api/create-payment-intent', () => {
     d.setUTCDate(d.getUTCDate() + n)
     return _toISODate(d)
   }
+  const _yearsAgo = (n: number) => {
+    const d = new Date(_now)
+    d.setUTCFullYear(d.getUTCFullYear() - n)
+    return _toISODate(d)
+  }
+  const post = (formData: unknown) =>
+    POST(
+      new NextRequest('http://localhost:3000/api/create-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({ formData }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
 
   const mockFormData: FormData = {
     state: 'California',
@@ -268,29 +281,49 @@ describe('POST /api/create-payment-intent', () => {
       consoleWarn.mockRestore()
     })
 
-    it('logs a rule failure with its field and lets the payment proceed', async () => {
+    it('still blocks every draft the server blocked before shadow mode', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const child = { recipient: 'someone_else', patientDateOfBirth: _yearsAgo(10) }
+      const guardians = { ...child, guardianFirstName: 'Jane', guardianLastName: 'Doe' }
+      const cases: Array<[Record<string, unknown>, string, RegExp]> = [
+        [{ notePurpose: 'legal' }, '/note-purpose', /legal matters/],
+        [{ patientDateOfBirth: _yearsAgo(17) }, '/basic-info', /18 or older/],
+        [
+          { firstDayOff: _daysFromToday(-12), lastDayOff: _daysFromToday(-11) },
+          '/absence-dates',
+          /7 days in the past/,
+        ],
+        [
+          { firstDayOff: _daysFromToday(0), lastDayOff: _daysFromToday(9) },
+          '/absence-dates',
+          /7 consecutive days/,
+        ],
+        [child, '/guardian-info', /Guardian first name is required/],
+        [guardians, '/guardian-info', /Date of birth is required/],
+        [
+          { ...guardians, guardianDateOfBirth: _yearsAgo(16) },
+          '/guardian-info',
+          /18 years or older/,
+        ],
+      ]
+      for (const [patch, route, message] of cases) {
+        mockPaymentIntentCreate.mockClear()
+        const response = await post({ ...mockFormData, ...patch })
+        const data = await response.json()
+        expect(response.status, JSON.stringify(patch)).toBe(400)
+        expect(data).toEqual({ error: expect.stringMatching(message), route })
+        expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+      }
+    })
+
+    it('lets a draft that breaks only a rule new to this change proceed', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      const response = await POST(
-        new NextRequest('http://localhost:3000/api/create-payment-intent', {
-          method: 'POST',
-          body: JSON.stringify({ formData: { ...mockFormData, notePurpose: 'legal' } }),
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
+      const response = await post({ ...mockFormData, state: 'CA', email: 'john@gmail.con' })
 
       expect(response.status).toBe(200)
       expect(mockPaymentIntentCreate).toHaveBeenCalledTimes(1)
-      expect(consoleWarn).toHaveBeenCalledWith('Intake failed validation rules', {
-        enforced: false,
-        issues: [
-          {
-            field: 'notePurpose',
-            message: expect.stringMatching(/legal matters/),
-            route: '/note-purpose',
-          },
-        ],
-      })
+      expect(consoleWarn).toHaveBeenCalledTimes(1)
       consoleWarn.mockRestore()
     })
 
