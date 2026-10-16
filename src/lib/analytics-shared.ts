@@ -1,4 +1,5 @@
 import { SubmissionStatus } from '@prisma/client'
+import { toNationalDigits } from '@/lib/phone-utils'
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -15,7 +16,7 @@ export function normalizeEmail(email: string): string {
 }
 
 export function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, '')
+  return toNationalDigits(phone)
 }
 
 export type CustomerKeyInput = {
