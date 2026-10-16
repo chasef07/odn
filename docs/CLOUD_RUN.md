@@ -13,9 +13,11 @@ socket. Production is still served by Vercel from the old
 1. Builds the `runtime` target of the `Dockerfile` (Next.js
    `output: 'standalone'`) with the `NEXT_PUBLIC_*` values baked in, and pushes
    it to `us-east4-docker.pkg.dev/acuity-health-prod/odn/odn-<env>`.
-2. Runs `prisma migrate deploy` from the Dockerfile's `migrate` target, through
+2. Runs the migration runner (`scripts/migrate.ts`, which applies the pending
+   files in `src/db/migrations/`) from the Dockerfile's `migrate` target, through
    the Cloud SQL Auth Proxy (IAM, no authorized network needed), using the same
-   `DATABASE_URL` secret the service uses.
+   `DATABASE_URL` secret the service uses. The runner refuses a database whose
+   Prisma history was never adopted; see the cutover rule below.
 3. Deploys Cloud Run service `odn-<env>` as service account `odn-<env>`, with
    `--add-cloudsql-instances`, env vars from substitutions, and secrets from
    Secret Manager `odn-<env>-*`.
@@ -107,7 +109,9 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    delete the file afterwards. Reuse the live `BETTER_AUTH_SECRET` (keeps admin
    sessions valid), `CRON_SECRET`, Stripe, Resend and Telnyx values unchanged
    so webhook signatures keep verifying. `odn-production-database-url` is
-   `postgresql://odn_app:<password>@localhost/onlinedoctornote?host=/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db&connection_limit=5`.
+   `postgresql://odn_app:<password>@localhost/onlinedoctornote?host=/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db`.
+   The pool size is fixed in code (`src/db/pool.ts`: 5 connections per instance,
+   10 s to get one), so the URL carries no `connection_limit`.
    Vercel marks some values Sensitive (not pullable); copy those from their
    source dashboards (Stripe, Telnyx, Resend).
 3. **Runtime identity.** Create service account `odn-production` with
@@ -175,8 +179,8 @@ odn-production`) rather than Vercel.
    public IP. Before removing it, confirm nothing else depends on it:
    - `jazzy-eyes` (Vercel, same team) uses database `jazzy_eyes` / login
      `jazzy_app` on this same instance — confirm how it connects.
-   - `.github/workflows/production-migrations.yml` runs `prisma migrate
-deploy` from GitHub-hosted runners over the public IP; replace it with the
+   - `.github/workflows/production-migrations.yml` runs the migration runner
+     from GitHub-hosted runners over the public IP; replace it with the
      `cloudbuild.yaml` migrate step (Cloud SQL Auth Proxy).
    - Local tooling must use the Cloud SQL Auth Proxy.
 
@@ -188,3 +192,34 @@ deploy` from GitHub-hosted runners over the public IP; replace it with the
    IAM and are unaffected.
 
 3. Restore normal TTLs (e.g. 3600 s).
+
+## Cutover from Prisma migrations
+
+Each database (staging, production) moves from `prisma migrate deploy` to the
+runner exactly once, in this order:
+
+1. Run the last `prisma migrate deploy` you intend to run. Nothing may change the
+   schema through Prisma after this point.
+2. Run `npx tsx scripts/adopt-prisma-migrations.ts` against that database (or the
+   `adopt-prisma` action of `production-migrations.yml`). It copies the finished
+   `_prisma_migrations` rows into `schema_migrations`, refuses on any checksum
+   mismatch or unresolved failed attempt, and is a no-op when run again.
+3. Deploy the code that runs the runner. From here on, every schema change is a
+   new numbered file in `src/db/migrations/` applied by `npm run db:migrate`.
+
+No schema change ships through both tools. A deploy that reaches the runner before
+step 2 fails with `adopt_required` and changes nothing. After step 2 the runner
+checks `_prisma_migrations` on every run and refuses with `prisma_drift` if a
+Prisma migration finished that `schema_migrations` does not record.
+
+Staging has no adopt action: before the Prisma-deleting PR merges, run step 2 from
+that branch against `onlinedoctornote_staging` through the Cloud SQL Auth Proxy.
+Otherwise the first `deploy-staging.yml` run fails at the migrate step with
+`adopt_required`, and you rerun it after adopting.
+
+`pg` verifies the server certificate when `DATABASE_URL` says `sslmode=require`
+(Prisma did not). Over the Cloud SQL unix socket there is no TLS and nothing to
+change. For `production-migrations.yml`, which connects over the public IP, the
+`DATABASE_URL` secret needs either the instance's server CA (`sslrootcert`) or
+`sslmode=no-verify`, or the step moves behind the proxy; otherwise the first run
+fails the TLS handshake.

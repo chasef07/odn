@@ -29,8 +29,6 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: Validate Prisma schema
-        run: npx prisma validate
       - name: npm run check
         run: npm run check
 
@@ -107,10 +105,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: Validate Prisma schema
-        run: npx prisma validate
-      - name: Vercel build wrapper
-        run: npm run vercel-build
+      - name: Production build
+        run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder
