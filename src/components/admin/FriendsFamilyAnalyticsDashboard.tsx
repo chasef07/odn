@@ -2,7 +2,10 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { Download } from 'lucide-react'
-import { exportFriendsFamilyCustomers, getFriendsFamilyAnalytics } from '@/app/admin/actions'
+import {
+  exportFriendsFamilyCustomers,
+  getFriendsFamilyAnalytics,
+} from '@/app/admin/_actions/analytics'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { formatCurrency, formatNumber, formatShortDate } from '@/lib/analytics-format'
 import { cn } from '@/lib/utils'

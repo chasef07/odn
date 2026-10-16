@@ -22,15 +22,11 @@ import { calculateDaysDifference, getTodayET, type DenialReason } from '@/lib/ad
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import { ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import type { Submission } from '@prisma/client'
-import {
-  getSubmissionsForReview,
-  approveSubmission,
-  denySubmission,
-  maybeSubmission,
-  getMonthlyLimitData,
-  updateReviewClassification,
-  type MaybeSubmissionInput,
-} from '../actions'
+import { getSubmissionsForReview, getMonthlyLimitData } from '@/app/admin/_actions/queues'
+import { approveSubmission } from '@/app/admin/_actions/approve'
+import { denySubmission } from '@/app/admin/_actions/deny'
+import { maybeSubmission, type MaybeSubmissionInput } from '@/app/admin/_actions/maybe'
+import { updateReviewClassification } from '@/app/admin/_actions/edits'
 
 export default function AdminReviewPage() {
   const router = useRouter()

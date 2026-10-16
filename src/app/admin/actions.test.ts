@@ -91,14 +91,11 @@ vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }))
 
-import {
-  changeSubmissionStatus,
-  denySubmission,
-  maybeSubmission,
-  searchSubmissions,
-  updateSubmission,
-  updateReviewClassification,
-} from './actions'
+import { changeSubmissionStatus } from '@/app/admin/_actions/change-status'
+import { denySubmission } from '@/app/admin/_actions/deny'
+import { maybeSubmission } from '@/app/admin/_actions/maybe'
+import { searchSubmissions } from '@/app/admin/_actions/search'
+import { updateSubmission, updateReviewClassification } from '@/app/admin/_actions/edits'
 
 describe('searchSubmissions', () => {
   beforeEach(() => {
@@ -619,15 +616,14 @@ describe('denySubmission - Denial Automation', () => {
       })
     })
 
-    it('should fail if no authenticated doctor session', async () => {
+    it('redirects to the admin login without a session', async () => {
       mockGetSession.mockResolvedValue(null)
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
-
-      expect(result).toEqual({
-        success: false,
-        error: expect.stringContaining('Unauthorized'),
+      await expect(denySubmission(mockSubmissionId, 'Legal')).rejects.toMatchObject({
+        digest: expect.stringContaining(';/admin/login;'),
       })
+      expect(mockFindUnique).not.toHaveBeenCalled()
+      expect(mockRefundsCreate).not.toHaveBeenCalled()
     })
   })
 
@@ -848,14 +844,12 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     })
   })
 
-  it('requires an authenticated admin session before sending a more-info request', async () => {
+  it('redirects to the admin login before sending a more-info request without a session', async () => {
     mockGetSession.mockResolvedValue(null)
 
-    const result = await maybeSubmission(mockSubmissionId, {
-      reason: 'MORE_INFO_NEEDED',
-    })
-
-    expect(result).toEqual({ success: false, error: 'Failed to mark submission as maybe' })
+    await expect(
+      maybeSubmission(mockSubmissionId, { reason: 'MORE_INFO_NEEDED' })
+    ).rejects.toMatchObject({ digest: expect.stringContaining(';/admin/login;') })
     expect(mockFindUnique).not.toHaveBeenCalled()
     expect(mockUpdateMany).not.toHaveBeenCalled()
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()

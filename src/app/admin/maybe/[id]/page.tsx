@@ -1,8 +1,7 @@
-import { redirect, notFound } from 'next/navigation'
-import { headers } from 'next/headers'
-import { auth } from '@/lib/auth'
-import { getSubmissionById } from '../../actions'
+import { notFound } from 'next/navigation'
+import { getSubmissionById } from '@/app/admin/_actions/search'
 import { SubmissionEditForm } from '@/components/admin/SubmissionEditForm'
+import { requireAdminSession } from '@/lib/admin-session'
 
 export default async function EditMaybeSubmissionPage({
   params,
@@ -11,13 +10,7 @@ export default async function EditMaybeSubmissionPage({
 }) {
   const { id } = await params
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
-
-  if (!session?.user) {
-    redirect('/admin/login')
-  }
+  await requireAdminSession()
 
   const result = await getSubmissionById(id)
 

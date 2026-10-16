@@ -18,7 +18,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
-import { updateSubmission, approveSubmission, type FormattedSubmission } from '@/app/admin/actions'
+import { updateSubmission } from '@/app/admin/_actions/edits'
+import { approveSubmission } from '@/app/admin/_actions/approve'
+import { type FormattedSubmission } from '@/app/admin/_actions/search'
 
 interface SubmissionEditFormProps {
   submission: FormattedSubmission

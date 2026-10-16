@@ -27,7 +27,7 @@ import {
   maybeReasonRequiresApprovedDays,
   type MaybeReason,
 } from '@/lib/maybe-reasons'
-import type { MaybeSubmissionInput } from '@/app/admin/actions'
+import type { MaybeSubmissionInput } from '@/app/admin/_actions/maybe'
 
 interface MaybeReasonDialogProps {
   open: boolean

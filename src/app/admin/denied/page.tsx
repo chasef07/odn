@@ -1,21 +1,13 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
 import { Search } from 'lucide-react'
-import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
-import { getDeniedSubmissionsForToday } from '../actions'
+import { getDeniedSubmissionsForToday } from '@/app/admin/_actions/queues'
 import { formatDateWithTime } from '@/lib/admin-utils'
+import { requireAdminSession } from '@/lib/admin-session'
 
 export default async function DeniedSubmissionsPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
-
-  if (!session?.user) {
-    redirect('/admin/login')
-  }
+  const admin = await requireAdminSession()
 
   const result = await getDeniedSubmissionsForToday()
 
@@ -26,7 +18,7 @@ export default async function DeniedSubmissionsPage() {
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground truncate text-sm">{session.user.email}</span>
+                <span className="text-muted-foreground truncate text-sm">{admin.email}</span>
               </div>
               <LogoutButton />
             </div>
@@ -54,7 +46,7 @@ export default async function DeniedSubmissionsPage() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground truncate text-sm">{session.user.email}</span>
+              <span className="text-muted-foreground truncate text-sm">{admin.email}</span>
             </div>
             <LogoutButton />
           </div>

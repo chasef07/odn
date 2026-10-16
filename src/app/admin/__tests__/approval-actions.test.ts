@@ -103,11 +103,8 @@ vi.mock('stripe', () => ({
   },
 }))
 
-import {
-  approveSubmission,
-  removeGuardianFromAdultSubmission,
-  reApproveSubmission,
-} from '../actions'
+import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/approve'
+import { removeGuardianFromAdultSubmission } from '@/app/admin/_actions/edits'
 
 const mockDefaultIssueDate = new Date(Date.UTC(2026, 3, 6))
 const mockVerificationRecord = {
@@ -588,14 +585,11 @@ describe('approveSubmission - Approval Automation', () => {
       expect(mockSendApprovalEmail).not.toHaveBeenCalled()
     })
 
-    it('should fail if no authenticated doctor session', async () => {
+    it('redirects to the admin login without a session', async () => {
       mockGetSession.mockResolvedValue(null)
 
-      const result = await approveSubmission(mockSubmissionId)
-
-      expect(result).toEqual({
-        success: false,
-        error: 'Failed to approve submission: Unauthorized: No active session',
+      await expect(approveSubmission(mockSubmissionId)).rejects.toMatchObject({
+        digest: expect.stringContaining(';/admin/login;'),
       })
 
       expect(mockFindUnique).not.toHaveBeenCalled()

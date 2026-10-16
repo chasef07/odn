@@ -15,7 +15,11 @@ import {
 } from '@/components/ui/select'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
-import { searchSubmissions, type AdminSearchType, type SearchSubmission } from '@/app/admin/actions'
+import {
+  searchSubmissions,
+  type AdminSearchType,
+  type SearchSubmission,
+} from '@/app/admin/_actions/search'
 
 interface SearchPageProps {
   initialResults?: SearchSubmission[]

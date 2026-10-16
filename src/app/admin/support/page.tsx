@@ -1,10 +1,8 @@
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { auth } from '@/lib/auth'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { SupportTicketQueue } from '@/components/admin/SupportTicketQueue'
-import { getSupportTickets } from '@/app/admin/support/actions'
+import { getSupportTickets } from '@/app/admin/support/_actions/tickets'
+import { requireAdminSession } from '@/lib/admin-session'
 
 interface PageProps {
   searchParams: Promise<{
@@ -13,13 +11,7 @@ interface PageProps {
 }
 
 export default async function AdminSupportPage({ searchParams }: PageProps) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
-
-  if (!session?.user) {
-    redirect('/admin/login')
-  }
+  const admin = await requireAdminSession()
 
   const params = await searchParams
   const result = await getSupportTickets(params.status)
@@ -35,7 +27,7 @@ export default async function AdminSupportPage({ searchParams }: PageProps) {
               </span>
             </Link>
             <div className="flex items-center gap-4">
-              <span className="hidden text-sm text-gray-600 sm:block">{session.user.email}</span>
+              <span className="hidden text-sm text-gray-600 sm:block">{admin.email}</span>
               <LogoutButton />
             </div>
           </div>
