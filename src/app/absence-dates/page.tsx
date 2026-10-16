@@ -9,9 +9,10 @@ import { FormCard } from '@/components/form/FormCard'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page6Schema } from '@/lib/validation-schemas'
-import { validateAbsenceDates } from '@/lib/date-validators'
+import { backRoute, nextRoute } from '@/lib/intake'
+import { absenceDatesSchema } from '@/lib/validation-schemas'
+
+const ROUTE = '/absence-dates'
 
 type FormData = {
   firstDayOff: string
@@ -22,48 +23,28 @@ export default function AbsenceDatesPage() {
   const router = useRouter()
   const today = format(new Date(), 'yyyy-MM-dd')
   const savedData = getFormData()
-  const recipient = savedData.recipient || 'myself'
-  const currentStep = getStepNumber('/absence-dates', recipient)
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
   } = useForm<FormData>({
-    resolver: zodResolver(page6Schema),
+    resolver: zodResolver(absenceDatesSchema),
     defaultValues: {
-      ...getFormData(),
-      firstDayOff: getFormData().firstDayOff || today,
-      lastDayOff: getFormData().lastDayOff || today,
+      firstDayOff: savedData.firstDayOff || today,
+      lastDayOff: savedData.lastDayOff || today,
     },
   })
 
   const onSubmit = (data: FormData) => {
-    const validationData = {
-      firstDayOff: data.firstDayOff,
-      lastDayOff: data.lastDayOff,
-    }
-
-    const validationErrors = validateAbsenceDates(validationData)
-
-    if (validationErrors.length > 0) {
-      validationErrors.forEach((error) => {
-        setError(error.field as keyof FormData, {
-          message: error.message,
-        })
-      })
-      return
-    }
-
     saveFormData(data)
 
-    router.push(getNextRoute('/absence-dates', recipient)!)
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   return (
     <FormLayout
-      currentStep={currentStep}
+      route={ROUTE}
       title="When do you need to be excused?"
       description="Select the dates you need covered by your doctor's note. We can cover up to 7 consecutive days."
       usePersonalization={true}
@@ -91,10 +72,7 @@ export default function AbsenceDatesPage() {
           </div>
         </FormCard>
 
-        <FormNavigation
-          backRoute={getBackRoute('/absence-dates', recipient)!}
-          isSubmitting={isSubmitting}
-        />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

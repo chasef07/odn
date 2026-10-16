@@ -8,13 +8,14 @@ import { FormCard } from '@/components/form/FormCard'
 import { FormSelect } from '@/components/form/FormSelect'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { page4Schema } from '@/lib/validation-schemas'
+import { stateSchema } from '@/lib/validation-schemas'
+import { nextRoute } from '@/lib/intake'
 import { AVAILABLE_STATES } from '@/lib/form-constants'
 import { ShieldCheck, DollarSign, Star } from 'lucide-react'
 import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 
-const CURRENT_STEP = 1
+const ROUTE = '/get-started'
 
 type FormData = {
   state: string
@@ -28,7 +29,7 @@ export default function Home() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page4Schema),
+    resolver: zodResolver(stateSchema),
     defaultValues: {
       state: getFormData().state || '',
     },
@@ -37,7 +38,7 @@ export default function Home() {
   const onSubmit = (data: FormData) => {
     saveFormData(data)
 
-    router.push('/who-is-using')
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   return (
@@ -49,7 +50,7 @@ export default function Home() {
           </div>
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
-              <FormProgress currentStep={CURRENT_STEP} />
+              <FormProgress route={ROUTE} />
             </div>
 
             <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">

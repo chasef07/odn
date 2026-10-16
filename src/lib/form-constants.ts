@@ -130,17 +130,3 @@ export const SYMPTOMS_BY_REASON: Record<string, string[]> = {
   ],
   Other: [],
 }
-
-export const PROGRESS_VALUES: Record<number, number> = {
-  1: 15,
-  2: 30,
-  3: 45,
-  4: 55,
-  5: 65,
-  6: 72,
-  7: 79,
-  8: 85,
-  9: 90,
-  10: 94,
-  11: 98,
-}

@@ -9,16 +9,13 @@ import { FormField } from '@/components/form/FormField'
 import { DateOfBirthInput } from '@/components/form/DateOfBirthInput'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { page2Schema } from '@/lib/validation-schemas'
-import { isAgeValid } from '@/lib/age-validators'
+import { patientSchema } from '@/lib/validation-schemas'
+import type { z } from 'zod'
+import { backRoute, nextRoute } from '@/lib/intake'
 
-const CURRENT_STEP = 3
+const ROUTE = '/basic-info'
 
-type FormData = {
-  patientFirstName: string
-  patientLastName: string
-  patientDateOfBirth: string
-}
+type FormData = z.input<typeof patientSchema>
 
 export default function BasicInfoPage() {
   const router = useRouter()
@@ -29,12 +26,12 @@ export default function BasicInfoPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
     setValue,
     control,
   } = useForm<FormData>({
-    resolver: zodResolver(page2Schema),
+    resolver: zodResolver(patientSchema),
     defaultValues: {
+      recipient: savedData.recipient ?? null,
       patientFirstName: savedData.patientFirstName || '',
       patientLastName: savedData.patientLastName || '',
       patientDateOfBirth: savedData.patientDateOfBirth || '',
@@ -59,22 +56,9 @@ export default function BasicInfoPage() {
     }
 
   const onSubmit = (data: FormData) => {
-    if (recipient === 'myself' && data.patientDateOfBirth) {
-      if (!isAgeValid(data.patientDateOfBirth, 18)) {
-        setError('patientDateOfBirth', {
-          message: 'You must be 18 or older to request a note for yourself',
-        })
-        return
-      }
-    }
-
     saveFormData(data)
 
-    if (recipient === 'someone_else') {
-      router.push('/guardian-info')
-    } else {
-      router.push('/contact-info')
-    }
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   const pageTitle =
@@ -83,7 +67,7 @@ export default function BasicInfoPage() {
       : 'Please provide information about the person who needs this note'
 
   return (
-    <FormLayout currentStep={CURRENT_STEP} title={pageTitle} description="">
+    <FormLayout route={ROUTE} title={pageTitle} description="">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
           <div className="space-y-4">
@@ -119,7 +103,7 @@ export default function BasicInfoPage() {
           </div>
         </FormCard>
 
-        <FormNavigation backRoute="/who-is-using" isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

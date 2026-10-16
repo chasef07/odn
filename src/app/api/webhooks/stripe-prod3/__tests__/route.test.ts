@@ -83,7 +83,7 @@ const daysFromToday = (n: number) => {
 }
 
 const validFormData: FormData = {
-  state: 'CA',
+  state: 'California',
   recipient: 'myself',
   patientFirstName: 'John',
   patientLastName: 'Doe',
@@ -94,7 +94,8 @@ const validFormData: FormData = {
   notePurpose: 'work',
   firstDayOff: daysFromToday(-1),
   lastDayOff: daysFromToday(1),
-  absenceReason: 'illness',
+  absenceReason: 'Feeling sick',
+  symptoms: ['Fever or chills'],
 }
 
 function buildRequest(): NextRequest {
@@ -507,7 +508,80 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(createArg.data.status).toBe('MAYBE')
     expect(createArg.data.denialReason).toBeNull()
     expect(createArg.data.maybeReason).toBe('INTERNAL_ONLY')
-    expect(createArg.data.maybeInternalNote).toMatch(/valid patient date of birth/i)
+    expect(createArg.data.maybeInternalNote).toMatch(/cannot be in the future/i)
+  })
+
+  it('persists a paid legal-purpose draft as MAYBE', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_legal',
+      paymentIntentId: 'pi_test_123',
+      formData: { ...validFormData, notePurpose: 'legal' },
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_legal',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const response = await POST(buildRequest())
+
+    expect({ status: response.status, created: mockSubmissionCreate.mock.calls.length }).toEqual({
+      status: 200,
+      created: 1,
+    })
+    const createArg = mockSubmissionCreate.mock.calls[0][0]
+    expect(createArg.data.status).toBe('MAYBE')
+    expect(createArg.data.maybeInternalNote).toMatch(/notePurpose: .*legal matters/i)
+    expect(mockTempDelete).toHaveBeenCalledTimes(1)
+  })
+
+  it('notes every failing field when persisting as MAYBE', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_state',
+      paymentIntentId: 'pi_test_123',
+      formData: { ...validFormData, state: 'CA', email: 'john@gmail.con' },
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_state',
+      email: validFormData.email,
+      patientFirstName: validFormData.patientFirstName,
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    const createArg = mockSubmissionCreate.mock.calls[0][0]
+    expect(createArg.data.status).toBe('MAYBE')
+    expect(createArg.data.maybeInternalNote).toMatch(/state: Please select a state from the list/)
+    expect(createArg.data.maybeInternalNote).toMatch(/email: Did you mean "\.com"/)
+  })
+
+  it('stores the normalized phone and lowercased email', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockTempFindUnique.mockResolvedValue({
+      id: 'temp_phone',
+      paymentIntentId: 'pi_test_123',
+      formData: { ...validFormData, phone: '+1 555 123 4567', email: 'John@Example.com' },
+    })
+    mockSubmissionCreate.mockResolvedValue({
+      id: 'sub_phone',
+      email: 'john@example.com',
+      patientFirstName: validFormData.patientFirstName,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    const createArg = mockSubmissionCreate.mock.calls[0][0]
+    expect(createArg.data.status).toBe('PENDING_REVIEW')
+    expect(createArg.data.phone).toBe('(555) 123-4567')
+    expect(createArg.data.smsPhoneE164).toBe('+15551234567')
+    expect(createArg.data.email).toBe('john@example.com')
+    expect(createArg.data.patientDateOfBirth).toEqual(new Date('1990-01-01T00:00:00.000Z'))
   })
 
   it('keeps malformed paid submissions retryable when required persisted fields are missing', async () => {
@@ -535,7 +609,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       expect.objectContaining({
         tempSubmissionId: 'temp_missing_required',
         reasons: expect.arrayContaining([
-          expect.stringMatching(/Missing required fields: patientLastName/),
+          expect.stringMatching(/patientLastName: Last name is required/),
         ]),
       })
     )

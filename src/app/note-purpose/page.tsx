@@ -18,8 +18,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { LEGAL_NOTE_PURPOSE_ERROR, page5Schema } from '@/lib/validation-schemas'
+import { backRoute, nextRoute } from '@/lib/intake'
+import { LEGAL_NOTE_PURPOSE_ERROR, notePurposeSchema } from '@/lib/validation-schemas'
 import { NOTE_PURPOSES } from '@/lib/form-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
@@ -50,6 +50,8 @@ const NOTE_PURPOSE_OPTIONS = [
   },
 ]
 
+const ROUTE = '/note-purpose'
+
 type NotePurpose = 'work' | 'school' | 'both' | 'travel' | 'legal' | 'other'
 
 type FormData = {
@@ -60,9 +62,7 @@ type FormData = {
 export default function NotePurposePage() {
   const router = useRouter()
   const savedData = getFormData()
-  const recipient = savedData.recipient || 'myself'
   const patientFirstName = savedData.patientFirstName || ''
-  const currentStep = getStepNumber('/note-purpose', recipient)
   const [showLegalMatterDialog, setShowLegalMatterDialog] = useState(
     savedData.notePurpose === 'legal'
   )
@@ -76,7 +76,7 @@ export default function NotePurposePage() {
     clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page5Schema),
+    resolver: zodResolver(notePurposeSchema),
     defaultValues: {
       notePurpose: savedData.notePurpose || null,
       otherNotePurpose: savedData.otherNotePurpose || '',
@@ -108,14 +108,9 @@ export default function NotePurposePage() {
   }
 
   const onSubmit = (data: FormData) => {
-    if (data.notePurpose === 'legal') {
-      setShowLegalMatterDialog(true)
-      return
-    }
-
     saveFormData(data)
 
-    router.push(getNextRoute('/note-purpose', recipient)!)
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   const title = patientFirstName
@@ -125,7 +120,7 @@ export default function NotePurposePage() {
     : 'What do you need this note for?'
 
   return (
-    <FormLayout currentStep={currentStep} title={title} description="" usePersonalization={true}>
+    <FormLayout route={ROUTE} title={title} description="" usePersonalization={true}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormRadioGroup
           fieldName="notePurpose"
@@ -156,10 +151,7 @@ export default function NotePurposePage() {
           </div>
         )}
 
-        <FormNavigation
-          backRoute={getBackRoute('/note-purpose', recipient)!}
-          isSubmitting={isSubmitting}
-        />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
 
       <Dialog open={showLegalMatterDialog} onOpenChange={handleLegalMatterDialogChange}>

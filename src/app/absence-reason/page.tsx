@@ -8,10 +8,12 @@ import { FormRadioGroup } from '@/components/form/FormRadioGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { Input } from '@/components/ui/input'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page7Schema } from '@/lib/validation-schemas'
+import { backRoute, nextRoute } from '@/lib/intake'
+import { absenceReasonSchema } from '@/lib/validation-schemas'
 import { ABSENCE_REASONS } from '@/lib/form-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
+
+const ROUTE = '/absence-reason'
 
 type FormData = {
   absenceReason: string | null
@@ -21,9 +23,7 @@ type FormData = {
 export default function AbsenceReasonPage() {
   const router = useRouter()
   const savedData = getFormData()
-  const recipient = savedData.recipient || 'myself'
   const patientFirstName = savedData.patientFirstName || ''
-  const currentStep = getStepNumber('/absence-reason', recipient)
   const { locale } = useI18n()
 
   const {
@@ -32,8 +32,8 @@ export default function AbsenceReasonPage() {
     control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page7Schema),
-    defaultValues: getFormData(),
+    resolver: zodResolver(absenceReasonSchema),
+    defaultValues: savedData,
   })
 
   const selectedReason = useWatch({ control, name: 'absenceReason' })
@@ -48,11 +48,7 @@ export default function AbsenceReasonPage() {
       saveFormData(data)
     }
 
-    if (data.absenceReason === "Doctor's appointment" || data.absenceReason === 'Other') {
-      router.push(getNextRoute('/symptoms', recipient)!)
-    } else {
-      router.push(getNextRoute('/absence-reason', recipient)!)
-    }
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   const title = patientFirstName
@@ -62,7 +58,7 @@ export default function AbsenceReasonPage() {
     : 'What is your reason for absence?'
 
   return (
-    <FormLayout currentStep={currentStep} title={title} description="" usePersonalization={true}>
+    <FormLayout route={ROUTE} title={title} description="" usePersonalization={true}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <FormRadioGroup
           fieldName="absenceReason"
@@ -94,10 +90,7 @@ export default function AbsenceReasonPage() {
           </div>
         )}
 
-        <FormNavigation
-          backRoute={getBackRoute('/absence-reason', recipient)!}
-          isSubmitting={isSubmitting}
-        />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

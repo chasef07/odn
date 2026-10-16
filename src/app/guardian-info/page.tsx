@@ -10,9 +10,9 @@ import { DateOfBirthInput } from '@/components/form/DateOfBirthInput'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { guardianSchema } from '@/lib/validation-schemas'
-import { isAgeValid } from '@/lib/age-validators'
+import { backRoute, nextRoute } from '@/lib/intake'
 
-const CURRENT_STEP = 4
+const ROUTE = '/guardian-info'
 
 type FormData = {
   guardianFirstName: string
@@ -28,7 +28,6 @@ export default function GuardianInfoPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
     setValue,
     control,
   } = useForm<FormData>({
@@ -59,22 +58,13 @@ export default function GuardianInfoPage() {
     }
 
   const onSubmit = (data: FormData) => {
-    if (data.guardianDateOfBirth) {
-      if (!isAgeValid(data.guardianDateOfBirth, 18)) {
-        setError('guardianDateOfBirth', {
-          message: 'You must be 18 or older to fill out this form',
-        })
-        return
-      }
-    }
-
     saveFormData(data)
 
-    router.push('/contact-info')
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   return (
-    <FormLayout currentStep={CURRENT_STEP} title="Now tell us about you" description="">
+    <FormLayout route={ROUTE} title="Now tell us about you" description="">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -108,7 +98,7 @@ export default function GuardianInfoPage() {
           />
         </FormCard>
 
-        <FormNavigation backRoute="/basic-info" isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

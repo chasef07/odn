@@ -3,27 +3,26 @@
 import { ReactNode } from 'react'
 import { ShieldCheck, DollarSign } from 'lucide-react'
 import { FormProgress } from './form-progress'
+import type { IntakeRoute } from '@/lib/intake'
 import { getFirstName } from '@/lib/form-storage'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 import { translateReactTree } from '@/lib/i18n'
 
 interface FormLayoutProps {
-  currentStep: number
+  route?: IntakeRoute
   title: string
   description: string
   children: ReactNode
   usePersonalization?: boolean
-  hideProgressAndBadges?: boolean
 }
 
 export function FormLayout({
-  currentStep,
+  route,
   title,
   description,
   children,
   usePersonalization = false,
-  hideProgressAndBadges = false,
 }: FormLayoutProps) {
   const firstName = usePersonalization ? getFirstName() : null
   const { t, locale } = useI18n()
@@ -38,10 +37,10 @@ export function FormLayout({
         <div className="mb-3 flex justify-end">
           <LanguageSwitch />
         </div>
-        {!hideProgressAndBadges && (
+        {route && (
           <div className="mb-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
-              <FormProgress currentStep={currentStep} />
+              <FormProgress route={route} />
             </div>
 
             <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">

@@ -43,6 +43,19 @@ describe('server env', () => {
     expect(env.TELNYX_WEBHOOK_ENABLED).toBe(false)
   })
 
+  it('leaves intake validation in log-only mode until INTAKE_VALIDATION_ENFORCED is true', () => {
+    vi.stubEnv('INTAKE_VALIDATION_ENFORCED', '')
+    expect(env.INTAKE_VALIDATION_ENFORCED).toBe(false)
+
+    vi.stubEnv('INTAKE_VALIDATION_ENFORCED', 'true')
+    expect(env.INTAKE_VALIDATION_ENFORCED).toBe(true)
+
+    vi.stubEnv('INTAKE_VALIDATION_ENFORCED', 'shadow')
+    expect(() => env.INTAKE_VALIDATION_ENFORCED).toThrow(
+      'Environment variable INTAKE_VALIDATION_ENFORCED is invalid'
+    )
+  })
+
   it('turns SMS off only when TELNYX_SMS_ENABLED is false', () => {
     vi.stubEnv('TELNYX_SMS_ENABLED', 'false')
     expect(telnyxSmsSender()).toBeNull()

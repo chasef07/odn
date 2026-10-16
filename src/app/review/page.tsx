@@ -14,31 +14,27 @@ import { FormEditableSection } from '@/components/form/FormEditableSection'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { getFormData, saveFormData } from '@/lib/form-storage'
-import { getBackRoute, getStepNumber } from '@/lib/form-steps'
+import { backRoute, parseIntake } from '@/lib/intake'
 import {
-  page2Schema,
+  patientSchema,
   guardianSchema,
-  page3Schema,
-  page6Schema,
-  page10Schema,
+  contactSchema,
+  absenceDatesSchema,
+  termsSchema,
 } from '@/lib/validation-schemas'
-import { formatPhoneNumber } from '@/lib/phone-utils'
-import { validateAbsenceDates } from '@/lib/date-validators'
-import { isAgeValid } from '@/lib/age-validators'
+import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 import { UI_TIMING } from '@/lib/validation-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { es } from 'date-fns/locale'
 
+const ROUTE = '/review'
+
 type EditSection = 'personal' | 'guardian' | 'contact' | 'dates' | null
 
-type TermsFormInput = z.input<typeof page10Schema>
-type TermsFormData = z.output<typeof page10Schema>
+type TermsFormInput = z.input<typeof termsSchema>
+type TermsFormData = z.output<typeof termsSchema>
 
-type PersonalFormData = {
-  patientFirstName: string
-  patientLastName: string
-  patientDateOfBirth: string
-}
+type PersonalFormData = z.input<typeof patientSchema>
 
 type GuardianFormData = {
   guardianFirstName: string
@@ -60,7 +56,6 @@ export default function ReviewPage() {
   const router = useRouter()
   const [formData, setFormData] = useState(getFormData())
   const recipient = formData.recipient || 'myself'
-  const currentStep = getStepNumber('/review', recipient)
   const [editingSection, setEditingSection] = useState<EditSection>(null)
   const [phoneDisplay, setPhoneDisplay] = useState(formData.phone || '')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -71,7 +66,7 @@ export default function ReviewPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<TermsFormInput, unknown, TermsFormData>({
-    resolver: zodResolver(page10Schema),
+    resolver: zodResolver(termsSchema),
     defaultValues: {
       certifyAccurate: false,
       agreeTerms: false,
@@ -80,8 +75,9 @@ export default function ReviewPage() {
   })
 
   const personalForm = useForm<PersonalFormData>({
-    resolver: zodResolver(page2Schema),
+    resolver: zodResolver(patientSchema),
     defaultValues: {
+      recipient: formData.recipient ?? null,
       patientFirstName: formData.patientFirstName || '',
       patientLastName: formData.patientLastName || '',
       patientDateOfBirth: formData.patientDateOfBirth || '',
@@ -98,7 +94,7 @@ export default function ReviewPage() {
   })
 
   const contactForm = useForm<ContactFormData>({
-    resolver: zodResolver(page3Schema),
+    resolver: zodResolver(contactSchema),
     defaultValues: {
       email: formData.email || '',
       phone: formData.phone || '',
@@ -107,7 +103,7 @@ export default function ReviewPage() {
   })
 
   const datesForm = useForm<DatesFormData>({
-    resolver: zodResolver(page6Schema),
+    resolver: zodResolver(absenceDatesSchema),
     defaultValues: {
       firstDayOff: formData.firstDayOff || '',
       lastDayOff: formData.lastDayOff || '',
@@ -162,14 +158,6 @@ export default function ReviewPage() {
   }
 
   const handleSavePersonal = personalForm.handleSubmit((data) => {
-    if (recipient === 'myself' && data.patientDateOfBirth) {
-      if (!isAgeValid(data.patientDateOfBirth, 18)) {
-        personalForm.setError('patientDateOfBirth', {
-          message: 'You must be 18 or older to request a note for yourself',
-        })
-        return
-      }
-    }
     saveFormData(data)
     setFormData(getFormData())
     setEditingSection(null)
@@ -182,9 +170,10 @@ export default function ReviewPage() {
   })
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value)
-    setPhoneDisplay(formatted)
-    contactForm.setValue('phone', formatted)
+    const value = e.target.value
+    const display = toNationalDigits(value).length <= 10 ? formatPhoneNumber(value) : value
+    setPhoneDisplay(display)
+    contactForm.setValue('phone', display)
   }
 
   const handleSaveContact = contactForm.handleSubmit((data) => {
@@ -195,22 +184,6 @@ export default function ReviewPage() {
   })
 
   const handleSaveDates = datesForm.handleSubmit((data) => {
-    const validationData = {
-      firstDayOff: data.firstDayOff,
-      lastDayOff: data.lastDayOff,
-    }
-
-    const validationErrors = validateAbsenceDates(validationData)
-
-    if (validationErrors.length > 0) {
-      validationErrors.forEach((error) => {
-        datesForm.setError(error.field as keyof DatesFormData, {
-          message: error.message,
-        })
-      })
-      return
-    }
-
     saveFormData(data)
     setFormData(getFormData())
     setEditingSection(null)
@@ -218,6 +191,11 @@ export default function ReviewPage() {
 
   const onSubmit = (data: TermsFormData) => {
     saveFormData({ smsOptIn: data.smsOptIn === true })
+    const intake = parseIntake(getFormData())
+    if (intake.kind !== 'valid') {
+      router.push(intake.issues[0].route)
+      return
+    }
     setIsProcessing(true)
 
     setTimeout(() => {
@@ -244,7 +222,7 @@ export default function ReviewPage() {
 
   return (
     <FormLayout
-      currentStep={currentStep}
+      route={ROUTE}
       title="Review your information"
       description="Please review all details carefully before continuing to payment."
       usePersonalization={true}
@@ -459,7 +437,6 @@ export default function ReviewPage() {
                   onChange={handlePhoneChange}
                   className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
                   placeholder="(555) 123-4567"
-                  maxLength={14}
                   aria-required="true"
                   aria-invalid={!!contactForm.formState.errors.phone}
                   aria-describedby={contactForm.formState.errors.phone ? 'phone-error' : undefined}
@@ -588,7 +565,7 @@ export default function ReviewPage() {
         </div>
 
         <FormNavigation
-          backRoute={getBackRoute('/review', recipient)!}
+          backRoute={backRoute(ROUTE, formData)}
           submitText="Continue to Payment"
           isSubmitting={isSubmitting}
         />

@@ -5,6 +5,7 @@ import { I18nProvider } from '@/components/i18n/I18nProvider'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/es/payment',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
 vi.mock('@stripe/stripe-js', () => ({

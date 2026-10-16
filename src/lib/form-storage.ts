@@ -1,39 +1,6 @@
-export interface FormData {
-  state?: string
+import type { IntakeFields } from '@/lib/validation-schemas'
 
-  recipient?: 'myself' | 'someone_else' | null
-
-  patientFirstName?: string
-  patientLastName?: string
-  patientDateOfBirth?: string
-
-  guardianFirstName?: string
-  guardianLastName?: string
-  guardianDateOfBirth?: string
-
-  email?: string
-  phone?: string
-  smsOptIn?: boolean
-
-  notePurpose?: 'work' | 'school' | 'both' | 'travel' | 'legal' | 'other' | null
-  otherNotePurpose?: string
-
-  firstDayOff?: string
-  lastDayOff?: string
-
-  absenceReason?: string | null
-  otherAbsenceReason?: string
-
-  symptoms?: string[]
-  otherSymptomText?: string
-
-  additionalInformation?: string
-
-  certifyAccurate?: boolean
-  agreeTerms?: boolean
-
-  offerCode?: string
-}
+export type FormData = Partial<IntakeFields> & { offerCode?: string }
 
 const FORM_STORAGE_KEY = 'doctor-note-form-draft'
 

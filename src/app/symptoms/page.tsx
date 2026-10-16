@@ -9,28 +9,28 @@ import { FormLayout } from '@/components/form-layout'
 import { FormCheckboxGroup } from '@/components/form/FormCheckboxGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page8Schema } from '@/lib/validation-schemas'
+import { backRoute, includesStep, nextRoute } from '@/lib/intake'
+import { symptomsSchema } from '@/lib/validation-schemas'
 import { SYMPTOMS_BY_REASON } from '@/lib/form-constants'
 import { z } from 'zod'
 
-type FormData = z.infer<typeof page8Schema>
+const ROUTE = '/symptoms'
+
+type FormData = z.infer<typeof symptomsSchema>
 
 export default function SymptomsPage() {
   const router = useRouter()
   const savedData = getFormData()
   const absenceReason = savedData.absenceReason || ''
-  const recipient = savedData.recipient || 'myself'
-  const currentStep = getStepNumber('/symptoms', recipient)
+  const nextAfterSkip = includesStep(ROUTE, savedData) ? null : nextRoute(ROUTE, savedData)
 
   const {
     register,
     handleSubmit,
     control,
     formState: { errors, isSubmitting },
-    setError,
   } = useForm<FormData>({
-    resolver: zodResolver(page8Schema),
+    resolver: zodResolver(symptomsSchema),
     defaultValues: {
       symptoms: savedData.symptoms || [],
       otherSymptomText: savedData.otherSymptomText || '',
@@ -38,37 +38,17 @@ export default function SymptomsPage() {
   })
 
   useEffect(() => {
-    if (absenceReason === "Doctor's appointment" || absenceReason === 'Other') {
-      router.push(getNextRoute('/symptoms', recipient)!)
-    }
-  }, [absenceReason, recipient, router])
+    if (nextAfterSkip) router.replace(nextAfterSkip)
+  }, [nextAfterSkip, router])
 
   const symptoms = useWatch({ control, name: 'symptoms' }) || []
 
   const availableSymptoms = SYMPTOMS_BY_REASON[absenceReason] || []
 
   const onSubmit = (data: FormData) => {
-    if (!data.symptoms || data.symptoms.length === 0) {
-      const errorMessage =
-        absenceReason === 'Taking care of someone'
-          ? 'Please select your relationship'
-          : 'Please select at least one symptom'
-      setError('symptoms', {
-        message: errorMessage,
-      })
-      return
-    }
-
-    if (data.symptoms.includes('Other') && !data.otherSymptomText?.trim()) {
-      setError('otherSymptomText', {
-        message: 'Please describe other symptoms',
-      })
-      return
-    }
-
     saveFormData(data)
 
-    router.push(getNextRoute('/symptoms', recipient)!)
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   const pageTitle =
@@ -88,7 +68,7 @@ export default function SymptomsPage() {
 
   return (
     <FormLayout
-      currentStep={currentStep}
+      route={ROUTE}
       title={pageTitle}
       description={pageDescription}
       usePersonalization={true}
@@ -123,10 +103,7 @@ export default function SymptomsPage() {
           </div>
         )}
 
-        <FormNavigation
-          backRoute={getBackRoute('/symptoms', recipient)!}
-          isSubmitting={isSubmitting}
-        />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

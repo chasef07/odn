@@ -1,24 +1,11 @@
 import { MetadataRoute } from 'next'
 import { publicEnv } from '@/lib/public-env'
+import { INTAKE_STEPS } from '@/lib/intake'
 
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = publicEnv.NEXT_PUBLIC_SITE_URL
 
-  const formPages = [
-    '/get-started',
-    '/basic-info',
-    '/guardian-info',
-    '/contact-info',
-    '/note-purpose',
-    '/absence-dates',
-    '/absence-reason',
-    '/symptoms',
-    '/additional-info',
-    '/review',
-    '/payment/',
-    '/approved',
-    '/who-is-using',
-  ]
+  const formPages = [...INTAKE_STEPS.map((step) => step.route), '/payment/', '/approved']
 
   return {
     rules: [

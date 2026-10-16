@@ -3,6 +3,7 @@
 import { Prisma, SubmissionStatus } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import { toNationalDigits } from '@/lib/phone-utils'
 import {
   buildFriendsFamilyCustomerDetail,
   buildFriendsFamilyAnalytics,
@@ -160,7 +161,7 @@ function getFriendsFamilyCustomerWhere(customerKey: string): Prisma.SubmissionWh
   }
 
   if (keyType === 'phone') {
-    const digits = keyValue.replace(/\D/g, '')
+    const digits = toNationalDigits(keyValue)
     if (!digits) {
       return null
     }

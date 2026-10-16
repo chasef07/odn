@@ -36,6 +36,7 @@ const schema = {
   TELNYX_FROM_NUMBER: nonEmpty.optional(),
   TELNYX_PUBLIC_KEY: nonEmpty.optional(),
   TELNYX_WEBHOOK_ENABLED: switchFlag.default(true),
+  INTAKE_VALIDATION_ENFORCED: switchFlag.default(false),
 } satisfies Record<string, z.ZodType>
 
 type Schema = typeof schema

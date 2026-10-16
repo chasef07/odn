@@ -7,8 +7,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { FormLayout } from '@/components/form-layout'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
-import { getBackRoute, getNextRoute, getStepNumber } from '@/lib/form-steps'
-import { page9Schema } from '@/lib/validation-schemas'
+import { backRoute, nextRoute } from '@/lib/intake'
+import { additionalInfoSchema } from '@/lib/validation-schemas'
+
+const ROUTE = '/additional-info'
 
 type FormData = {
   additionalInformation?: string
@@ -17,21 +19,14 @@ type FormData = {
 export default function AdditionalInfoPage() {
   const router = useRouter()
   const savedData = getFormData()
-  const recipient = savedData.recipient || 'myself'
-  const currentStep = getStepNumber('/additional-info', recipient)
   const absenceReason = savedData.absenceReason || ''
-
-  const backRoute =
-    absenceReason === "Doctor's appointment" || absenceReason === 'Other'
-      ? getBackRoute('/symptoms', recipient)!
-      : getBackRoute('/additional-info', recipient)!
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(page9Schema),
+    resolver: zodResolver(additionalInfoSchema),
     defaultValues: {
       additionalInformation: savedData.additionalInformation || '',
     },
@@ -40,7 +35,7 @@ export default function AdditionalInfoPage() {
   const onSubmit = (data: FormData) => {
     saveFormData(data)
 
-    router.push(getNextRoute('/additional-info', recipient)!)
+    router.push(nextRoute(ROUTE, getFormData()))
   }
 
   const isAppointment = absenceReason === "Doctor's appointment"
@@ -50,12 +45,7 @@ export default function AdditionalInfoPage() {
     : "Share any other details that might be helpful for your doctor's note (optional)."
 
   return (
-    <FormLayout
-      currentStep={currentStep}
-      title={title}
-      description={description}
-      usePersonalization={true}
-    >
+    <FormLayout route={ROUTE} title={title} description={description} usePersonalization={true}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
           <Textarea
@@ -77,7 +67,7 @@ export default function AdditionalInfoPage() {
           </p>
         </div>
 
-        <FormNavigation backRoute={backRoute} isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )
