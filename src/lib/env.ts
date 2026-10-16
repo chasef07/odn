@@ -66,7 +66,10 @@ export function telnyxSmsSender(): { apiKey: string; from: string } | null {
   return { apiKey, from }
 }
 
-const checks: (() => unknown)[] = [...names.map((name) => () => read(name)), telnyxSmsSender]
+const checks: (() => unknown)[] = [
+  ...names.filter((name) => name !== 'TELNYX_SMS_ENABLED').map((name) => () => read(name)),
+  telnyxSmsSender,
+]
 
 export function serverEnvProblems(): string[] {
   return checks.flatMap((check) => {

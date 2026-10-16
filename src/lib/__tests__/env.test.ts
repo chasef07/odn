@@ -51,6 +51,12 @@ describe('server env', () => {
     expect(() => telnyxSmsSender()).toThrow('Environment variable TELNYX_SMS_ENABLED is not set')
   })
 
+  it('reports an unset SMS switch once at startup', () => {
+    vi.stubEnv('TELNYX_SMS_ENABLED', '')
+
+    expect(serverEnvProblems()).toEqual(['Environment variable TELNYX_SMS_ENABLED is not set'])
+  })
+
   it('fails loudly when SMS is on without its credentials', () => {
     vi.stubEnv('TELNYX_SMS_ENABLED', 'true')
     vi.stubEnv('TELNYX_API_KEY', 'KEY123')

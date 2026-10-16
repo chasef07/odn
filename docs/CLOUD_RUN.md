@@ -113,9 +113,10 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    `odn-production-stripe-publishable-key`.
 4. **Deploy `odn-production`.** Run `cloudbuild.yaml` with `_ENV=production`,
    `_SITE_URL=https://onlinedoctornote.com`,
-   `_VERIFICATION_BASE_URL=https://phealthclinic.com`, the live price IDs,
-   `_TELNYX_SMS_ENABLED=true`, `_TELNYX_FROM_NUMBER`, `_TELNYX_WEBHOOK_ENABLED=true`, `_MIN_INSTANCES=1`,
-   and the real doctor name/credentials. Its migrate step is a no-op if the
+   `_VERIFICATION_BASE_URL=https://phealthclinic.com`, `_RESEND_FROM_EMAIL`,
+   the live price IDs, `_TELNYX_SMS_ENABLED=true`, `_TELNYX_FROM_NUMBER`,
+   `_TELNYX_WEBHOOK_ENABLED=true`, `_MIN_INSTANCES=1`, and the real doctor
+   name/credentials. Its migrate step is a no-op if the
    schema is current. The deploy sets `--no-invoker-iam-check`, so the
    service is public.
    Smoke-test the `run.app` URL (home, `/admin/login`, `/verify/<slug>`).
