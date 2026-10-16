@@ -441,7 +441,19 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(createArg.data.maybeInternalNote).toMatch(/7 consecutive days/i)
     expect(createArg.data.maybeEmailSentAt).toBeNull()
 
-    expect(consoleError).toHaveBeenCalled()
+    expect(consoleError).toHaveBeenCalledTimes(1)
+    const line = consoleError.mock.calls[0][0]
+    expect(consoleError.mock.calls[0]).toHaveLength(1)
+    expect(line).not.toContain('\n')
+    expect(JSON.parse(line)).toEqual({
+      severity: 'ERROR',
+      event: 'intake_rule_failure',
+      endpoint: '/api/webhooks/stripe-prod3',
+      eventId: 'evt_test',
+      paymentIntentId: 'pi_test_123',
+      tempSubmissionId: 'temp_bad_dates',
+      issues: [{ rule: 'absence_too_long', field: 'lastDayOff', route: '/absence-dates' }],
+    })
 
     consoleError.mockRestore()
   })
@@ -604,15 +616,19 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(data).toEqual({ error: 'Paid submission requires manual recovery' })
     expect(mockSubmissionCreate).not.toHaveBeenCalled()
     expect(mockTempDelete).not.toHaveBeenCalled()
-    expect(consoleError).toHaveBeenCalledWith(
-      'PAID SUBMISSION CANNOT BE PERSISTED - leaving webhook retryable',
-      expect.objectContaining({
-        tempSubmissionId: 'temp_missing_required',
-        reasons: expect.arrayContaining([
-          expect.stringMatching(/patientLastName: Last name is required/),
-        ]),
-      })
-    )
+    expect(consoleError).toHaveBeenCalledTimes(1)
+    const line = consoleError.mock.calls[0][0]
+    expect(consoleError.mock.calls[0]).toHaveLength(1)
+    expect(line).not.toContain('\n')
+    expect(JSON.parse(line)).toEqual({
+      severity: 'ERROR',
+      event: 'intake_shape_failure',
+      endpoint: '/api/webhooks/stripe-prod3',
+      eventId: 'evt_test',
+      paymentIntentId: 'pi_test_123',
+      tempSubmissionId: 'temp_missing_required',
+      issues: [{ rule: 'required', field: 'patientLastName', route: '/basic-info' }],
+    })
 
     consoleError.mockRestore()
   })

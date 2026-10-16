@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { parseIsoDateOnlyAsUTCDate } from '@/lib/date-only'
 import type { FormData } from '@/lib/form-storage'
+import { INTAKE_RULES, isIntakeRule, rule, type IntakeRule } from '@/lib/intake-rules'
 import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 import {
   absenceDatesSchema,
@@ -102,7 +103,11 @@ export function backRoute(route: IntakeRoute, draft: IntakeDraft): IntakeRoute {
 function isoDate(value: string, ctx: z.RefinementCtx): Date {
   const date = parseIsoDateOnlyAsUTCDate(value)
   if (date) return date
-  ctx.addIssue({ code: 'custom', message: 'Expected a YYYY-MM-DD date' })
+  ctx.addIssue({
+    code: 'custom',
+    message: 'Expected a YYYY-MM-DD date',
+    params: rule('date_invalid'),
+  })
   return z.NEVER
 }
 
@@ -152,6 +157,7 @@ export const intakeSubmissionSchema = z.object({
 export type IntakeSubmission = z.output<typeof intakeSubmissionSchema>
 
 export interface IntakeIssue {
+  rule: IntakeRule
   field: string
   message: string
   route: IntakeRoute
@@ -162,17 +168,45 @@ export type IntakeParseResult =
   | { kind: 'rule_failure'; data: IntakeSubmission; issues: IntakeIssue[] }
   | { kind: 'shape_failure'; issues: IntakeIssue[] }
 
+const ZOD_RULES: Partial<Record<z.core.$ZodIssue['code'], IntakeRule>> = {
+  invalid_type: 'required',
+  too_small: 'required',
+  too_big: 'too_long',
+  invalid_value: 'unknown_option',
+}
+
+function ruleOf(issue: z.core.$ZodIssue, field: string): IntakeRule {
+  const code = issue.code === 'custom' ? issue.params?.rule : ZOD_RULES[issue.code]
+  if (isIntakeRule(code)) return code
+  throw new Error(`Intake issue on ${field} has no rule code (zod ${issue.code})`)
+}
+
 function toIssues(error: z.ZodError): IntakeIssue[] {
   return error.issues.map((issue) => {
     const field = issue.path.join('.') || 'form'
-    return { field, message: issue.message, route: FIELD_ROUTE.get(field) ?? '/review' }
+    return {
+      rule: ruleOf(issue, field),
+      field,
+      message: issue.message,
+      route: FIELD_ROUTE.get(field) ?? '/review',
+    }
   })
+}
+
+export function checkoutBlockers(issues: IntakeIssue[], enforced: boolean): IntakeIssue[] {
+  return enforced ? issues : issues.filter((issue) => INTAKE_RULES[issue.rule] === 'always')
+}
+
+export function loggedIssues(
+  issues: IntakeIssue[]
+): Pick<IntakeIssue, 'rule' | 'field' | 'route'>[] {
+  return issues.map(({ rule, field, route }) => ({ rule, field, route }))
 }
 
 function dedupe(issues: IntakeIssue[]): IntakeIssue[] {
   const seen = new Set<string>()
   return issues.filter((issue) => {
-    const key = `${issue.field}\n${issue.message}`
+    const key = `${issue.field}\n${issue.rule}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -183,7 +217,9 @@ export function parseIntake(input: unknown): IntakeParseResult {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     return {
       kind: 'shape_failure',
-      issues: [{ field: 'form', message: 'Form data is required', route: '/review' }],
+      issues: [
+        { rule: 'required', field: 'form', message: 'Form data is required', route: '/review' },
+      ],
     }
   }
   const draft = input as IntakeDraft

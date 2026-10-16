@@ -12,6 +12,7 @@ import {
   totalSteps,
 } from '@/lib/intake'
 import { ABSENCE_REASONS } from '@/lib/form-constants'
+import type { IntakeRule } from '@/lib/intake-rules'
 import robots from '@/app/robots'
 
 const today = new Date()
@@ -189,24 +190,58 @@ describe('parseIntake', () => {
   })
 
   it('reports rule failures with the data still persistable', () => {
-    const cases: Array<[Record<string, unknown>, string, RegExp]> = [
-      [{ ...myself, notePurpose: 'legal' }, 'notePurpose', /legal matters/],
-      [{ ...myself, state: 'CA' }, 'state', /state from the list/],
-      [{ ...myself, patientDateOfBirth: yearsAgo(17) }, 'patientDateOfBirth', /18 or older/],
-      [{ ...someoneElse, guardianDateOfBirth: yearsAgo(17) }, 'guardianDateOfBirth', /18 years/],
-      [{ ...myself, lastDayOff: daysFromToday(10) }, 'lastDayOff', /7 consecutive days/],
-      [{ ...myself, email: 'john@gmail.con' }, 'email', /Did you mean "\.com"/],
-      [{ ...myself, phone: '555123456' }, 'phone', /exactly 10 digits/],
-      [{ ...myself, symptoms: [] }, 'symptoms', /at least one option/],
-      [{ ...myself, absenceReason: 'illness' }, 'absenceReason', /reason for your absence/],
-      [{ ...myself, notePurpose: 'other' }, 'otherNotePurpose', /specify the purpose/],
-      [{ ...someoneElse, guardianFirstName: '' }, 'guardianFirstName', /Guardian first name/],
+    const cases: Array<[Record<string, unknown>, string, IntakeRule, RegExp]> = [
+      [{ ...myself, notePurpose: 'legal' }, 'notePurpose', 'purpose_legal', /legal matters/],
+      [{ ...myself, state: 'CA' }, 'state', 'state_unsupported', /state from the list/],
+      [
+        { ...myself, patientDateOfBirth: yearsAgo(17) },
+        'patientDateOfBirth',
+        'under_18',
+        /18 or older/,
+      ],
+      [
+        { ...someoneElse, guardianDateOfBirth: yearsAgo(17) },
+        'guardianDateOfBirth',
+        'under_18',
+        /18 years/,
+      ],
+      [
+        { ...myself, lastDayOff: daysFromToday(10) },
+        'lastDayOff',
+        'absence_too_long',
+        /7 consecutive days/,
+      ],
+      [{ ...myself, email: 'john@gmail.con' }, 'email', 'email_typo', /Did you mean "\.com"/],
+      [{ ...myself, phone: '555123456' }, 'phone', 'phone_digits', /exactly 10 digits/],
+      [{ ...myself, symptoms: [] }, 'symptoms', 'symptoms_none', /at least one option/],
+      [
+        { ...myself, absenceReason: 'illness' },
+        'absenceReason',
+        'unknown_option',
+        /reason for your absence/,
+      ],
+      [
+        { ...myself, notePurpose: 'other' },
+        'otherNotePurpose',
+        'purpose_other_text',
+        /specify the purpose/,
+      ],
+      [
+        { ...someoneElse, guardianFirstName: '' },
+        'guardianFirstName',
+        'required',
+        /Guardian first name/,
+      ],
+      [{ ...myself, patientLastName: 'a'.repeat(51) }, 'patientLastName', 'too_long', /50/],
+      [{ ...myself, patientLastName: 'X Æ A-12' }, 'patientLastName', 'name_characters', /letters/],
+      [{ ...myself, notePurpose: 'jury' }, 'notePurpose', 'unknown_option', /purpose/],
     ]
-    for (const [draft, field, message] of cases) {
+    for (const [draft, field, rule, message] of cases) {
       const result = parseIntake(draft)
       expect(result.kind, field).toBe('rule_failure')
       if (result.kind !== 'rule_failure') continue
       expect(result.issues[0]).toEqual({
+        rule,
         field,
         message: expect.stringMatching(message),
         route: expect.stringMatching(/^\//),
@@ -271,7 +306,12 @@ describe('parseIntake', () => {
     expect(result.kind).toBe('shape_failure')
     if (result.kind !== 'shape_failure') return
     expect(result.issues).toEqual([
-      { field: 'phone', message: 'Phone number is required', route: '/contact-info' },
+      {
+        rule: 'required',
+        field: 'phone',
+        message: 'Phone number is required',
+        route: '/contact-info',
+      },
     ])
   })
 

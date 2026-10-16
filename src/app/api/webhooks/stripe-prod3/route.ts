@@ -9,10 +9,12 @@ import { sendPaymentConfirmationEmail } from '@/lib/email'
 import { purchaseConfirmationSms, SMS_CONSENT_VERSION } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
 import { toE164UsPhone } from '@/lib/phone-utils'
-import { parseIntake } from '@/lib/intake'
+import { loggedIssues, parseIntake } from '@/lib/intake'
 import { INTERNAL_ONLY_MAYBE_REASON } from '@/lib/maybe-reasons'
 import { parseAttribution } from '@/lib/attribution'
 import { revalidatePath } from 'next/cache'
+
+const ENDPOINT = '/api/webhooks/stripe-prod3'
 
 export async function POST(request: NextRequest) {
   let event: Stripe.Event
@@ -129,11 +131,13 @@ export async function POST(request: NextRequest) {
     const intake = parseIntake(tempSubmission.formData)
 
     if (intake.kind === 'shape_failure') {
-      logger.error('PAID SUBMISSION CANNOT BE PERSISTED - leaving webhook retryable', {
+      logger.event('ERROR', {
+        event: 'intake_shape_failure',
+        endpoint: ENDPOINT,
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmission.id,
-        reasons: intake.issues.map((issue) => `${issue.field}: ${issue.message}`),
+        issues: loggedIssues(intake.issues),
       })
 
       return NextResponse.json(
@@ -146,11 +150,13 @@ export async function POST(request: NextRequest) {
     const reasons = flagged ? intake.issues.map((issue) => `${issue.field}: ${issue.message}`) : []
 
     if (flagged) {
-      logger.error('PAID SUBMISSION FAILED SERVER-SIDE VALIDATION - routing to MAYBE queue', {
+      logger.event('ERROR', {
+        event: 'intake_rule_failure',
+        endpoint: ENDPOINT,
         eventId: event.id,
         paymentIntentId: paymentIntent.id,
         tempSubmissionId: tempSubmission.id,
-        reasons,
+        issues: loggedIssues(intake.issues),
       })
     }
 

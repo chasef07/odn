@@ -274,10 +274,7 @@ describe('POST /api/create-payment-intent', () => {
       )
 
       expect(response.status).toBe(200)
-      expect(consoleWarn).toHaveBeenCalledWith(
-        'Intake failed validation rules',
-        expect.objectContaining({ enforced: false })
-      )
+      expect(JSON.parse(consoleWarn.mock.calls[0][0])).toMatchObject({ enforced: false })
       consoleWarn.mockRestore()
     })
 
@@ -327,6 +324,31 @@ describe('POST /api/create-payment-intent', () => {
       consoleWarn.mockRestore()
     })
 
+    it('logs one single-line JSON entry with rule codes and no message text', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      await post({ ...mockFormData, state: 'CA', email: 'john@gmail.con' })
+
+      expect(consoleWarn).toHaveBeenCalledTimes(1)
+      const args = consoleWarn.mock.calls[0]
+      expect(args).toHaveLength(1)
+      const line = args[0]
+      expect(typeof line).toBe('string')
+      expect(line).not.toContain('\n')
+      expect(JSON.parse(line)).toEqual({
+        severity: 'WARNING',
+        event: 'intake_rule_failure',
+        endpoint: '/api/create-payment-intent',
+        enforced: false,
+        blocked: false,
+        issues: [
+          { rule: 'state_unsupported', field: 'state', route: '/get-started' },
+          { rule: 'email_typo', field: 'email', route: '/contact-info' },
+        ],
+      })
+      consoleWarn.mockRestore()
+    })
+
     it('still rejects data that could not be persisted after payment', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -342,12 +364,13 @@ describe('POST /api/create-payment-intent', () => {
       expect(response.status).toBe(400)
       expect(data.error).toBe('Phone number is required')
       expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
-      expect(consoleWarn).toHaveBeenCalledWith(
-        'Intake rejected before payment: data cannot be persisted',
-        expect.objectContaining({
-          issues: expect.arrayContaining([expect.objectContaining({ field: 'phone' })]),
-        })
-      )
+      expect(consoleWarn).toHaveBeenCalledTimes(1)
+      expect(JSON.parse(consoleWarn.mock.calls[0][0])).toEqual({
+        severity: 'WARNING',
+        event: 'intake_shape_failure',
+        endpoint: '/api/create-payment-intent',
+        issues: [{ rule: 'required', field: 'phone', route: '/contact-info' }],
+      })
       consoleWarn.mockRestore()
     })
 

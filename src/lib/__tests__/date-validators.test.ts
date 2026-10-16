@@ -81,6 +81,7 @@ describe('validateAbsenceDates', () => {
       expect(errors[0]).toEqual({
         field: 'firstDayOff',
         message: 'First day off cannot be more than 7 days in the past',
+        rule: 'absence_too_far_past',
       })
     })
 
@@ -110,6 +111,7 @@ describe('validateAbsenceDates', () => {
       expect(errors[0]).toEqual({
         field: 'lastDayOff',
         message: 'Last day off must be on or after first day off',
+        rule: 'absence_reversed',
       })
     })
 
@@ -124,6 +126,7 @@ describe('validateAbsenceDates', () => {
       expect(errors[0]).toEqual({
         field: 'lastDayOff',
         message: 'Absence period cannot exceed 7 consecutive days',
+        rule: 'absence_too_long',
       })
     })
 
