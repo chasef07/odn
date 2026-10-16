@@ -73,6 +73,35 @@ describe('loadMigrations', () => {
     )
   })
 
+  it('refuses a file that controls its own transaction, wherever the statement sits', () => {
+    const refused = [
+      'BEGIN;\nCREATE TABLE t (id int);\nCOMMIT;',
+      'CREATE TABLE t (id int);\n  commit;',
+      'CREATE TABLE t (id int);COMMIT;',
+      'CREATE TABLE t (id int);\nEND;',
+      'CREATE TABLE t (id int);\nABORT;',
+      'CREATE TABLE t (id int);\nSAVEPOINT s;',
+    ]
+    for (const sql of refused) {
+      expect(refusal(() => loadMigrations(dirWith({ '0001_a.sql': sql })))).toBe(
+        'transaction_control'
+      )
+    }
+  })
+
+  it('accepts BEGIN and END inside quoted bodies, comments and expressions', () => {
+    const accepted = {
+      '0001_a.sql': "INSERT INTO t VALUES ('begin the end')",
+      '0002_b.sql': 'UPDATE t SET a = CASE WHEN b THEN 1 ELSE 0\nEND',
+      '0003_c.sql': 'DO $$\nBEGIN\n  PERFORM 1;\nEND $$;',
+      '0004_d.sql':
+        'CREATE FUNCTION f() RETURNS trigger AS $body$\nBEGIN\n  RETURN NEW;\nEND;\n$body$ LANGUAGE plpgsql;',
+      '0005_e.sql': '-- COMMIT happens in the runner\nCREATE TABLE t (id int); /* ROLLBACK? no */',
+      '0006_f.sql': "INSERT INTO t VALUES ('it''s; COMMIT;')",
+    }
+    expect(loadMigrations(dirWith(accepted))).toHaveLength(6)
+  })
+
   it('refuses a gap or a duplicate number', () => {
     expect(refusal(() => loadMigrations(dirWith({ '0001_a.sql': '', '0003_c.sql': '' })))).toBe(
       'gap_in_sequence'

@@ -207,6 +207,9 @@ describe('adoptPrismaHistory', () => {
 
   it('refuses when a Prisma migration has no file, never finished, or there is no Prisma table', async () => {
     expect(await refusal(() => adoptPrismaHistory(pool, [first]))).toBe('no_prisma_history')
+    await pool.query(PRISMA_LEDGER)
+    expect(await refusal(() => adoptPrismaHistory(pool, [first]))).toBe('no_prisma_history')
+    await pool.query('DROP TABLE _prisma_migrations')
 
     await applyLikePrisma([first, second], prismaNames)
     expect(await refusal(() => adoptPrismaHistory(pool, [first]))).toBe('prisma_history_unexpected')
@@ -217,6 +220,18 @@ describe('adoptPrismaHistory', () => {
     expect(await refusal(() => adoptPrismaHistory(pool, [first, second]))).toBe(
       'prisma_history_unexpected'
     )
+  })
+
+  it('refuses an unresolved failed attempt even when a finished twin exists, and accepts a rolled-back one', async () => {
+    await applyLikePrisma([first], ['20260617000000_create_things'])
+    await pool.query(
+      "INSERT INTO _prisma_migrations (id, checksum, migration_name) VALUES ('failed', $1, '20260617000000_create_things')",
+      [first.checksum]
+    )
+    expect(await refusal(() => adoptPrismaHistory(pool, [first]))).toBe('prisma_history_unexpected')
+
+    await pool.query("UPDATE _prisma_migrations SET rolled_back_at = now() WHERE id = 'failed'")
+    expect(await adoptPrismaHistory(pool, [first])).toEqual({ adopted: [first.name] })
   })
 
   it('refuses when schema_migrations already holds something else', async () => {
@@ -245,6 +260,25 @@ describe('adoptPrismaHistory', () => {
 
     expect((await adoptPrismaHistory(pool, migrations)).adopted).toHaveLength(7)
     expect(await migrate(pool, migrations)).toEqual({ applied: [], alreadyApplied: 7 })
+  })
+
+  it('refuses to migrate once a Prisma migration landed after the cutover', async () => {
+    await applyLikePrisma([first], ['20260617000000_create_things'])
+    await adoptPrismaHistory(pool, [first])
+    expect(await migrate(pool, [first, second])).toEqual({
+      applied: [second.name],
+      alreadyApplied: 1,
+    })
+
+    const third = migration('0003_add_note', 'ALTER TABLE things ADD COLUMN note text')
+    await pool.query(third.sql)
+    await pool.query(
+      "INSERT INTO _prisma_migrations (id, checksum, migration_name, finished_at) VALUES ('late', $1, '20260801000000_add_note', now())",
+      [third.checksum]
+    )
+
+    expect(await refusal(() => migrate(pool, [first, second, third]))).toBe('prisma_drift')
+    expect(await ledger()).toHaveLength(2)
   })
 
   it('stays a no-op after a later migration was applied by the runner', async () => {
