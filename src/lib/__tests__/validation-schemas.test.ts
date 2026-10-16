@@ -298,7 +298,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'test@example.con' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('test@example.com')
+          expect(result.error.issues[0].message).toContain('".com"')
           expect(result.error.issues[0].message).toContain('Did you mean')
         }
       })
@@ -307,23 +307,20 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'user@gmail.cmo' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('user@gmail.com')
+          expect(result.error.issues[0].message).toContain('".com"')
         }
       })
 
-      it('should reject .om typo and suggest .com', () => {
+      it('should accept .om, which is a real top-level domain', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'hello@test.om' })
-        expect(result.success).toBe(false)
-        if (!result.success) {
-          expect(result.error.issues[0].message).toContain('hello@test.com')
-        }
+        expect(result.success).toBe(true)
       })
 
       it('should reject .nte typo and suggest .net', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'user@example.nte' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('user@example.net')
+          expect(result.error.issues[0].message).toContain('".net"')
         }
       })
 
@@ -331,7 +328,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'contact@nonprofit.rog' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('contact@nonprofit.org')
+          expect(result.error.issues[0].message).toContain('".org"')
         }
       })
 
@@ -339,7 +336,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'test@gnail.com' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('test@gmail.com')
+          expect(result.error.issues[0].message).toContain('"gmail.com"')
           expect(result.error.issues[0].message).toContain('Did you mean')
         }
       })
@@ -348,7 +345,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'user@gmai.com' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('user@gmail.com')
+          expect(result.error.issues[0].message).toContain('"gmail.com"')
         }
       })
 
@@ -356,7 +353,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'hello@gmial.com' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('hello@gmail.com')
+          expect(result.error.issues[0].message).toContain('"gmail.com"')
         }
       })
 
@@ -364,7 +361,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'contact@gamil.com' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('contact@gmail.com')
+          expect(result.error.issues[0].message).toContain('"gmail.com"')
         }
       })
 
@@ -372,7 +369,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'user@glail.com' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('user@gmail.com')
+          expect(result.error.issues[0].message).toContain('"gmail.com"')
         }
       })
 
@@ -380,7 +377,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'test@gmal.com' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('test@gmail.com')
+          expect(result.error.issues[0].message).toContain('"gmail.com"')
         }
       })
 
@@ -388,7 +385,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'user@icould.com' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('user@icloud.com')
+          expect(result.error.issues[0].message).toContain('"icloud.com"')
         }
       })
 
@@ -423,7 +420,7 @@ describe('Validation Schemas', () => {
         const result = contactSchema.safeParse({ ...validData, email: 'hello@yhoo.com' })
         expect(result.success).toBe(false)
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('hello@yahoo.com')
+          expect(result.error.issues[0].message).toContain('"yahoo.com"')
         }
       })
 

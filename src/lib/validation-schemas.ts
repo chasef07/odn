@@ -5,7 +5,7 @@ import { validateAbsenceDates } from '@/lib/date-validators'
 import { ABSENCE_REASONS, AVAILABLE_STATES } from '@/lib/form-constants'
 import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 
-const NAME_REGEX = /^[\p{L}\p{M}\s'.-]+$/u
+const NAME_REGEX = /^(?=.*\p{L})[\p{L}\p{M} '’‘.-]+$/u
 
 function nameField(label: string) {
   return z
@@ -85,7 +85,6 @@ const COMMON_DOMAIN_TYPOS: Record<string, string> = {
 const COMMON_TLD_TYPOS: Record<string, string> = {
   '.con': '.com',
   '.cmo': '.com',
-  '.om': '.com',
   '.comm': '.com',
   '.nte': '.net',
   '.nrt': '.net',
@@ -95,7 +94,7 @@ const COMMON_TLD_TYPOS: Record<string, string> = {
   '.gvo': '.gov',
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.\p{L}{2,}$/u
+const EMAIL_REGEX = /^[^\s@]+@(?:[^\s@.]+\.)+\p{L}{2,}$/u
 
 export const contactSchema = z.object({
   email: z
@@ -104,30 +103,19 @@ export const contactSchema = z.object({
     .min(1, 'Email is required')
     .toLowerCase()
     .superRefine((email, ctx) => {
-      const atIndex = email.indexOf('@')
-      const domain = email.slice(atIndex + 1)
-      const domainSuggestion = COMMON_DOMAIN_TYPOS[domain]
-      if (domainSuggestion) {
-        const suggestedEmail = email.slice(0, atIndex + 1) + domainSuggestion
-        ctx.addIssue({
-          code: 'custom',
-          message: `Did you mean "${suggestedEmail}"? Please check your email address.`,
-        })
-        return
-      }
-
-      const tld = email.slice(email.lastIndexOf('.'))
-      const tldSuggestion = COMMON_TLD_TYPOS[tld]
-      if (tldSuggestion) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `Did you mean "${email.slice(0, -tld.length)}${tldSuggestion}"? Please check your email address.`,
-        })
-        return
-      }
-
       if (!EMAIL_REGEX.test(email)) {
         ctx.addIssue({ code: 'custom', message: 'Please enter a valid email address' })
+        return
+      }
+
+      const domain = email.slice(email.indexOf('@') + 1)
+      const tld = email.slice(email.lastIndexOf('.'))
+      const suggestion = COMMON_DOMAIN_TYPOS[domain] ?? COMMON_TLD_TYPOS[tld]
+      if (suggestion) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Did you mean "${suggestion}"? Please check your email address.`,
+        })
       }
     }),
   phone: z
@@ -144,6 +132,7 @@ const SUPPORTED_STATES = new Set<string>(AVAILABLE_STATES)
 export const stateSchema = z.object({
   state: z
     .string({ error: 'Please select your state' })
+    .trim()
     .min(1, 'Please select your state')
     .refine((val) => SUPPORTED_STATES.has(val), 'Please select a state from the list'),
 })
