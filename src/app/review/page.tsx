@@ -22,6 +22,7 @@ import {
   absenceDatesSchema,
   termsSchema,
 } from '@/lib/validation-schemas'
+import { capitalizeName } from '@/lib/name-case'
 import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 import { UI_TIMING } from '@/lib/validation-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
@@ -109,19 +110,6 @@ export default function ReviewPage() {
       lastDayOff: formData.lastDayOff || '',
     },
   })
-
-  const capitalizeName = (value: string): string => {
-    return value
-      .split(/(\s+|-|')/)
-      .map((part) => {
-        if (part.match(/^\s+$/) || part === '-' || part === "'") return part
-        if (part.length > 0) {
-          return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-        }
-        return part
-      })
-      .join('')
-  }
 
   const handlePatientNameChange =
     (field: 'patientFirstName' | 'patientLastName') => (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -12,6 +12,7 @@ import { saveFormData, getFormData } from '@/lib/form-storage'
 import { patientSchema } from '@/lib/validation-schemas'
 import type { z } from 'zod'
 import { backRoute, nextRoute } from '@/lib/intake'
+import { capitalizeName } from '@/lib/name-case'
 
 const ROUTE = '/basic-info'
 
@@ -42,17 +43,7 @@ export default function BasicInfoPage() {
 
   const handleNameChange =
     (field: 'patientFirstName' | 'patientLastName') => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const capitalized = e.target.value
-        .split(/(\s+|-|')/)
-        .map((part) => {
-          if (part.match(/^\s+$/) || part === '-' || part === "'") return part
-          if (part.length > 0) {
-            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-          }
-          return part
-        })
-        .join('')
-      setValue(field, capitalized)
+      setValue(field, capitalizeName(e.target.value))
     }
 
   const onSubmit = (data: FormData) => {
