@@ -1,5 +1,5 @@
-import prisma from './client'
+import { closePool } from './pool'
 
 export async function disconnectDatabase(): Promise<void> {
-  await prisma.$disconnect()
+  await closePool()
 }

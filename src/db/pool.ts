@@ -23,7 +23,13 @@ declare global {
 
 export function createPool(connectionString: string): pg.Pool {
   pg.defaults.parseInputDatesAsUTC = true
-  const pool = new pg.Pool({ connectionString, types: utcTypes, options: '-c TimeZone=UTC' })
+  const pool = new pg.Pool({
+    connectionString,
+    types: utcTypes,
+    options: '-c TimeZone=UTC',
+    max: 5,
+    connectionTimeoutMillis: 10_000,
+  })
   pool.on('error', (error) => {
     const { code } = error as NodeJS.ErrnoException
     console.error('Idle database connection failed', { message: error.message, code })

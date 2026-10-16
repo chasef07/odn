@@ -10,12 +10,12 @@ const HASH_OR_TRAILING_HASH = /(^|\s)#/
 
 function commentRule(file) {
   const name = basename(file)
-  if (file.startsWith('prisma/migrations/') || file.startsWith('src/db/migrations/')) return null
+  if (file.startsWith('src/db/migrations/')) return null
   if (name.startsWith('.env') || /\.(ya?ml|toml)$/.test(name))
     return { comment: HASH_OR_TRAILING_HASH }
   if (name.endsWith('ignore')) return { comment: HASH }
   if (name.startsWith('Dockerfile')) return { comment: HASH, directive: DOCKERFILE_DIRECTIVE }
-  if (/\.(prisma|json)$/.test(name) || name === '.prettierrc') return { comment: SLASHES }
+  if (name.endsWith('.json') || name === '.prettierrc') return { comment: SLASHES }
   return null
 }
 

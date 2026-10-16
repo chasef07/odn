@@ -5,7 +5,7 @@ A Next.js app that sells doctor's notes for work or school. A patient fills in a
 ## Stack
 
 - Next.js 16 App Router, React 19 and TypeScript in strict mode
-- PostgreSQL through Prisma 6
+- PostgreSQL through `pg`, with numbered SQL migrations in `src/db/migrations/`
 - Better Auth for admin login. Public sign-up is disabled.
 - Stripe for payments, Resend for email and Telnyx for SMS
 - `@react-pdf/renderer` for the note PDF
@@ -27,7 +27,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Fill in `.env.local` before you start the dev server. `VERIFICATION_BASE_URL` is the host in QR codes and verification links, and it can differ from `NEXT_PUBLIC_SITE_URL`. `BETTER_AUTH_URL` is the app's own origin, so it changes per environment. Generate `CRON_SECRET` with `openssl rand -hex 32` and `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. `src/lib/env.ts` defines every server variable and `src/lib/public-env.ts` the `NEXT_PUBLIC_*` ones. `next build` needs only `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. The server refuses to start while a required variable is missing or invalid, and the error names it. Outbound SMS runs only when `TELNYX_SMS_ENABLED=true`, which then requires `TELNYX_API_KEY` and `TELNYX_FROM_NUMBER`. `npm install` also runs `prisma generate`. `npm run db:local` starts a local database with Prisma Dev.
+Fill in `.env.local` before you start the dev server. `VERIFICATION_BASE_URL` is the host in QR codes and verification links, and it can differ from `NEXT_PUBLIC_SITE_URL`. `BETTER_AUTH_URL` is the app's own origin, so it changes per environment. Generate `CRON_SECRET` with `openssl rand -hex 32` and `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. `src/lib/env.ts` defines every server variable and `src/lib/public-env.ts` the `NEXT_PUBLIC_*` ones. `next build` needs only `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. The server refuses to start while a required variable is missing or invalid, and the error names it. Outbound SMS runs only when `TELNYX_SMS_ENABLED=true`, which then requires `TELNYX_API_KEY` and `TELNYX_FROM_NUMBER`. `npm run db:migrate` applies the migration files to `DATABASE_URL`. Database tests run on PGlite with `npm run test:db`.
 
 To receive Stripe webhooks locally, run `stripe listen --forward-to localhost:3000/api/webhooks/stripe-prod3` and copy the printed `whsec_` value into `STRIPE_WEBHOOK_SECRET`.
 
