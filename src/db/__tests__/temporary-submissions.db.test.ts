@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { db } from '../pool'
 import { sql } from '../sql'
 import { insert } from '../table'
@@ -30,6 +30,29 @@ async function seed(id: string, paymentIntentId: string, createdAt: Date, expire
 }
 
 describe('temporary submissions', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('creates two pending checkouts in the same millisecond without a unique violation', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
+    const pendingCheckout = () =>
+      createTemporarySubmission({
+        paymentIntentId: `pending_${Date.now()}`,
+        formData,
+        expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      })
+
+    const first = await pendingCheckout()
+    const second = await pendingCheckout()
+
+    expect(first.paymentIntentId).toMatch(/^pending_/)
+    expect(second.paymentIntentId).toMatch(/^pending_/)
+    expect(second.paymentIntentId).not.toBe(first.paymentIntentId)
+    expect(await countTemporarySubmissions()).toBe(2)
+  })
+
   it('creates a row with a generated id and created_at, the given expiry, and the form data round-tripped', async () => {
     const before = Date.now()
     const expiresAt = new Date('2026-08-06T07:30:00.123Z')
