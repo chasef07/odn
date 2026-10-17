@@ -29,6 +29,34 @@ jobs:
       - name: npm run check
         run: npm run check
 
+  db-mutants:
+    name: DB mutants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect src/db or harness changes
+        id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- src/db scripts/check-db-mutants.mjs; then
+            echo "db=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "db=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.db == 'true'
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - if: steps.changes.outputs.db == 'true'
+        run: npm ci
+      - name: npm run check:db-mutants
+        if: steps.changes.outputs.db == 'true'
+        run: npm run check:db-mutants
+
   build:
     name: Build
     runs-on: ubuntu-latest
