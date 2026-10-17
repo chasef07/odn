@@ -126,7 +126,6 @@ export async function POST(request: NextRequest) {
     let tempSubmissionId: string
     try {
       const tempSubmission = await createTemporarySubmission({
-        paymentIntentId: `pending_${Date.now()}`,
         formData: storedFormData as unknown as JsonValue,
         expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
       })

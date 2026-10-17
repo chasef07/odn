@@ -1,90 +1,76 @@
-import { Prisma } from '@prisma/client'
-import prisma from './client'
+import { randomUUID } from 'node:crypto'
+import { db } from './pool'
+import { count, sql } from './sql'
+import { insert, select, selectAll, set } from './table'
+import { temporarySubmissions } from './tables'
 import type { JsonValue, TemporarySubmission } from './types'
 
 export async function createTemporarySubmission({
-  paymentIntentId,
   formData,
   expiresAt,
 }: {
-  paymentIntentId: string
   formData: JsonValue
   expiresAt: Date
 }): Promise<TemporarySubmission> {
-  return prisma.temporarySubmission.create({
-    data: {
-      paymentIntentId,
-      formData: formData as Prisma.InputJsonValue,
-      expiresAt,
-    },
-  })
+  const paymentIntentId = `pending_${randomUUID()}`
+  const [row] = await db.rows(
+    sql`${insert(temporarySubmissions, { paymentIntentId, formData, expiresAt })} RETURNING ${selectAll(temporarySubmissions)}`
+  )
+  return row
 }
 
 export async function findTemporarySubmissionByPaymentIntent(
   paymentIntentId: string
 ): Promise<TemporarySubmission | null> {
-  return prisma.temporarySubmission.findUnique({
-    where: { paymentIntentId },
-  })
+  return db.one(
+    sql`SELECT ${selectAll(temporarySubmissions)} FROM temporary_submissions WHERE payment_intent_id = ${paymentIntentId}`
+  )
 }
 
 export async function findTemporarySubmissionById(id: string): Promise<TemporarySubmission | null> {
-  return prisma.temporarySubmission.findUnique({
-    where: { id },
-  })
+  return db.one(
+    sql`SELECT ${selectAll(temporarySubmissions)} FROM temporary_submissions WHERE id = ${id}`
+  )
 }
 
 export async function attachPaymentIntentToTemporarySubmission(
   id: string,
   paymentIntentId: string
 ): Promise<TemporarySubmission> {
-  return prisma.temporarySubmission.update({
-    where: { id },
-    data: { paymentIntentId },
-  })
+  const row = await db.one(
+    sql`UPDATE temporary_submissions SET ${set(temporarySubmissions, { paymentIntentId })} WHERE id = ${id} RETURNING ${selectAll(temporarySubmissions)}`
+  )
+  if (!row) throw new Error(`Temporary submission ${id} not found`)
+  return row
 }
 
 export async function deleteTemporarySubmission(id: string): Promise<void> {
-  await prisma.temporarySubmission.delete({
-    where: { id },
-  })
+  const deleted = await db.affected(sql`DELETE FROM temporary_submissions WHERE id = ${id}`)
+  if (deleted === 0) throw new Error(`Temporary submission ${id} not found`)
 }
 
 export async function deleteExpiredTemporarySubmissions(now: Date): Promise<{ count: number }> {
-  return prisma.temporarySubmission.deleteMany({
-    where: {
-      expiresAt: {
-        lt: now,
-      },
-    },
-  })
+  return {
+    count: await db.affected(sql`DELETE FROM temporary_submissions WHERE expires_at < ${now}`),
+  }
 }
 
 export async function countTemporarySubmissions(): Promise<number> {
-  return prisma.temporarySubmission.count()
+  const [row] = await db.rows(sql`SELECT ${count('total')} FROM temporary_submissions`)
+  return row.total
 }
 
 export async function countExpiredTemporarySubmissions(now: Date): Promise<number> {
-  return prisma.temporarySubmission.count({
-    where: {
-      expiresAt: {
-        lt: now,
-      },
-    },
-  })
+  const [row] = await db.rows(
+    sql`SELECT ${count('total')} FROM temporary_submissions WHERE expires_at < ${now}`
+  )
+  return row.total
 }
 
 export async function findRecentTemporarySubmissions(): Promise<
   Pick<TemporarySubmission, 'id' | 'paymentIntentId' | 'createdAt' | 'expiresAt'>[]
 > {
-  return prisma.temporarySubmission.findMany({
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      paymentIntentId: true,
-      createdAt: true,
-      expiresAt: true,
-    },
-  })
+  return db.rows(
+    sql`SELECT ${select(temporarySubmissions, ['id', 'paymentIntentId', 'createdAt', 'expiresAt'])} FROM temporary_submissions ORDER BY created_at DESC LIMIT 5`
+  )
 }
