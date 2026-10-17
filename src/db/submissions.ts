@@ -537,14 +537,10 @@ function customerMatchWhere(match: CustomerMatch): Sql {
       const area = tenDigits.slice(0, 3)
       const exchange = tenDigits.slice(3, 6)
       const line = tenDigits.slice(6, 10)
-      return or(
-        sql`phone LIKE ${likeContains(digits)}`,
-        sql`phone = ${`(${area}) ${exchange}-${line}`}`,
-        and(
-          sql`phone LIKE ${likeContains(area)}`,
-          sql`phone LIKE ${likeContains(exchange)}`,
-          sql`phone LIKE ${likeContains(line)}`
-        )
+      return and(
+        sql`phone LIKE ${likeContains(area)}`,
+        sql`phone LIKE ${likeContains(exchange)}`,
+        sql`phone LIKE ${likeContains(line)}`
       )
     }
     case 'patient':
