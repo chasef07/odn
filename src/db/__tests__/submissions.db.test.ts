@@ -261,12 +261,13 @@ describe('submission lookups', () => {
 })
 
 describe('status queues', () => {
-  it('lists pending submissions oldest first', async () => {
-    const later = await seed({ createdAt: at(2) })
-    const earlier = await seed({ createdAt: at(1) })
+  it('lists pending submissions oldest first whatever else is set on them', async () => {
+    const latest = await seed({ createdAt: at(3) })
+    const oldest = await seed({ createdAt: at(1) })
+    const middle = await seed({ createdAt: at(2), followUpEmailSentAt: at(4) })
     await seed({ status: SubmissionStatus.APPROVED })
 
-    expect(ids(await findSubmissionsPendingReview())).toEqual([earlier.id, later.id])
+    expect(ids(await findSubmissionsPendingReview())).toEqual([oldest.id, middle.id, latest.id])
   })
 
   it('lists ids by status within the reviewed window, capped by take', async () => {
@@ -292,25 +293,32 @@ describe('status queues', () => {
 
   it('lists approved and denied submissions reviewed since a time, newest email first', async () => {
     const admin = await seedAdmin()
-    const approvedLate = await seed({
-      status: SubmissionStatus.APPROVED,
-      reviewedAt: at(1),
-      reviewedByAdminId: admin,
-      approvalEmailSentAt: at(2),
-    })
     const approvedEarly = await seed({
       status: SubmissionStatus.APPROVED,
       reviewedAt: at(1),
       reviewedByAdminId: admin,
       approvalEmailSentAt: at(1),
     })
+    const approvedLate = await seed({
+      status: SubmissionStatus.APPROVED,
+      reviewedAt: at(1),
+      reviewedByAdminId: admin,
+      approvalEmailSentAt: at(2),
+    })
     await seed({ status: SubmissionStatus.APPROVED, reviewedAt: at(-1), reviewedByAdminId: admin })
-    const denied = await seed({
+    const deniedEarly = await seed({
       status: SubmissionStatus.DENIED,
       reviewedAt: at(1),
       reviewedByAdminId: admin,
       denialEmailSentAt: at(1),
     })
+    const deniedLate = await seed({
+      status: SubmissionStatus.DENIED,
+      reviewedAt: at(1),
+      reviewedByAdminId: admin,
+      denialEmailSentAt: at(2),
+    })
+    await seed({ status: SubmissionStatus.DENIED, reviewedAt: at(-1), reviewedByAdminId: admin })
 
     const approved = await findSubmissionsApprovedSince(T0, 10)
     expect(ids(approved)).toEqual([approvedLate.id, approvedEarly.id])
@@ -321,16 +329,17 @@ describe('status queues', () => {
       email: 'john@example.com',
       approvalEmailSentAt: at(2),
     })
-    expect(await findSubmissionsApprovedSince(T0, 1)).toHaveLength(1)
-    expect(await findSubmissionsDeniedSince(T0, 10)).toEqual([
-      {
-        id: denied.id,
-        patientFirstName: 'John',
-        patientLastName: 'Doe',
-        email: 'john@example.com',
-        denialEmailSentAt: at(1),
-      },
-    ])
+    expect(ids(await findSubmissionsApprovedSince(T0, 1))).toEqual([approvedLate.id])
+    const denied = await findSubmissionsDeniedSince(T0, 10)
+    expect(ids(denied)).toEqual([deniedLate.id, deniedEarly.id])
+    expect(denied[1]).toEqual({
+      id: deniedEarly.id,
+      patientFirstName: 'John',
+      patientLastName: 'Doe',
+      email: 'john@example.com',
+      denialEmailSentAt: at(1),
+    })
+    expect(ids(await findSubmissionsDeniedSince(T0, 1))).toEqual([deniedLate.id])
   })
 
   it('lists maybe and manual submissions most recently reviewed first', async () => {
@@ -347,9 +356,14 @@ describe('status queues', () => {
       reviewedAt: at(2),
       reviewedByAdminId: admin,
     })
-    const manual = await seed({
+    const manualOld = await seed({
       status: SubmissionStatus.MANUAL,
       reviewedAt: at(1),
+      reviewedByAdminId: admin,
+    })
+    const manualNew = await seed({
+      status: SubmissionStatus.MANUAL,
+      reviewedAt: at(2),
       reviewedByAdminId: admin,
     })
 
@@ -372,17 +386,17 @@ describe('status queues', () => {
       maybeEmailSentAt: null,
       reviewedAt: at(1),
     })
-    expect(await findManualSubmissions()).toEqual([
-      {
-        id: manual.id,
-        patientFirstName: 'John',
-        patientLastName: 'Doe',
-        email: 'john@example.com',
-        firstDayOff: FIRST_DAY,
-        lastDayOff: LAST_DAY,
-        reviewedAt: at(1),
-      },
-    ])
+    const manuals = await findManualSubmissions()
+    expect(ids(manuals)).toEqual([manualNew.id, manualOld.id])
+    expect(manuals[1]).toEqual({
+      id: manualOld.id,
+      patientFirstName: 'John',
+      patientLastName: 'Doe',
+      email: 'john@example.com',
+      firstDayOff: FIRST_DAY,
+      lastDayOff: LAST_DAY,
+      reviewedAt: at(1),
+    })
   })
 })
 
@@ -428,6 +442,24 @@ describe('patient history', () => {
       ].sort()
     )
   })
+
+  it('returns only the 20 newest matches', async () => {
+    const current = await seed()
+    const matches: Submission[] = []
+    for (let hour = 1; hour <= 21; hour++) {
+      matches.push(await seed({ patientFirstName: 'Jane', createdAt: at(hour) }))
+    }
+
+    const history = await findPatientHistory({
+      patientFirstName: 'Nobody',
+      patientLastName: 'Doe',
+      patientDateOfBirth: DOB,
+      email: 'john@example.com',
+      excludeSubmissionId: current.id,
+    })
+
+    expect(ids(history)).toEqual(ids(matches.slice(1).reverse()))
+  })
 })
 
 describe('searchSubmissionsPage', () => {
@@ -457,13 +489,23 @@ describe('searchSubmissionsPage', () => {
   })
 
   it('matches any name or full name without case, with the total under the same filter', async () => {
-    const john = await seed({ patientFirstName: 'Johnathan', patientLastName: 'Smith' })
+    const john = await seed({
+      patientFirstName: 'Johnathan',
+      patientLastName: 'Smith',
+      createdAt: at(1),
+    })
+    const johnson = await seed({
+      patientFirstName: 'Mary',
+      patientLastName: 'Johnson',
+      createdAt: at(2),
+    })
     const doe = await seed({ patientFirstName: 'Mary', patientLastName: 'Doe' })
     await seed({ patientFirstName: 'Mary', patientLastName: 'Smith' })
+    await seed({ patientFirstName: 'Peter', patientLastName: 'Doe' })
 
     const anyName = await searchSubmissionsPage({ by: 'anyName', term: 'JOHN' }, page)
-    expect(ids(anyName.submissions)).toEqual([john.id])
-    expect(anyName.total).toBe(1)
+    expect(ids(anyName.submissions)).toEqual([johnson.id, john.id])
+    expect(anyName.total).toBe(2)
 
     const fullName = await searchSubmissionsPage(
       { by: 'fullName', firstName: 'mar', lastName: 'DOE' },
@@ -479,6 +521,7 @@ describe('searchSubmissionsPage', () => {
     const byPhone = await seed({ phone: '(555) 999-0000' })
     const byRecord = await seed()
     await seedVerification(byRecord.id, { medicalRecordNumber: 'FAT5YHAB' })
+    await seedVerification((await seed()).id, { medicalRecordNumber: 'OTHER123' })
 
     expect(
       ids((await searchSubmissionsPage({ by: 'email', term: 'TARGET@' }, page)).submissions)
