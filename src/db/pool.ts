@@ -49,9 +49,13 @@ export type Db = {
   affected(query: Sql<unknown>): Promise<number>
 }
 
+function extended(text: string, values: unknown[] = []): pg.QueryConfig {
+  return { text, values, queryMode: 'extended' } as pg.QueryConfig
+}
+
 async function run(client: Queryable, query: Sql<unknown>): Promise<pg.QueryResult> {
   const { text, values } = query.compile()
-  const result = await client.query(text, values)
+  const result = await client.query(extended(text, values))
   const names = result.fields.map((field) => field.name)
   const duplicate = names.find((name, index) => names.indexOf(name) !== index)
   if (duplicate) {
@@ -80,12 +84,12 @@ export const db: Db & { transaction<T>(work: (tx: Db) => Promise<T>): Promise<T>
     }
     client.on('error', onError)
     try {
-      await client.query('BEGIN')
+      await client.query(extended('BEGIN'))
       const result = await work(over(client))
-      await client.query('COMMIT')
+      await client.query(extended('COMMIT'))
       return result
     } catch (error) {
-      await client.query('ROLLBACK').catch((rollbackError: Error) => {
+      await client.query(extended('ROLLBACK')).catch((rollbackError: Error) => {
         broken = rollbackError
       })
       throw error
