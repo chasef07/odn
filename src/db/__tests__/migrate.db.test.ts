@@ -96,6 +96,19 @@ describe('migrate', () => {
     })
   })
 
+  it('rolls the file back when its ledger row cannot be written', async () => {
+    const refusesItsLedgerRow = migration(
+      '0001_create_things',
+      `CREATE TABLE things (id text PRIMARY KEY);
+CREATE FUNCTION refuse_ledger() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'no ledger row'; END $$;
+CREATE TRIGGER refuse_ledger BEFORE INSERT ON schema_migrations FOR EACH ROW EXECUTE FUNCTION refuse_ledger();`
+    )
+
+    expect(await refusal(() => migrate(pool, [refusesItsLedgerRow]))).toBe('apply_failed')
+    expect(await tableExists('things')).toBe(false)
+    expect(await ledger()).toEqual([])
+  })
+
   it('refuses when an applied file was edited', async () => {
     await migrate(pool, [first])
     const edited = migration(first.name, 'CREATE TABLE things (id text PRIMARY KEY, extra text)')
