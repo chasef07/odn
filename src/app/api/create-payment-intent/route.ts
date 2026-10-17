@@ -6,7 +6,7 @@ import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { FormData } from '@/lib/form-storage'
-import { parseIntake } from '@/lib/intake'
+import { checkoutBlockers, loggedIssues, parseIntake } from '@/lib/intake'
 import { getCachedPrice } from '@/lib/stripe-price'
 import { getOfferConfig, normalizeOfferCode, type PriceType } from '@/lib/offer-codes'
 import {
@@ -14,6 +14,8 @@ import {
   attributionStripeMetadata,
   parseAttributionCookie,
 } from '@/lib/attribution'
+
+const ENDPOINT = '/api/create-payment-intent'
 
 async function cancelPaymentIntentWithRetry(
   paymentIntentId: string,
@@ -50,8 +52,10 @@ export async function POST(request: NextRequest) {
 
     const intake = parseIntake(formData)
     if (intake.kind === 'shape_failure') {
-      logger.warn('Intake rejected before payment: data cannot be persisted', {
-        issues: intake.issues,
+      logger.event('WARNING', {
+        event: 'intake_shape_failure',
+        endpoint: ENDPOINT,
+        issues: loggedIssues(intake.issues),
       })
       return NextResponse.json(
         { error: intake.issues[0].message, route: intake.issues[0].route },
@@ -60,10 +64,17 @@ export async function POST(request: NextRequest) {
     }
     if (intake.kind === 'rule_failure') {
       const enforced = env.INTAKE_VALIDATION_ENFORCED
-      logger.warn('Intake failed validation rules', { enforced, issues: intake.issues })
-      if (enforced) {
+      const blocking = checkoutBlockers(intake.issues, enforced)
+      logger.event('WARNING', {
+        event: 'intake_rule_failure',
+        endpoint: ENDPOINT,
+        enforced,
+        blocked: blocking.length > 0,
+        issues: loggedIssues(intake.issues),
+      })
+      if (blocking.length > 0) {
         return NextResponse.json(
-          { error: intake.issues[0].message, route: intake.issues[0].route },
+          { error: blocking[0].message, route: blocking[0].route },
           { status: 400 }
         )
       }

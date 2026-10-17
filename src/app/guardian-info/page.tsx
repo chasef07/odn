@@ -11,6 +11,7 @@ import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { guardianSchema } from '@/lib/validation-schemas'
 import { backRoute, nextRoute } from '@/lib/intake'
+import { capitalizeName } from '@/lib/name-case'
 
 const ROUTE = '/guardian-info'
 
@@ -44,17 +45,7 @@ export default function GuardianInfoPage() {
   const handleNameChange =
     (field: 'guardianFirstName' | 'guardianLastName') =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const capitalized = e.target.value
-        .split(/(\s+|-|')/)
-        .map((part) => {
-          if (part.match(/^\s+$/) || part === '-' || part === "'") return part
-          if (part.length > 0) {
-            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-          }
-          return part
-        })
-        .join('')
-      setValue(field, capitalized)
+      setValue(field, capitalizeName(e.target.value))
     }
 
   const onSubmit = (data: FormData) => {

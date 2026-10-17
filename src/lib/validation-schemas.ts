@@ -3,6 +3,7 @@ import { isAgeValid } from '@/lib/age-validators'
 import { compareDateOnly, getUTCDateOnlyParts, parseIsoDateOnly } from '@/lib/date-only'
 import { validateAbsenceDates } from '@/lib/date-validators'
 import { ABSENCE_REASONS, AVAILABLE_STATES } from '@/lib/form-constants'
+import { rule } from '@/lib/intake-rules'
 import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 
 const NAME_REGEX = /^(?=.*\p{L})[\p{L}\p{M} '’‘.-]+$/u
@@ -13,7 +14,10 @@ function nameField(label: string) {
     .trim()
     .min(1, `${label} is required`)
     .max(50, `${label} must be less than 50 characters`)
-    .regex(NAME_REGEX, 'Only letters, spaces, hyphens, apostrophes, and periods are allowed')
+    .refine((val) => NAME_REGEX.test(val), {
+      message: 'Only letters, spaces, hyphens, apostrophes, and periods are allowed',
+      params: rule('name_characters'),
+    })
 }
 
 const dateOfBirthField = z
@@ -22,18 +26,30 @@ const dateOfBirthField = z
   .superRefine((val, ctx) => {
     const parsed = parseIsoDateOnly(val)
     if (!parsed) {
-      ctx.addIssue({ code: 'custom', message: 'Please enter a valid date of birth' })
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Please enter a valid date of birth',
+        params: rule('date_invalid'),
+      })
       return
     }
 
     const today = getUTCDateOnlyParts(new Date())
     if (compareDateOnly(parsed, today) > 0) {
-      ctx.addIssue({ code: 'custom', message: 'Date of birth cannot be in the future' })
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Date of birth cannot be in the future',
+        params: rule('date_future'),
+      })
       return
     }
 
     if (compareDateOnly(parsed, { year: 1900, month: 1, day: 1 }) < 0) {
-      ctx.addIssue({ code: 'custom', message: 'Please enter a valid date of birth' })
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Please enter a valid date of birth',
+        params: rule('date_before_1900'),
+      })
     }
   })
 
@@ -44,7 +60,11 @@ export const recipientSchema = z
   .object({
     recipient: z.enum(RECIPIENTS, { error: RECIPIENT_REQUIRED }).nullable(),
   })
-  .refine((data) => data.recipient !== null, { message: RECIPIENT_REQUIRED, path: ['recipient'] })
+  .refine((data) => data.recipient !== null, {
+    message: RECIPIENT_REQUIRED,
+    path: ['recipient'],
+    params: rule('required'),
+  })
 
 export const patientSchema = z
   .object({
@@ -59,6 +79,7 @@ export const patientSchema = z
         code: 'custom',
         path: ['patientDateOfBirth'],
         message: 'You must be 18 or older to request a note for yourself',
+        params: rule('under_18'),
       })
     }
   })
@@ -68,6 +89,7 @@ export const guardianSchema = z.object({
   guardianLastName: nameField('Guardian last name'),
   guardianDateOfBirth: dateOfBirthField.refine((val) => isAgeValid(val, 18), {
     message: 'Guardian must be 18 years or older',
+    params: rule('under_18'),
   }),
 })
 
@@ -95,6 +117,7 @@ const COMMON_TLD_TYPOS: Record<string, string> = {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@(?:[^\s@.]+\.)+\p{L}{2,}$/u
+const PHONE_REGEX = /^\+?[\d\s().-]+$/
 
 export const contactSchema = z.object({
   email: z
@@ -104,7 +127,11 @@ export const contactSchema = z.object({
     .toLowerCase()
     .superRefine((email, ctx) => {
       if (!EMAIL_REGEX.test(email)) {
-        ctx.addIssue({ code: 'custom', message: 'Please enter a valid email address' })
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Please enter a valid email address',
+          params: rule('email_invalid'),
+        })
         return
       }
 
@@ -115,6 +142,7 @@ export const contactSchema = z.object({
         ctx.addIssue({
           code: 'custom',
           message: `Did you mean "${suggestion}"? Please check your email address.`,
+          params: rule('email_typo'),
         })
       }
     }),
@@ -122,8 +150,14 @@ export const contactSchema = z.object({
     .string({ error: 'Phone number is required' })
     .trim()
     .min(1, 'Phone number is required')
-    .regex(/^\+?[\d\s().-]+$/, 'Please enter a valid phone number')
-    .refine((val) => toNationalDigits(val).length === 10, 'Phone number must be exactly 10 digits')
+    .refine((val) => PHONE_REGEX.test(val), {
+      message: 'Please enter a valid phone number',
+      params: rule('phone_characters'),
+    })
+    .refine((val) => toNationalDigits(val).length === 10, {
+      message: 'Phone number must be exactly 10 digits',
+      params: rule('phone_digits'),
+    })
     .transform(formatPhoneNumber),
 })
 
@@ -134,7 +168,10 @@ export const stateSchema = z.object({
     .string({ error: 'Please select your state' })
     .trim()
     .min(1, 'Please select your state')
-    .refine((val) => SUPPORTED_STATES.has(val), 'Please select a state from the list'),
+    .refine((val) => SUPPORTED_STATES.has(val), {
+      message: 'Please select a state from the list',
+      params: rule('state_unsupported'),
+    }),
 })
 
 export const LEGAL_NOTE_PURPOSE_ERROR =
@@ -152,19 +189,22 @@ export const notePurposeSchema = z
     otherNotePurpose: z
       .string({ error: 'Please specify the purpose' })
       .max(500, 'Purpose description must be less than 500 characters')
-      .optional(),
+      .nullish(),
   })
   .refine((data) => data.notePurpose !== null, {
     message: NOTE_PURPOSE_REQUIRED,
     path: ['notePurpose'],
+    params: rule('required'),
   })
   .refine((data) => data.notePurpose !== 'legal', {
     message: LEGAL_NOTE_PURPOSE_ERROR,
     path: ['notePurpose'],
+    params: rule('purpose_legal'),
   })
   .refine((data) => data.notePurpose !== 'other' || !!data.otherNotePurpose?.trim(), {
     message: 'Please specify the purpose',
     path: ['otherNotePurpose'],
+    params: rule('purpose_other_text'),
   })
 
 export const absenceDatesSchema = z
@@ -180,6 +220,7 @@ export const absenceDatesSchema = z
         code: 'custom',
         path: ['firstDayOff'],
         message: 'Please enter a valid first day off',
+        params: rule('date_invalid'),
       })
     }
     if (!last) {
@@ -187,11 +228,17 @@ export const absenceDatesSchema = z
         code: 'custom',
         path: ['lastDayOff'],
         message: 'Please enter a valid last day off',
+        params: rule('date_invalid'),
       })
     }
     if (!first || !last) return
     for (const error of validateAbsenceDates(data)) {
-      ctx.addIssue({ code: 'custom', path: [error.field], message: error.message })
+      ctx.addIssue({
+        code: 'custom',
+        path: [error.field],
+        message: error.message,
+        params: rule(error.rule),
+      })
     }
   })
 
@@ -204,15 +251,17 @@ export const absenceReasonSchema = z
     otherAbsenceReason: z
       .string({ error: 'Please specify the reason' })
       .max(200, 'Reason must be less than 200 characters')
-      .optional(),
+      .nullish(),
   })
   .refine((data) => data.absenceReason !== null && ABSENCE_REASON_SET.has(data.absenceReason), {
     message: ABSENCE_REASON_REQUIRED,
     path: ['absenceReason'],
+    params: rule('unknown_option'),
   })
   .refine((data) => data.absenceReason !== 'Other' || !!data.otherAbsenceReason?.trim(), {
     message: 'Please specify the reason',
     path: ['otherAbsenceReason'],
+    params: rule('reason_other_text'),
   })
 
 const SYMPTOMS_REQUIRED = 'Please select at least one option'
@@ -222,26 +271,28 @@ export const symptomsSchema = z
   .object({
     symptoms: z
       .array(z.string({ error: SYMPTOMS_REQUIRED }), { error: SYMPTOMS_REQUIRED })
-      .optional(),
+      .nullish(),
     otherSymptomText: z
       .string({ error: OTHER_SYMPTOM_REQUIRED })
       .max(500, 'Symptom description must be less than 500 characters')
-      .optional(),
+      .nullish(),
   })
   .refine((data) => (data.symptoms?.length ?? 0) > 0, {
     message: SYMPTOMS_REQUIRED,
     path: ['symptoms'],
+    params: rule('symptoms_none'),
   })
   .refine((data) => !data.symptoms?.includes('Other') || !!data.otherSymptomText?.trim(), {
     message: OTHER_SYMPTOM_REQUIRED,
     path: ['otherSymptomText'],
+    params: rule('symptom_other_text'),
   })
 
 export const additionalInfoSchema = z.object({
   additionalInformation: z
     .string({ error: 'Additional information must be text' })
     .max(1000, 'Additional information must be less than 1000 characters')
-    .optional()
+    .nullish()
     .transform((val) => val?.trim()),
 })
 
@@ -251,10 +302,10 @@ const TERMS_REQUIRED = 'You must agree to the Terms of Service and Privacy Polic
 export const termsSchema = z.object({
   certifyAccurate: z
     .boolean({ error: CERTIFY_REQUIRED })
-    .refine((val) => val === true, { message: CERTIFY_REQUIRED }),
+    .refine((val) => val === true, { message: CERTIFY_REQUIRED, params: rule('required') }),
   agreeTerms: z
     .boolean({ error: TERMS_REQUIRED })
-    .refine((val) => val === true, { message: TERMS_REQUIRED }),
+    .refine((val) => val === true, { message: TERMS_REQUIRED, params: rule('required') }),
   smsOptIn: z.boolean({ error: 'SMS consent must be yes or no' }).optional().default(false),
 })
 

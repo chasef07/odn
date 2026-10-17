@@ -2,6 +2,8 @@ type LogArgs = unknown[]
 
 const isDevelopment = () => process.env.NODE_ENV === 'development'
 
+type LogSeverity = 'WARNING' | 'ERROR'
+
 export const logger = {
   debug: (...args: LogArgs) => {
     // eslint-disable-next-line no-console
@@ -15,5 +17,10 @@ export const logger = {
   },
   error: (...args: LogArgs) => {
     console.error(...args)
+  },
+  event: (severity: LogSeverity, fields: Record<string, unknown>) => {
+    const line = JSON.stringify({ severity, ...fields })
+    if (severity === 'ERROR') console.error(line)
+    else console.warn(line)
   },
 }

@@ -22,6 +22,7 @@ import { backRoute, nextRoute } from '@/lib/intake'
 import { LEGAL_NOTE_PURPOSE_ERROR, notePurposeSchema } from '@/lib/validation-schemas'
 import { NOTE_PURPOSES } from '@/lib/form-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
+import type { z } from 'zod'
 
 const NOTE_PURPOSE_OPTIONS = [
   {
@@ -52,12 +53,7 @@ const NOTE_PURPOSE_OPTIONS = [
 
 const ROUTE = '/note-purpose'
 
-type NotePurpose = 'work' | 'school' | 'both' | 'travel' | 'legal' | 'other'
-
-type FormData = {
-  notePurpose: NotePurpose | null
-  otherNotePurpose?: string
-}
+type FormData = z.input<typeof notePurposeSchema>
 
 export default function NotePurposePage() {
   const router = useRouter()
