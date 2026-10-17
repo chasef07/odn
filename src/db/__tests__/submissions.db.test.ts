@@ -982,10 +982,12 @@ describe('maybe writes', () => {
   it('moves a pending submission to maybe with the review stamps, and refuses other states', async () => {
     await seedAdmin()
     const pending = await seed({ maybeEmailSentAt: at(0) })
+    const otherPending = await seed()
     const approved = await seed({ status: SubmissionStatus.APPROVED })
 
     expect(await markPendingSubmissionMaybe(pending.id, review)).toBe(1)
     expect(await markPendingSubmissionMaybe(approved.id, review)).toBe(0)
+    expect(await reload(otherPending.id)).toEqual(otherPending)
 
     expect(await reload(pending.id)).toEqual({
       ...pending,
