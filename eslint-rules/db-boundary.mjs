@@ -17,8 +17,9 @@ const TABLE_MODULES = {
 
 const MODULE_LIST = [...new Set(Object.values(TABLE_MODULES))].join(', ')
 
-const CLIENT_FILES = new Set(['src/db/client', 'src/lib/prisma'])
+const CLIENT_FILES = new Set(['src/db/client', 'src/db/pool', 'src/lib/prisma'])
 const INTERNAL_FILES = new Set(['src/db/errors', 'src/lib/prisma-errors'])
+const TEST_DATABASE = 'src/db/test-database'
 
 function repoPath(context, source) {
   let resolved
@@ -40,6 +41,7 @@ function classify(context, source) {
   if (!file) return null
   if (CLIENT_FILES.has(file)) return 'dbClient'
   if (INTERNAL_FILES.has(file)) return 'dbInternal'
+  if (file === TEST_DATABASE) return 'testDatabase'
   return null
 }
 
@@ -76,6 +78,8 @@ const dbBoundary = {
       dbClient: `{{source}} is the database client, and only src/db may use it. Call a named function from the src/db module for the table (${MODULE_LIST}). Tests mock that module's functions.`,
       dbInternal:
         '{{source}} is internal to src/db. The src/db function catches the database error and returns a domain result the caller branches on.',
+      testDatabase:
+        '{{source}} boots the PGlite test database and is only for src/db/**/*.db.test.ts and vitest.db-setup.ts. Other tests mock the src/db functions.',
       query:
         'Move this {{model}} query into a named function in {{module}} and call that function here.',
     },

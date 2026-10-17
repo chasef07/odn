@@ -3,17 +3,17 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { loadEnv } from 'vite'
 
+const DB_TESTS = 'src/db/**/*.db.test.ts'
+
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  const { DATABASE_URL: _ignored, ...env } = loadEnv(mode, process.cwd(), '')
 
   return {
     plugins: [react()],
     test: {
-      environment: 'jsdom',
       globals: true,
-      globalSetup: './vitest.global-setup.ts',
-      setupFiles: ['./vitest.setup.ts'],
       env: {
+        DATABASE_URL: 'postgresql://unit-tests-have-no-database',
         NEXT_PUBLIC_SITE_URL: 'https://onlinedoctornote.com',
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_placeholder',
         STRIPE_SECRET_KEY: 'sk_test_placeholder',
@@ -32,8 +32,30 @@ export default defineConfig(({ mode }) => {
         TELNYX_SMS_ENABLED: 'false',
         ...env,
       },
-      include: ['**/*.{test,spec}.{ts,tsx}'],
-      exclude: ['node_modules', '.next', 'out', '.claude/**', 'docs-legacy/**'],
+      projects: [
+        {
+          extends: true,
+          test: {
+            name: 'unit',
+            environment: 'jsdom',
+            setupFiles: ['./vitest.setup.ts'],
+            include: ['**/*.{test,spec}.{ts,tsx}'],
+            exclude: ['node_modules', '.next', 'out', '.claude/**', 'docs-legacy/**', DB_TESTS],
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: 'db',
+            environment: 'node',
+            include: [DB_TESTS],
+            globalSetup: './vitest.db-setup.ts',
+            setupFiles: ['./src/db/__tests__/db-setup.ts'],
+            fileParallelism: false,
+            env: { TZ: 'America/Los_Angeles' },
+          },
+        },
+      ],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],
