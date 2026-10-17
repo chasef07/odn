@@ -849,24 +849,24 @@ describe('sms support lookups', () => {
   })
 
   it('resolves approved submissions for support by id, phone, reference and birth date', async () => {
-    const approvedNew = await seed({
-      status: SubmissionStatus.APPROVED,
-      smsPhoneE164: phone,
-      id: 'abc12345-0000-4000-8000-000000000001',
-      createdAt: at(3),
-    })
     const approvedOld = await seed({
       status: SubmissionStatus.APPROVED,
       smsPhoneE164: phone,
       createdAt: at(2),
     })
     await seed({ status: SubmissionStatus.APPROVED, smsPhoneE164: phone, createdAt: at(1) })
+    const approvedNew = await seed({
+      status: SubmissionStatus.APPROVED,
+      smsPhoneE164: phone,
+      id: 'abc12345-0000-4000-8000-000000000001',
+      createdAt: at(3),
+    })
     const pending = await seed({
       smsPhoneE164: phone,
       id: 'abc12345-0000-4000-8000-000000000002',
       createdAt: at(4),
     })
-    const otherPhone = await seed({
+    await seed({
       status: SubmissionStatus.APPROVED,
       smsPhoneE164: '+15550000000',
       id: 'abc12345-0000-4000-8000-000000000003',
@@ -910,19 +910,16 @@ describe('sms support lookups', () => {
   })
 
   it('returns at most two reference matches', async () => {
-    const matches = new Set<string>()
+    const matches: string[] = []
     for (const suffix of ['1', '2', '3']) {
-      const row = await seed({
-        status: SubmissionStatus.APPROVED,
-        smsPhoneE164: phone,
-        id: `abc12345-0000-4000-8000-00000000000${suffix}`,
-      })
-      matches.add(row.id)
+      const id = `abc12345-0000-4000-8000-00000000000${suffix}`
+      await seed({ status: SubmissionStatus.APPROVED, smsPhoneE164: phone, id })
+      matches.push(id)
     }
 
     const rows = await findApprovedSupportSubmissionIdsByReference(phone, { idPrefix: 'abc12345' })
 
     expect(rows).toHaveLength(2)
-    expect(ids(rows).every((id) => matches.has(id))).toBe(true)
+    expect(matches).toEqual(expect.arrayContaining(ids(rows)))
   })
 })
