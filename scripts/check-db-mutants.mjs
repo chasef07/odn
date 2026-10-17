@@ -311,8 +311,14 @@ const { values } = parseArgs({
     module: { type: 'string', multiple: true, default: [] },
     out: { type: 'string', default: join(tmpdir(), 'db-mutants.tsv') },
     list: { type: 'boolean', default: false },
+    modules: { type: 'boolean', default: false },
   },
 })
+
+if (values.modules) {
+  console.log(JSON.stringify(testedModules(values.module)))
+  process.exit(0)
+}
 
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {})
 
