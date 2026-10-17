@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { AlertCircle, Check, ShieldCheck } from 'lucide-react'
-import prisma from '@/lib/prisma'
+import { findNoteVerificationBySlug } from '@/db/note-verifications'
 import { formatDisplayDate } from '@/lib/note-verification'
 import { localizePath, translate, translateReactTree, type Locale } from '@/lib/i18n'
 
@@ -23,30 +23,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 async function getVerification(slug: string) {
-  return prisma.noteVerification.findUnique({
-    where: { verificationSlug: slug },
-    select: {
-      medicalRecordNumber: true,
-      status: true,
-      revokedAt: true,
-      issueDate: true,
-      patientInitials: true,
-      firstDayOff: true,
-      lastDayOff: true,
-      returnGuidance: true,
-      physicianName: true,
-      physicianCredentials: true,
-      physicianNpi: true,
-      licenseState: true,
-      licenseNumber: true,
-      submission: {
-        select: {
-          status: true,
-          refundedAt: true,
-        },
-      },
-    },
-  })
+  return findNoteVerificationBySlug(slug)
 }
 
 function DetailRow({ label, value, locale }: { label: string; value: string; locale: Locale }) {

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { formatDateTimeET } from '@/lib/admin-utils'
-import type { SupportTicketListItem } from '@/app/admin/support/_actions/tickets'
+import type { SupportTicketListItem } from '@/db/sms-support'
 import {
   supportCategoryLabel,
   supportStatusClass,

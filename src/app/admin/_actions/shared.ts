@@ -1,6 +1,11 @@
-import { SubmissionStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import {
+  findSubmissionById,
+  markPendingSubmissionMaybe,
+  markSubmissionMaybe,
+  recordMaybeEmailSent,
+} from '@/db/submissions'
+import { SubmissionStatus } from '@/db/types'
 import { logger } from '@/lib/logger'
 import { sendMaybeEmail } from '@/lib/email'
 import { maybeUpdateSms } from '@/lib/sms-templates'
@@ -46,9 +51,7 @@ export async function moveSubmissionToMaybe({
   }
   const maybeApprovedDays = requiresApprovedDays ? (approvedDays as MaybeApprovedDays) : null
 
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-  })
+  const submission = await findSubmissionById(submissionId)
 
   if (!submission) {
     return { success: false, error: 'Submission not found' }
@@ -58,37 +61,25 @@ export async function moveSubmissionToMaybe({
   const shouldSendEmail =
     submission.status === SubmissionStatus.PENDING_REVIEW && reasonConfig.sendsEmail
   const internalNote = input.internalNote?.trim() || null
-  const maybeUpdateData = {
-    status: SubmissionStatus.MAYBE,
+  const maybeReview = {
     maybeReason: reasonConfig.value,
     maybeInternalNote: internalNote,
     maybeApprovedDays,
-    maybeEmailSentAt: null,
     reviewedByAdminId: doctorId,
     reviewedAt: now,
-    updatedAt: now,
   }
 
   if (submission.status === SubmissionStatus.PENDING_REVIEW) {
-    const updateResult = await prisma.submission.updateMany({
-      where: {
-        id: submissionId,
-        status: SubmissionStatus.PENDING_REVIEW,
-      },
-      data: maybeUpdateData,
-    })
+    const updatedCount = await markPendingSubmissionMaybe(submissionId, maybeReview)
 
-    if (updateResult.count === 0) {
+    if (updatedCount === 0) {
       return {
         success: false,
         error: 'This submission has already been reviewed by another doctor',
       }
     }
   } else {
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: maybeUpdateData,
-    })
+    await markSubmissionMaybe(submissionId, maybeReview)
   }
 
   let emailWarning: string | undefined
@@ -101,12 +92,7 @@ export async function moveSubmissionToMaybe({
         approvedDays: maybeApprovedDays,
       })
 
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: {
-          maybeEmailSentAt: new Date(),
-        },
-      })
+      await recordMaybeEmailSent(submissionId, new Date())
 
       await sendTransactionalSmsForSubmission({
         submission,

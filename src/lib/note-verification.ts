@@ -1,6 +1,6 @@
 import crypto from 'crypto'
-import { NoteVerificationStatus, Prisma, Submission } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { createNoteVerificationWithUniqueIdentifiers } from '@/db/note-verifications'
+import type { NoteVerification, Submission } from '@/db/types'
 import { env } from '@/lib/env'
 import { getStateLicense } from '@/lib/state-licenses'
 import { getTodayET } from '@/lib/admin-utils'
@@ -123,8 +123,11 @@ export function buildNoteVerificationSnapshot(
   }
 }
 
-export async function createNoteVerification(submission: Submission, issueDate: Date) {
-  for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
+export async function createNoteVerification(
+  submission: Submission,
+  issueDate: Date
+): Promise<NoteVerification> {
+  return createNoteVerificationWithUniqueIdentifiers(() => {
     const medicalRecordNumber = generateMedicalRecordNumber()
     const verificationSlug = generateVerificationSlug()
     const snapshot = buildNoteVerificationSnapshot(
@@ -134,85 +137,6 @@ export async function createNoteVerification(submission: Submission, issueDate: 
       verificationSlug
     )
 
-    try {
-      return await prisma.noteVerification.create({
-        data: {
-          submissionId: submission.id,
-          medicalRecordNumber: snapshot.medicalRecordNumber,
-          verificationSlug: snapshot.verificationSlug,
-          issueDate: snapshot.issueDate,
-          patientInitials: snapshot.patientInitials,
-          firstDayOff: snapshot.firstDayOff,
-          lastDayOff: snapshot.lastDayOff,
-          returnGuidance: snapshot.returnGuidance,
-          physicianName: snapshot.physicianName,
-          physicianCredentials: snapshot.physicianCredentials,
-          physicianNpi: snapshot.physicianNpi,
-          licenseState: snapshot.licenseState,
-          licenseNumber: snapshot.licenseNumber,
-        },
-      })
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002' &&
-        attempt < MAX_CREATE_ATTEMPTS - 1
-      ) {
-        continue
-      }
-      throw error
-    }
-  }
-
-  throw new Error('Failed to create a unique note verification record')
-}
-
-export async function revokeNoteVerificationById(verificationId: string, revokedAt = new Date()) {
-  await prisma.noteVerification.updateMany({
-    where: {
-      id: verificationId,
-      status: NoteVerificationStatus.ACTIVE,
-      revokedAt: null,
-    },
-    data: {
-      status: NoteVerificationStatus.REVOKED,
-      revokedAt,
-    },
-  })
-}
-
-export async function revokeOtherNoteVerificationsForSubmission(
-  submissionId: string,
-  activeVerificationId: string,
-  revokedAt = new Date()
-) {
-  await prisma.noteVerification.updateMany({
-    where: {
-      submissionId,
-      id: { not: activeVerificationId },
-      status: NoteVerificationStatus.ACTIVE,
-      revokedAt: null,
-    },
-    data: {
-      status: NoteVerificationStatus.REVOKED,
-      revokedAt,
-    },
-  })
-}
-
-export async function revokeNoteVerificationForSubmission(
-  submissionId: string,
-  revokedAt = new Date()
-) {
-  await prisma.noteVerification.updateMany({
-    where: {
-      submissionId,
-      status: NoteVerificationStatus.ACTIVE,
-      revokedAt: null,
-    },
-    data: {
-      status: NoteVerificationStatus.REVOKED,
-      revokedAt,
-    },
-  })
+    return { submissionId: submission.id, ...snapshot }
+  }, MAX_CREATE_ATTEMPTS)
 }

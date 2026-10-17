@@ -1,6 +1,18 @@
-import { Prisma, Submission, SubmissionStatus } from '@prisma/client'
 import { sendApprovalEmail } from '@/lib/email'
-import prisma from '@/lib/prisma'
+import { SubmissionStatus, type JsonValue, type Submission } from '@/db/types'
+import {
+  ACTIVE_AUTOMATION_STATUSES,
+  claimSupportTicketAutomationRun,
+  closeSupportTicketAfterAutomation,
+  findSupportJobStatus,
+  findSupportJobWithTicket,
+} from '@/db/sms-support'
+import {
+  commitSupportAutomationSubmissionUpdate,
+  findSubmissionById,
+  recordApprovalEmailSent,
+  type SmsSupportAutomationSubmissionUpdate,
+} from '@/db/submissions'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { generateQrCodeDataUrl } from '@/lib/qr-code'
 import { parseIsoDateOnlyAsUTCDate } from '@/lib/date-only'
@@ -8,14 +20,15 @@ import {
   createNoteVerification,
   getVerificationUrl,
   parseIssueDateInput,
+} from '@/lib/note-verification'
+import {
   revokeNoteVerificationById,
   revokeOtherNoteVerificationsForSubmission,
-} from '@/lib/note-verification'
+} from '@/db/note-verifications'
 import { automationSuccessSms } from '@/lib/sms-support-templates'
 import { sendSupportSms } from '@/lib/sms-support-sms'
 import {
   SMS_SUPPORT_AUTOMATION_KIND,
-  SMS_SUPPORT_AUTOMATION_STATUS,
   SMS_SUPPORT_CATEGORY,
   SMS_SUPPORT_JOB_STATUS,
   SMS_SUPPORT_STATUS,
@@ -42,11 +55,6 @@ type RegenerateInput = {
   updates: SupportAutomationPayload['updates']
 }
 
-const ACTIVE_AUTOMATION_STATUSES = [
-  SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
-  SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
-] as const
-
 export class SupportAutomationCancelledError extends Error {
   constructor(message: string) {
     super(message)
@@ -62,10 +70,7 @@ export class SupportAutomationManualReviewError extends Error {
 }
 
 export async function runSupportTicketAutomation(jobId: string): Promise<void> {
-  const job = await prisma.smsSupportJob.findUnique({
-    where: { id: jobId },
-    include: { ticket: true },
-  })
+  const job = await findSupportJobWithTicket(jobId)
 
   if (!job) throw new Error('Support job not found')
   if (
@@ -79,21 +84,8 @@ export async function runSupportTicketAutomation(jobId: string): Promise<void> {
   const payload = parseAutomationPayload(job.payload)
   if (!payload) throw new Error('Support job has an invalid automation payload')
 
-  const claimedTicket = await prisma.smsSupportTicket.updateMany({
-    where: {
-      id: job.ticketId,
-      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-      automationStatus: {
-        in: [...ACTIVE_AUTOMATION_STATUSES],
-      },
-    },
-    data: {
-      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
-      failureReason: null,
-    },
-  })
-  if (claimedTicket.count !== 1) {
+  const claimedTicket = await claimSupportTicketAutomationRun(job.ticketId)
+  if (claimedTicket !== 1) {
     throw new SupportAutomationCancelledError('Ticket left automation state before job ran')
   }
 
@@ -108,20 +100,10 @@ export async function runSupportTicketAutomation(jobId: string): Promise<void> {
     updates: payload.updates,
   })
 
-  await prisma.smsSupportTicket.updateMany({
-    where: {
-      id: job.ticketId,
-      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-    },
-    data: {
-      status: SMS_SUPPORT_STATUS.CLOSED,
-      state: 'CLOSED',
-      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.SUCCEEDED,
-      adminSummary: `Automated ${payload.category} update completed and emailed.`,
-      failureReason: null,
-      closedAt: new Date(),
-    },
-  })
+  await closeSupportTicketAfterAutomation(
+    job.ticketId,
+    `Automated ${payload.category} update completed and emailed.`
+  )
 }
 
 async function regenerateApprovedSubmission({
@@ -132,9 +114,7 @@ async function regenerateApprovedSubmission({
   category,
   updates,
 }: RegenerateInput): Promise<void> {
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-  })
+  const submission = await findSubmissionById(submissionId)
 
   if (!submission) throw new Error('Submission not found')
   if (submission.status !== SubmissionStatus.APPROVED) {
@@ -193,45 +173,13 @@ async function regenerateApprovedSubmission({
     throw error
   }
 
-  const commitResult = await prisma.$transaction(async (tx) => {
-    const ticketGuard = await tx.smsSupportTicket.updateMany({
-      where: {
-        id: ticketId,
-        status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-        automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
-      },
-      data: {
-        failureReason: null,
-      },
-    })
-
-    if (ticketGuard.count !== 1) return 'cancelled' as const
-
-    const jobGuard = await tx.smsSupportJob.updateMany({
-      where: {
-        id: jobId,
-        status: SMS_SUPPORT_JOB_STATUS.RUNNING,
-      },
-      data: {
-        status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-        lockedAt: now,
-      },
-    })
-
-    if (jobGuard.count !== 1) return 'cancelled' as const
-
-    const submissionUpdate = await tx.submission.updateMany({
-      where: {
-        id: submissionId,
-        status: SubmissionStatus.APPROVED,
-        updatedAt: submission.updatedAt,
-      },
-      data: updateData,
-    })
-
-    if (submissionUpdate.count !== 1) return 'submission_changed' as const
-
-    return 'updated' as const
+  const commitResult = await commitSupportAutomationSubmissionUpdate({
+    ticketId,
+    jobId,
+    submissionId,
+    submissionUpdatedAt: submission.updatedAt,
+    committedAt: now,
+    updateData,
   })
 
   if (commitResult === 'cancelled') {
@@ -258,10 +206,7 @@ async function regenerateApprovedSubmission({
       pdfFilename,
     })
 
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: { approvalEmailSentAt: new Date() },
-    })
+    await recordApprovalEmailSent(submissionId, new Date())
   } catch (error) {
     throw new Error(
       `Updated note was generated but approval email failed: ${
@@ -288,10 +233,7 @@ async function regenerateApprovedSubmission({
 }
 
 async function assertSupportJobStillRunning(jobId: string): Promise<void> {
-  const job = await prisma.smsSupportJob.findUnique({
-    where: { id: jobId },
-    select: { status: true },
-  })
+  const job = await findSupportJobStatus(jobId)
 
   if (job?.status !== SMS_SUPPORT_JOB_STATUS.RUNNING) {
     throw new SupportAutomationCancelledError('Support automation job was cancelled by admin')
@@ -301,8 +243,8 @@ async function assertSupportJobStillRunning(jobId: string): Promise<void> {
 function buildSubmissionUpdateData(
   updates: SupportAutomationPayload['updates'],
   now: Date
-): Prisma.SubmissionUpdateManyMutationInput {
-  const data: Prisma.SubmissionUpdateManyMutationInput = {
+): SmsSupportAutomationSubmissionUpdate {
+  const data: SmsSupportAutomationSubmissionUpdate = {
     denialReason: null,
     reviewedAt: now,
     updatedAt: now,
@@ -333,7 +275,7 @@ function updateDataForPdf(updates: SupportAutomationPayload['updates']): Partial
   return data
 }
 
-export function parseAutomationPayload(payload: Prisma.JsonValue): SupportAutomationPayload | null {
+export function parseAutomationPayload(payload: JsonValue): SupportAutomationPayload | null {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
   const value = payload as Record<string, unknown>
 

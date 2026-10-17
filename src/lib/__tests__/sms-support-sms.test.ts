@@ -1,27 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
-  mockSmsPhoneStateFindUnique,
-  mockSmsSupportTicketFindUnique,
-  mockSmsSupportTicketUpdateMany,
+  mockFindSmsPhoneOptOut,
+  mockFindSupportTicketLastOutboundAt,
+  mockRecordSupportTicketOutbound,
   mockSendTelnyxSms,
 } = vi.hoisted(() => ({
-  mockSmsPhoneStateFindUnique: vi.fn(),
-  mockSmsSupportTicketFindUnique: vi.fn(),
-  mockSmsSupportTicketUpdateMany: vi.fn(),
+  mockFindSmsPhoneOptOut: vi.fn(),
+  mockFindSupportTicketLastOutboundAt: vi.fn(),
+  mockRecordSupportTicketOutbound: vi.fn(),
   mockSendTelnyxSms: vi.fn(),
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    smsPhoneState: {
-      findUnique: mockSmsPhoneStateFindUnique,
-    },
-    smsSupportTicket: {
-      findUnique: mockSmsSupportTicketFindUnique,
-      updateMany: mockSmsSupportTicketUpdateMany,
-    },
-  },
+vi.mock('@/db/sms-support', () => ({
+  findSmsPhoneOptOut: mockFindSmsPhoneOptOut,
+  findSupportTicketLastOutboundAt: mockFindSupportTicketLastOutboundAt,
+  recordSupportTicketOutbound: mockRecordSupportTicketOutbound,
 }))
 
 vi.mock('@/lib/telnyx', () => ({
@@ -34,10 +28,10 @@ import { supportIntroMenuSms } from '../sms-support-templates'
 describe('sendSupportSms', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSmsPhoneStateFindUnique.mockResolvedValue(null)
-    mockSmsSupportTicketFindUnique.mockResolvedValue({ lastOutboundAt: null })
+    mockFindSmsPhoneOptOut.mockResolvedValue(null)
+    mockFindSupportTicketLastOutboundAt.mockResolvedValue({ lastOutboundAt: null })
     mockSendTelnyxSms.mockResolvedValue({ success: true })
-    mockSmsSupportTicketUpdateMany.mockResolvedValue({ count: 1 })
+    mockRecordSupportTicketOutbound.mockResolvedValue(undefined)
   })
 
   it('sends the exact HELP intro with the long footer on a ticket first outbound', async () => {
@@ -67,7 +61,7 @@ describe('sendSupportSms', () => {
   })
 
   it('omits the long footer after the ticket has a successful outbound', async () => {
-    mockSmsSupportTicketFindUnique.mockResolvedValue({
+    mockFindSupportTicketLastOutboundAt.mockResolvedValue({
       lastOutboundAt: new Date('2026-08-12T00:00:00Z'),
     })
 
@@ -112,6 +106,7 @@ describe('sendSupportSms', () => {
       2,
       expect.objectContaining({ body: expectedBody })
     )
-    expect(mockSmsSupportTicketUpdateMany).toHaveBeenCalledTimes(1)
+    expect(mockRecordSupportTicketOutbound).toHaveBeenCalledTimes(1)
+    expect(mockRecordSupportTicketOutbound).toHaveBeenCalledWith('ticket_123')
   })
 })

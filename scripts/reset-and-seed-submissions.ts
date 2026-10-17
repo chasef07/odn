@@ -1,5 +1,6 @@
-import prisma from '../src/lib/prisma'
-import { SubmissionStatus } from '@prisma/client'
+import { disconnectDatabase } from '../src/db/connection'
+import { deleteAllSubmissions, insertSubmission } from '../src/db/submissions'
+import { SubmissionStatus } from '../src/db/types'
 
 const newTestData = [
   {
@@ -128,21 +129,19 @@ async function resetAndSeedSubmissions() {
   try {
     console.log('🧹 Clearing all submissions from database...\n')
 
-    const deleteResult = await prisma.submission.deleteMany({})
-    console.log(`✅ Deleted ${deleteResult.count} submissions\n`)
+    const deletedCount = await deleteAllSubmissions()
+    console.log(`✅ Deleted ${deletedCount} submissions\n`)
 
     console.log('🌱 Adding 10 new test submissions...\n')
 
     let count = 0
     for (const data of newTestData) {
-      const submission = await prisma.submission.create({
-        data: {
-          stripePaymentIntentId: `pi_test_${Date.now()}_${count}`,
-          status: SubmissionStatus.PENDING_REVIEW,
-          recipient: 'myself',
-          phone: '5551234567',
-          ...data,
-        },
+      const submission = await insertSubmission({
+        stripePaymentIntentId: `pi_test_${Date.now()}_${count}`,
+        status: SubmissionStatus.PENDING_REVIEW,
+        recipient: 'myself',
+        phone: '5551234567',
+        ...data,
       })
 
       count++
@@ -162,7 +161,7 @@ async function resetAndSeedSubmissions() {
     console.error('❌ Failed to reset and seed submissions:', error)
     throw error
   } finally {
-    await prisma.$disconnect()
+    await disconnectDatabase()
   }
 }
 

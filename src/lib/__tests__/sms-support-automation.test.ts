@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { SubmissionStatus } from '@prisma/client'
+import { SubmissionStatus } from '@/db/types'
 import {
   SMS_SUPPORT_CATEGORY,
   SMS_SUPPORT_JOB_KIND,
@@ -7,13 +7,13 @@ import {
 } from '../sms-support-types'
 
 const {
-  mockJobFindUnique,
-  mockJobUpdateMany,
-  mockTicketUpdateMany,
-  mockSubmissionFindUnique,
-  mockSubmissionUpdateMany,
-  mockSubmissionUpdate,
-  mockPrismaTransaction,
+  mockFindSupportJobWithTicket,
+  mockFindSupportJobStatus,
+  mockClaimSupportTicketAutomationRun,
+  mockCloseSupportTicketAfterAutomation,
+  mockFindSubmissionById,
+  mockCommitSupportAutomationSubmissionUpdate,
+  mockRecordApprovalEmailSent,
   mockCreateNoteVerification,
   mockGetVerificationUrl,
   mockRevokeNoteVerificationById,
@@ -24,13 +24,13 @@ const {
   mockSendApprovalEmail,
   mockSendSupportSms,
 } = vi.hoisted(() => ({
-  mockJobFindUnique: vi.fn(),
-  mockJobUpdateMany: vi.fn(),
-  mockTicketUpdateMany: vi.fn(),
-  mockSubmissionFindUnique: vi.fn(),
-  mockSubmissionUpdateMany: vi.fn(),
-  mockSubmissionUpdate: vi.fn(),
-  mockPrismaTransaction: vi.fn(),
+  mockFindSupportJobWithTicket: vi.fn(),
+  mockFindSupportJobStatus: vi.fn(),
+  mockClaimSupportTicketAutomationRun: vi.fn(),
+  mockCloseSupportTicketAfterAutomation: vi.fn(),
+  mockFindSubmissionById: vi.fn(),
+  mockCommitSupportAutomationSubmissionUpdate: vi.fn(),
+  mockRecordApprovalEmailSent: vi.fn(),
   mockCreateNoteVerification: vi.fn(),
   mockGetVerificationUrl: vi.fn(),
   mockRevokeNoteVerificationById: vi.fn(),
@@ -42,28 +42,33 @@ const {
   mockSendSupportSms: vi.fn(),
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    smsSupportJob: {
-      findUnique: mockJobFindUnique,
-      updateMany: mockJobUpdateMany,
-    },
-    smsSupportTicket: {
-      updateMany: mockTicketUpdateMany,
-    },
-    submission: {
-      findUnique: mockSubmissionFindUnique,
-      updateMany: mockSubmissionUpdateMany,
-      update: mockSubmissionUpdate,
-    },
-    $transaction: mockPrismaTransaction,
-  },
+vi.mock('@/db/sms-support', async () => {
+  const { SMS_SUPPORT_AUTOMATION_STATUS } = await import('../sms-support-types')
+  return {
+    ACTIVE_AUTOMATION_STATUSES: [
+      SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
+      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
+    ],
+    claimSupportTicketAutomationRun: mockClaimSupportTicketAutomationRun,
+    closeSupportTicketAfterAutomation: mockCloseSupportTicketAfterAutomation,
+    findSupportJobStatus: mockFindSupportJobStatus,
+    findSupportJobWithTicket: mockFindSupportJobWithTicket,
+  }
+})
+
+vi.mock('@/db/submissions', () => ({
+  commitSupportAutomationSubmissionUpdate: mockCommitSupportAutomationSubmissionUpdate,
+  findSubmissionById: mockFindSubmissionById,
+  recordApprovalEmailSent: mockRecordApprovalEmailSent,
 }))
 
 vi.mock('@/lib/note-verification', () => ({
   createNoteVerification: mockCreateNoteVerification,
   getVerificationUrl: mockGetVerificationUrl,
   parseIssueDateInput: vi.fn(() => new Date(Date.UTC(2026, 5, 29))),
+}))
+
+vi.mock('@/db/note-verifications', () => ({
   revokeNoteVerificationById: mockRevokeNoteVerificationById,
   revokeOtherNoteVerificationsForSubmission: mockRevokeOtherNoteVerificationsForSubmission,
 }))
@@ -169,8 +174,9 @@ function supportJob(ticketOverrides: Record<string, unknown> = {}) {
 describe('runSupportTicketAutomation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockJobFindUnique.mockResolvedValue(supportJob())
-    mockSubmissionFindUnique.mockResolvedValue(approvedSubmission())
+    mockFindSupportJobWithTicket.mockResolvedValue(supportJob())
+    mockFindSupportJobStatus.mockResolvedValue({ status: 'RUNNING' })
+    mockFindSubmissionById.mockResolvedValue(approvedSubmission())
     mockCreateNoteVerification.mockResolvedValue({
       id: 'verification_123',
       verificationSlug: 'v_test',
@@ -180,16 +186,8 @@ describe('runSupportTicketAutomation', () => {
     mockGenerateQrCodeDataUrl.mockResolvedValue('data:image/png;base64,qr')
     mockGenerateDoctorNotePDF.mockResolvedValue(Buffer.from('pdf'))
     mockGeneratePDFFilename.mockReturnValue('doctor-note-sub_123.pdf')
-    mockSubmissionUpdateMany.mockResolvedValue({ count: 1 })
-    mockJobUpdateMany.mockResolvedValue({ count: 1 })
-    mockTicketUpdateMany.mockResolvedValue({ count: 1 })
-    mockPrismaTransaction.mockImplementation((callback) =>
-      callback({
-        smsSupportTicket: { updateMany: mockTicketUpdateMany },
-        smsSupportJob: { updateMany: mockJobUpdateMany },
-        submission: { updateMany: mockSubmissionUpdateMany },
-      })
-    )
+    mockClaimSupportTicketAutomationRun.mockResolvedValue(1)
+    mockCommitSupportAutomationSubmissionUpdate.mockResolvedValue('updated')
     mockSendApprovalEmail.mockResolvedValue({ success: true })
     mockSendSupportSms.mockResolvedValue({ success: true })
   })
@@ -212,7 +210,7 @@ describe('runSupportTicketAutomation', () => {
   })
 
   it('throws for historical approvals without stored PDF options and leaves failure state to the job runner', async () => {
-    mockSubmissionFindUnique.mockResolvedValue(
+    mockFindSubmissionById.mockResolvedValue(
       approvedSubmission({
         approvalDiagnosis: null,
         approvalWithRestrictions: null,
@@ -225,17 +223,14 @@ describe('runSupportTicketAutomation', () => {
 
     expect(mockCreateNoteVerification).not.toHaveBeenCalled()
     expect(mockGenerateDoctorNotePDF).not.toHaveBeenCalled()
-    expect(mockTicketUpdateMany).toHaveBeenCalledTimes(1)
-    expect(mockTicketUpdateMany).toHaveBeenLastCalledWith({
-      where: expect.objectContaining({ id: 'ticket_123' }),
-      data: expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-      }),
-    })
+    expect(mockClaimSupportTicketAutomationRun).toHaveBeenCalledTimes(1)
+    expect(mockClaimSupportTicketAutomationRun).toHaveBeenCalledWith('ticket_123')
+    expect(mockCommitSupportAutomationSubmissionUpdate).not.toHaveBeenCalled()
+    expect(mockCloseSupportTicketAfterAutomation).not.toHaveBeenCalled()
   })
 
   it('does not run queued automation after admin escalates the ticket', async () => {
-    mockJobFindUnique.mockResolvedValue(
+    mockFindSupportJobWithTicket.mockResolvedValue(
       supportJob({
         status: SMS_SUPPORT_STATUS.NEEDS_CSR,
       })
@@ -245,15 +240,16 @@ describe('runSupportTicketAutomation', () => {
       SupportAutomationCancelledError
     )
 
-    expect(mockTicketUpdateMany).not.toHaveBeenCalled()
-    expect(mockSubmissionFindUnique).not.toHaveBeenCalled()
+    expect(mockClaimSupportTicketAutomationRun).not.toHaveBeenCalled()
+    expect(mockCommitSupportAutomationSubmissionUpdate).not.toHaveBeenCalled()
+    expect(mockCloseSupportTicketAfterAutomation).not.toHaveBeenCalled()
+    expect(mockFindSubmissionById).not.toHaveBeenCalled()
     expect(mockSendApprovalEmail).not.toHaveBeenCalled()
     expect(mockSendSupportSms).not.toHaveBeenCalled()
   })
 
   it('revokes the new verifier and does not update the submission when a running job is cancelled', async () => {
-    mockJobFindUnique
-      .mockResolvedValueOnce(supportJob())
+    mockFindSupportJobStatus
       .mockResolvedValueOnce({ status: 'RUNNING' })
       .mockResolvedValueOnce({ status: 'RUNNING' })
       .mockResolvedValueOnce({ status: 'FAILED' })
@@ -268,12 +264,12 @@ describe('runSupportTicketAutomation', () => {
       'verification_123',
       expect.any(Date)
     )
-    expect(mockSubmissionUpdateMany).not.toHaveBeenCalled()
+    expect(mockCommitSupportAutomationSubmissionUpdate).not.toHaveBeenCalled()
     expect(mockSendApprovalEmail).not.toHaveBeenCalled()
   })
 
   it('revokes the new verifier when the final commit guard loses the cancellation race', async () => {
-    mockJobUpdateMany.mockResolvedValue({ count: 0 })
+    mockCommitSupportAutomationSubmissionUpdate.mockResolvedValue('cancelled')
 
     await expect(runSupportTicketAutomation('job_123')).rejects.toBeInstanceOf(
       SupportAutomationCancelledError
@@ -283,7 +279,22 @@ describe('runSupportTicketAutomation', () => {
       'verification_123',
       expect.any(Date)
     )
-    expect(mockSubmissionUpdateMany).not.toHaveBeenCalled()
+    expect(mockCommitSupportAutomationSubmissionUpdate).toHaveBeenCalledTimes(1)
+    expect(mockCommitSupportAutomationSubmissionUpdate).toHaveBeenCalledWith({
+      ticketId: 'ticket_123',
+      jobId: 'job_123',
+      submissionId: 'sub_123',
+      submissionUpdatedAt: new Date('2026-06-20T00:00:00Z'),
+      committedAt: expect.any(Date),
+      updateData: {
+        denialReason: null,
+        reviewedAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+        notePurpose: 'school',
+        otherNotePurpose: null,
+      },
+    })
+    expect(mockRecordApprovalEmailSent).not.toHaveBeenCalled()
     expect(mockSendApprovalEmail).not.toHaveBeenCalled()
     expect(mockSendSupportSms).not.toHaveBeenCalled()
   })

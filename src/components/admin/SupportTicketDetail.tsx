@@ -12,7 +12,7 @@ import {
   retrySupportTicketAutomation,
   sendSupportTicketReply,
 } from '@/app/admin/support/_actions/ticket-updates'
-import { type SupportTicketDetail as SupportTicketDetailType } from '@/app/admin/support/_actions/tickets'
+import { type SupportTicketDetail as SupportTicketDetailType } from '@/db/sms-support'
 import {
   supportCategoryLabel,
   supportStatusClass,

@@ -1,5 +1,5 @@
 import { sendSmsSupportTicketAlertEmail } from '@/lib/email'
-import prisma from '@/lib/prisma'
+import { findSupportTicketCsrAlert, markSupportTicketCsrAlerted } from '@/db/sms-support'
 
 export async function alertSupportTicketNeedsCsr({
   ticketId,
@@ -14,10 +14,7 @@ export async function alertSupportTicketNeedsCsr({
   submissionId?: string | null
   summary: string
 }): Promise<void> {
-  const ticket = await prisma.smsSupportTicket.findUnique({
-    where: { id: ticketId },
-    select: { csrAlertedAt: true },
-  })
+  const ticket = await findSupportTicketCsrAlert(ticketId)
 
   if (!ticket || ticket.csrAlertedAt) return
 
@@ -30,10 +27,7 @@ export async function alertSupportTicketNeedsCsr({
       summary,
     })
 
-    await prisma.smsSupportTicket.updateMany({
-      where: { id: ticketId, csrAlertedAt: null },
-      data: { csrAlertedAt: new Date() },
-    })
+    await markSupportTicketCsrAlerted(ticketId)
   } catch (error) {
     console.warn('SMS support ticket alert email failed:', {
       ticketId,

@@ -1,6 +1,5 @@
-import { SubmissionStatus } from '@prisma/client'
 import { subDays, differenceInDays, startOfDay } from 'date-fns'
-import prisma from './prisma'
+import { findApprovedSubmissionsOverlapping } from '@/db/submissions'
 
 export interface MonthlyUsage {
   totalDays: number
@@ -29,29 +28,10 @@ export async function getMonthlyDaysUsed(
   const windowStart = subDays(normalizedReference, WINDOW_DAYS)
   const windowEnd = subDays(normalizedReference, 1)
 
-  const submissions = await prisma.submission.findMany({
-    where: {
-      patientFirstName: { equals: patientFirstName, mode: 'insensitive' },
-      patientLastName: { equals: patientLastName, mode: 'insensitive' },
-      patientDateOfBirth: patientDateOfBirth,
-      status: SubmissionStatus.APPROVED,
-      firstDayOff: {
-        lte: windowEnd,
-      },
-      lastDayOff: {
-        gte: windowStart,
-      },
-    },
-    select: {
-      id: true,
-      firstDayOff: true,
-      lastDayOff: true,
-      reviewedAt: true,
-    },
-    orderBy: {
-      firstDayOff: 'asc',
-    },
-  })
+  const submissions = await findApprovedSubmissionsOverlapping(
+    { patientFirstName, patientLastName, patientDateOfBirth },
+    { windowStart, windowEnd }
+  )
 
   const submissionsWithDays = submissions.map((sub) => {
     const days = differenceInDays(sub.lastDayOff, sub.firstDayOff) + 1

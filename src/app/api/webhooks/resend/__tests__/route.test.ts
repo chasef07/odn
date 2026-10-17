@@ -20,20 +20,19 @@ vi.mock('resend', () => {
   }
 })
 
-const { mockPrismaFindFirst, mockResendWebhookCreate } = vi.hoisted(() => ({
-  mockPrismaFindFirst: vi.fn(),
-  mockResendWebhookCreate: vi.fn(),
+const { mockFindLatestSubmissionsForBouncedEmail, mockClaimResendWebhookEvent } = vi.hoisted(
+  () => ({
+    mockFindLatestSubmissionsForBouncedEmail: vi.fn(),
+    mockClaimResendWebhookEvent: vi.fn(),
+  })
+)
+
+vi.mock('@/db/submissions', () => ({
+  findLatestSubmissionsForBouncedEmail: mockFindLatestSubmissionsForBouncedEmail,
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    submission: {
-      findMany: mockPrismaFindFirst,
-    },
-    resendWebhookEvent: {
-      create: mockResendWebhookCreate,
-    },
-  },
+vi.mock('@/db/webhook-events', () => ({
+  claimResendWebhookEvent: mockClaimResendWebhookEvent,
 }))
 
 const { mockSendBounceAlertEmail } = vi.hoisted(() => ({
@@ -74,7 +73,7 @@ describe('POST /api/webhooks/resend', () => {
     process.env.RESEND_API_KEY = 're_test_key'
     process.env.RESEND_WEBHOOK_SECRET = 'whsec_test_secret'
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
-    mockResendWebhookCreate.mockResolvedValue({})
+    mockClaimResendWebhookEvent.mockResolvedValue(true)
   })
 
   it('should return 400 if Svix headers are missing', async () => {
@@ -163,7 +162,7 @@ describe('POST /api/webhooks/resend', () => {
 
     expect(response.status).toBe(200)
     expect(data.received).toBe(true)
-    expect(mockPrismaFindFirst).not.toHaveBeenCalled()
+    expect(mockFindLatestSubmissionsForBouncedEmail).not.toHaveBeenCalled()
     expect(mockSendBounceAlertEmail).not.toHaveBeenCalled()
   })
 
@@ -180,7 +179,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -227,7 +226,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -271,7 +270,7 @@ describe('POST /api/webhooks/resend', () => {
         created_at: '2025-01-01T00:00:00Z',
       },
     })
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -319,7 +318,7 @@ describe('POST /api/webhooks/resend', () => {
         created_at: '2025-01-01T00:00:00Z',
       },
     })
-    mockResendWebhookCreate.mockRejectedValue({ code: 'P2002' })
+    mockClaimResendWebhookEvent.mockResolvedValue(false)
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
       method: 'POST',
@@ -342,7 +341,7 @@ describe('POST /api/webhooks/resend', () => {
     const response = await POST(request)
 
     expect(response.status).toBe(200)
-    expect(mockPrismaFindFirst).not.toHaveBeenCalled()
+    expect(mockFindLatestSubmissionsForBouncedEmail).not.toHaveBeenCalled()
     expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
     expect(mockSendBounceAlertEmail).not.toHaveBeenCalled()
   })
@@ -359,7 +358,7 @@ describe('POST /api/webhooks/resend', () => {
         created_at: '2025-01-01T00:00:00Z',
       },
     })
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendTransactionalSmsForSubmission.mockRejectedValue(new Error('Telnyx unavailable'))
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -409,7 +408,7 @@ describe('POST /api/webhooks/resend', () => {
         created_at: '2025-01-01T00:00:00Z',
       },
     })
-    mockPrismaFindFirst.mockResolvedValue([
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([
       mockSubmission,
       {
         ...mockSubmission,
@@ -462,7 +461,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -507,7 +506,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -545,7 +544,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -590,7 +589,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -613,21 +612,7 @@ describe('POST /api/webhooks/resend', () => {
 
     await POST(request)
 
-    expect(mockPrismaFindFirst).toHaveBeenCalledWith({
-      where: { email: 'john@example.com' },
-      orderBy: { createdAt: 'desc' },
-      take: 2,
-      select: {
-        id: true,
-        patientFirstName: true,
-        patientLastName: true,
-        email: true,
-        phone: true,
-        smsOptIn: true,
-        smsPhoneE164: true,
-        status: true,
-      },
-    })
+    expect(mockFindLatestSubmissionsForBouncedEmail).toHaveBeenCalledWith('john@example.com')
   })
 
   it('should handle missing submission gracefully', async () => {
@@ -643,7 +628,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -690,7 +675,9 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockRejectedValue(new Error('Database connection failed'))
+    mockFindLatestSubmissionsForBouncedEmail.mockRejectedValue(
+      new Error('Database connection failed')
+    )
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -737,7 +724,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockRejectedValue(new Error('Email service down'))
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -778,7 +765,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([mockSubmission])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([mockSubmission])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
@@ -831,7 +818,7 @@ describe('POST /api/webhooks/resend', () => {
       },
     })
 
-    mockPrismaFindFirst.mockResolvedValue([])
+    mockFindLatestSubmissionsForBouncedEmail.mockResolvedValue([])
     mockSendBounceAlertEmail.mockResolvedValue({ id: 'email_sent' })
 
     const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {

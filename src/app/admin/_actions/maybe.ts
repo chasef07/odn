@@ -1,8 +1,8 @@
 'use server'
 
-import { SubmissionStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import { findSubmissionStatus, markMaybeSubmissionManual } from '@/db/submissions'
+import { SubmissionStatus } from '@/db/types'
 import { logger } from '@/lib/logger'
 import { type MaybeApprovedDays, type MaybeReason } from '@/lib/maybe-reasons'
 import { moveSubmissionToMaybe } from './shared'
@@ -32,10 +32,7 @@ export const maybeSubmission = adminAction(
 
 export const markAsManual = adminAction(async ({ doctorId }, submissionId: string) => {
   try {
-    const submission = await prisma.submission.findUnique({
-      where: { id: submissionId },
-      select: { status: true },
-    })
+    const submission = await findSubmissionStatus(submissionId)
 
     if (!submission) {
       return { success: false, error: 'Submission not found' }
@@ -48,13 +45,9 @@ export const markAsManual = adminAction(async ({ doctorId }, submissionId: strin
       }
     }
 
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: {
-        status: SubmissionStatus.MANUAL,
-        reviewedByAdminId: doctorId,
-        reviewedAt: new Date(),
-      },
+    await markMaybeSubmissionManual(submissionId, {
+      reviewedByAdminId: doctorId,
+      reviewedAt: new Date(),
     })
 
     revalidatePath('/admin')

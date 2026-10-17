@@ -1,13 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { SubmissionStatus } from '@prisma/client'
+import { SubmissionStatus } from '@/db/types'
 
 const {
   mockRefundsCreate,
-  mockFindUnique,
-  mockFindMany,
-  mockCount,
-  mockUpdate,
-  mockUpdateMany,
+  mockFindSubmissionById,
+  mockFindSubmissionForDenial,
+  mockFindSubmissionSmsContact,
+  mockSearchSubmissionsPage,
+  mockUpdateSubmissionDetails,
+  mockUpdatePendingSubmissionClassification,
+  mockMarkSubmissionRefundReserved,
+  mockReleaseSubmissionRefundReservation,
+  mockRecordSubmissionRefund,
+  mockRecordDenialEmailSent,
+  mockMarkSubmissionDeniedAndRefunded,
+  mockMarkSubmissionDenied,
+  mockMarkPendingSubmissionMaybe,
+  mockMarkSubmissionMaybe,
+  mockRecordMaybeEmailSent,
   mockSendDenialEmail,
   mockSendMaybeEmail,
   mockSendTransactionalSmsForSubmission,
@@ -16,11 +26,21 @@ const {
   mockGetSession,
 } = vi.hoisted(() => ({
   mockRefundsCreate: vi.fn(),
-  mockFindUnique: vi.fn(),
-  mockFindMany: vi.fn(),
-  mockCount: vi.fn(),
-  mockUpdate: vi.fn(),
-  mockUpdateMany: vi.fn(),
+  mockFindSubmissionById: vi.fn(),
+  mockFindSubmissionForDenial: vi.fn(),
+  mockFindSubmissionSmsContact: vi.fn(),
+  mockSearchSubmissionsPage: vi.fn(),
+  mockUpdateSubmissionDetails: vi.fn(),
+  mockUpdatePendingSubmissionClassification: vi.fn(),
+  mockMarkSubmissionRefundReserved: vi.fn(),
+  mockReleaseSubmissionRefundReservation: vi.fn(),
+  mockRecordSubmissionRefund: vi.fn(),
+  mockRecordDenialEmailSent: vi.fn(),
+  mockMarkSubmissionDeniedAndRefunded: vi.fn(),
+  mockMarkSubmissionDenied: vi.fn(),
+  mockMarkPendingSubmissionMaybe: vi.fn(),
+  mockMarkSubmissionMaybe: vi.fn(),
+  mockRecordMaybeEmailSent: vi.fn(),
   mockSendDenialEmail: vi.fn(),
   mockSendMaybeEmail: vi.fn(),
   mockSendTransactionalSmsForSubmission: vi.fn(),
@@ -44,16 +64,26 @@ vi.mock('stripe', () => {
   }
 })
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    submission: {
-      findUnique: mockFindUnique,
-      findMany: mockFindMany,
-      count: mockCount,
-      update: mockUpdate,
-      updateMany: mockUpdateMany,
-    },
-  },
+vi.mock('@/db/submissions', () => ({
+  findSubmissionById: mockFindSubmissionById,
+  findSubmissionForDenial: mockFindSubmissionForDenial,
+  findSubmissionSmsContact: mockFindSubmissionSmsContact,
+  searchSubmissionsPage: mockSearchSubmissionsPage,
+  updateSubmissionDetails: mockUpdateSubmissionDetails,
+  updatePendingSubmissionClassification: mockUpdatePendingSubmissionClassification,
+  markSubmissionRefundReserved: mockMarkSubmissionRefundReserved,
+  releaseSubmissionRefundReservation: mockReleaseSubmissionRefundReservation,
+  recordSubmissionRefund: mockRecordSubmissionRefund,
+  recordDenialEmailSent: mockRecordDenialEmailSent,
+  markSubmissionDeniedAndRefunded: mockMarkSubmissionDeniedAndRefunded,
+  markSubmissionDenied: mockMarkSubmissionDenied,
+  markPendingSubmissionMaybe: mockMarkPendingSubmissionMaybe,
+  markSubmissionMaybe: mockMarkSubmissionMaybe,
+  recordMaybeEmailSent: mockRecordMaybeEmailSent,
+}))
+
+vi.mock('@/db/sms-support', () => ({
+  findSmsPhoneOptOut: vi.fn(),
 }))
 
 vi.mock('@/lib/email', () => ({
@@ -70,6 +100,9 @@ vi.mock('@/lib/note-verification', () => ({
   getVerificationUrl: vi.fn(),
   normalizeMedicalRecordNumber: mockNormalizeMedicalRecordNumber,
   parseIssueDateInput: vi.fn(),
+}))
+
+vi.mock('@/db/note-verifications', () => ({
   revokeNoteVerificationById: vi.fn(),
   revokeOtherNoteVerificationsForSubmission: vi.fn(),
   revokeNoteVerificationForSubmission: mockRevokeNoteVerificationForSubmission,
@@ -103,20 +136,22 @@ describe('searchSubmissions', () => {
     mockGetSession.mockResolvedValue({
       user: { id: 'doctor_123' },
     })
-    mockFindMany.mockResolvedValue([
-      {
-        id: 'sub_123',
-        patientFirstName: 'Jane',
-        patientLastName: 'Doe',
-        email: 'jane@example.com',
-        status: SubmissionStatus.APPROVED,
-        notePurpose: 'work',
-        firstDayOff: new Date('2026-06-01T00:00:00.000Z'),
-        lastDayOff: new Date('2026-06-02T00:00:00.000Z'),
-        createdAt: new Date('2026-05-30T12:00:00.000Z'),
-      },
-    ])
-    mockCount.mockResolvedValue(1)
+    mockSearchSubmissionsPage.mockResolvedValue({
+      submissions: [
+        {
+          id: 'sub_123',
+          patientFirstName: 'Jane',
+          patientLastName: 'Doe',
+          email: 'jane@example.com',
+          status: SubmissionStatus.APPROVED,
+          notePurpose: 'work',
+          firstDayOff: new Date('2026-06-01T00:00:00.000Z'),
+          lastDayOff: new Date('2026-06-02T00:00:00.000Z'),
+          createdAt: new Date('2026-05-30T12:00:00.000Z'),
+        },
+      ],
+      total: 1,
+    })
   })
 
   afterEach(() => {
@@ -129,21 +164,11 @@ describe('searchSubmissions', () => {
       searchType: 'medicalRecord',
     })
 
-    const expectedWhere = {
-      noteVerifications: {
-        some: {
-          medicalRecordNumber: 'FAT5YHAB',
-        },
-      },
-    }
-
     expect(mockNormalizeMedicalRecordNumber).toHaveBeenCalledWith('fat5-yhab')
-    expect(mockFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expectedWhere,
-      })
+    expect(mockSearchSubmissionsPage).toHaveBeenCalledWith(
+      { by: 'medicalRecordNumber', medicalRecordNumber: 'FAT5YHAB' },
+      { skip: 0, take: 10 }
     )
-    expect(mockCount).toHaveBeenCalledWith({ where: expectedWhere })
     expect(result).toMatchObject({
       success: true,
       total: 1,
@@ -164,7 +189,7 @@ describe('updateSubmission', () => {
     mockGetSession.mockResolvedValue({
       user: { id: 'doctor_123' },
     })
-    mockUpdate.mockResolvedValue({})
+    mockUpdateSubmissionDetails.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -172,7 +197,7 @@ describe('updateSubmission', () => {
   })
 
   it('clears SMS consent when admins change the consented phone number', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindSubmissionSmsContact.mockResolvedValue({
       phone: '(555) 123-4567',
       smsOptIn: true,
       smsPhoneE164: '+15551234567',
@@ -183,21 +208,21 @@ describe('updateSubmission', () => {
     })
 
     expect(result).toEqual({ success: true })
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'sub_123' },
-      data: expect.objectContaining({
+    expect(mockUpdateSubmissionDetails).toHaveBeenCalledWith(
+      'sub_123',
+      expect.objectContaining({
         phone: '(555) 987-6543',
         smsOptIn: false,
         smsOptInAt: null,
         smsConsentVersion: null,
         smsPhoneE164: null,
-        updatedAt: expect.any(Date),
       }),
-    })
+      expect.any(Date)
+    )
   })
 
   it('keeps SMS consent when admins only reformat the same phone number', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindSubmissionSmsContact.mockResolvedValue({
       phone: '(555) 123-4567',
       smsOptIn: true,
       smsPhoneE164: '+15551234567',
@@ -208,20 +233,20 @@ describe('updateSubmission', () => {
     })
 
     expect(result).toEqual({ success: true })
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'sub_123' },
-      data: expect.objectContaining({
+    expect(mockUpdateSubmissionDetails).toHaveBeenCalledWith(
+      'sub_123',
+      expect.objectContaining({
         phone: '+1 555 123 4567',
         smsPhoneE164: '+15551234567',
-        updatedAt: expect.any(Date),
       }),
-    })
-    expect(mockUpdate).not.toHaveBeenCalledWith(
+      expect.any(Date)
+    )
+    expect(mockUpdateSubmissionDetails).not.toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
-        data: expect.objectContaining({
-          smsOptIn: false,
-        }),
-      })
+        smsOptIn: false,
+      }),
+      expect.anything()
     )
   })
 })
@@ -235,7 +260,7 @@ describe('updateReviewClassification', () => {
   })
 
   it('updates classification only for pending review submissions', async () => {
-    mockUpdateMany.mockResolvedValue({ count: 1 })
+    mockUpdatePendingSubmissionClassification.mockResolvedValue(1)
 
     const result = await updateReviewClassification('sub_123', {
       notePurpose: 'school',
@@ -245,23 +270,20 @@ describe('updateReviewClassification', () => {
     })
 
     expect(result).toEqual({ success: true })
-    expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: {
-        id: 'sub_123',
-        status: SubmissionStatus.PENDING_REVIEW,
-      },
-      data: expect.objectContaining({
+    expect(mockUpdatePendingSubmissionClassification).toHaveBeenCalledWith(
+      'sub_123',
+      {
         notePurpose: 'school',
         otherNotePurpose: null,
         absenceReason: 'Illness',
         otherAbsenceReason: null,
-        updatedAt: expect.any(Date),
-      }),
-    })
+      },
+      expect.any(Date)
+    )
   })
 
   it('rejects classification updates once a submission leaves review', async () => {
-    mockUpdateMany.mockResolvedValue({ count: 0 })
+    mockUpdatePendingSubmissionClassification.mockResolvedValue(0)
 
     const result = await updateReviewClassification('sub_123', {
       notePurpose: 'school',
@@ -310,34 +332,23 @@ describe('denySubmission - Denial Automation', () => {
 
   describe('Successful denial flow', () => {
     it('should successfully deny submission with refund and email', async () => {
-      mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockFindSubmissionForDenial.mockResolvedValue(mockSubmission)
+      mockMarkSubmissionRefundReserved.mockResolvedValue(1)
       mockRefundsCreate.mockResolvedValue({
         id: mockRefundId,
         amount: 2495,
       })
-      mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
       expect(result).toEqual({ success: true })
 
-      expect(mockUpdateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            id: mockSubmissionId,
-            status: { in: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE] },
-            stripeRefundId: null,
-          }),
-          data: expect.objectContaining({
-            status: SubmissionStatus.DENIED,
-            denialReason: 'Legal',
-            reviewedByAdminId: mockDoctorId,
-            stripeRefundId: `pending_${mockSubmissionId}`,
-          }),
-        })
-      )
+      expect(mockMarkSubmissionRefundReserved).toHaveBeenCalledWith(mockSubmissionId, {
+        denialReason: 'Legal',
+        reviewedByAdminId: mockDoctorId,
+        reviewedAt: expect.any(Date),
+      })
 
       expect(mockRefundsCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -371,31 +382,23 @@ describe('denySubmission - Denial Automation', () => {
         body: expect.stringMatching(/denied and refunded[\s\S]*Reply HELP[\s\S]*STOP to opt out/),
       })
 
-      expect(mockUpdate).toHaveBeenCalledTimes(2)
-      expect(mockUpdate).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          where: { id: mockSubmissionId },
-          data: { stripeRefundId: mockRefundId },
-        })
+      expect(mockRecordSubmissionRefund).toHaveBeenCalledTimes(1)
+      expect(mockRecordSubmissionRefund).toHaveBeenCalledWith(mockSubmissionId, mockRefundId)
+      expect(mockRecordDenialEmailSent).toHaveBeenCalledTimes(1)
+      expect(mockRecordDenialEmailSent).toHaveBeenCalledWith(mockSubmissionId, expect.any(Date))
+      expect(mockRecordSubmissionRefund.mock.invocationCallOrder[0]).toBeLessThan(
+        mockRecordDenialEmailSent.mock.invocationCallOrder[0]
       )
-      expect(mockUpdate).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          where: { id: mockSubmissionId },
-          data: { denialEmailSentAt: expect.any(Date) },
-        })
-      )
+      expect(mockReleaseSubmissionRefundReservation).not.toHaveBeenCalled()
     })
 
     it('should handle "7+ days" denial reason correctly', async () => {
-      mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockFindSubmissionForDenial.mockResolvedValue(mockSubmission)
+      mockMarkSubmissionRefundReserved.mockResolvedValue(1)
       mockRefundsCreate.mockResolvedValue({
         id: mockRefundId,
         amount: 2495,
       })
-      mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
       const result = await denySubmission(mockSubmissionId, '7+ days')
@@ -409,13 +412,12 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should handle "Other" denial reason correctly', async () => {
-      mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockFindSubmissionForDenial.mockResolvedValue(mockSubmission)
+      mockMarkSubmissionRefundReserved.mockResolvedValue(1)
       mockRefundsCreate.mockResolvedValue({
         id: mockRefundId,
         amount: 2495,
       })
-      mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
       const result = await denySubmission(mockSubmissionId, 'Other')
@@ -429,23 +431,21 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('persists "Refund (Denial)" as a distinct denial reason', async () => {
-      mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockFindSubmissionForDenial.mockResolvedValue(mockSubmission)
+      mockMarkSubmissionRefundReserved.mockResolvedValue(1)
       mockRefundsCreate.mockResolvedValue({
         id: mockRefundId,
         amount: 2495,
       })
-      mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
       const result = await denySubmission(mockSubmissionId, 'Refund (Denial)')
 
       expect(result).toEqual({ success: true })
-      expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect(mockMarkSubmissionRefundReserved).toHaveBeenCalledWith(
+        mockSubmissionId,
         expect.objectContaining({
-          data: expect.objectContaining({
-            denialReason: 'Refund (Denial)',
-          }),
+          denialReason: 'Refund (Denial)',
         })
       )
       expect(mockRefundsCreate).toHaveBeenCalledWith(
@@ -466,8 +466,8 @@ describe('denySubmission - Denial Automation', () => {
 
   describe('Refund failure scenarios (BLOCKING)', () => {
     it('should block denial if Stripe refund fails', async () => {
-      mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockFindSubmissionForDenial.mockResolvedValue(mockSubmission)
+      mockMarkSubmissionRefundReserved.mockResolvedValue(1)
       mockRefundsCreate.mockRejectedValue(new Error('Insufficient funds'))
 
       const result = await denySubmission(mockSubmissionId, 'Legal')
@@ -477,24 +477,16 @@ describe('denySubmission - Denial Automation', () => {
         error: 'Failed to process refund: Insufficient funds',
       })
 
-      expect(mockUpdateMany).toHaveBeenCalled()
+      expect(mockMarkSubmissionRefundReserved).toHaveBeenCalled()
 
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: mockSubmissionId },
-          data: expect.objectContaining({
-            status: SubmissionStatus.PENDING_REVIEW,
-            stripeRefundId: null,
-          }),
-        })
-      )
+      expect(mockReleaseSubmissionRefundReservation).toHaveBeenCalledWith(mockSubmissionId)
 
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
     })
 
     it('should block denial if payment intent not found in Stripe', async () => {
-      mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockFindSubmissionForDenial.mockResolvedValue(mockSubmission)
+      mockMarkSubmissionRefundReserved.mockResolvedValue(1)
       mockRefundsCreate.mockRejectedValue(new Error('No such payment_intent'))
 
       const result = await denySubmission(mockSubmissionId, 'Legal')
@@ -504,26 +496,19 @@ describe('denySubmission - Denial Automation', () => {
         error: 'Failed to process refund: No such payment_intent',
       })
 
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            status: SubmissionStatus.PENDING_REVIEW,
-          }),
-        })
-      )
+      expect(mockReleaseSubmissionRefundReservation).toHaveBeenCalledWith(mockSubmissionId)
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
     })
   })
 
   describe('Email failure scenarios (NON-BLOCKING)', () => {
     it('should still deny if email fails but refund succeeds', async () => {
-      mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockFindSubmissionForDenial.mockResolvedValue(mockSubmission)
+      mockMarkSubmissionRefundReserved.mockResolvedValue(1)
       mockRefundsCreate.mockResolvedValue({
         id: mockRefundId,
         amount: 2495,
       })
-      mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockRejectedValue(new Error('Email service unavailable'))
 
       const result = await denySubmission(mockSubmissionId, 'Legal')
@@ -538,19 +523,16 @@ describe('denySubmission - Denial Automation', () => {
       expect(mockSendDenialEmail).toHaveBeenCalled()
       expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
 
-      expect(mockUpdate).toHaveBeenCalledTimes(1)
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: mockSubmissionId },
-          data: { stripeRefundId: mockRefundId },
-        })
-      )
+      expect(mockRecordSubmissionRefund).toHaveBeenCalledTimes(1)
+      expect(mockRecordSubmissionRefund).toHaveBeenCalledWith(mockSubmissionId, mockRefundId)
+      expect(mockRecordDenialEmailSent).not.toHaveBeenCalled()
+      expect(mockReleaseSubmissionRefundReservation).not.toHaveBeenCalled()
     })
   })
 
   describe('Validation scenarios', () => {
     it('should fail if submission not found', async () => {
-      mockFindUnique.mockResolvedValue(null)
+      mockFindSubmissionForDenial.mockResolvedValue(null)
 
       const result = await denySubmission(mockSubmissionId, 'Legal')
 
@@ -561,7 +543,7 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if submission already denied', async () => {
-      mockFindUnique.mockResolvedValue({
+      mockFindSubmissionForDenial.mockResolvedValue({
         ...mockSubmission,
         status: SubmissionStatus.DENIED,
       })
@@ -575,7 +557,7 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if submission already approved', async () => {
-      mockFindUnique.mockResolvedValue({
+      mockFindSubmissionForDenial.mockResolvedValue({
         ...mockSubmission,
         status: SubmissionStatus.APPROVED,
       })
@@ -589,7 +571,7 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if no payment intent ID exists', async () => {
-      mockFindUnique.mockResolvedValue({
+      mockFindSubmissionForDenial.mockResolvedValue({
         ...mockSubmission,
         stripePaymentIntentId: null,
       })
@@ -603,7 +585,7 @@ describe('denySubmission - Denial Automation', () => {
     })
 
     it('should fail if refund already processed (idempotency check)', async () => {
-      mockFindUnique.mockResolvedValue({
+      mockFindSubmissionForDenial.mockResolvedValue({
         ...mockSubmission,
         stripeRefundId: 're_existing_refund',
       })
@@ -622,20 +604,19 @@ describe('denySubmission - Denial Automation', () => {
       await expect(denySubmission(mockSubmissionId, 'Legal')).rejects.toMatchObject({
         digest: expect.stringContaining(';/admin/login;'),
       })
-      expect(mockFindUnique).not.toHaveBeenCalled()
+      expect(mockFindSubmissionForDenial).not.toHaveBeenCalled()
       expect(mockRefundsCreate).not.toHaveBeenCalled()
     })
   })
 
   describe('Payment amount calculation', () => {
     it('should convert cents to dollars correctly for email', async () => {
-      mockFindUnique.mockResolvedValue(mockSubmission)
-      mockUpdateMany.mockResolvedValue({ count: 1 })
+      mockFindSubmissionForDenial.mockResolvedValue(mockSubmission)
+      mockMarkSubmissionRefundReserved.mockResolvedValue(1)
       mockRefundsCreate.mockResolvedValue({
         id: mockRefundId,
         amount: 2495,
       })
-      mockUpdate.mockResolvedValue({})
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
       await denySubmission(mockSubmissionId, 'Legal')
@@ -671,7 +652,6 @@ describe('changeSubmissionStatus - Denial SMS', () => {
     mockGetSession.mockResolvedValue({
       user: { id: mockDoctorId },
     })
-    mockUpdate.mockResolvedValue({})
     mockSendDenialEmail.mockResolvedValue({ success: true })
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
   })
@@ -681,7 +661,7 @@ describe('changeSubmissionStatus - Denial SMS', () => {
   })
 
   it('sends denial SMS after status-change denial email succeeds', async () => {
-    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockFindSubmissionById.mockResolvedValue(mockSubmission)
     mockRefundsCreate.mockResolvedValue({
       id: 're_test_123',
       amount: 2495,
@@ -708,7 +688,7 @@ describe('changeSubmissionStatus - Denial SMS', () => {
   })
 
   it('sends denial SMS after already-refunded denial email succeeds', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindSubmissionById.mockResolvedValue({
       ...mockSubmission,
       stripeRefundId: 're_existing_refund',
     })
@@ -756,8 +736,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     mockGetSession.mockResolvedValue({
       user: { id: mockDoctorId },
     })
-    mockUpdate.mockResolvedValue({})
-    mockUpdateMany.mockResolvedValue({ count: 1 })
+    mockMarkPendingSubmissionMaybe.mockResolvedValue(1)
     mockSendMaybeEmail.mockResolvedValue({ id: 'email_123' })
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
   })
@@ -767,7 +746,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
   })
 
   it('moves a pending submission to maybe, sends email, and stores the email timestamp', async () => {
-    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockFindSubmissionById.mockResolvedValue(mockSubmission)
 
     const result = await maybeSubmission(mockSubmissionId, {
       reason: 'DATES_EXCEED_ALLOWED_RANGE',
@@ -776,37 +755,24 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     })
 
     expect(result).toEqual({ success: true })
-    expect(mockUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          id: mockSubmissionId,
-          status: SubmissionStatus.PENDING_REVIEW,
-        },
-        data: expect.objectContaining({
-          status: SubmissionStatus.MAYBE,
-          maybeReason: 'DATES_EXCEED_ALLOWED_RANGE',
-          maybeInternalNote: 'Review date range',
-          maybeApprovedDays: 3,
-          maybeEmailSentAt: null,
-          reviewedByAdminId: mockDoctorId,
-          reviewedAt: expect.any(Date),
-        }),
-      })
-    )
+    expect(mockMarkPendingSubmissionMaybe).toHaveBeenCalledWith(mockSubmissionId, {
+      maybeReason: 'DATES_EXCEED_ALLOWED_RANGE',
+      maybeInternalNote: 'Review date range',
+      maybeApprovedDays: 3,
+      reviewedByAdminId: mockDoctorId,
+      reviewedAt: expect.any(Date),
+    })
     expect(mockSendMaybeEmail).toHaveBeenCalledWith({
       to: 'patient@example.com',
       patientName: 'John Doe',
       reason: 'DATES_EXCEED_ALLOWED_RANGE',
       approvedDays: 3,
     })
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: mockSubmissionId },
-      data: { maybeEmailSentAt: expect.any(Date) },
-    })
+    expect(mockRecordMaybeEmailSent).toHaveBeenCalledWith(mockSubmissionId, expect.any(Date))
   })
 
   it('sends the more-info request to the customer exactly once without changing note content', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindSubmissionById.mockResolvedValue({
       ...mockSubmission,
       additionalInformation: 'Existing chart details',
     })
@@ -824,24 +790,20 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
       reason: 'MORE_INFO_NEEDED',
       approvedDays: null,
     })
-    expect(mockUpdateMany).toHaveBeenCalledWith(
+    expect(mockMarkPendingSubmissionMaybe).toHaveBeenCalledWith(
+      mockSubmissionId,
       expect.objectContaining({
-        where: { id: mockSubmissionId, status: SubmissionStatus.PENDING_REVIEW },
-        data: expect.objectContaining({
-          status: SubmissionStatus.MAYBE,
-          maybeReason: 'MORE_INFO_NEEDED',
-          maybeInternalNote: 'Awaiting customer reply',
-          maybeEmailSentAt: null,
-          reviewedByAdminId: mockDoctorId,
-        }),
+        maybeReason: 'MORE_INFO_NEEDED',
+        maybeInternalNote: 'Awaiting customer reply',
+        reviewedByAdminId: mockDoctorId,
       })
     )
-    expect(mockUpdateMany.mock.calls[0][0].data).not.toHaveProperty('additionalInformation')
-    expect(mockUpdate).toHaveBeenCalledTimes(1)
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: mockSubmissionId },
-      data: { maybeEmailSentAt: expect.any(Date) },
-    })
+    expect(mockMarkPendingSubmissionMaybe.mock.calls[0][1]).not.toHaveProperty(
+      'additionalInformation'
+    )
+    expect(mockMarkSubmissionMaybe).not.toHaveBeenCalled()
+    expect(mockRecordMaybeEmailSent).toHaveBeenCalledTimes(1)
+    expect(mockRecordMaybeEmailSent).toHaveBeenCalledWith(mockSubmissionId, expect.any(Date))
   })
 
   it('redirects to the admin login before sending a more-info request without a session', async () => {
@@ -850,13 +812,13 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     await expect(
       maybeSubmission(mockSubmissionId, { reason: 'MORE_INFO_NEEDED' })
     ).rejects.toMatchObject({ digest: expect.stringContaining(';/admin/login;') })
-    expect(mockFindUnique).not.toHaveBeenCalled()
-    expect(mockUpdateMany).not.toHaveBeenCalled()
+    expect(mockFindSubmissionById).not.toHaveBeenCalled()
+    expect(mockMarkPendingSubmissionMaybe).not.toHaveBeenCalled()
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()
   })
 
   it('sends maybe SMS after the maybe email succeeds', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindSubmissionById.mockResolvedValue({
       ...mockSubmission,
       phone: '(555) 123-4567',
       smsOptIn: true,
@@ -881,7 +843,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
   })
 
   it('moves a pending submission to maybe without email for the internal-only reason', async () => {
-    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockFindSubmissionById.mockResolvedValue(mockSubmission)
 
     const result = await maybeSubmission(mockSubmissionId, {
       reason: 'INTERNAL_ONLY',
@@ -890,26 +852,20 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()
-    expect(mockUpdate).not.toHaveBeenCalled()
-    expect(mockUpdateMany).toHaveBeenCalledWith(
+    expect(mockMarkSubmissionMaybe).not.toHaveBeenCalled()
+    expect(mockRecordMaybeEmailSent).not.toHaveBeenCalled()
+    expect(mockMarkPendingSubmissionMaybe).toHaveBeenCalledWith(
+      mockSubmissionId,
       expect.objectContaining({
-        where: {
-          id: mockSubmissionId,
-          status: SubmissionStatus.PENDING_REVIEW,
-        },
-        data: expect.objectContaining({
-          status: SubmissionStatus.MAYBE,
-          maybeReason: 'INTERNAL_ONLY',
-          maybeInternalNote: 'Fix note reason',
-          maybeApprovedDays: null,
-          maybeEmailSentAt: null,
-        }),
+        maybeReason: 'INTERNAL_ONLY',
+        maybeInternalNote: 'Fix note reason',
+        maybeApprovedDays: null,
       })
     )
   })
 
   it('does not send maybe email when a non-pending submission is moved to maybe', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindSubmissionById.mockResolvedValue({
       ...mockSubmission,
       status: SubmissionStatus.APPROVED,
     })
@@ -923,14 +879,12 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockMarkPendingSubmissionMaybe).not.toHaveBeenCalled()
+    expect(mockMarkSubmissionMaybe).toHaveBeenCalledWith(
+      mockSubmissionId,
       expect.objectContaining({
-        data: expect.objectContaining({
-          status: SubmissionStatus.MAYBE,
-          maybeReason: 'OTHER_REVIEW',
-          maybeApprovedDays: null,
-          maybeEmailSentAt: null,
-        }),
+        maybeReason: 'OTHER_REVIEW',
+        maybeApprovedDays: null,
       })
     )
   })
@@ -944,8 +898,8 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
       success: false,
       error: 'Select how many days can be approved',
     })
-    expect(mockFindUnique).not.toHaveBeenCalled()
-    expect(mockUpdateMany).not.toHaveBeenCalled()
+    expect(mockFindSubmissionById).not.toHaveBeenCalled()
+    expect(mockMarkPendingSubmissionMaybe).not.toHaveBeenCalled()
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()
   })
 
@@ -959,8 +913,8 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
       success: false,
       error: 'Select how many days can be approved',
     })
-    expect(mockFindUnique).not.toHaveBeenCalled()
-    expect(mockUpdateMany).not.toHaveBeenCalled()
+    expect(mockFindSubmissionById).not.toHaveBeenCalled()
+    expect(mockMarkPendingSubmissionMaybe).not.toHaveBeenCalled()
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()
   })
 
@@ -970,13 +924,14 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     })
 
     expect(result).toEqual({ success: false, error: 'Invalid maybe reason' })
-    expect(mockFindUnique).not.toHaveBeenCalled()
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockFindSubmissionById).not.toHaveBeenCalled()
+    expect(mockMarkSubmissionMaybe).not.toHaveBeenCalled()
+    expect(mockRecordMaybeEmailSent).not.toHaveBeenCalled()
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()
   })
 
   it('still moves to maybe when email sending fails', async () => {
-    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockFindSubmissionById.mockResolvedValue(mockSubmission)
     mockSendMaybeEmail.mockRejectedValue(new Error('Email unavailable'))
 
     const result = await maybeSubmission(mockSubmissionId, {
@@ -987,14 +942,15 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
       success: true,
       warning: 'Submission moved to Maybe, but email notification failed to send',
     })
-    expect(mockUpdateMany).toHaveBeenCalledTimes(1)
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockMarkPendingSubmissionMaybe).toHaveBeenCalledTimes(1)
+    expect(mockMarkSubmissionMaybe).not.toHaveBeenCalled()
+    expect(mockRecordMaybeEmailSent).not.toHaveBeenCalled()
     expect(mockSendMaybeEmail).toHaveBeenCalled()
     expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
   })
 
   it('surfaces more-info delivery failure without recording a sent timestamp', async () => {
-    mockFindUnique.mockResolvedValue(mockSubmission)
+    mockFindSubmissionById.mockResolvedValue(mockSubmission)
     mockSendMaybeEmail.mockRejectedValue(new Error('Resend unavailable'))
 
     const result = await maybeSubmission(mockSubmissionId, {
@@ -1005,15 +961,16 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
       success: true,
       warning: 'Submission moved to Maybe, but email notification failed to send',
     })
-    expect(mockUpdateMany).toHaveBeenCalledTimes(1)
+    expect(mockMarkPendingSubmissionMaybe).toHaveBeenCalledTimes(1)
     expect(mockSendMaybeEmail).toHaveBeenCalledTimes(1)
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockMarkSubmissionMaybe).not.toHaveBeenCalled()
+    expect(mockRecordMaybeEmailSent).not.toHaveBeenCalled()
     expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
   })
 
   it('does not send duplicate email if another doctor already moved the pending submission', async () => {
-    mockFindUnique.mockResolvedValue(mockSubmission)
-    mockUpdateMany.mockResolvedValue({ count: 0 })
+    mockFindSubmissionById.mockResolvedValue(mockSubmission)
+    mockMarkPendingSubmissionMaybe.mockResolvedValue(0)
 
     const result = await maybeSubmission(mockSubmissionId, {
       reason: 'MORE_INFO_NEEDED',
@@ -1024,6 +981,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
       error: 'This submission has already been reviewed by another doctor',
     })
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockMarkSubmissionMaybe).not.toHaveBeenCalled()
+    expect(mockRecordMaybeEmailSent).not.toHaveBeenCalled()
   })
 })

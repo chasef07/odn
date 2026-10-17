@@ -1,5 +1,11 @@
 import { createPublicKey, verify } from 'crypto'
-import prisma from '@/lib/prisma'
+import {
+  createOutboundSmsMessage,
+  findSmsPhoneOptOut,
+  recordSmsMessageAccepted,
+  recordSmsMessageProviderRejection,
+  recordSmsMessageSendError,
+} from '@/db/sms-support'
 import { telnyxSmsSender } from '@/lib/env'
 import { toE164UsPhone } from '@/lib/phone-utils'
 export { smsStatusLabel } from '@/lib/sms-status'
@@ -70,10 +76,7 @@ export async function shouldSendTransactionalSms(
   const toPhone = submission.smsPhoneE164 || toE164UsPhone(submission.phone)
   if (!toPhone) return false
 
-  const phoneState = await prisma.smsPhoneState.findUnique({
-    where: { phoneE164: toPhone },
-    select: { optedOutAt: true },
-  })
+  const phoneState = await findSmsPhoneOptOut(toPhone)
 
   return !phoneState?.optedOutAt
 }
@@ -95,17 +98,13 @@ export async function sendTelnyxSms(input: SendTelnyxSmsInput): Promise<{
     return { success: false, error: 'Invalid SMS phone number' }
   }
 
-  const message = await prisma.smsMessage.create({
-    data: {
-      submissionId: input.submissionId,
-      supportTicketId: input.supportTicketId,
-      type: input.type,
-      direction: 'outbound',
-      to,
-      from,
-      body: input.body,
-      providerStatus: 'queued',
-    },
+  const message = await createOutboundSmsMessage({
+    submissionId: input.submissionId,
+    supportTicketId: input.supportTicketId,
+    type: input.type,
+    to,
+    from,
+    body: input.body,
   })
 
   try {
@@ -127,14 +126,9 @@ export async function sendTelnyxSms(input: SendTelnyxSmsInput): Promise<{
 
     if (!response.ok) {
       const providerError = firstTelnyxError(payload)
-      await prisma.smsMessage.update({
-        where: { id: message.id },
-        data: {
-          providerStatus: 'sending_failed',
-          errorCode: providerError.code || String(response.status),
-          errorMessage: providerError.detail || providerError.title || response.statusText,
-          finalizedAt: new Date(),
-        },
+      await recordSmsMessageProviderRejection(message.id, {
+        errorCode: providerError.code || String(response.status),
+        errorMessage: providerError.detail || providerError.title || response.statusText,
       })
 
       return {
@@ -146,13 +140,10 @@ export async function sendTelnyxSms(input: SendTelnyxSmsInput): Promise<{
     const providerMessage = payload.data || {}
     const status = providerMessage.to?.[0]?.status || 'queued'
 
-    await prisma.smsMessage.update({
-      where: { id: message.id },
-      data: {
-        providerMessageId: providerMessage.id,
-        providerStatus: status,
-        sentAt: providerMessage.sent_at ? new Date(providerMessage.sent_at) : new Date(),
-      },
+    await recordSmsMessageAccepted(message.id, {
+      providerMessageId: providerMessage.id,
+      providerStatus: status,
+      providerSentAt: providerMessage.sent_at,
     })
 
     return {
@@ -160,14 +151,7 @@ export async function sendTelnyxSms(input: SendTelnyxSmsInput): Promise<{
       providerMessageId: providerMessage.id,
     }
   } catch (error) {
-    await prisma.smsMessage.update({
-      where: { id: message.id },
-      data: {
-        providerStatus: 'sending_failed',
-        errorMessage: error instanceof Error ? error.message : 'Unknown Telnyx send error',
-        finalizedAt: new Date(),
-      },
-    })
+    await recordSmsMessageSendError(message.id, error)
 
     return {
       success: false,

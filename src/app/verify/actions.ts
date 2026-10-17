@@ -2,7 +2,7 @@
 
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import prisma from '@/lib/prisma'
+import { findNoteVerificationByMedicalRecordNumber } from '@/db/note-verifications'
 import { normalizeMedicalRecordNumber } from '@/lib/note-verification'
 import { checkVerificationLookupLimit, getRateLimitKey } from '@/lib/verification-rate-limit'
 import { localizePath } from '@/lib/i18n'
@@ -39,20 +39,7 @@ export async function lookupMedicalRecord(
     return { error: GENERIC_ERROR }
   }
 
-  const verification = await prisma.noteVerification.findUnique({
-    where: { medicalRecordNumber },
-    select: {
-      verificationSlug: true,
-      status: true,
-      revokedAt: true,
-      submission: {
-        select: {
-          status: true,
-          refundedAt: true,
-        },
-      },
-    },
-  })
+  const verification = await findNoteVerificationByMedicalRecordNumber(medicalRecordNumber)
 
   if (
     !verification ||

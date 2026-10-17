@@ -1,4 +1,8 @@
-import prisma from '@/lib/prisma'
+import {
+  findSmsPhoneOptOut,
+  findSupportTicketLastOutboundAt,
+  recordSupportTicketOutbound,
+} from '@/db/sms-support'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { sendTelnyxSms } from '@/lib/telnyx'
 import type { SmsMessageType } from '@/lib/sms-templates'
@@ -33,19 +37,13 @@ export async function sendSupportSms({
   const to = toE164UsPhone(toPhone)
   if (!to) return { success: false, error: 'Invalid SMS phone number' }
 
-  const phoneState = await prisma.smsPhoneState.findUnique({
-    where: { phoneE164: to },
-    select: { optedOutAt: true },
-  })
+  const phoneState = await findSmsPhoneOptOut(to)
 
   if (phoneState?.optedOutAt) {
     return { success: false, error: 'Phone number is opted out' }
   }
 
-  const ticket = await prisma.smsSupportTicket.findUnique({
-    where: { id: ticketId },
-    select: { lastOutboundAt: true },
-  })
+  const ticket = await findSupportTicketLastOutboundAt(ticketId)
 
   const result = await sendTelnyxSms({
     submissionId: submissionId || undefined,
@@ -56,10 +54,7 @@ export async function sendSupportSms({
   })
 
   if (result.success) {
-    await prisma.smsSupportTicket.updateMany({
-      where: { id: ticketId },
-      data: { lastOutboundAt: new Date() },
-    })
+    await recordSupportTicketOutbound(ticketId)
   }
 
   return result.success ? { success: true } : { success: false, error: result.error }

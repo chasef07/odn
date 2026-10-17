@@ -1,5 +1,6 @@
-import prisma from '../src/lib/prisma'
-import { SubmissionStatus } from '@prisma/client'
+import { disconnectDatabase } from '../src/db/connection'
+import { insertSubmission } from '../src/db/submissions'
+import { SubmissionStatus } from '../src/db/types'
 
 const testData = [
   {
@@ -130,14 +131,12 @@ async function addMultipleTestSubmissions() {
 
     let count = 0
     for (const data of testData) {
-      const submission = await prisma.submission.create({
-        data: {
-          stripePaymentIntentId: `pi_test_${Date.now()}_${count}`,
-          status: SubmissionStatus.PENDING_REVIEW,
-          recipient: 'myself',
-          phone: '5551234567',
-          ...data,
-        },
+      const submission = await insertSubmission({
+        stripePaymentIntentId: `pi_test_${Date.now()}_${count}`,
+        status: SubmissionStatus.PENDING_REVIEW,
+        recipient: 'myself',
+        phone: '5551234567',
+        ...data,
       })
 
       count++
@@ -153,7 +152,7 @@ async function addMultipleTestSubmissions() {
     console.error('❌ Failed to create test submissions:', error)
     throw error
   } finally {
-    await prisma.$disconnect()
+    await disconnectDatabase()
   }
 }
 

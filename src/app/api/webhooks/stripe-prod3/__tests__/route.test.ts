@@ -4,41 +4,31 @@ import type Stripe from 'stripe'
 import type { FormData } from '@/lib/form-storage'
 
 const {
-  mockSubmissionFindUnique,
-  mockSubmissionCreate,
-  mockTempFindUnique,
-  mockTempUpdate,
-  mockTempDelete,
+  mockFindSubmissionIdForPaymentIntent,
+  mockInsertSubmission,
+  mockFindTempByPaymentIntent,
+  mockFindTempById,
+  mockAttachPaymentIntent,
+  mockDeleteTemp,
 } = vi.hoisted(() => ({
-  mockSubmissionFindUnique: vi.fn(),
-  mockSubmissionCreate: vi.fn(),
-  mockTempFindUnique: vi.fn(),
-  mockTempUpdate: vi.fn(),
-  mockTempDelete: vi.fn(),
+  mockFindSubmissionIdForPaymentIntent: vi.fn(),
+  mockInsertSubmission: vi.fn(),
+  mockFindTempByPaymentIntent: vi.fn(),
+  mockFindTempById: vi.fn(),
+  mockAttachPaymentIntent: vi.fn(),
+  mockDeleteTemp: vi.fn(),
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    submission: {
-      findUnique: mockSubmissionFindUnique,
-      create: mockSubmissionCreate,
-    },
-    temporarySubmission: {
-      findUnique: mockTempFindUnique,
-      update: mockTempUpdate,
-      delete: mockTempDelete,
-    },
-  },
+vi.mock('@/db/submissions', () => ({
+  findSubmissionIdForPaymentIntent: mockFindSubmissionIdForPaymentIntent,
+  insertSubmission: mockInsertSubmission,
 }))
 
-vi.mock('@prisma/client', () => ({
-  SubmissionStatus: {
-    PENDING_REVIEW: 'PENDING_REVIEW',
-    APPROVED: 'APPROVED',
-    DENIED: 'DENIED',
-    MAYBE: 'MAYBE',
-    MANUAL: 'MANUAL',
-  },
+vi.mock('@/db/temporary-submissions', () => ({
+  findTemporarySubmissionByPaymentIntent: mockFindTempByPaymentIntent,
+  findTemporarySubmissionById: mockFindTempById,
+  attachPaymentIntentToTemporarySubmission: mockAttachPaymentIntent,
+  deleteTemporarySubmission: mockDeleteTemp,
 }))
 
 const { mockWebhookConstructEvent } = vi.hoisted(() => ({
@@ -133,8 +123,8 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     mockSendPaymentConfirmationEmail.mockResolvedValue(undefined)
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
 
-    mockSubmissionFindUnique.mockResolvedValue(null)
-    mockTempDelete.mockResolvedValue({})
+    mockFindSubmissionIdForPaymentIntent.mockResolvedValue(null)
+    mockDeleteTemp.mockResolvedValue({})
   })
 
   afterEach(() => {
@@ -143,12 +133,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('creates submission with PENDING_REVIEW when data is valid', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_ok',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_ok',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -157,13 +147,13 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
     expect(response.status).toBe(200)
 
-    expect(mockSubmissionCreate).toHaveBeenCalledTimes(1)
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.status).toBe('PENDING_REVIEW')
-    expect(createArg.data.denialReason).toBeNull()
-    expect(createArg.data.paymentAmount).toBe(2495)
-    expect(createArg.data.offerCode).toBeNull()
-    expect(createArg.data.offerPriceId).toBeNull()
+    expect(mockInsertSubmission).toHaveBeenCalledTimes(1)
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.status).toBe('PENDING_REVIEW')
+    expect(createArg.denialReason).toBeNull()
+    expect(createArg.paymentAmount).toBe(2495)
+    expect(createArg.offerCode).toBeNull()
+    expect(createArg.offerPriceId).toBeNull()
     expect(mockSendPaymentConfirmationEmail).toHaveBeenCalledWith({
       to: 'john@example.com',
       patientName: 'John',
@@ -173,12 +163,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('acknowledges Stripe after a failed purchase email attempt without losing the submission', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_email_failure',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_email_failure',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -188,29 +178,29 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
 
     expect(response.status).toBe(200)
-    expect(mockSubmissionCreate).toHaveBeenCalledOnce()
+    expect(mockInsertSubmission).toHaveBeenCalledOnce()
     expect(mockSendPaymentConfirmationEmail).toHaveBeenCalledOnce()
   })
 
   it('does not resend the purchase email when Stripe retries an existing submission', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockSubmissionFindUnique.mockResolvedValue({ id: 'sub_existing' })
+    mockFindSubmissionIdForPaymentIntent.mockResolvedValue({ id: 'sub_existing' })
 
     const response = await POST(buildRequest())
 
     expect(response.status).toBe(200)
-    expect(mockSubmissionCreate).not.toHaveBeenCalled()
+    expect(mockInsertSubmission).not.toHaveBeenCalled()
     expect(mockSendPaymentConfirmationEmail).not.toHaveBeenCalled()
   })
 
   it('sends purchase confirmation SMS when opted in', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_sms',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: '78a58d67-1111-4444-8888-123456789abc',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -240,12 +230,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
         resolveSms = resolve
       })
     )
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_sms_pending',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_sms_pending',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -263,7 +253,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('does not send purchase confirmation SMS when opted out', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_no_sms',
       paymentIntentId: 'pi_test_123',
       formData: {
@@ -271,7 +261,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
         smsOptIn: false,
       },
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_no_sms',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -288,12 +278,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
   it('does not fail the Stripe webhook when purchase SMS fails', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
     mockSendTransactionalSmsForSubmission.mockRejectedValue(new Error('Telnyx unavailable'))
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_sms_error',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_sms_error',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -333,12 +323,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
         },
       })
     )
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_offer',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_offer',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -347,10 +337,10 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
 
     expect(response.status).toBe(200)
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.paymentAmount).toBe(2000)
-    expect(createArg.data.offerCode).toBe('friends20')
-    expect(createArg.data.offerPriceId).toBe('price_friends_family_mock')
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.paymentAmount).toBe(2000)
+    expect(createArg.offerCode).toBe('friends20')
+    expect(createArg.offerPriceId).toBe('price_friends_family_mock')
   })
 
   it('stores attribution from the temporary submission on the submission', async () => {
@@ -367,12 +357,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       at: '2026-10-07T12:00:00.000Z',
     }
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_attr',
       paymentIntentId: 'pi_test_123',
       formData: { ...validFormData, attribution: { first: touch, last: touch } },
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_attr',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -381,22 +371,22 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
 
     expect(response.status).toBe(200)
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.attributionChannel).toBe('reddit')
-    expect(createArg.data.utmSource).toBe('reddit')
-    expect(createArg.data.utmMedium).toBe('paid')
-    expect(createArg.data.utmCampaign).toBe('fall_promo')
-    expect(createArg.data.attribution).toEqual({ first: touch, last: touch })
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.attributionChannel).toBe('reddit')
+    expect(createArg.utmSource).toBe('reddit')
+    expect(createArg.utmMedium).toBe('paid')
+    expect(createArg.utmCampaign).toBe('fall_promo')
+    expect(createArg.attribution).toEqual({ first: touch, last: touch })
   })
 
   it('leaves attribution empty when the temporary submission has none', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_none',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_none',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -404,9 +394,9 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
     await POST(buildRequest())
 
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.attributionChannel).toBeNull()
-    expect(createArg.data.attribution).toBeUndefined()
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.attributionChannel).toBeNull()
+    expect(createArg.attribution).toBeUndefined()
   })
 
   it('routes to MAYBE with an internal maybe reason note when absence exceeds 7 days', async () => {
@@ -416,12 +406,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       firstDayOff: daysFromToday(0),
       lastDayOff: daysFromToday(10),
     }
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_bad_dates',
       paymentIntentId: 'pi_test_123',
       formData: badFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_maybe',
       email: badFormData.email,
       patientFirstName: badFormData.patientFirstName,
@@ -432,14 +422,14 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
     expect(response.status).toBe(200)
 
-    expect(mockSubmissionCreate).toHaveBeenCalledTimes(1)
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.denialReason).toBeNull()
-    expect(createArg.data.maybeReason).toBe('INTERNAL_ONLY')
-    expect(createArg.data.maybeInternalNote).toMatch(/Auto-flagged/)
-    expect(createArg.data.maybeInternalNote).toMatch(/7 consecutive days/i)
-    expect(createArg.data.maybeEmailSentAt).toBeNull()
+    expect(mockInsertSubmission).toHaveBeenCalledTimes(1)
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.status).toBe('MAYBE')
+    expect(createArg.denialReason).toBeNull()
+    expect(createArg.maybeReason).toBe('INTERNAL_ONLY')
+    expect(createArg.maybeInternalNote).toMatch(/Auto-flagged/)
+    expect(createArg.maybeInternalNote).toMatch(/7 consecutive days/i)
+    expect(createArg.maybeEmailSentAt).toBeNull()
 
     expect(consoleError).toHaveBeenCalledTimes(1)
     const line = consoleError.mock.calls[0][0]
@@ -467,12 +457,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       recipient: 'myself' as const,
       patientDateOfBirth: toISODate(dob),
     }
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_minor',
       paymentIntentId: 'pi_test_123',
       formData: badFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_minor_maybe',
       email: badFormData.email,
       patientFirstName: badFormData.patientFirstName,
@@ -483,11 +473,11 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
     expect(response.status).toBe(200)
 
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.denialReason).toBeNull()
-    expect(createArg.data.maybeReason).toBe('INTERNAL_ONLY')
-    expect(createArg.data.maybeInternalNote).toMatch(/18 or older/i)
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.status).toBe('MAYBE')
+    expect(createArg.denialReason).toBeNull()
+    expect(createArg.maybeReason).toBe('INTERNAL_ONLY')
+    expect(createArg.maybeInternalNote).toMatch(/18 or older/i)
   })
 
   it('routes to MAYBE when recipient=someone_else and patient DOB is in the future', async () => {
@@ -500,12 +490,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       guardianLastName: 'Doe',
       guardianDateOfBirth: '1980-01-01',
     }
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_future_dob',
       paymentIntentId: 'pi_test_123',
       formData: badFormData,
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_future_maybe',
       email: badFormData.email,
       patientFirstName: badFormData.patientFirstName,
@@ -516,21 +506,21 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
     expect(response.status).toBe(200)
 
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.denialReason).toBeNull()
-    expect(createArg.data.maybeReason).toBe('INTERNAL_ONLY')
-    expect(createArg.data.maybeInternalNote).toMatch(/cannot be in the future/i)
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.status).toBe('MAYBE')
+    expect(createArg.denialReason).toBeNull()
+    expect(createArg.maybeReason).toBe('INTERNAL_ONLY')
+    expect(createArg.maybeInternalNote).toMatch(/cannot be in the future/i)
   })
 
   it('persists a paid legal-purpose draft as MAYBE', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_legal',
       paymentIntentId: 'pi_test_123',
       formData: { ...validFormData, notePurpose: 'legal' },
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_legal',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -539,24 +529,24 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
     const response = await POST(buildRequest())
 
-    expect({ status: response.status, created: mockSubmissionCreate.mock.calls.length }).toEqual({
+    expect({ status: response.status, created: mockInsertSubmission.mock.calls.length }).toEqual({
       status: 200,
       created: 1,
     })
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.maybeInternalNote).toMatch(/notePurpose: .*legal matters/i)
-    expect(mockTempDelete).toHaveBeenCalledTimes(1)
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.status).toBe('MAYBE')
+    expect(createArg.maybeInternalNote).toMatch(/notePurpose: .*legal matters/i)
+    expect(mockDeleteTemp).toHaveBeenCalledTimes(1)
   })
 
   it('notes every failing field when persisting as MAYBE', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_state',
       paymentIntentId: 'pi_test_123',
       formData: { ...validFormData, state: 'CA', email: 'john@gmail.con' },
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_state',
       email: validFormData.email,
       patientFirstName: validFormData.patientFirstName,
@@ -566,20 +556,20 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
 
     expect(response.status).toBe(200)
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.status).toBe('MAYBE')
-    expect(createArg.data.maybeInternalNote).toMatch(/state: Please select a state from the list/)
-    expect(createArg.data.maybeInternalNote).toMatch(/email: Did you mean "\.com"/)
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.status).toBe('MAYBE')
+    expect(createArg.maybeInternalNote).toMatch(/state: Please select a state from the list/)
+    expect(createArg.maybeInternalNote).toMatch(/email: Did you mean "\.com"/)
   })
 
   it('stores the normalized phone and lowercased email', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_phone',
       paymentIntentId: 'pi_test_123',
       formData: { ...validFormData, phone: '+1 555 123 4567', email: 'John@Example.com' },
     })
-    mockSubmissionCreate.mockResolvedValue({
+    mockInsertSubmission.mockResolvedValue({
       id: 'sub_phone',
       email: 'john@example.com',
       patientFirstName: validFormData.patientFirstName,
@@ -588,17 +578,17 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     const response = await POST(buildRequest())
 
     expect(response.status).toBe(200)
-    const createArg = mockSubmissionCreate.mock.calls[0][0]
-    expect(createArg.data.status).toBe('PENDING_REVIEW')
-    expect(createArg.data.phone).toBe('(555) 123-4567')
-    expect(createArg.data.smsPhoneE164).toBe('+15551234567')
-    expect(createArg.data.email).toBe('john@example.com')
-    expect(createArg.data.patientDateOfBirth).toEqual(new Date('1990-01-01T00:00:00.000Z'))
+    const createArg = mockInsertSubmission.mock.calls[0][0]
+    expect(createArg.status).toBe('PENDING_REVIEW')
+    expect(createArg.phone).toBe('(555) 123-4567')
+    expect(createArg.smsPhoneE164).toBe('+15551234567')
+    expect(createArg.email).toBe('john@example.com')
+    expect(createArg.patientDateOfBirth).toEqual(new Date('1990-01-01T00:00:00.000Z'))
   })
 
   it('keeps malformed paid submissions retryable when required persisted fields are missing', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockTempFindUnique.mockResolvedValue({
+    mockFindTempByPaymentIntent.mockResolvedValue({
       id: 'temp_missing_required',
       paymentIntentId: 'pi_test_123',
       formData: {
@@ -614,8 +604,8 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
     expect(response.status).toBe(500)
     expect(data).toEqual({ error: 'Paid submission requires manual recovery' })
-    expect(mockSubmissionCreate).not.toHaveBeenCalled()
-    expect(mockTempDelete).not.toHaveBeenCalled()
+    expect(mockInsertSubmission).not.toHaveBeenCalled()
+    expect(mockDeleteTemp).not.toHaveBeenCalled()
     expect(consoleError).toHaveBeenCalledTimes(1)
     const line = consoleError.mock.calls[0][0]
     expect(consoleError.mock.calls[0]).toHaveLength(1)

@@ -3,7 +3,7 @@ const DIRECT_ENV_VARS = new Set(['NODE_ENV', 'NEXT_RUNTIME'])
 const SDK_OWNERS = {
   Stripe: { file: 'src/lib/stripe.ts', use: "`stripe` from '@/lib/stripe'" },
   Resend: { file: 'src/lib/email.ts', use: "`resend` from '@/lib/email'" },
-  PrismaClient: { file: 'src/lib/prisma.ts', use: "the default export of '@/lib/prisma'" },
+  PrismaClient: { file: 'src/db/client.ts', use: 'a named query function from a src/db module' },
 }
 
 const OWNER_FILES = Object.values(SDK_OWNERS)

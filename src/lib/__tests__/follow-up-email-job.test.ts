@@ -1,19 +1,24 @@
-import { SubmissionStatus } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockFindMany, mockUpdateMany, mockSendFollowUpEmail } = vi.hoisted(() => ({
-  mockFindMany: vi.fn(),
-  mockUpdateMany: vi.fn(),
+const {
+  mockFindDueFollowUpEmails,
+  mockClaimDueFollowUpEmail,
+  mockReleaseFollowUpEmailClaimAt,
+  mockAcknowledgeFollowUpEmailSent,
+  mockSendFollowUpEmail,
+} = vi.hoisted(() => ({
+  mockFindDueFollowUpEmails: vi.fn(),
+  mockClaimDueFollowUpEmail: vi.fn(),
+  mockReleaseFollowUpEmailClaimAt: vi.fn(),
+  mockAcknowledgeFollowUpEmailSent: vi.fn(),
   mockSendFollowUpEmail: vi.fn(),
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    submission: {
-      findMany: mockFindMany,
-      updateMany: mockUpdateMany,
-    },
-  },
+vi.mock('@/db/submissions', () => ({
+  findDueFollowUpEmails: mockFindDueFollowUpEmails,
+  claimDueFollowUpEmail: mockClaimDueFollowUpEmail,
+  releaseFollowUpEmailClaimAt: mockReleaseFollowUpEmailClaimAt,
+  acknowledgeFollowUpEmailSent: mockAcknowledgeFollowUpEmailSent,
 }))
 
 vi.mock('@/lib/email', () => ({ sendFollowUpEmail: mockSendFollowUpEmail }))
@@ -33,61 +38,31 @@ const candidate = {
 describe('runFollowUpEmailJob', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockFindMany.mockResolvedValue([candidate])
+    mockFindDueFollowUpEmails.mockResolvedValue([candidate])
     mockSendFollowUpEmail.mockResolvedValue({ data: { id: 'email_123' }, error: null })
   })
 
   it('selects only delivered approved notes purchased 5-7 days ago and marks a claimed send', async () => {
-    mockUpdateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 })
+    mockClaimDueFollowUpEmail.mockResolvedValueOnce(1)
+    mockAcknowledgeFollowUpEmailSent.mockResolvedValueOnce(1)
 
     const result = await runFollowUpEmailJob(now)
 
-    expect(mockFindMany).toHaveBeenCalledWith({
-      where: {
-        status: SubmissionStatus.APPROVED,
-        approvalEmailSentAt: { not: null },
-        followUpEmailSentAt: null,
-        createdAt: {
-          gte: new Date('2026-08-16T12:00:00.000Z'),
-          lte: new Date('2026-08-18T12:00:00.000Z'),
-        },
-        OR: [
-          { followUpEmailClaimedAt: null },
-          { followUpEmailClaimedAt: { lte: new Date('2026-08-23T11:30:00.000Z') } },
-        ],
-      },
-      orderBy: { createdAt: 'asc' },
-      take: 100,
-      select: {
-        id: true,
-        email: true,
-        patientFirstName: true,
-        patientLastName: true,
-        notePurpose: true,
-      },
-    })
+    expect(mockFindDueFollowUpEmails).toHaveBeenCalledWith(now)
+    expect(mockClaimDueFollowUpEmail).toHaveBeenCalledWith('sub_123', now)
     expect(mockSendFollowUpEmail).toHaveBeenCalledWith({
       to: 'customer@example.com',
       patientName: 'Alex Doe',
       notePurpose: 'work',
       submissionId: 'sub_123',
     })
-    expect(mockUpdateMany).toHaveBeenLastCalledWith({
-      where: {
-        id: 'sub_123',
-        followUpEmailSentAt: null,
-        followUpEmailClaimedAt: now,
-      },
-      data: {
-        followUpEmailClaimedAt: null,
-        followUpEmailSentAt: now,
-      },
-    })
+    expect(mockAcknowledgeFollowUpEmailSent).toHaveBeenCalledWith('sub_123', now)
+    expect(mockReleaseFollowUpEmailClaimAt).not.toHaveBeenCalled()
     expect(result).toEqual({ eligible: 1, claimed: 1, sent: 1, failed: 0 })
   })
 
   it('does not send when another invocation wins the claim', async () => {
-    mockUpdateMany.mockResolvedValueOnce({ count: 0 })
+    mockClaimDueFollowUpEmail.mockResolvedValueOnce(0)
 
     await expect(runFollowUpEmailJob(now)).resolves.toEqual({
       eligible: 1,
@@ -99,7 +74,8 @@ describe('runFollowUpEmailJob', () => {
   })
 
   it('releases the claim after an explicit provider failure so the next cron can retry', async () => {
-    mockUpdateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 })
+    mockClaimDueFollowUpEmail.mockResolvedValueOnce(1)
+    mockReleaseFollowUpEmailClaimAt.mockResolvedValueOnce(undefined)
     mockSendFollowUpEmail.mockRejectedValue(new Error('provider unavailable'))
 
     await expect(runFollowUpEmailJob(now)).resolves.toEqual({
@@ -108,13 +84,7 @@ describe('runFollowUpEmailJob', () => {
       sent: 0,
       failed: 1,
     })
-    expect(mockUpdateMany).toHaveBeenLastCalledWith({
-      where: {
-        id: 'sub_123',
-        followUpEmailSentAt: null,
-        followUpEmailClaimedAt: now,
-      },
-      data: { followUpEmailClaimedAt: null },
-    })
+    expect(mockReleaseFollowUpEmailClaimAt).toHaveBeenCalledWith('sub_123', now)
+    expect(mockAcknowledgeFollowUpEmailSent).not.toHaveBeenCalled()
   })
 })

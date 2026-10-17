@@ -1,18 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { SubmissionStatus } from '@prisma/client'
+import { SubmissionStatus } from '@/db/types'
 
-const { mockFindUnique, mockHeaders, mockRedirect } = vi.hoisted(() => ({
-  mockFindUnique: vi.fn(),
-  mockHeaders: vi.fn(),
-  mockRedirect: vi.fn(),
-}))
+const { mockFindNoteVerificationByMedicalRecordNumber, mockHeaders, mockRedirect } = vi.hoisted(
+  () => ({
+    mockFindNoteVerificationByMedicalRecordNumber: vi.fn(),
+    mockHeaders: vi.fn(),
+    mockRedirect: vi.fn(),
+  })
+)
 
-vi.mock('@/lib/prisma', () => ({
-  default: {
-    noteVerification: {
-      findUnique: mockFindUnique,
-    },
-  },
+vi.mock('@/db/note-verifications', () => ({
+  findNoteVerificationByMedicalRecordNumber: mockFindNoteVerificationByMedicalRecordNumber,
 }))
 
 vi.mock('next/headers', () => ({
@@ -41,7 +39,7 @@ describe('lookupMedicalRecord', () => {
   })
 
   it('redirects to the verification slug for active approved records', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindNoteVerificationByMedicalRecordNumber.mockResolvedValue({
       verificationSlug: 'v_testslug',
       status: 'ACTIVE',
       revokedAt: null,
@@ -55,18 +53,14 @@ describe('lookupMedicalRecord', () => {
       'NEXT_REDIRECT:/verify/v_testslug'
     )
 
-    expect(mockFindUnique).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { medicalRecordNumber: 'A7B3C9D2' },
-      })
-    )
+    expect(mockFindNoteVerificationByMedicalRecordNumber).toHaveBeenCalledWith('A7B3C9D2')
   })
 
   it('preserves the Spanish route when an active record is verified', async () => {
     mockHeaders.mockResolvedValue(
       new Headers({ 'x-forwarded-for': '203.0.113.11', 'x-site-locale': 'es' })
     )
-    mockFindUnique.mockResolvedValue({
+    mockFindNoteVerificationByMedicalRecordNumber.mockResolvedValue({
       verificationSlug: 'v_spanish',
       status: 'ACTIVE',
       revokedAt: null,
@@ -83,7 +77,7 @@ describe('lookupMedicalRecord', () => {
 
   it('does not globally throttle when requester IP headers are unavailable', async () => {
     mockHeaders.mockResolvedValue(new Headers())
-    mockFindUnique.mockResolvedValue(null)
+    mockFindNoteVerificationByMedicalRecordNumber.mockResolvedValue(null)
 
     for (let i = 0; i < 13; i++) {
       const result = await lookupMedicalRecord({}, buildFormData('NOTREAL0'))
@@ -92,11 +86,11 @@ describe('lookupMedicalRecord', () => {
       )
     }
 
-    expect(mockFindUnique).toHaveBeenCalledTimes(13)
+    expect(mockFindNoteVerificationByMedicalRecordNumber).toHaveBeenCalledTimes(13)
   })
 
   it('returns the same generic error for unknown records', async () => {
-    mockFindUnique.mockResolvedValue(null)
+    mockFindNoteVerificationByMedicalRecordNumber.mockResolvedValue(null)
 
     const result = await lookupMedicalRecord({}, buildFormData('NOTREAL0'))
 
@@ -107,7 +101,7 @@ describe('lookupMedicalRecord', () => {
   })
 
   it('returns the same generic error for revoked or non-approved records', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindNoteVerificationByMedicalRecordNumber.mockResolvedValue({
       verificationSlug: 'v_revoked',
       status: 'REVOKED',
       revokedAt: new Date(),
@@ -121,7 +115,7 @@ describe('lookupMedicalRecord', () => {
       error: 'We could not verify this document. Please check the Medical Record # and try again.',
     })
 
-    mockFindUnique.mockResolvedValue({
+    mockFindNoteVerificationByMedicalRecordNumber.mockResolvedValue({
       verificationSlug: 'v_pending',
       status: 'ACTIVE',
       revokedAt: null,
@@ -139,7 +133,7 @@ describe('lookupMedicalRecord', () => {
   })
 
   it('returns the same generic error for refunded records', async () => {
-    mockFindUnique.mockResolvedValue({
+    mockFindNoteVerificationByMedicalRecordNumber.mockResolvedValue({
       verificationSlug: 'v_refunded',
       status: 'ACTIVE',
       revokedAt: null,

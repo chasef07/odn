@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
 import { sendBounceAlertEmail, resend } from '@/lib/email'
 import { env } from '@/lib/env'
 import { emailBounceSms } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
-import { isUniqueConstraintError } from '@/lib/prisma-errors'
+import { findLatestSubmissionsForBouncedEmail } from '@/db/submissions'
+import { claimResendWebhookEvent } from '@/db/webhook-events'
 
 interface ResendBounceEvent {
   type: 'email.bounced'
@@ -88,21 +88,9 @@ export async function POST(request: NextRequest) {
     let submission = null
     let canSendBounceSms = false
     try {
-      const matchingSubmissions = await prisma.submission.findMany({
-        where: { email: bouncedEmail.toLowerCase() },
-        orderBy: { createdAt: 'desc' },
-        take: 2,
-        select: {
-          id: true,
-          patientFirstName: true,
-          patientLastName: true,
-          email: true,
-          phone: true,
-          smsOptIn: true,
-          smsPhoneE164: true,
-          status: true,
-        },
-      })
+      const matchingSubmissions = await findLatestSubmissionsForBouncedEmail(
+        bouncedEmail.toLowerCase()
+      )
       submission = matchingSubmissions[0] || null
       canSendBounceSms = matchingSubmissions.length === 1
     } catch (dbError) {
@@ -142,29 +130,5 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Webhook error:', error)
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
-  }
-}
-
-async function claimResendWebhookEvent({
-  id,
-  emailId,
-  eventType,
-}: {
-  id: string
-  emailId?: string
-  eventType: string
-}): Promise<boolean> {
-  try {
-    await prisma.resendWebhookEvent.create({
-      data: {
-        id,
-        emailId,
-        eventType,
-      },
-    })
-    return true
-  } catch (error) {
-    if (isUniqueConstraintError(error)) return false
-    throw error
   }
 }

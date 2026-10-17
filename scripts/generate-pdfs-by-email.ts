@@ -1,15 +1,8 @@
-import { PrismaClient } from '@prisma/client'
+import { disconnectDatabase } from '@/db/connection'
+import { findApprovedSubmissionsForEmail, findSubmissionById } from '@/db/submissions'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import * as fs from 'fs'
 import * as path from 'path'
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
-})
 
 interface GenerateResult {
   email: string
@@ -21,23 +14,13 @@ interface GenerateResult {
 }
 
 async function findApprovedSubmissions(email: string) {
-  const submissions = await prisma.submission.findMany({
-    where: {
-      email: email.toLowerCase().trim(),
-      status: 'APPROVED',
-    },
-    orderBy: {
-      reviewedAt: 'desc',
-    },
-  })
+  const submissions = await findApprovedSubmissionsForEmail(email.toLowerCase().trim())
 
   return submissions
 }
 
 async function generateAndSavePDF(submissionId: string, outputDir: string): Promise<string> {
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-  })
+  const submission = await findSubmissionById(submissionId)
 
   if (!submission) {
     throw new Error(`Submission ${submissionId} not found`)
@@ -175,7 +158,7 @@ async function main() {
     console.error('❌ Script failed:', error)
     throw error
   } finally {
-    await prisma.$disconnect()
+    await disconnectDatabase()
   }
 }
 

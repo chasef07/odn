@@ -1,14 +1,11 @@
 import { betterAuth } from 'better-auth'
-import { prismaAdapter } from 'better-auth/adapters/prisma'
 import bcrypt from 'bcryptjs'
 import { env } from '@/lib/env'
-import prisma from './prisma'
+import { authDatabaseAdapter } from '@/db/auth'
 
 function createAuth() {
   return betterAuth({
-    database: prismaAdapter(prisma, {
-      provider: 'postgresql',
-    }),
+    database: authDatabaseAdapter(),
 
     emailAndPassword: {
       enabled: true,

@@ -1,12 +1,11 @@
-import prisma from '../src/lib/prisma'
+import { disconnectDatabase } from '../src/db/connection'
+import { findLatestSubmission } from '../src/db/submissions'
 
 async function inspectSubmissionDetail() {
   try {
     console.log('🔍 Fetching detailed submission data...\n')
 
-    const submission = await prisma.submission.findFirst({
-      orderBy: { createdAt: 'desc' },
-    })
+    const submission = await findLatestSubmission()
 
     if (!submission) {
       console.log('No submissions found')
@@ -49,7 +48,7 @@ async function inspectSubmissionDetail() {
   } catch (error) {
     console.error('❌ Error:', error)
   } finally {
-    await prisma.$disconnect()
+    await disconnectDatabase()
   }
 }
 

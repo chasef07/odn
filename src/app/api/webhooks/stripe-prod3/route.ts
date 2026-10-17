@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { Prisma, SubmissionStatus } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { SubmissionStatus, type JsonValue, type Submission } from '@/db/types'
+import { findSubmissionIdForPaymentIntent, insertSubmission } from '@/db/submissions'
+import {
+  attachPaymentIntentToTemporarySubmission,
+  deleteTemporarySubmission,
+  findTemporarySubmissionById,
+  findTemporarySubmissionByPaymentIntent,
+} from '@/db/temporary-submissions'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
@@ -45,10 +51,7 @@ export async function POST(request: NextRequest) {
 
     const paymentIntent = event.data.object as Stripe.PaymentIntent
 
-    const existingSubmission = await prisma.submission.findUnique({
-      where: { stripePaymentIntentId: paymentIntent.id },
-      select: { id: true },
-    })
+    const existingSubmission = await findSubmissionIdForPaymentIntent(paymentIntent.id)
 
     const eventAge = Date.now() - event.created * 1000
     const MAX_EVENT_AGE = 10 * 60 * 1000
@@ -88,24 +91,22 @@ export async function POST(request: NextRequest) {
       created: new Date(event.created * 1000).toISOString(),
     })
 
-    let tempSubmission = await prisma.temporarySubmission.findUnique({
-      where: { paymentIntentId: paymentIntent.id },
-    })
+    let tempSubmission = await findTemporarySubmissionByPaymentIntent(paymentIntent.id)
 
     if (!tempSubmission && paymentIntent.metadata?.temporarySubmissionId) {
       logger.info('Primary lookup failed, attempting fallback by metadata.temporarySubmissionId')
 
-      const tempSubmissionById = await prisma.temporarySubmission.findUnique({
-        where: { id: paymentIntent.metadata.temporarySubmissionId },
-      })
+      const tempSubmissionById = await findTemporarySubmissionById(
+        paymentIntent.metadata.temporarySubmissionId
+      )
 
       if (tempSubmissionById) {
         logger.info('FALLBACK SUCCESS: Found TemporarySubmission by metadata ID')
 
-        tempSubmission = await prisma.temporarySubmission.update({
-          where: { id: tempSubmissionById.id },
-          data: { paymentIntentId: paymentIntent.id },
-        })
+        tempSubmission = await attachPaymentIntentToTemporarySubmission(
+          tempSubmissionById.id,
+          paymentIntent.id
+        )
 
         logger.info('TemporarySubmission updated with correct paymentIntentId:', paymentIntent.id)
       }
@@ -162,49 +163,47 @@ export async function POST(request: NextRequest) {
 
     const data = intake.data
 
-    let submission: Awaited<ReturnType<typeof prisma.submission.create>>
+    let submission: Submission
     try {
-      submission = await prisma.submission.create({
-        data: {
-          stripePaymentIntentId: paymentIntent.id,
-          paymentAmount: paymentIntent.amount,
-          offerCode: paymentIntent.metadata?.offer_code || null,
-          offerPriceId: paymentIntent.metadata?.offer_price_id || null,
-          attributionChannel: attribution?.last.channel ?? null,
-          utmSource: attribution?.last.source ?? null,
-          utmMedium: attribution?.last.medium ?? null,
-          utmCampaign: attribution?.last.campaign ?? null,
-          attribution: attribution ? (attribution as unknown as Prisma.InputJsonValue) : undefined,
-          status: flagged ? SubmissionStatus.MAYBE : SubmissionStatus.PENDING_REVIEW,
-          denialReason: null,
-          maybeReason: flagged ? INTERNAL_ONLY_MAYBE_REASON : null,
-          maybeInternalNote: flagged ? `Auto-flagged: ${reasons.join('; ')}` : null,
-          maybeEmailSentAt: null,
+      submission = await insertSubmission({
+        stripePaymentIntentId: paymentIntent.id,
+        paymentAmount: paymentIntent.amount,
+        offerCode: paymentIntent.metadata?.offer_code || null,
+        offerPriceId: paymentIntent.metadata?.offer_price_id || null,
+        attributionChannel: attribution?.last.channel ?? null,
+        utmSource: attribution?.last.source ?? null,
+        utmMedium: attribution?.last.medium ?? null,
+        utmCampaign: attribution?.last.campaign ?? null,
+        attribution: attribution ? (attribution as unknown as JsonValue) : undefined,
+        status: flagged ? SubmissionStatus.MAYBE : SubmissionStatus.PENDING_REVIEW,
+        denialReason: null,
+        maybeReason: flagged ? INTERNAL_ONLY_MAYBE_REASON : null,
+        maybeInternalNote: flagged ? `Auto-flagged: ${reasons.join('; ')}` : null,
+        maybeEmailSentAt: null,
 
-          state: data.state,
-          recipient: data.recipient,
-          patientFirstName: data.patientFirstName,
-          patientLastName: data.patientLastName,
-          guardianFirstName: data.guardianFirstName,
-          guardianLastName: data.guardianLastName,
-          email: data.email,
-          phone: data.phone,
-          smsOptIn: data.smsOptIn,
-          smsOptInAt: data.smsOptIn ? new Date() : null,
-          smsConsentVersion: data.smsOptIn ? SMS_CONSENT_VERSION : null,
-          smsPhoneE164: data.smsOptIn ? toE164UsPhone(data.phone) : null,
-          notePurpose: data.notePurpose,
-          otherNotePurpose: data.otherNotePurpose,
-          absenceReason: data.absenceReason,
-          otherAbsenceReason: data.otherAbsenceReason,
-          symptoms: data.symptoms ?? undefined,
-          otherSymptomText: data.otherSymptomText,
-          additionalInformation: data.additionalInformation,
-          patientDateOfBirth: data.patientDateOfBirth,
-          guardianDateOfBirth: data.guardianDateOfBirth,
-          firstDayOff: data.firstDayOff,
-          lastDayOff: data.lastDayOff,
-        },
+        state: data.state,
+        recipient: data.recipient,
+        patientFirstName: data.patientFirstName,
+        patientLastName: data.patientLastName,
+        guardianFirstName: data.guardianFirstName,
+        guardianLastName: data.guardianLastName,
+        email: data.email,
+        phone: data.phone,
+        smsOptIn: data.smsOptIn,
+        smsOptInAt: data.smsOptIn ? new Date() : null,
+        smsConsentVersion: data.smsOptIn ? SMS_CONSENT_VERSION : null,
+        smsPhoneE164: data.smsOptIn ? toE164UsPhone(data.phone) : null,
+        notePurpose: data.notePurpose,
+        otherNotePurpose: data.otherNotePurpose,
+        absenceReason: data.absenceReason,
+        otherAbsenceReason: data.otherAbsenceReason,
+        symptoms: data.symptoms ?? undefined,
+        otherSymptomText: data.otherSymptomText,
+        additionalInformation: data.additionalInformation,
+        patientDateOfBirth: data.patientDateOfBirth,
+        guardianDateOfBirth: data.guardianDateOfBirth,
+        firstDayOff: data.firstDayOff,
+        lastDayOff: data.lastDayOff,
       })
 
       logger.info('Submission created successfully:', {
@@ -258,9 +257,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await prisma.temporarySubmission.delete({
-        where: { id: tempSubmission.id },
-      })
+      await deleteTemporarySubmission(tempSubmission.id)
       logger.info('TemporarySubmission deleted:', tempSubmission.id)
     } catch (deleteError) {
       logger.warn('Failed to delete TemporarySubmission (non-critical):', deleteError)

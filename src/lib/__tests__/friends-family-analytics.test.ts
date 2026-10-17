@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SubmissionStatus } from '@prisma/client'
+import { SubmissionStatus } from '@/db/types'
 import {
   buildFriendsFamilyCustomerDetail,
   buildFriendsFamilyAnalytics,

@@ -1,5 +1,22 @@
-import { Prisma, SubmissionStatus } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { SubmissionStatus, type SmsSupportTicket } from '@/db/types'
+import {
+  createInboundSupportTicket,
+  escalateSupportTicketToCsr,
+  failQueuedOrRunningSupportJobs,
+  findActiveSupportTicketForPhone,
+  linkSmsMessageToSupportTicket,
+  markSupportTicketReplyFailed,
+  recordSupportTicketInbound,
+  updateSupportTicketConversation,
+  type SupportTicketConversationUpdate,
+} from '@/db/sms-support'
+import {
+  findApprovedSubmissionBirthDateForSupport,
+  findApprovedSubmissionIdForSupportTicket,
+  findApprovedSupportSubmissionIdsByReference,
+  findLatestApprovedSubmissionIdsForSupportPhone,
+  findSmsSupportSubmissionCandidatesForPhone,
+} from '@/db/submissions'
 import { isAtLeastAge, isIsoDateOnlyInSaneRange } from '@/lib/date-only'
 import { formatDateUTC } from '@/lib/utils'
 import { toE164UsPhone } from '@/lib/phone-utils'
@@ -42,8 +59,6 @@ import {
 import {
   SMS_SUPPORT_AUTOMATION_STATUS,
   SMS_SUPPORT_CATEGORY,
-  SMS_SUPPORT_JOB_STATUS,
-  SMS_SUPPORT_SOURCE,
   SMS_SUPPORT_STATE,
   SMS_SUPPORT_STATUS,
   type SmsSupportCategory,
@@ -51,16 +66,7 @@ import {
   type SmsSupportState,
 } from '@/lib/sms-support-types'
 
-type SupportTicket = Awaited<ReturnType<typeof findActiveTicket>>
-type ConcreteSupportTicket = NonNullable<SupportTicket>
 type SupportReplySmsType = 'SUPPORT_REPLY' | 'SUPPORT_AUTOMATION_UPDATE' | 'SUPPORT_CSR_ALERT'
-
-const ACTIVE_TICKET_STATUSES = [
-  SMS_SUPPORT_STATUS.OPEN,
-  SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-  SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-  SMS_SUPPORT_STATUS.NEEDS_CSR,
-]
 
 export async function handleInboundSupportSms({
   fromPhone,
@@ -77,41 +83,29 @@ export async function handleInboundSupportSms({
   const trimmedBody = body.trim()
   if (!phoneE164 || !trimmedBody) return
 
-  let ticket = await findActiveTicket(phoneE164)
+  let ticket = await findActiveSupportTicketForPhone(phoneE164)
   if (!ticket) {
     const matchedSubmission = await findSafeSubmissionForPhone(phoneE164)
-    ticket = await prisma.smsSupportTicket.create({
-      data: {
-        phoneE164,
-        submissionId: matchedSubmission?.id,
-        status: SMS_SUPPORT_STATUS.OPEN,
-        state: SMS_SUPPORT_STATE.INTRO_MENU,
-        source: SMS_SUPPORT_SOURCE.INBOUND_SMS,
-        lastInboundAt: receivedAt,
-      },
+    ticket = await createInboundSupportTicket({
+      phoneE164,
+      submissionId: matchedSubmission?.id,
+      lastInboundAt: receivedAt,
     })
   } else {
     const matchedSubmission =
       ticket.submissionId || ticket.status === SMS_SUPPORT_STATUS.RUNNING_AUTOMATION
         ? null
         : await findSafeSubmissionForPhone(phoneE164)
-    ticket = await prisma.smsSupportTicket.update({
-      where: { id: ticket.id },
-      data: {
-        ...(matchedSubmission ? { submissionId: matchedSubmission.id } : {}),
-        lastInboundAt: receivedAt,
-        closedAt: null,
-      },
+    ticket = await recordSupportTicketInbound(ticket.id, {
+      matchedSubmissionId: matchedSubmission?.id,
+      lastInboundAt: receivedAt,
     })
   }
 
   if (providerMessageId) {
-    await prisma.smsMessage.updateMany({
-      where: { providerMessageId },
-      data: {
-        supportTicketId: ticket.id,
-        submissionId: ticket.submissionId ?? null,
-      },
+    await linkSmsMessageToSupportTicket(providerMessageId, {
+      supportTicketId: ticket.id,
+      submissionId: ticket.submissionId ?? null,
     })
   }
 
@@ -133,7 +127,7 @@ export async function handleInboundSupportSms({
         state: SMS_SUPPORT_STATE.INTRO_MENU,
         category: null,
         failureReason: null,
-        collectedData: prismaJson({}),
+        collectedData: {},
       },
       supportIntroMenuSms()
     )
@@ -144,7 +138,7 @@ export async function handleInboundSupportSms({
 }
 
 async function routeByState(
-  ticket: ConcreteSupportTicket,
+  ticket: SmsSupportTicket,
   body: string,
   providerMessageId?: string
 ): Promise<void> {
@@ -209,7 +203,7 @@ async function routeByState(
   }
 }
 
-async function routeIntroMenu(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
   if (isChangeNoteMenuRequest(body)) {
     await updateTicketAndReply(
       ticket.id,
@@ -355,7 +349,7 @@ async function routeIntroMenu(ticket: ConcreteSupportTicket, body: string): Prom
   )
 }
 
-async function routeChangeNoteMenu(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized.includes('ISSUE') || normalized.includes('EVALUATION')) {
@@ -467,7 +461,7 @@ async function routeChangeNoteMenu(ticket: ConcreteSupportTicket, body: string):
   await reply(ticket, changeNoteMenuSms())
 }
 
-async function routeOtherMenu(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function routeOtherMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized.includes('FORM')) {
@@ -505,7 +499,7 @@ async function routeOtherMenu(ticket: ConcreteSupportTicket, body: string): Prom
 }
 
 async function startAutomationCategory(
-  ticket: ConcreteSupportTicket,
+  ticket: SmsSupportTicket,
   category: SmsSupportCategory
 ): Promise<void> {
   const collectState = stateForAutomationCategory(category)
@@ -535,11 +529,11 @@ async function startAutomationCategory(
         status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
         state: SMS_SUPPORT_STATE.COLLECT_SUBMISSION_REF,
         category,
-        collectedData: prismaJson({
+        collectedData: {
           ...ticketCollectedData(ticket),
           pendingCategory: category,
           pendingState: collectState,
-        }),
+        },
       },
       askSubmissionReferenceSms()
     )
@@ -553,14 +547,14 @@ async function startAutomationCategory(
       status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
       state: collectState,
       category,
-      collectedData: prismaJson({}),
+      collectedData: {},
     },
     promptForState(collectState)
   )
 }
 
 async function handleSubmissionReference(
-  ticket: ConcreteSupportTicket,
+  ticket: SmsSupportTicket,
   body: string,
   providerMessageId?: string
 ): Promise<void> {
@@ -570,7 +564,7 @@ async function handleSubmissionReference(
       ticket.id,
       {
         state: SMS_SUPPORT_STATE.INTRO_MENU,
-        collectedData: prismaJson({}),
+        collectedData: {},
       },
       supportIntroMenuSms()
     )
@@ -584,12 +578,9 @@ async function handleSubmissionReference(
   }
 
   if (providerMessageId) {
-    await prisma.smsMessage.updateMany({
-      where: { providerMessageId },
-      data: {
-        supportTicketId: ticket.id,
-        submissionId: submission.id,
-      },
+    await linkSmsMessageToSupportTicket(providerMessageId, {
+      supportTicketId: ticket.id,
+      submissionId: submission.id,
     })
   }
 
@@ -601,13 +592,13 @@ async function handleSubmissionReference(
       status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
       state: data.pendingState,
       category: data.pendingCategory,
-      collectedData: prismaJson(nextData),
+      collectedData: nextData,
     },
     promptForState(data.pendingState)
   )
 }
 
-async function collectDob(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void> {
   const isoDate = parseUsDateToIso(body)
   if (!isoDate || !isIsoDateOnlyInSaneRange(isoDate, { minYear: 1900 })) {
     await reply(ticket, invalidDateSms())
@@ -641,7 +632,7 @@ async function collectDob(ticket: ConcreteSupportTicket, body: string): Promise<
   })
 }
 
-async function collectPurpose(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function collectPurpose(ticket: SmsSupportTicket, body: string): Promise<void> {
   if (isLegalPurposeReply(body)) {
     await moveToCsr(ticket, {
       category: SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE,
@@ -664,7 +655,7 @@ async function collectPurpose(ticket: ConcreteSupportTicket, body: string): Prom
 }
 
 async function collectDiagnosisSymptomsConfirmation(
-  ticket: ConcreteSupportTicket,
+  ticket: SmsSupportTicket,
   body: string
 ): Promise<void> {
   if (!isConfirmReply(body)) {
@@ -679,7 +670,7 @@ async function collectDiagnosisSymptomsConfirmation(
   })
 }
 
-async function collectNameCorrection(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function collectNameCorrection(ticket: SmsSupportTicket, body: string): Promise<void> {
   const correctedName = body.trim().slice(0, 200)
   if (!correctedName) {
     await reply(ticket, nameCorrectionPromptSms())
@@ -696,7 +687,7 @@ async function collectNameCorrection(ticket: ConcreteSupportTicket, body: string
 }
 
 async function collectRestrictionsConfirmation(
-  ticket: ConcreteSupportTicket,
+  ticket: SmsSupportTicket,
   body: string
 ): Promise<void> {
   if (!isConfirmReply(body)) {
@@ -711,10 +702,7 @@ async function collectRestrictionsConfirmation(
   })
 }
 
-async function collectMissingNoteSpamCheck(
-  ticket: ConcreteSupportTicket,
-  body: string
-): Promise<void> {
+async function collectMissingNoteSpamCheck(ticket: SmsSupportTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized === 'YES' || normalized.includes('FOUND')) {
@@ -748,7 +736,7 @@ async function collectMissingNoteSpamCheck(
   await reply(ticket, noteNotReceivedSms())
 }
 
-async function collectMissingNoteEmail(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function collectMissingNoteEmail(ticket: SmsSupportTicket, body: string): Promise<void> {
   const email = body.trim()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     await reply(ticket, 'Please reply with a valid email address.')
@@ -764,7 +752,7 @@ async function collectMissingNoteEmail(ticket: ConcreteSupportTicket, body: stri
   })
 }
 
-async function collectRefundReason(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function collectRefundReason(ticket: SmsSupportTicket, body: string): Promise<void> {
   await moveToCsr(ticket, {
     category: SMS_SUPPORT_CATEGORY.REFUND,
     summary: `Refund request: ${body.trim().slice(0, 500)}`,
@@ -774,7 +762,7 @@ async function collectRefundReason(ticket: ConcreteSupportTicket, body: string):
   })
 }
 
-async function collectOtherMessage(ticket: ConcreteSupportTicket, body: string): Promise<void> {
+async function collectOtherMessage(ticket: SmsSupportTicket, body: string): Promise<void> {
   await moveToCsr(ticket, {
     category: ticket.category || SMS_SUPPORT_CATEGORY.OTHER,
     summary: `Customer message: ${body.trim().slice(0, 500)}`,
@@ -785,7 +773,7 @@ async function collectOtherMessage(ticket: ConcreteSupportTicket, body: string):
 }
 
 async function queueAutomation(
-  ticket: ConcreteSupportTicket,
+  ticket: SmsSupportTicket,
   {
     category,
     data,
@@ -825,7 +813,7 @@ async function queueAutomation(
       automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
       adminSummary: automationSummary(payload),
       failureReason: null,
-      collectedData: prismaJson(data),
+      collectedData: data,
     },
     automationQueuedSms(),
     'SUPPORT_AUTOMATION_UPDATE'
@@ -835,7 +823,7 @@ async function queueAutomation(
 }
 
 async function moveToCsr(
-  ticket: ConcreteSupportTicket,
+  ticket: SmsSupportTicket,
   {
     category,
     summary,
@@ -850,17 +838,12 @@ async function moveToCsr(
     replyBody: string
   }
 ): Promise<void> {
-  const updatedTicket = await prisma.smsSupportTicket.update({
-    where: { id: ticket.id },
-    data: {
-      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-      state: SMS_SUPPORT_STATE.CSR_REVIEW,
-      category,
-      adminSummary: summary,
-      collectedData: prismaJson({
-        ...ticketCollectedData(ticket),
-        ...(collectedData || {}),
-      }),
+  const updatedTicket = await escalateSupportTicketToCsr(ticket.id, {
+    category,
+    adminSummary: summary,
+    collectedData: {
+      ...ticketCollectedData(ticket),
+      ...(collectedData || {}),
     },
   })
 
@@ -880,37 +863,8 @@ async function moveToCsr(
   })
 }
 
-async function findActiveTicket(phoneE164: string) {
-  return prisma.smsSupportTicket.findFirst({
-    where: {
-      phoneE164,
-      status: { in: ACTIVE_TICKET_STATUSES },
-    },
-    orderBy: { updatedAt: 'desc' },
-  })
-}
-
 async function findSafeSubmissionForPhone(phoneE164: string): Promise<{ id: string } | null> {
-  const submissions = await prisma.submission.findMany({
-    where: {
-      smsPhoneE164: phoneE164,
-      smsOptIn: true,
-    },
-    select: {
-      id: true,
-      status: true,
-      smsMessages: {
-        where: {
-          direction: 'outbound',
-          to: phoneE164,
-          sentAt: { not: null },
-        },
-        select: { id: true },
-        take: 1,
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+  const submissions = await findSmsSupportSubmissionCandidatesForPhone(phoneE164)
 
   const approved = submissions.filter(({ status }) => status === SubmissionStatus.APPROVED)
   if (approved.length === 1) return approved[0]
@@ -923,30 +877,16 @@ async function findSafeSubmissionForPhone(phoneE164: string): Promise<{ id: stri
 }
 
 async function resolveApprovedSubmission(
-  ticket: ConcreteSupportTicket
+  ticket: SmsSupportTicket
 ): Promise<
   { status: 'found'; submission: { id: string } } | { status: 'none' } | { status: 'ambiguous' }
 > {
   if (ticket.submissionId) {
-    const submission = await prisma.submission.findFirst({
-      where: {
-        id: ticket.submissionId,
-        status: SubmissionStatus.APPROVED,
-      },
-      select: { id: true },
-    })
+    const submission = await findApprovedSubmissionIdForSupportTicket(ticket.submissionId)
     return submission ? { status: 'found', submission } : { status: 'none' }
   }
 
-  const submissions = await prisma.submission.findMany({
-    where: {
-      smsPhoneE164: ticket.phoneE164,
-      status: SubmissionStatus.APPROVED,
-    },
-    select: { id: true },
-    orderBy: { createdAt: 'desc' },
-    take: 2,
-  })
+  const submissions = await findLatestApprovedSubmissionIdsForSupportPhone(ticket.phoneE164)
 
   if (submissions.length === 0) return { status: 'none' }
   if (submissions.length === 1) return { status: 'found', submission: submissions[0] }
@@ -958,25 +898,15 @@ async function findApprovedSubmissionByReference(phoneE164: string, reference: s
   if (!compact) return null
 
   const normalizedMedicalRecordNumber = normalizeMedicalRecordNumber(compact)
-  const referenceFilters: Prisma.SubmissionWhereInput[] = []
-  if (compact.length === 8) {
-    referenceFilters.push({ id: { startsWith: compact.toLowerCase() } })
-  }
-  if (/^[A-Z0-9]{8}$/.test(normalizedMedicalRecordNumber)) {
-    referenceFilters.push({
-      noteVerifications: { some: { medicalRecordNumber: normalizedMedicalRecordNumber } },
-    })
-  }
-  if (referenceFilters.length === 0) return null
+  const idPrefix = compact.length === 8 ? compact.toLowerCase() : undefined
+  const medicalRecordNumber = /^[A-Z0-9]{8}$/.test(normalizedMedicalRecordNumber)
+    ? normalizedMedicalRecordNumber
+    : undefined
+  if (idPrefix === undefined && medicalRecordNumber === undefined) return null
 
-  const matches = await prisma.submission.findMany({
-    where: {
-      smsPhoneE164: phoneE164,
-      status: SubmissionStatus.APPROVED,
-      OR: referenceFilters,
-    },
-    select: { id: true },
-    take: 2,
+  const matches = await findApprovedSupportSubmissionIdsByReference(phoneE164, {
+    idPrefix,
+    medicalRecordNumber,
   })
 
   return matches.length === 1 ? matches[0] : null
@@ -999,19 +929,10 @@ function normalizeSubmissionReferenceInput(reference: string): string {
   return compact
 }
 
-async function getTicketSubmission(ticket: ConcreteSupportTicket) {
+async function getTicketSubmission(ticket: SmsSupportTicket) {
   if (!ticket.submissionId) return null
 
-  return prisma.submission.findFirst({
-    where: {
-      id: ticket.submissionId,
-      status: SubmissionStatus.APPROVED,
-    },
-    select: {
-      id: true,
-      patientDateOfBirth: true,
-    },
-  })
+  return findApprovedSubmissionBirthDateForSupport(ticket.submissionId)
 }
 
 function categoryFromMessage(body: string): SmsSupportCategory | null {
@@ -1140,7 +1061,7 @@ function parseUsDateToIso(value: string): string | null {
   ].join('-')
 }
 
-function ticketCollectedData(ticket: ConcreteSupportTicket): SmsSupportCollectedData {
+function ticketCollectedData(ticket: SmsSupportTicket): SmsSupportCollectedData {
   if (!ticket.collectedData || typeof ticket.collectedData !== 'object') return {}
   if (Array.isArray(ticket.collectedData)) return {}
   return ticket.collectedData as SmsSupportCollectedData
@@ -1148,14 +1069,11 @@ function ticketCollectedData(ticket: ConcreteSupportTicket): SmsSupportCollected
 
 async function updateTicketAndReply(
   ticketId: string,
-  data: Prisma.SmsSupportTicketUncheckedUpdateInput,
+  data: SupportTicketConversationUpdate,
   body: string,
   type: SupportReplySmsType = 'SUPPORT_REPLY'
 ): Promise<void> {
-  const ticket = await prisma.smsSupportTicket.update({
-    where: { id: ticketId },
-    data,
-  })
+  const ticket = await updateSupportTicketConversation(ticketId, data)
   await reply(ticket, body, type)
 }
 
@@ -1186,16 +1104,7 @@ async function reply(
     })
     await cancelActiveAutomationJobs(ticket.id, 'Support SMS failed before automation completed')
 
-    const failedTicket = await prisma.smsSupportTicket.update({
-      where: { id: ticket.id },
-      data: {
-        status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-        state: SMS_SUPPORT_STATE.CSR_REVIEW,
-        failureReason,
-        adminSummary: 'Support SMS failed to send. Admin should contact the customer manually.',
-        closedAt: null,
-      },
-    })
+    const failedTicket = await markSupportTicketReplyFailed(ticket.id, failureReason)
 
     if (alertOnFailure) {
       await alertSupportTicketNeedsCsr({
@@ -1214,19 +1123,7 @@ async function reply(
 }
 
 async function cancelActiveAutomationJobs(ticketId: string, lastError: string): Promise<void> {
-  await prisma.smsSupportJob.updateMany({
-    where: {
-      ticketId,
-      status: { in: [SMS_SUPPORT_JOB_STATUS.QUEUED, SMS_SUPPORT_JOB_STATUS.RUNNING] },
-    },
-    data: {
-      status: SMS_SUPPORT_JOB_STATUS.FAILED,
-      lockedAt: null,
-      lockedBy: null,
-      lastError,
-      completedAt: new Date(),
-    },
-  })
+  await failQueuedOrRunningSupportJobs(ticketId, { lastError, completedAt: new Date() })
 }
 
 function isHelpRequest(body: string): boolean {
@@ -1247,8 +1144,4 @@ function isChangeNoteMenuRequest(body: string): boolean {
 
 function includesAny(value: string, needles: string[]): boolean {
   return needles.some((needle) => value.includes(needle))
-}
-
-function prismaJson(value: SmsSupportCollectedData): Prisma.InputJsonObject {
-  return { ...value } as Prisma.InputJsonObject
 }

@@ -3,8 +3,9 @@ import prettierConfig from 'eslint-config-prettier'
 import noComments from './eslint-rules/no-comments.mjs'
 import envSdk from './eslint-rules/env-sdk.mjs'
 import adminRules from './eslint-rules/admin-server-action.mjs'
+import dbBoundary from './eslint-rules/db-boundary.mjs'
 
-const localRules = { rules: { ...noComments.rules, ...envSdk.rules } }
+const localRules = { rules: { ...noComments.rules, ...envSdk.rules, ...dbBoundary.rules } }
 const TESTS = ['src/**/__tests__/**', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}']
 
 const eslintConfig = [
@@ -46,6 +47,13 @@ const eslintConfig = [
     ignores: [...TESTS, 'src/lib/env.ts', 'src/lib/public-env.ts'],
     rules: {
       'local/no-process-env': 'error',
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx}', 'scripts/**/*.{ts,tsx,js,mjs}'],
+    ignores: ['src/db/**'],
+    rules: {
+      'local/db-boundary': 'error',
     },
   },
   {

@@ -1,35 +1,28 @@
 'use server'
 
-import { SubmissionStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import {
+  denyManualSubmission,
+  findSubmissionForDenial,
+  markSubmissionRefundReserved,
+  recordDenialEmailSent,
+  recordSubmissionRefund,
+  releaseSubmissionRefundReservation,
+} from '@/db/submissions'
+import { SubmissionStatus } from '@/db/types'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { logger } from '@/lib/logger'
 import { sendDenialEmail } from '@/lib/email'
 import { denialSentSms } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
-import { revokeNoteVerificationForSubmission } from '@/lib/note-verification'
+import { revokeNoteVerificationForSubmission } from '@/db/note-verifications'
 import { adminAction } from '@/lib/admin-session'
 
 export const denySubmission = adminAction(
   async ({ doctorId }, submissionId: string, reason: string) => {
     try {
-      const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-        select: {
-          id: true,
-          stripePaymentIntentId: true,
-          stripeRefundId: true,
-          email: true,
-          phone: true,
-          smsOptIn: true,
-          smsPhoneE164: true,
-          patientFirstName: true,
-          patientLastName: true,
-          status: true,
-        },
-      })
+      const submission = await findSubmissionForDenial(submissionId)
 
       if (!submission) {
         return { success: false, error: 'Submission not found' }
@@ -50,15 +43,10 @@ export const denySubmission = adminAction(
 
       if (isManual) {
         const now = new Date()
-        await prisma.submission.update({
-          where: { id: submissionId },
-          data: {
-            status: SubmissionStatus.DENIED,
-            denialReason: reason,
-            reviewedByAdminId: doctorId,
-            reviewedAt: now,
-            denialEmailSentAt: null,
-          },
+        await denyManualSubmission(submissionId, {
+          denialReason: reason,
+          reviewedByAdminId: doctorId,
+          reviewedAt: now,
         })
         await revokeNoteVerificationForSubmission(submissionId, now)
 
@@ -87,25 +75,13 @@ export const denySubmission = adminAction(
       }
 
       const now = new Date()
-      const updateResult = await prisma.submission.updateMany({
-        where: {
-          id: submissionId,
-          status: {
-            in: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
-          },
-          stripeRefundId: null,
-        },
-        data: {
-          status: SubmissionStatus.DENIED,
-          denialReason: reason,
-          reviewedByAdminId: doctorId,
-          reviewedAt: now,
-          stripeRefundId: `pending_${submissionId}`,
-          refundedAt: now,
-        },
+      const reservedCount = await markSubmissionRefundReserved(submissionId, {
+        denialReason: reason,
+        reviewedByAdminId: doctorId,
+        reviewedAt: now,
       })
 
-      if (updateResult.count === 0) {
+      if (reservedCount === 0) {
         return {
           success: false,
           error: 'This submission has already been reviewed by another doctor',
@@ -135,17 +111,7 @@ export const denySubmission = adminAction(
       } catch (stripeError) {
         logger.error('Stripe refund failed:', stripeError)
 
-        await prisma.submission.update({
-          where: { id: submissionId },
-          data: {
-            status: SubmissionStatus.PENDING_REVIEW,
-            stripeRefundId: null,
-            reviewedByAdminId: null,
-            reviewedAt: null,
-            refundedAt: null,
-            denialReason: null,
-          },
-        })
+        await releaseSubmissionRefundReservation(submissionId)
 
         return {
           success: false,
@@ -153,12 +119,7 @@ export const denySubmission = adminAction(
         }
       }
 
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: {
-          stripeRefundId: refund.id,
-        },
-      })
+      await recordSubmissionRefund(submissionId, refund.id)
       await revokeNoteVerificationForSubmission(submissionId, now)
 
       const patientName = `${submission.patientFirstName} ${submission.patientLastName}`
@@ -188,12 +149,7 @@ export const denySubmission = adminAction(
       }
 
       if (emailSentAt) {
-        await prisma.submission.update({
-          where: { id: submissionId },
-          data: {
-            denialEmailSentAt: emailSentAt,
-          },
-        })
+        await recordDenialEmailSent(submissionId, emailSentAt)
       }
 
       revalidatePath('/admin')
