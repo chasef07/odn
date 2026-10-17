@@ -76,6 +76,8 @@ import {
 } from '../sms-support'
 
 const PHONE = '+15551234567'
+const OTHER_PHONE = '+15550000000'
+const UNKNOWN_PHONE = '+15559999999'
 const SUPPORT_NUMBER = '+18885551212'
 const T0 = new Date('2026-06-16T12:00:00.000Z')
 const T1 = new Date('2026-06-16T12:05:00.000Z')
@@ -203,6 +205,19 @@ describe('phone opt-out and opt-in state', () => {
     await recordSmsPhoneOptIn(PHONE, T0)
     expect(await findSmsPhoneConsentState(PHONE)).toEqual({ optedOutAt: null, lastOptInAt: T0 })
   })
+
+  it('reads only the state of the asked phone', async () => {
+    await recordSmsPhoneOptOut(OTHER_PHONE, T0)
+    await recordSmsPhoneOptIn(PHONE, T1)
+
+    expect(await findSmsPhoneOptOut(PHONE)).toEqual({ optedOutAt: null })
+    expect(await findSmsPhoneConsentState(OTHER_PHONE)).toEqual({
+      optedOutAt: T0,
+      lastOptInAt: null,
+    })
+    expect(await findSmsPhoneOptOut(UNKNOWN_PHONE)).toBeNull()
+    expect(await findSmsPhoneConsentState(UNKNOWN_PHONE)).toBeNull()
+  })
 })
 
 describe('outbound message lifecycle', () => {
@@ -292,8 +307,9 @@ describe('outbound message lifecycle', () => {
     )
   })
 
-  it('applies sent events until the message is finalized', async () => {
+  it('applies sent events to the matching message until it is finalized', async () => {
     const message = await seedMessage({ direction: 'outbound', providerMessageId: 'msg_1' })
+    const decoy = await seedMessage({ direction: 'outbound', providerMessageId: 'msg_2' })
 
     await recordSmsMessageSent('msg_1', { providerStatus: 'sent', sentAt: T1 })
     expect(await readMessage(message.id)).toMatchObject({ providerStatus: 'sent', sentAt: T1 })
@@ -312,6 +328,7 @@ describe('outbound message lifecycle', () => {
       sentAt: T1,
       finalizedAt: T2,
     })
+    expect(await readMessage(decoy.id)).toEqual(decoy)
   })
 
   it('finalizes with the failure details and reports an unmatched receipt as zero', async () => {
@@ -323,9 +340,12 @@ describe('outbound message lifecycle', () => {
       finalizedAt: T2,
     }
 
+    const decoy = await seedMessage({ direction: 'outbound', providerMessageId: 'msg_2' })
+
     expect(await recordSmsMessageFinalized('msg_1', receipt)).toBe(1)
     expect(await recordSmsMessageFinalized('msg_missing', receipt)).toBe(0)
     expect(await readMessage(message.id)).toMatchObject(receipt)
+    expect(await readMessage(decoy.id)).toEqual(decoy)
   })
 })
 
@@ -338,6 +358,10 @@ describe('inbound message lifecycle', () => {
     body: 'HELP',
     providerStatus: 'received',
     receivedAt: T0,
+  }
+
+  async function inboundMessage(): Promise<SmsMessage | undefined> {
+    return (await allMessages()).find((message) => message.providerMessageId === 'msg_in')
   }
 
   it('creates the inbound message once and updates only status and received time on replay', async () => {
@@ -372,7 +396,8 @@ describe('inbound message lifecycle', () => {
     expect(await allMessages()).toMatchObject([{ providerStatus: 'received', receivedAt: T1 }])
   })
 
-  it('stamps support handling once and links the message to a ticket', async () => {
+  it('stamps support handling and links only the matching message to a ticket', async () => {
+    const decoy = await seedMessage({ providerMessageId: 'msg_decoy' })
     await upsertInboundSmsMessage(inbound)
     const ticket = await seedTicket()
     const submission = await seedSubmission()
@@ -382,20 +407,23 @@ describe('inbound message lifecycle', () => {
 
     await markSmsMessageSupportHandled('msg_in')
     expect((await findSmsMessageSupportHandledAt('msg_in'))?.supportHandledAt).toBeInstanceOf(Date)
+    expect(await findSmsMessageSupportHandledAt('msg_decoy')).toEqual({ supportHandledAt: null })
 
     await linkSmsMessageToSupportTicket('msg_in', {
       supportTicketId: ticket.id,
       submissionId: submission.id,
     })
-    expect(await allMessages()).toMatchObject([
-      { supportTicketId: ticket.id, submissionId: submission.id },
-    ])
+    expect(await inboundMessage()).toMatchObject({
+      supportTicketId: ticket.id,
+      submissionId: submission.id,
+    })
 
     await linkSmsMessageToSupportTicket('msg_in', {
       supportTicketId: ticket.id,
       submissionId: null,
     })
-    expect(await allMessages()).toMatchObject([{ supportTicketId: ticket.id, submissionId: null }])
+    expect(await inboundMessage()).toMatchObject({ supportTicketId: ticket.id, submissionId: null })
+    expect(await readMessage(decoy.id)).toEqual(decoy)
   })
 })
 
@@ -447,7 +475,7 @@ describe('ticket creation and lookup', () => {
     const older = await seedTicket({ status: SMS_SUPPORT_STATUS.NEEDS_CSR })
     const newer = await seedTicket({ status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER })
     const closed = await seedTicket({ status: SMS_SUPPORT_STATUS.CLOSED })
-    await seedTicket({ phoneE164: '+15550000000' })
+    await seedTicket({ phoneE164: OTHER_PHONE })
     await touch(older.id, T0)
     await touch(newer.id, T1)
     await touch(closed.id, T2)
@@ -458,11 +486,20 @@ describe('ticket creation and lookup', () => {
       status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
       submissionId: null,
     })
-    expect(await findActiveSupportTicketForPhone('+15559999999')).toBeNull()
+    expect(await findActiveSupportTicketForPhone(UNKNOWN_PHONE)).toBeNull()
   })
 
-  it('reads the contact, outbound, alert and retry projections', async () => {
+  it('reads the contact, outbound, alert and retry projections of the asked ticket only', async () => {
     const submission = await seedSubmission()
+    await seedTicket({
+      phoneE164: OTHER_PHONE,
+      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+      automationKind: 'OTHER',
+      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
+      collectedData: { other: true },
+      lastOutboundAt: T0,
+      csrAlertedAt: T1,
+    })
     const ticket = await seedTicket({
       submissionId: submission.id,
       automationKind: 'UPDATE_DOB_REISSUE_NOTE',
@@ -485,6 +522,9 @@ describe('ticket creation and lookup', () => {
       status: SMS_SUPPORT_STATUS.OPEN,
     })
     expect(await findSupportTicketContact('missing')).toBeNull()
+    expect(await findSupportTicketLastOutboundAt('missing')).toBeNull()
+    expect(await findSupportTicketCsrAlert('missing')).toBeNull()
+    expect(await findSupportTicketForAutomationRetry('missing')).toBeNull()
   })
 
   it('lists ticket ids by status up to the limit', async () => {
@@ -579,8 +619,10 @@ describe('ticket conversation lifecycle', () => {
     )
   })
 
-  it('stamps outbound time and alerts the CSR only once', async () => {
+  it('stamps outbound time and alerts the CSR only once, on the asked ticket only', async () => {
     const ticket = await seedTicket()
+    const decoy = await seedTicket({ phoneE164: OTHER_PHONE })
+    const alerted = await seedTicket({ csrAlertedAt: T0 })
 
     await recordSupportTicketOutbound(ticket.id)
     const { lastOutboundAt } = (await findSupportTicketLastOutboundAt(ticket.id)) ?? {}
@@ -591,6 +633,9 @@ describe('ticket conversation lifecycle', () => {
     expect(first).toBeInstanceOf(Date)
     await markSupportTicketCsrAlerted(ticket.id)
     expect((await findSupportTicketCsrAlert(ticket.id))?.csrAlertedAt).toEqual(first)
+    await markSupportTicketCsrAlerted(alerted.id)
+    expect(await readTicket(alerted.id)).toEqual(alerted)
+    expect(await readTicket(decoy.id)).toEqual(decoy)
   })
 
   it('records an admin reply and a failed admin reply', async () => {
@@ -688,8 +733,13 @@ describe('ticket automation lifecycle', () => {
       status: SMS_SUPPORT_STATUS.NEEDS_CSR,
       automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
     })
+    const otherQueued = await seedTicket({
+      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
+    })
 
     expect(await claimSupportTicketAutomationRun(queued.id)).toBe(1)
+    expect(await readTicket(otherQueued.id)).toEqual(otherQueued)
     expect(await readTicket(queued.id)).toMatchObject({
       status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
       automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
@@ -700,9 +750,10 @@ describe('ticket automation lifecycle', () => {
     expect(await claimSupportTicketAutomationRun(needsCsr.id)).toBe(0)
   })
 
-  it('closes after automation only while the ticket is running automation', async () => {
+  it('closes after automation only the asked ticket while it is running automation', async () => {
     const running = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
     const needsCsr = await seedTicket({ status: SMS_SUPPORT_STATUS.NEEDS_CSR })
+    const otherRunning = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
 
     await closeSupportTicketAfterAutomation(running.id, 'Note reissued.')
     await closeSupportTicketAfterAutomation(needsCsr.id, 'Note reissued.')
@@ -715,10 +766,8 @@ describe('ticket automation lifecycle', () => {
       failureReason: null,
       closedAt: expect.any(Date),
     })
-    expect(await readTicket(needsCsr.id)).toMatchObject({
-      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-      closedAt: null,
-    })
+    expect(await readTicket(needsCsr.id)).toEqual(needsCsr)
+    expect(await readTicket(otherRunning.id)).toEqual(otherRunning)
   })
 })
 
@@ -769,8 +818,9 @@ describe('job creation', () => {
 })
 
 describe('job lookup', () => {
-  it('finds the newest active job, its id, and the latest job of any status', async () => {
+  it('finds the newest active job, its id, and the latest job of the asked ticket only', async () => {
     const ticket = await seedTicket()
+    const other = await seedTicket({ phoneE164: OTHER_PHONE })
     const failed = await seedJob(ticket.id, {
       status: SMS_SUPPORT_JOB_STATUS.FAILED,
       createdAt: T0,
@@ -780,33 +830,48 @@ describe('job lookup', () => {
       createdAt: T1,
     })
     await seedJob(ticket.id, { kind: 'OTHER', createdAt: T2 })
+    const elsewhere = await seedJob(other.id, {
+      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+      createdAt: T3,
+    })
 
     expect(await findActiveSupportAutomationJob(ticket.id)).toEqual(committing)
     expect(await findActiveSupportAutomationJobId(ticket.id)).toEqual({ id: committing.id })
     expect(await findLatestSupportAutomationJob(ticket.id)).toEqual(committing)
     expect(await findCommittingSupportJob(ticket.id)).toEqual({ id: committing.id })
     expect(await findSupportJobStatus(failed.id)).toEqual({ status: SMS_SUPPORT_JOB_STATUS.FAILED })
+    expect(await findSupportJobStatus(elsewhere.id)).toEqual({
+      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+    })
+    expect(await findSupportJobStatus('missing')).toBeNull()
 
     await failSupportJob(committing.id, 'stalled')
     expect(await findActiveSupportAutomationJob(ticket.id)).toBeNull()
     expect(await findActiveSupportAutomationJobId(ticket.id)).toBeNull()
     expect((await findLatestSupportAutomationJob(ticket.id))?.id).toBe(committing.id)
     expect(await findCommittingSupportJob(ticket.id)).toBeNull()
+    expect(await readJob(elsewhere.id)).toEqual(elsewhere)
   })
 
-  it('returns a job with its ticket nested', async () => {
+  it('returns a job with its own ticket nested', async () => {
+    const other = await seedTicket({ phoneE164: OTHER_PHONE })
+    const otherJob = await seedJob(other.id)
     const ticket = await seedTicket({ collectedData: { pendingCategory: 'CHANGE_DOB' } })
     const job = await seedJob(ticket.id)
 
     expect(await findSupportJobWithTicket(job.id)).toEqual({ ...job, ticket })
+    expect(await findSupportJobWithTicket(otherJob.id)).toEqual({ ...otherJob, ticket: other })
     expect(await findSupportJobWithTicket('missing')).toBeNull()
   })
 
   it('finds a runnable queued job only when due and its ticket is running automation', async () => {
-    const running = await seedTicket({
-      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
-    })
+    const runningTicket = () =>
+      seedTicket({
+        status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+        automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
+      })
+    const running = await runningTicket()
+    const later = await runningTicket()
     const needsCsr = await seedTicket({
       status: SMS_SUPPORT_STATUS.NEEDS_CSR,
       automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
@@ -816,12 +881,14 @@ describe('job lookup', () => {
       automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.BLOCKED,
     })
     const due = await seedJob(running.id, { runAfter: new Date() })
-    const future = await seedJob(needsCsr.id, { runAfter: new Date(Date.now() + 60_000) })
-    const wrongTicket = await seedJob(blocked.id)
+    const future = await seedJob(later.id, { runAfter: new Date(Date.now() + 60_000) })
+    const notRunningAutomation = await seedJob(needsCsr.id)
+    const automationBlocked = await seedJob(blocked.id)
 
     expect(await findRunnableQueuedSupportJob(due.id)).toEqual({ id: due.id, ticketId: running.id })
     expect(await findRunnableQueuedSupportJob(future.id)).toBeNull()
-    expect(await findRunnableQueuedSupportJob(wrongTicket.id)).toBeNull()
+    expect(await findRunnableQueuedSupportJob(notRunningAutomation.id)).toBeNull()
+    expect(await findRunnableQueuedSupportJob(automationBlocked.id)).toBeNull()
 
     await claimQueuedSupportJob(due.id, 'worker')
     expect(await findRunnableQueuedSupportJob(due.id)).toBeNull()
@@ -867,6 +934,33 @@ describe('job claiming and completion', () => {
       lockedAt: expect.any(Date),
       lockedBy: claimA === 1 ? 'worker-a' : 'worker-b',
     })
+  })
+
+  it('claims each of two queued jobs for exactly one of its racing workers and leaves a third alone', async () => {
+    const [first, second, idle] = await Promise.all(
+      [0, 1, 2].map(async () => seedJob((await seedTicket()).id))
+    )
+
+    const claims = await Promise.all([
+      claimQueuedSupportJob(first.id, 'worker-a'),
+      claimQueuedSupportJob(second.id, 'worker-b'),
+      claimQueuedSupportJob(first.id, 'worker-c'),
+      claimQueuedSupportJob(second.id, 'worker-d'),
+    ])
+
+    expect(claims[0] + claims[2]).toBe(1)
+    expect(claims[1] + claims[3]).toBe(1)
+    expect(await readJob(first.id)).toMatchObject({
+      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
+      attempts: 1,
+      lockedBy: claims[0] === 1 ? 'worker-a' : 'worker-c',
+    })
+    expect(await readJob(second.id)).toMatchObject({
+      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
+      attempts: 1,
+      lockedBy: claims[1] === 1 ? 'worker-b' : 'worker-d',
+    })
+    expect(await readJob(idle.id)).toEqual(idle)
   })
 
   it('completes a job, clearing its lock and last error', async () => {
@@ -982,19 +1076,43 @@ describe('stale job recovery', () => {
   })
 
   it('lists stale committing jobs with their ticket and fails each one exactly once', async () => {
+    const other = await seedTicket({ phoneE164: OTHER_PHONE })
     const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
     const stale = await seedJob(ticket.id, {
       status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
       lockedAt: T0,
     })
-    await seedJob(ticket.id, { kind: 'B', status: SMS_SUPPORT_JOB_STATUS.COMMITTING, lockedAt: T2 })
+    const otherStale = await seedJob(other.id, {
+      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+      lockedAt: T0,
+    })
+    const fresh = await seedJob(ticket.id, {
+      kind: 'B',
+      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+      lockedAt: T2,
+    })
+    const staleRunning = await seedJob(ticket.id, {
+      kind: 'C',
+      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
+      lockedAt: T0,
+    })
+    const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id)
 
-    expect(await findStaleCommittingSupportJobs(T1, 10)).toEqual([{ ...stale, ticket }])
+    expect((await findStaleCommittingSupportJobs(T1, 10)).sort(byId)).toEqual(
+      [
+        { ...stale, ticket },
+        { ...otherStale, ticket: other },
+      ].sort(byId)
+    )
+    expect(await findStaleCommittingSupportJobs(T1, 1)).toHaveLength(1)
     expect(await findStaleCommittingSupportJobs(T1, 0)).toEqual([])
 
+    const options = { staleBefore: T1, lastError: 'stalled' }
+    expect(await failStaleCommittingSupportJob(fresh.id, options)).toBe(0)
+    expect(await failStaleCommittingSupportJob(staleRunning.id, options)).toBe(0)
     const outcomes = await Promise.all([
-      failStaleCommittingSupportJob(stale.id, { staleBefore: T1, lastError: 'stalled' }),
-      failStaleCommittingSupportJob(stale.id, { staleBefore: T1, lastError: 'stalled' }),
+      failStaleCommittingSupportJob(stale.id, options),
+      failStaleCommittingSupportJob(stale.id, options),
     ])
     expect(outcomes.sort()).toEqual([0, 1])
     expect(await readJob(stale.id)).toMatchObject({
@@ -1004,7 +1122,10 @@ describe('stale job recovery', () => {
       lastError: 'stalled',
       completedAt: expect.any(Date),
     })
-    expect(await findStaleCommittingSupportJobs(T1, 10)).toEqual([])
+    for (const job of [otherStale, fresh, staleRunning]) {
+      expect(await readJob(job.id)).toEqual(job)
+    }
+    expect(await findStaleCommittingSupportJobs(T1, 10)).toEqual([{ ...otherStale, ticket: other }])
   })
 })
 
@@ -1095,6 +1216,9 @@ describe('queue and detail reads', () => {
       createdAt: T0,
     })
     await seedMessage({ body: 'unrelated', createdAt: T0 })
+    const other = await seedTicket({ phoneE164: OTHER_PHONE })
+    await seedMessage({ supportTicketId: other.id, body: 'elsewhere', createdAt: T2 })
+    await seedJob(other.id, { createdAt: T2 })
     const olderJob = await seedJob(ticket.id, { kind: 'A', createdAt: T0 })
     const newerJob = await seedJob(ticket.id, { kind: 'B', createdAt: T1 })
 
