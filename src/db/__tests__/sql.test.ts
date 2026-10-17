@@ -3,6 +3,7 @@ import {
   and,
   array,
   count,
+  direction,
   expression,
   join,
   json,
@@ -107,5 +108,18 @@ describe('sql', () => {
 
   it('refuses an array element type that is not a type name', () => {
     expect(() => array(['a'], 'text[]; DROP TABLE users; --')).toThrow('is not a type name')
+  })
+
+  it('accepts only ASC or DESC as an ORDER BY direction', () => {
+    expect(sql`ORDER BY created_at ${direction('ASC')}`.compile()).toEqual({
+      text: 'ORDER BY created_at ASC',
+      values: [],
+    })
+    expect(sql`ORDER BY created_at ${direction('DESC')}`.compile().text).toBe(
+      'ORDER BY created_at DESC'
+    )
+    const hostile = 'ASC; DROP TABLE users; --'
+    // @ts-expect-error a direction is 'ASC' | 'DESC', not any string
+    expect(() => direction(hostile)).toThrow('is not a sort direction')
   })
 })
