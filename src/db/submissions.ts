@@ -85,6 +85,48 @@ export type ReviewClassification = {
   otherAbsenceReason: string | null
 }
 
+const detailColumns = keysOf<SubmissionDetailsPatch>({
+  patientFirstName: true,
+  patientLastName: true,
+  patientDateOfBirth: true,
+  guardianFirstName: true,
+  guardianLastName: true,
+  guardianDateOfBirth: true,
+  email: true,
+  phone: true,
+  state: true,
+  notePurpose: true,
+  otherNotePurpose: true,
+  firstDayOff: true,
+  lastDayOff: true,
+  absenceReason: true,
+  otherAbsenceReason: true,
+  symptoms: true,
+  otherSymptomText: true,
+  additionalInformation: true,
+  smsOptIn: true,
+  smsOptInAt: true,
+  smsConsentVersion: true,
+  smsPhoneE164: true,
+})
+
+const classificationColumns = keysOf<ReviewClassification>({
+  notePurpose: true,
+  otherNotePurpose: true,
+  absenceReason: true,
+  otherAbsenceReason: true,
+})
+
+function keysOf<T>(columns: Record<keyof T, true>): (keyof T)[] {
+  return Object.keys(columns) as (keyof T)[]
+}
+
+function pick<T extends object>(source: T, keys: readonly (keyof T)[]): Partial<T> {
+  const picked: Partial<T> = {}
+  for (const key of keys) picked[key] = source[key]
+  return picked
+}
+
 export type SubmissionSearch =
   | { by: 'anyName'; term: string }
   | { by: 'fullName'; firstName: string; lastName: string }
@@ -624,11 +666,22 @@ function maybePatch(review: MaybeReview): Patch<Submission> {
   }
 }
 
+function reviewPatch(review: Review): Patch<Submission> {
+  return { reviewedByAdminId: review.reviewedByAdminId, reviewedAt: review.reviewedAt }
+}
+
+function denialPatch(denial: Denial): Patch<Submission> {
+  return {
+    status: SubmissionStatus.DENIED,
+    ...reviewPatch(denial),
+    denialReason: denial.denialReason,
+  }
+}
+
 function approvalPatch(approval: Approval): Patch<Submission> {
   return {
     status: SubmissionStatus.APPROVED,
-    reviewedByAdminId: approval.reviewedByAdminId,
-    reviewedAt: approval.reviewedAt,
+    ...reviewPatch(approval),
     denialReason: null,
     approvalDiagnosis: approval.approvalDiagnosis,
     approvalWithRestrictions: approval.approvalWithRestrictions,
@@ -663,17 +716,21 @@ export async function recordDenialEmailSent(id: string, sentAt: Date): Promise<v
 }
 
 export async function markMaybeSubmissionManual(id: string, review: Review): Promise<void> {
-  await updateById(id, { status: SubmissionStatus.MANUAL, ...review })
+  await updateById(id, { status: SubmissionStatus.MANUAL, ...reviewPatch(review) })
 }
 
 export async function markSubmissionManual(id: string, change: StatusChange): Promise<void> {
-  await updateById(id, { status: SubmissionStatus.MANUAL, ...change })
+  await updateById(id, {
+    status: SubmissionStatus.MANUAL,
+    ...reviewPatch(change),
+    updatedAt: change.updatedAt,
+  })
 }
 
 export async function approveManualSubmission(id: string, review: Review): Promise<void> {
   await updateById(id, {
     status: SubmissionStatus.APPROVED,
-    ...review,
+    ...reviewPatch(review),
     denialReason: null,
     approvalEmailSentAt: null,
     approvalDiagnosis: null,
@@ -701,24 +758,28 @@ export async function markSubmissionDenied(
   id: string,
   denial: Denial & StatusChange
 ): Promise<void> {
-  await updateById(id, { status: SubmissionStatus.DENIED, ...denial })
+  await updateById(id, { ...denialPatch(denial), updatedAt: denial.updatedAt })
 }
 
 export async function markSubmissionDeniedAndRefunded(
   id: string,
   denial: Denial & StatusChange & { stripeRefundId: string; refundedAt: Date }
 ): Promise<void> {
-  await updateById(id, { status: SubmissionStatus.DENIED, ...denial })
+  await updateById(id, {
+    ...denialPatch(denial),
+    updatedAt: denial.updatedAt,
+    stripeRefundId: denial.stripeRefundId,
+    refundedAt: denial.refundedAt,
+  })
 }
 
 export async function denyManualSubmission(id: string, denial: Denial): Promise<void> {
-  await updateById(id, { status: SubmissionStatus.DENIED, ...denial, denialEmailSentAt: null })
+  await updateById(id, { ...denialPatch(denial), denialEmailSentAt: null })
 }
 
 export async function markSubmissionRefundReserved(id: string, denial: Denial): Promise<number> {
   const patch: Patch<Submission> = {
-    status: SubmissionStatus.DENIED,
-    ...denial,
+    ...denialPatch(denial),
     stripeRefundId: `pending_${id}`,
     refundedAt: denial.reviewedAt,
   }
@@ -766,7 +827,7 @@ export async function updateSubmissionDetails(
   patch: SubmissionDetailsPatch,
   updatedAt: Date
 ): Promise<void> {
-  await updateById(id, { ...patch, updatedAt })
+  await updateById(id, { ...pick(patch, detailColumns), updatedAt })
 }
 
 export async function updatePendingSubmissionClassification(
@@ -775,7 +836,7 @@ export async function updatePendingSubmissionClassification(
   updatedAt: Date
 ): Promise<number> {
   return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { ...classification, updatedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
+    sql`UPDATE submissions SET ${set(submissions, { ...pick(classification, classificationColumns), updatedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
   )
 }
 
