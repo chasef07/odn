@@ -2,18 +2,32 @@ import { randomUUID } from 'node:crypto'
 import type { JsonValue } from './types'
 import { identifier, join, json, quote, raw, Sql, sql } from './sql'
 
-export type Column<Nullable extends boolean = boolean, Json extends boolean = boolean> = {
+export type Kind = 'text' | 'int' | 'bool' | 'timestamp' | 'date' | 'jsonb' | 'enum'
+
+type ScalarKind = Exclude<Kind, 'jsonb'>
+
+export type Column<Nullable extends boolean = boolean, K extends Kind = Kind> = {
   readonly name: string
   readonly nullable: Nullable
-  readonly json: Json
+  readonly kind: K
   readonly generated: boolean
 }
 
+type KindFor<T> = [T] extends [string]
+  ? 'text' | 'enum'
+  : [T] extends [number]
+    ? 'int'
+    : [T] extends [boolean]
+      ? 'bool'
+      : [T] extends [Date]
+        ? 'timestamp' | 'date'
+        : never
+
 type ColumnFor<T> = [JsonValue] extends [T]
-  ? Column<boolean, true>
+  ? Column<boolean, 'jsonb'>
   : null extends T
-    ? Column<true, false>
-    : Column<false, false>
+    ? Column<true, KindFor<NonNullable<T>>>
+    : Column<false, KindFor<T>>
 
 export type Columns<D> = { readonly [K in keyof D]-?: ColumnFor<D[K]> }
 
@@ -23,24 +37,24 @@ export type Table<D> = {
   readonly keys: readonly (keyof D & string)[]
 }
 
-export function col(name: string): Column<false, false> {
-  return { name, nullable: false, json: false, generated: false }
+export function col<K extends ScalarKind>(name: string, kind: K): Column<false, K> {
+  return { name, nullable: false, kind, generated: false }
 }
 
-export function uuid(name: string): Column<false, false> {
-  return { name, nullable: false, json: false, generated: true }
+export function uuid(name: string): Column<false, 'text'> {
+  return { name, nullable: false, kind: 'text', generated: true }
 }
 
-export function nullable(name: string): Column<true, false> {
-  return { name, nullable: true, json: false, generated: false }
+export function nullable<K extends ScalarKind>(name: string, kind: K): Column<true, K> {
+  return { name, nullable: true, kind, generated: false }
 }
 
-export function jsonCol(name: string): Column<false, true> {
-  return { name, nullable: false, json: true, generated: false }
+export function jsonCol(name: string): Column<false, 'jsonb'> {
+  return { name, nullable: false, kind: 'jsonb', generated: false }
 }
 
-export function nullableJson(name: string): Column<true, true> {
-  return { name, nullable: true, json: true, generated: false }
+export function nullableJson(name: string): Column<true, 'jsonb'> {
+  return { name, nullable: true, kind: 'jsonb', generated: false }
 }
 
 export function defineTable<D>(name: string, columns: Columns<D>): Table<D> {
@@ -107,7 +121,7 @@ function stamped<D>(table: Table<D>, values: Patch<D>, inserting: boolean): Patc
 
 function value<D>(table: Table<D>, key: keyof D & string, given: unknown): Sql<unknown> {
   if (given instanceof Sql) return given
-  if ((table.columns[key] as Column).json) return json(given)
+  if ((table.columns[key] as Column).kind === 'jsonb') return json(given)
   return new Sql(['', ''], [given])
 }
 

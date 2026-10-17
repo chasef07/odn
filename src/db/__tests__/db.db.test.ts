@@ -1,9 +1,20 @@
-import { describe, expect, it } from 'vitest'
-import { db } from '../pool'
+import type { Socket } from 'node:net'
+import type pg from 'pg'
+import { describe, expect, it, vi } from 'vitest'
+import { db, getPool, type Db } from '../pool'
 import { count, sql } from '../sql'
 import { array, json, likeContains, and } from '../sql'
 import { insert, select, selectAll, set } from '../table'
 import { submissions, telnyxWebhookEvents } from '../tables'
+
+function dropConnection(client: pg.PoolClient): void {
+  const { connection } = client as unknown as { connection: { stream: Socket } }
+  connection.stream.destroy()
+}
+
+function nextAcquiredClient(): Promise<pg.PoolClient> {
+  return new Promise((resolve) => getPool().once('acquire', resolve))
+}
 
 const event = {
   id: 'evt_1',
@@ -77,6 +88,84 @@ describe('db', () => {
     expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
   })
 
+  it(
+    'runs a db.* call made inside the transaction callback on the transaction connection',
+    { timeout: 2000 },
+    async () => {
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({
+          n: 1,
+        })
+      })
+    }
+  )
+
+  it(
+    'nests a transaction as a savepoint so an inner rollback keeps the outer work',
+    { timeout: 2000 },
+    async () => {
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        await expect(
+          db.transaction(async (inner) => {
+            await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+            throw new Error('inner abort')
+          })
+        ).rejects.toThrow('inner abort')
+        expect(await tx.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+      })
+      expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+    }
+  )
+
+  it('refuses a tx handle once the transaction has committed or rolled back', async () => {
+    const committed = await db.transaction(async (tx) => tx)
+    await expect(committed.rows(sql`SELECT 1`)).rejects.toThrow(
+      'tx handle used after the transaction finished'
+    )
+
+    let rolledBack: Db | undefined
+    await db
+      .transaction(async (tx) => {
+        rolledBack = tx
+        throw new Error('abort')
+      })
+      .catch(() => undefined)
+    await expect(rolledBack!.one(sql`SELECT 1`)).rejects.toThrow(
+      'tx handle used after the transaction finished'
+    )
+  })
+
+  it('rejects the work, discards the client and stays alive when the connection drops mid-transaction', async () => {
+    const acquired = nextAcquiredClient()
+
+    await expect(
+      db.transaction(async (tx) => {
+        dropConnection(await acquired)
+        await tx.rows(sql`SELECT 1`)
+      })
+    ).rejects.toThrow(/Connection terminated/)
+
+    expect(getPool().totalCount).toBe(0)
+    expect(await db.one(sql`SELECT 1 AS one`)).toEqual({ one: 1 })
+  })
+
+  it('logs an idle connection failure by message and code, never the error object', () => {
+    const error = Object.assign(new Error('terminating connection due to administrator command'), {
+      code: '57P01',
+    })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    getPool().emit('error', error, undefined as unknown as pg.PoolClient)
+
+    expect(logged).toHaveBeenCalledWith('Idle database connection failed', {
+      message: 'terminating connection due to administrator command',
+      code: '57P01',
+    })
+    logged.mockRestore()
+  })
+
   it('round-trips JSON, DATE and enum columns through insert, set and filters', async () => {
     const dateOfBirth = new Date('1990-05-15T00:00:00.000Z')
     const base = {
@@ -122,6 +211,19 @@ describe('db', () => {
         sql`SELECT ${select(submissions, ['id'])} FROM submissions WHERE patient_last_name LIKE ${likeContains('neil50')}`
       )
     ).toEqual([])
+  })
+
+  it('refuses a second statement in the query text instead of running it', async () => {
+    try {
+      await expect(db.rows(sql`SELECT 1; CREATE TABLE pwned (id int)`)).rejects.toThrow(
+        /multiple commands/
+      )
+      expect(
+        await db.one(sql`SELECT ${count('n')} FROM pg_tables WHERE tablename = ${'pwned'}`)
+      ).toEqual({ n: 0 })
+    } finally {
+      await getPool().query('DROP TABLE IF EXISTS pwned')
+    }
   })
 
   it('throws when two selections return the same column name', async () => {

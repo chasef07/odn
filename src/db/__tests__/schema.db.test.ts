@@ -3,7 +3,26 @@ import { getPool } from '../pool'
 import type { Column } from '../table'
 import { tables } from '../tables'
 
-type ColumnRow = { column_name: string; is_nullable: 'YES' | 'NO'; data_type: string }
+type ColumnRow = {
+  column_name: string
+  is_nullable: 'YES' | 'NO'
+  data_type: string
+  udt_name: string
+}
+
+const KIND_OF_DATA_TYPE: Record<string, Column['kind']> = {
+  text: 'text',
+  integer: 'int',
+  boolean: 'bool',
+  'timestamp without time zone': 'timestamp',
+  date: 'date',
+  jsonb: 'jsonb',
+  'USER-DEFINED': 'enum',
+}
+
+function liveKind(row: ColumnRow): string {
+  return KIND_OF_DATA_TYPE[row.data_type] ?? `${row.data_type} (${row.udt_name})`
+}
 
 describe('every table descriptor matches the migrated schema', () => {
   it('registers every public table the migrations create', async () => {
@@ -19,21 +38,21 @@ describe('every table descriptor matches the migrated schema', () => {
   })
 
   for (const table of Object.values(tables)) {
-    it(`${table.name}: every column exists, nothing is missing, and nullability and jsonb match`, async () => {
+    it(`${table.name}: every column exists, nothing is missing, and nullability and kind match`, async () => {
       const { rows } = await getPool().query<ColumnRow>(
-        'SELECT column_name, is_nullable, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
+        'SELECT column_name, is_nullable, data_type, udt_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
         ['public', table.name]
       )
       const live = new Map(
         rows.map((row) => [
           row.column_name,
-          { nullable: row.is_nullable === 'YES', json: row.data_type === 'jsonb' },
+          { nullable: row.is_nullable === 'YES', kind: liveKind(row) },
         ])
       )
       const declared = new Map(
         Object.values(table.columns as Record<string, Column>).map((column) => [
           column.name,
-          { nullable: column.nullable, json: column.json },
+          { nullable: column.nullable, kind: column.kind },
         ])
       )
 

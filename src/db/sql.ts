@@ -59,6 +59,13 @@ export function raw(text: string): Sql {
   return new Sql([text], [])
 }
 
+export type Direction = 'ASC' | 'DESC'
+
+export function direction(value: Direction): Sql {
+  if (value !== 'ASC' && value !== 'DESC') throw new Error(`${value} is not a sort direction`)
+  return raw(value)
+}
+
 export function quote(name: string): string {
   return `"${name.replaceAll('"', '""')}"`
 }
