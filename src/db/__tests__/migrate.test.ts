@@ -1,8 +1,10 @@
+import { EventEmitter } from 'node:events'
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import type { Pool } from 'pg'
 import { afterAll, describe, expect, it } from 'vitest'
-import { checksumOf, loadMigrations, MIGRATIONS_DIR, MigrationError } from '../migrate'
+import { checksumOf, loadMigrations, migrate, MIGRATIONS_DIR, MigrationError } from '../migrate'
 
 const tempDirs: string[] = []
 
@@ -110,5 +112,76 @@ describe('loadMigrations', () => {
       'gap_in_sequence'
     )
     expect(refusal(() => loadMigrations(dirWith({ '0002_b.sql': '' })))).toBe('gap_in_sequence')
+  })
+})
+
+type ClientCall =
+  | { query: string; values?: unknown[]; errorListeners: number }
+  | { release: unknown; errorListeners: number }
+
+function fakePool(lockError?: Error): { pool: Pool; calls: ClientCall[] } {
+  const calls: ClientCall[] = []
+  const client = Object.assign(new EventEmitter(), {
+    async query(text: string, values?: unknown[]) {
+      calls.push({ query: text, values, errorListeners: client.listenerCount('error') })
+      if (lockError && text.includes('pg_advisory_lock')) throw lockError
+      return { rows: text.includes('to_regclass') ? [{ present: false }] : [] }
+    },
+    release(destroy?: unknown) {
+      calls.push({ release: destroy, errorListeners: client.listenerCount('error') })
+    },
+  })
+  return { pool: { connect: async () => client } as unknown as Pool, calls }
+}
+
+function pgError(code: string, message: string): Error {
+  return Object.assign(new Error(message), { code })
+}
+
+describe('migrate locking', () => {
+  it('bounds the lock wait, resets the timeout once locked, and destroys the client afterwards', async () => {
+    const { pool, calls } = fakePool()
+
+    expect(await migrate(pool, [])).toEqual({ applied: [], alreadyApplied: 0 })
+
+    expect(calls.slice(0, 3)).toEqual([
+      {
+        query: 'SELECT set_config($1, $2, false)',
+        values: ['lock_timeout', '2min'],
+        errorListeners: 1,
+      },
+      { query: 'SELECT pg_advisory_lock($1)', values: [7204911], errorListeners: 1 },
+      { query: 'RESET lock_timeout', values: undefined, errorListeners: 1 },
+    ])
+    expect(calls.every((call) => 'release' in call || call.errorListeners === 1)).toBe(true)
+    expect(calls.at(-1)).toEqual({ release: true, errorListeners: 0 })
+  })
+
+  it('reports a lock wait that timed out as lock_timeout, carrying the database error', async () => {
+    const timeout = pgError('55P03', 'canceling statement due to lock timeout')
+    const { pool, calls } = fakePool(timeout)
+
+    const error = await migrate(pool, [], '500ms').catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(MigrationError)
+    expect((error as MigrationError).reason).toBe('lock_timeout')
+    expect((error as MigrationError).cause).toBe(timeout)
+    expect(calls).toEqual([
+      {
+        query: 'SELECT set_config($1, $2, false)',
+        values: ['lock_timeout', '500ms'],
+        errorListeners: 1,
+      },
+      { query: 'SELECT pg_advisory_lock($1)', values: [7204911], errorListeners: 1 },
+      { release: true, errorListeners: 0 },
+    ])
+  })
+
+  it('rethrows any other failure while waiting for the lock unchanged', async () => {
+    const terminated = pgError('57P01', 'terminating connection due to administrator command')
+    const { pool, calls } = fakePool(terminated)
+
+    await expect(migrate(pool, [])).rejects.toBe(terminated)
+    expect(calls.at(-1)).toEqual({ release: true, errorListeners: 0 })
   })
 })
