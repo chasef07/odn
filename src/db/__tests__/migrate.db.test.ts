@@ -24,6 +24,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  await pool.query('SELECT pg_advisory_unlock_all(); RESET lock_timeout')
   await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public')
 })
 
@@ -107,6 +108,23 @@ CREATE TRIGGER refuse_ledger BEFORE INSERT ON schema_migrations FOR EACH ROW EXE
     expect(await refusal(() => migrate(pool, [refusesItsLedgerRow]))).toBe('apply_failed')
     expect(await tableExists('things')).toBe(false)
     expect(await ledger()).toEqual([])
+  })
+
+  it('holds the advisory lock with no lock_timeout while a file runs', async () => {
+    const probe = migration(
+      '0001_probe_lock',
+      `CREATE TABLE lock_probe AS SELECT
+  current_setting('lock_timeout') AS lock_timeout,
+  EXISTS (
+    SELECT 1 FROM pg_locks
+    WHERE locktype = 'advisory' AND objid = 7204911 AND pid = pg_backend_pid()
+  ) AS holds_lock`
+    )
+
+    await migrate(pool, [probe])
+
+    const { rows } = await pool.query('SELECT lock_timeout, holds_lock FROM lock_probe')
+    expect(rows).toEqual([{ lock_timeout: '0', holds_lock: true }])
   })
 
   it('refuses when an applied file was edited', async () => {
