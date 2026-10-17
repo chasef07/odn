@@ -672,7 +672,7 @@ describe('follow-up emails due', () => {
   const minutesAgo = (minutes: number) => new Date(now.getTime() - minutes * 60 * 1000)
   const delivered = { status: SubmissionStatus.APPROVED, approvalEmailSentAt: now }
 
-  it('selects delivered approved notes bought 5 to 7 days ago that are unsent and unclaimed or stale', async () => {
+  it('selects delivered approved notes bought 5 to 7 days ago that are unsent and unclaimed or stale, oldest first', async () => {
     const due = await seed({ ...delivered, createdAt: daysAgo(6) })
     const staleClaim = await seed({
       ...delivered,
@@ -681,7 +681,7 @@ describe('follow-up emails due', () => {
     })
     const edgeClaim = await seed({
       ...delivered,
-      createdAt: daysAgo(5),
+      createdAt: daysAgo(5.5),
       followUpEmailClaimedAt: minutesAgo(30),
     })
     await seed({ ...delivered, createdAt: daysAgo(6), followUpEmailClaimedAt: minutesAgo(29) })
@@ -693,7 +693,7 @@ describe('follow-up emails due', () => {
 
     const rows = await findDueFollowUpEmails(now)
 
-    expect(ids(rows).sort()).toEqual([due.id, staleClaim.id, edgeClaim.id].sort())
+    expect(ids(rows)).toEqual([due.id, edgeClaim.id, staleClaim.id])
     expect(rows[0]).toEqual({
       id: due.id,
       email: 'john@example.com',
@@ -703,53 +703,70 @@ describe('follow-up emails due', () => {
     })
   })
 
-  it('claims a due follow-up once, stamping the claim time, and refuses a fresh claim', async () => {
+  it('selects at most 100 due rows, the oldest first, whatever the insert order or plan', async () => {
+    const dueRows: Submission[] = []
+    for (let minute = 100; minute >= 0; minute--) {
+      dueRows.unshift(
+        await seed({ ...delivered, createdAt: new Date(daysAgo(6).getTime() + minute * 60 * 1000) })
+      )
+    }
+    await db.affected(sql`ANALYZE submissions`)
+
+    expect(ids(await findDueFollowUpEmails(now))).toEqual(ids(dueRows.slice(0, 100)))
+  })
+
+  it('claims only the requested due follow-up once, stamping the claim time, and refuses a fresh claim', async () => {
     const due = await seed({ ...delivered, createdAt: daysAgo(6) })
+    const alsoDue = await seed({ ...delivered, createdAt: daysAgo(6) })
     const tooNew = await seed({ ...delivered, createdAt: daysAgo(4) })
 
     expect(await claimDueFollowUpEmail(due.id, now)).toBe(1)
     expect(await claimDueFollowUpEmail(due.id, now)).toBe(0)
     expect(await claimDueFollowUpEmail(tooNew.id, now)).toBe(0)
-    expect(await findDueFollowUpEmails(now)).toEqual([])
+    expect(ids(await findDueFollowUpEmails(now))).toEqual([alsoDue.id])
     const claimed = await findSubmissionById(due.id)
     expect(claimed?.followUpEmailClaimedAt).toEqual(now)
     expect(claimed?.updatedAt.getTime()).toBeGreaterThan(due.updatedAt.getTime())
+    expect(await findSubmissionById(alsoDue.id)).toEqual(alsoDue)
   })
 })
 
 describe('reporting queries', () => {
-  it('finds the newest submission, approved rows for an exact email and rows missing the approval email', async () => {
-    const admin = await seedAdmin()
-    const newest = await seed({
-      createdAt: at(2),
-      status: SubmissionStatus.APPROVED,
-      reviewedAt: at(2),
-      reviewedByAdminId: admin,
-    })
-    const older = await seed({
-      createdAt: at(1),
-      status: SubmissionStatus.APPROVED,
-      reviewedAt: at(3),
-      reviewedByAdminId: admin,
-      approvalEmailSentAt: at(3),
-    })
-    const upperCased = await seed({
-      createdAt: at(0),
-      email: 'JOHN@example.com',
-      status: SubmissionStatus.APPROVED,
-      reviewedAt: at(1),
-      reviewedByAdminId: admin,
-    })
+  it('finds the newest submission whatever the insert order, or null', async () => {
+    expect(await findLatestSubmission()).toBeNull()
+    await seed({ createdAt: at(1) })
+    const newest = await seed({ createdAt: at(3) })
+    await seed({ createdAt: at(2) })
 
     expect(await findLatestSubmission()).toEqual(newest)
+  })
+
+  it('lists approved rows for an exact email, most recently reviewed first', async () => {
+    const admin = await seedAdmin()
+    const approved = { status: SubmissionStatus.APPROVED, reviewedByAdminId: admin }
+    const middle = await seed({ ...approved, createdAt: at(3), reviewedAt: at(2) })
+    const oldest = await seed({ ...approved, createdAt: at(1), reviewedAt: at(1) })
+    const newest = await seed({ ...approved, createdAt: at(2), reviewedAt: at(3) })
+    await seed({ ...approved, email: 'JOHN@example.com', reviewedAt: at(4) })
+    await seed({ ...approved, email: 'other@example.com', reviewedAt: at(4) })
+    await seed({ status: SubmissionStatus.DENIED, reviewedByAdminId: admin, reviewedAt: at(4) })
+
     expect(ids(await findApprovedSubmissionsForEmail('john@example.com'))).toEqual([
-      older.id,
       newest.id,
+      middle.id,
+      oldest.id,
     ])
-    expect(ids(await findApprovedSubmissionsMissingApprovalEmail())).toEqual([
-      newest.id,
-      upperCased.id,
-    ])
+  })
+
+  it('lists approved rows missing the approval email, most recently reviewed first', async () => {
+    const admin = await seedAdmin()
+    const approved = { status: SubmissionStatus.APPROVED, reviewedByAdminId: admin }
+    const older = await seed({ ...approved, reviewedAt: at(1) })
+    const newer = await seed({ ...approved, reviewedAt: at(2) })
+    await seed({ ...approved, reviewedAt: at(3), approvalEmailSentAt: at(3) })
+    await seed({ status: SubmissionStatus.DENIED, reviewedByAdminId: admin, reviewedAt: at(4) })
+
+    expect(ids(await findApprovedSubmissionsMissingApprovalEmail())).toEqual([newer.id, older.id])
   })
 
   it('counts, lists the five newest and groups counts by status under _count', async () => {
@@ -789,9 +806,9 @@ describe('sms support lookups', () => {
   })
 
   it('returns the two newest submissions for a bounced email with contact fields only', async () => {
-    const newest = await seed({ createdAt: at(3) })
-    const middle = await seed({ createdAt: at(2) })
     await seed({ createdAt: at(1) })
+    const middle = await seed({ createdAt: at(2) })
+    const newest = await seed({ createdAt: at(3) })
     await seed({ email: 'other@example.com', createdAt: at(4) })
 
     const rows = await findLatestSubmissionsForBouncedEmail('john@example.com')
@@ -810,8 +827,8 @@ describe('sms support lookups', () => {
   })
 
   it('lists opted-in candidates newest first with at most one sent outbound SMS each', async () => {
-    const withSent = await seed({ smsPhoneE164: phone, smsOptIn: true, createdAt: at(2) })
     const unsentOnly = await seed({ smsPhoneE164: phone, smsOptIn: true, createdAt: at(1) })
+    const withSent = await seed({ smsPhoneE164: phone, smsOptIn: true, createdAt: at(2) })
     await seed({ smsPhoneE164: phone, smsOptIn: false })
     await seedSms(withSent.id)
     await seedSms(withSent.id)
@@ -844,8 +861,19 @@ describe('sms support lookups', () => {
       createdAt: at(2),
     })
     await seed({ status: SubmissionStatus.APPROVED, smsPhoneE164: phone, createdAt: at(1) })
-    const pending = await seed({ smsPhoneE164: phone, id: 'abc12345-0000-4000-8000-000000000002' })
+    const pending = await seed({
+      smsPhoneE164: phone,
+      id: 'abc12345-0000-4000-8000-000000000002',
+      createdAt: at(4),
+    })
+    const otherPhone = await seed({
+      status: SubmissionStatus.APPROVED,
+      smsPhoneE164: '+15550000000',
+      id: 'abc12345-0000-4000-8000-000000000003',
+      createdAt: at(5),
+    })
     await seedVerification(approvedOld.id, { medicalRecordNumber: 'ABC12345' })
+    await seedVerification(approvedNew.id, { medicalRecordNumber: 'OTHER999' })
 
     expect(await findApprovedSubmissionIdForSupportTicket(approvedNew.id)).toEqual({
       id: approvedNew.id,
@@ -879,5 +907,22 @@ describe('sms support lookups', () => {
       patientDateOfBirth: DOB,
     })
     expect(await findApprovedSubmissionBirthDateForSupport(pending.id)).toBeNull()
+  })
+
+  it('returns at most two reference matches', async () => {
+    const matches = new Set<string>()
+    for (const suffix of ['1', '2', '3']) {
+      const row = await seed({
+        status: SubmissionStatus.APPROVED,
+        smsPhoneE164: phone,
+        id: `abc12345-0000-4000-8000-00000000000${suffix}`,
+      })
+      matches.add(row.id)
+    }
+
+    const rows = await findApprovedSupportSubmissionIdsByReference(phone, { idPrefix: 'abc12345' })
+
+    expect(rows).toHaveLength(2)
+    expect(ids(rows).every((id) => matches.has(id))).toBe(true)
   })
 })
