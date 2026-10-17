@@ -164,6 +164,19 @@ describe('db', () => {
     ).toEqual([])
   })
 
+  it('refuses a second statement in the query text instead of running it', async () => {
+    try {
+      await expect(db.rows(sql`SELECT 1; CREATE TABLE pwned (id int)`)).rejects.toThrow(
+        /multiple commands/
+      )
+      expect(
+        await db.one(sql`SELECT ${count('n')} FROM pg_tables WHERE tablename = ${'pwned'}`)
+      ).toEqual({ n: 0 })
+    } finally {
+      await getPool().query('DROP TABLE IF EXISTS pwned')
+    }
+  })
+
   it('throws when two selections return the same column name', async () => {
     await expect(
       db.rows(
