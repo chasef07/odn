@@ -62,6 +62,7 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
+import { revalidatePath } from 'next/cache'
 import { POST } from '../route'
 
 const now = new Date()
@@ -212,6 +213,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(mockInsertSubmission).toHaveBeenCalledOnce()
     expect(mockSendPaymentConfirmationEmail).not.toHaveBeenCalled()
     expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('does not resend the purchase email when Stripe retries an existing submission', async () => {

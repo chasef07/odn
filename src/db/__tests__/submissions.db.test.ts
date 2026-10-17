@@ -1181,6 +1181,49 @@ describe('denial and refund writes', () => {
   })
 })
 
+describe('status writers', () => {
+  it('write only their own columns when the argument carries extra fields', async () => {
+    await seedAdmin()
+    const review = {
+      reviewedByAdminId: 'admin_1',
+      reviewedAt: REVIEWED_AT,
+      maybeInternalNote: 'leak',
+    }
+    const denial = { ...review, denialReason: 'Legal' }
+    const details = { patientFirstName: 'Ann', maybeInternalNote: 'leak' }
+    const classification = {
+      notePurpose: 'school',
+      otherNotePurpose: null,
+      absenceReason: 'flu',
+      otherAbsenceReason: null,
+      maybeInternalNote: 'leak',
+    }
+    const writers = [
+      (id: string) => markMaybeSubmissionManual(id, review),
+      (id: string) => markSubmissionManual(id, { ...review, updatedAt: at(1) }),
+      (id: string) => approveManualSubmission(id, review),
+      (id: string) => markSubmissionDenied(id, { ...denial, updatedAt: at(1) }),
+      (id: string) =>
+        markSubmissionDeniedAndRefunded(id, {
+          ...denial,
+          updatedAt: at(1),
+          stripeRefundId: 're_1',
+          refundedAt: at(1),
+        }),
+      (id: string) => denyManualSubmission(id, denial),
+      (id: string) => markSubmissionRefundReserved(id, denial),
+      (id: string) => updateSubmissionDetails(id, details, at(1)),
+      (id: string) => updatePendingSubmissionClassification(id, classification, at(1)),
+    ]
+
+    for (const write of writers) {
+      const row = await seed({ maybeInternalNote: 'keep' })
+      await write(row.id)
+      expect((await reload(row.id)).maybeInternalNote).toBe('keep')
+    }
+  })
+})
+
 describe('status and detail edits', () => {
   it('moves to manual, back to review, and drops the guardian with the given timestamp', async () => {
     await seedAdmin()
