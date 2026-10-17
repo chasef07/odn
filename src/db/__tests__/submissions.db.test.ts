@@ -174,7 +174,8 @@ describe('submission lookups', () => {
     expect(await findSubmissionById('missing')).toBeNull()
   })
 
-  it('partial lookups return exactly their declared fields', async () => {
+  it('partial lookups return exactly their declared fields for the requested row', async () => {
+    await seed({ patientFirstName: 'Decoy', smsPhoneE164: '+15550000000', recipient: 'child' })
     const seeded = await seed({
       stripeRefundId: 're_1',
       smsOptIn: true,
@@ -224,7 +225,11 @@ describe('submission lookups', () => {
   })
 
   it('admin detail carries the newest active verification and every SMS newest first', async () => {
+    const other = await seed()
+    await seedVerification(other.id, { createdAt: at(6) })
+    await seedSms(other.id, { createdAt: at(6) })
     const seeded = await seed()
+    await seedVerification(seeded.id, { status: 'REVOKED', createdAt: at(5) })
     await seedVerification(seeded.id, { status: 'REVOKED', revokedAt: at(1), createdAt: at(3) })
     await seedVerification(seeded.id, { revokedAt: at(1), createdAt: at(4) })
     await seedVerification(seeded.id, { createdAt: at(1) })
