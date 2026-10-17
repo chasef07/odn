@@ -556,10 +556,10 @@ describe('searchSubmissionsPage', () => {
 })
 
 describe('analytics pages', () => {
-  it('pages created-since rows by id ascending from a cursor', async () => {
-    const a = await seed({ id: '00000000-0000-4000-8000-00000000000a', createdAt: at(1) })
-    const b = await seed({ id: '00000000-0000-4000-8000-00000000000b', createdAt: at(2) })
-    const c = await seed({ id: '00000000-0000-4000-8000-00000000000c', createdAt: at(3) })
+  it('pages created-since rows by id ascending from a cursor, whatever the insert or creation order', async () => {
+    const c = await seed({ id: '00000000-0000-4000-8000-00000000000c', createdAt: at(2) })
+    const a = await seed({ id: '00000000-0000-4000-8000-00000000000a', createdAt: at(3) })
+    const b = await seed({ id: '00000000-0000-4000-8000-00000000000b', createdAt: at(1) })
     await seed({ id: '00000000-0000-4000-8000-000000000009', createdAt: at(-5) })
 
     const page1 = await findFriendsFamilyAnalyticsPage(T0, 2, undefined)
@@ -570,6 +570,7 @@ describe('analytics pages', () => {
 
     const business = await findBusinessAnalyticsPage(T0, 10, a.id)
     expect(ids(business)).toEqual([b.id, c.id])
+    expect(ids(await findBusinessAnalyticsPage(T0, 1, a.id))).toEqual([b.id])
     expect(business[0]).toEqual({
       id: b.id,
       status: 'PENDING_REVIEW',
@@ -584,17 +585,19 @@ describe('analytics pages', () => {
       paymentAmount: null,
       stripeRefundId: null,
       refundedAt: null,
-      createdAt: at(2),
+      createdAt: at(1),
     })
   })
 
   it('matches customers by email, phone digits or patient identity, newest first', async () => {
-    const byEmailNew = await seed({ email: 'Buyer@example.com', createdAt: at(2) })
     const byEmailOld = await seed({ email: 'buyer@example.com', createdAt: at(1) })
+    const byEmailNew = await seed({ email: 'Buyer@example.com', createdAt: at(2) })
     const formatted = await seed({ phone: '(555) 123-4567', patientLastName: 'A' })
     const dotted = await seed({ phone: '555.123.4567', patientLastName: 'B' })
     const spaced = await seed({ phone: '+1 555 123 4567', patientLastName: 'C' })
     const other = await seed({ phone: '(555) 123-9999', patientLastName: 'D' })
+    await seed({ phone: '(999) 123-4567', patientLastName: 'E' })
+    await seed({ phone: '(555) 999-4567', patientLastName: 'F' })
     const patient = await seed({ patientFirstName: 'JOHN', patientLastName: 'DOE', phone: '000' })
 
     expect(
@@ -632,6 +635,16 @@ describe('approved overlap window', () => {
       firstDayOff: new Date('2026-02-20T00:00:00.000Z'),
       lastDayOff: new Date('2026-02-28T00:00:00.000Z'),
     })
+    const touchesEnd = await seed({
+      status: SubmissionStatus.APPROVED,
+      firstDayOff: new Date('2026-03-31T00:00:00.000Z'),
+      lastDayOff: new Date('2026-04-02T00:00:00.000Z'),
+    })
+    await seed({
+      status: SubmissionStatus.APPROVED,
+      firstDayOff: new Date('2026-04-01T00:00:00.000Z'),
+      lastDayOff: new Date('2026-04-03T00:00:00.000Z'),
+    })
     await seed({ status: SubmissionStatus.PENDING_REVIEW })
     await seed({ status: SubmissionStatus.APPROVED, patientLastName: 'Roe' })
 
@@ -643,7 +656,7 @@ describe('approved overlap window', () => {
       }
     )
 
-    expect(ids(overlapping)).toEqual([touchesStart.id, inside.id])
+    expect(ids(overlapping)).toEqual([touchesStart.id, inside.id, touchesEnd.id])
     expect(overlapping[1]).toEqual({
       id: inside.id,
       firstDayOff: FIRST_DAY,
