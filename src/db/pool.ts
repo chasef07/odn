@@ -24,7 +24,8 @@ export function createPool(connectionString: string): pg.Pool {
   pg.defaults.parseInputDatesAsUTC = true
   const pool = new pg.Pool({ connectionString, types: utcTypes, options: '-c TimeZone=UTC' })
   pool.on('error', (error) => {
-    console.error('Idle database connection failed:', error)
+    const { code } = error as NodeJS.ErrnoException
+    console.error('Idle database connection failed', { message: error.message, code })
   })
   return pool
 }
@@ -74,6 +75,10 @@ export const db: Db & { transaction<T>(work: (tx: Db) => Promise<T>): Promise<T>
   async transaction(work) {
     const client = await getPool().connect()
     let broken: Error | undefined
+    const onError = (error: Error) => {
+      broken = error
+    }
+    client.on('error', onError)
     try {
       await client.query('BEGIN')
       const result = await work(over(client))
@@ -85,6 +90,7 @@ export const db: Db & { transaction<T>(work: (tx: Db) => Promise<T>): Promise<T>
       })
       throw error
     } finally {
+      client.removeListener('error', onError)
       client.release(broken)
     }
   },
