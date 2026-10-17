@@ -16,6 +16,7 @@
     "test": "vitest",
     "test:unit": "vitest run --project unit",
     "test:db": "vitest run --project db",
+    "check:db-mutants": "node scripts/check-db-mutants.mjs",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:watch": "vitest --watch",
