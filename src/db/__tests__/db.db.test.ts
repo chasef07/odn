@@ -1,9 +1,20 @@
-import { describe, expect, it } from 'vitest'
-import { db } from '../pool'
+import type { Socket } from 'node:net'
+import type pg from 'pg'
+import { describe, expect, it, vi } from 'vitest'
+import { db, getPool } from '../pool'
 import { count, sql } from '../sql'
 import { array, json, likeContains, and } from '../sql'
 import { insert, select, selectAll, set } from '../table'
 import { submissions, telnyxWebhookEvents } from '../tables'
+
+function dropConnection(client: pg.PoolClient): void {
+  const { connection } = client as unknown as { connection: { stream: Socket } }
+  connection.stream.destroy()
+}
+
+function nextAcquiredClient(): Promise<pg.PoolClient> {
+  return new Promise((resolve) => getPool().once('acquire', resolve))
+}
 
 const event = {
   id: 'evt_1',
@@ -75,6 +86,35 @@ describe('db', () => {
       })
     ).rejects.toThrow('abort')
     expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+  })
+
+  it('rejects the work, discards the client and stays alive when the connection drops mid-transaction', async () => {
+    const acquired = nextAcquiredClient()
+
+    await expect(
+      db.transaction(async (tx) => {
+        dropConnection(await acquired)
+        await tx.rows(sql`SELECT 1`)
+      })
+    ).rejects.toThrow(/Connection terminated/)
+
+    expect(getPool().totalCount).toBe(0)
+    expect(await db.one(sql`SELECT 1 AS one`)).toEqual({ one: 1 })
+  })
+
+  it('logs an idle connection failure by message and code, never the error object', () => {
+    const error = Object.assign(new Error('terminating connection due to administrator command'), {
+      code: '57P01',
+    })
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    getPool().emit('error', error, undefined as unknown as pg.PoolClient)
+
+    expect(logged).toHaveBeenCalledWith('Idle database connection failed', {
+      message: 'terminating connection due to administrator command',
+      code: '57P01',
+    })
+    logged.mockRestore()
   })
 
   it('round-trips JSON, DATE and enum columns through insert, set and filters', async () => {
