@@ -1,7 +1,7 @@
 import type { Socket } from 'node:net'
 import type pg from 'pg'
 import { describe, expect, it, vi } from 'vitest'
-import { db, getPool } from '../pool'
+import { db, getPool, type Db } from '../pool'
 import { count, sql } from '../sql'
 import { array, json, likeContains, and } from '../sql'
 import { insert, select, selectAll, set } from '../table'
@@ -86,6 +86,55 @@ describe('db', () => {
       })
     ).rejects.toThrow('abort')
     expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+  })
+
+  it(
+    'runs a db.* call made inside the transaction callback on the transaction connection',
+    { timeout: 2000 },
+    async () => {
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({
+          n: 1,
+        })
+      })
+    }
+  )
+
+  it(
+    'nests a transaction as a savepoint so an inner rollback keeps the outer work',
+    { timeout: 2000 },
+    async () => {
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        await expect(
+          db.transaction(async (inner) => {
+            await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+            throw new Error('inner abort')
+          })
+        ).rejects.toThrow('inner abort')
+        expect(await tx.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+      })
+      expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+    }
+  )
+
+  it('refuses a tx handle once the transaction has committed or rolled back', async () => {
+    const committed = await db.transaction(async (tx) => tx)
+    await expect(committed.rows(sql`SELECT 1`)).rejects.toThrow(
+      'tx handle used after the transaction finished'
+    )
+
+    let rolledBack: Db | undefined
+    await db
+      .transaction(async (tx) => {
+        rolledBack = tx
+        throw new Error('abort')
+      })
+      .catch(() => undefined)
+    await expect(rolledBack!.one(sql`SELECT 1`)).rejects.toThrow(
+      'tx handle used after the transaction finished'
+    )
   })
 
   it('rejects the work, discards the client and stays alive when the connection drops mid-transaction', async () => {
