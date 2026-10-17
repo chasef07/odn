@@ -516,7 +516,7 @@ describe('ticket conversation lifecycle', () => {
   })
 
   it('writes a conversation update including jsonb collected data', async () => {
-    const ticket = await seedTicket()
+    const ticket = await seedTicket({ updatedAt: T0 })
 
     const updated = await updateSupportTicketConversation(ticket.id, {
       status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
@@ -532,7 +532,7 @@ describe('ticket conversation lifecycle', () => {
       category: SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE,
       collectedData: { notePurpose: 'both', otherNotePurpose: null },
     })
-    expect(updated.updatedAt.getTime()).toBeGreaterThan(ticket.updatedAt.getTime() - 1)
+    expect(updated.updatedAt.getTime()).toBeGreaterThan(T0.getTime())
   })
 
   it('escalates to CSR review with the summary and collected data', async () => {
