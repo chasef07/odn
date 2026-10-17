@@ -171,3 +171,51 @@ export type SmsSupportJob = {
   createdAt: Date
   updatedAt: Date
 }
+
+export type User = {
+  id: string
+  email: string
+  emailVerified: boolean
+  name: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type Account = {
+  id: string
+  userId: string
+  accountId: string
+  providerId: string
+  accessToken: string | null
+  refreshToken: string | null
+  idToken: string | null
+  expiresAt: Date | null
+  password: string | null
+}
+
+export type Session = {
+  id: string
+  userId: string
+  token: string
+  expiresAt: Date
+  ipAddress: string | null
+  userAgent: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type TelnyxWebhookEvent = {
+  id: string
+  eventType: string
+  occurredAt: Date
+  status: string
+  lastError: string | null
+  processedAt: Date
+}
+
+export type ResendWebhookEvent = {
+  id: string
+  emailId: string | null
+  eventType: string
+  processedAt: Date
+}
