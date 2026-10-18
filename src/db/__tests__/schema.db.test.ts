@@ -22,8 +22,8 @@ const KIND_OF_DATA_TYPE: Record<string, Column['kind']> = {
 }
 
 const LABELS_OF_ENUM: Record<string, string[]> = {
-  SubmissionStatus: Object.values(SubmissionStatus),
-  NoteVerificationStatus: Object.values(NoteVerificationStatus),
+  SubmissionStatus: Object.values(SubmissionStatus).sort(),
+  NoteVerificationStatus: Object.values(NoteVerificationStatus).sort(),
 }
 
 function liveKind(row: ColumnRow): string {
@@ -61,7 +61,7 @@ describe('every table descriptor matches the migrated schema', () => {
       expect(
         labels.map((label) => label.enumlabel).sort(),
         `${table_name}.${column_name} is ${udt_name}`
-      ).toEqual([...(LABELS_OF_ENUM[udt_name] ?? [])].sort())
+      ).toEqual(LABELS_OF_ENUM[udt_name])
     }
   })
 

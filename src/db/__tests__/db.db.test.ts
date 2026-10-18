@@ -215,7 +215,7 @@ describe('db', () => {
     async () => {
       const transactionLocks = (tx: Db) =>
         tx.one(
-          sql`SELECT ${count('n')} FROM pg_locks WHERE pid = pg_backend_pid() AND locktype = ${'transactionid'}`
+          sql`SELECT ${count('n')} FROM pg_locks WHERE pid = pg_backend_pid() AND locktype = 'transactionid'`
         )
       await db.transaction(async (tx) => {
         await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
