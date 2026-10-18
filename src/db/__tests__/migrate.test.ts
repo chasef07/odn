@@ -114,6 +114,25 @@ describe('loadMigrations', () => {
     expect(loadMigrations(dirWith(accepted))).toHaveLength(9)
   })
 
+  it("reads backslash escapes only inside E'' strings", () => {
+    const refused = [
+      "SELECT E'\\''; BEGIN; SELECT '';",
+      "SELECT E'C:\\\\'; COMMIT;",
+      "SELECT date'a\\'; COMMIT; SELECT 'b';",
+    ]
+    for (const sql of refused) {
+      expect(
+        refusal(() => loadMigrations(dirWith({ '0001_a.sql': sql }))),
+        sql
+      ).toBe('transaction_control')
+    }
+    const accepted = {
+      '0001_a.sql': "INSERT INTO t VALUES (e'it\\'s; COMMIT;')",
+      '0002_b.sql': "INSERT INTO t VALUES (E'it''s \\' ; COMMIT; ')",
+    }
+    expect(loadMigrations(dirWith(accepted))).toHaveLength(2)
+  })
+
   it('refuses a gap or a duplicate number', () => {
     expect(refusal(() => loadMigrations(dirWith({ '0001_a.sql': '', '0003_c.sql': '' })))).toBe(
       'gap_in_sequence'
