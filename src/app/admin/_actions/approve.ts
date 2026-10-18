@@ -18,9 +18,7 @@ import {
   revokeOtherNoteVerificationsForSubmission,
 } from '@/db/note-verifications'
 import { adminAction } from '@/lib/admin-session'
-import { errorMessage, refused, revalidate, type ActionResult, type Verb } from './shared'
-
-const QUEUE_PATHS = ['/admin', '/admin/review', '/admin/maybe']
+import { QUEUE_PATHS, errorMessage, refused, revalidate, type ActionResult } from './shared'
 
 export const approveSubmission = adminAction(
   async (
@@ -41,17 +39,13 @@ export const approveSubmission = adminAction(
 
         revalidate(QUEUE_PATHS)
 
-        logger.info(`Manual approval completed for submission ${submissionId}`)
-
         return { success: true }
       }
 
       const result = await issueApproval(
         allowed.value,
-        'approve',
         { ...review, diagnosis: diagnosis || null, withRestrictions },
-        evaluationDate,
-        'Submission approved, but email notification failed to send'
+        evaluationDate
       )
       if (result.success) revalidate(QUEUE_PATHS)
       return result
@@ -79,10 +73,8 @@ export const reApproveSubmission = adminAction(
 
       const result = await issueApproval(
         allowed.value,
-        're-approve',
         { adminId: doctorId, at: new Date(), diagnosis: diagnosis || null, withRestrictions },
-        evaluationDate,
-        'Re-approval processed, but email notification failed to send'
+        evaluationDate
       )
       if (result.success) {
         revalidate(['/admin', '/admin/search', `/admin/search/${submissionId}`, '/admin/approved'])
@@ -100,12 +92,11 @@ export const reApproveSubmission = adminAction(
 
 async function issueApproval(
   allowed: Permit<'approve' | 'reapprove'>,
-  verb: Verb,
   approval: Approval,
-  evaluationDate: string | undefined,
-  emailFailure: string
+  evaluationDate: string | undefined
 ): Promise<ActionResult> {
   const submission = allowed.row
+  const reapproving = allowed.transition === 'reapprove'
   const issueDate = parseIssueDateInput(evaluationDate)
   const noteVerification = await createNoteVerification(submission, issueDate)
   const verificationUrl = getVerificationUrl(noteVerification.verificationSlug)
@@ -126,8 +117,6 @@ async function issueApproval(
       }
     )
     pdfFilename = generatePDFFilename(submission.id)
-
-    logger.info(`PDF generated: ${pdfFilename} for submission ${submission.id}`)
   } catch (pdfError) {
     await revokeNoteVerificationById(noteVerification.id)
     logger.error('PDF generation failed:', pdfError)
@@ -140,16 +129,17 @@ async function issueApproval(
   const approved = await transition(allowed, approval)
   if (!approved.ok) {
     await revokeNoteVerificationById(noteVerification.id, approval.at)
-    return refused(verb, approved.refusal)
+    return refused(reapproving ? 're-approve' : 'approve', approved.refusal)
   }
   await revokeOtherNoteVerificationsForSubmission(submission.id, noteVerification.id, approval.at)
 
+  const current = approved.value
   try {
     await sendApprovalEmail({
-      to: submission.email,
-      patientName: `${submission.patientFirstName} ${submission.patientLastName}`,
-      notePurpose: submission.notePurpose,
-      absenceReason: submission.absenceReason,
+      to: current.email,
+      patientName: `${current.patientFirstName} ${current.patientLastName}`,
+      notePurpose: current.notePurpose,
+      absenceReason: current.absenceReason,
       medicalRecordNumber: noteVerification.medicalRecordNumber,
       verificationUrl,
       pdfBuffer,
@@ -159,15 +149,17 @@ async function issueApproval(
     await recordApprovalEmailSent(submission.id, new Date())
 
     await sendTransactionalSmsForSubmission({
-      submission: approved.value,
+      submission: current,
       type: 'APPROVAL_SENT',
       body: approvalSentSms(),
     })
 
-    logger.info(`Approval email sent to ${submission.email} for submission ${submission.id}`)
     return { success: true }
   } catch (emailError) {
     logger.error('Failed to send approval email:', emailError)
-    return { success: true, warning: emailFailure }
+    return {
+      success: true,
+      warning: `${reapproving ? 'Re-approval processed' : 'Submission approved'}, but email notification failed to send`,
+    }
   }
 }

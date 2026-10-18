@@ -33,6 +33,10 @@ import { SubmissionStatus, type Submission } from '@/db/types'
 
 let adminId: string
 
+function cardError(message: string): Error {
+  return Object.assign(new Error(message), { type: 'StripeCardError' })
+}
+
 beforeEach(async () => {
   vi.clearAllMocks()
   const admin = await createVerifiedUser({ email: 'doc@example.com', name: 'Doc' })
@@ -75,7 +79,7 @@ async function seedRefundedDenied(): Promise<Submission> {
   return row
 }
 
-describe('live bug 1: a refunded customer must never be approved', () => {
+describe('a refunded customer must never be approved', () => {
   it('refuses the override to MAYBE and the approval of a refunded denied submission', async () => {
     const refunded = await seedRefundedDenied()
 
@@ -105,7 +109,7 @@ describe('live bug 1: a refunded customer must never be approved', () => {
   })
 })
 
-describe('live bug 6: a failed refund restores the prior status', () => {
+describe('a failed refund restores the prior status', () => {
   it('puts a MAYBE submission back to MAYBE with its reason, note and reviewer when Stripe fails', async () => {
     const pending = await seedPending()
     const maybe = await maybeSubmission(pending.id, {
@@ -121,7 +125,7 @@ describe('live bug 6: a failed refund restores the prior status', () => {
       reviewedByAdminId: adminId,
     })
 
-    mockRefundsCreate.mockRejectedValueOnce(new Error('card declined'))
+    mockRefundsCreate.mockRejectedValueOnce(cardError('card declined'))
     const denied = await denySubmission(pending.id, 'Legal')
     expect(denied.success).toBe(false)
     expect(denied.error).toContain('card declined')
@@ -129,5 +133,31 @@ describe('live bug 6: a failed refund restores the prior status', () => {
     const after = await reload(pending.id)
     expect(after).toEqual({ ...before, updatedAt: after.updatedAt })
     expect(after.updatedAt.getTime()).toBeGreaterThanOrEqual(before.updatedAt.getTime())
+  })
+
+  it('keeps the row denied with its refund pending when the Stripe outcome is unknown, and refuses every later action', async () => {
+    const pending = await seedPending()
+    mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
+
+    const denied = await denySubmission(pending.id, 'Legal')
+    expect(denied.success).toBe(false)
+    expect(denied.error).toContain('refund outcome is unknown')
+
+    const reserved = await reload(pending.id)
+    expect(reserved).toMatchObject({
+      status: SubmissionStatus.DENIED,
+      denialReason: 'Legal',
+      stripeRefundId: `pending_${pending.id}`,
+      refundedAt: null,
+    })
+    expect(await approveSubmission(pending.id)).toMatchObject({ success: false })
+    expect(
+      await changeSubmissionStatus(pending.id, SubmissionStatus.MAYBE, undefined, {
+        reason: 'OTHER_REVIEW',
+      })
+    ).toMatchObject({ success: false })
+    expect(await denySubmission(pending.id, 'Legal')).toMatchObject({ success: false })
+    expect(mockSendApprovalEmail).not.toHaveBeenCalled()
+    expect(await reload(pending.id)).toEqual(reserved)
   })
 })

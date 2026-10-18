@@ -585,7 +585,10 @@ export async function findApprovedSubmissionsOverlapping(
   )
 }
 
-async function updateById(id: string, patch: Omit<Patch<Submission>, 'status'>): Promise<void> {
+async function updateById(
+  id: string,
+  patch: Omit<Patch<Submission>, 'status' | 'stripeRefundId' | 'refundedAt'>
+): Promise<void> {
   const affected = await db.affected(
     sql`UPDATE submissions SET ${set(submissions, patch)} WHERE id = ${id}`
   )

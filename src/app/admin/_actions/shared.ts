@@ -58,15 +58,19 @@ export function revalidate(paths: readonly string[]): void {
   for (const path of paths) revalidatePath(path)
 }
 
-export type RefundOrigin = {
-  idempotencyKey: string
-  processedBy: 'admin-denial-automation' | 'admin-status-change'
+export const QUEUE_PATHS = ['/admin', '/admin/review', '/admin/maybe']
+
+export type RefundOrigin = 'admin-denial-automation' | 'admin-status-change'
+
+const IDEMPOTENCY_SUFFIX: Record<RefundOrigin, string> = {
+  'admin-denial-automation': '',
+  'admin-status-change': '_change',
 }
 
 export async function denyAndRefund(
   allowed: Permit<'deny' | 'overrideDeny'>,
   denial: Denial,
-  origin: RefundOrigin
+  processedBy: RefundOrigin
 ): Promise<ActionResult> {
   const prior = allowed.row
   const reserved = await transition(allowed, denial)
@@ -78,22 +82,33 @@ export async function denyAndRefund(
       {
         payment_intent: prior.stripePaymentIntentId,
         reason: 'requested_by_customer',
-        metadata: {
-          submissionId: prior.id,
-          denialReason: denial.reason,
-          processedBy: origin.processedBy,
-        },
+        metadata: { submissionId: prior.id, denialReason: denial.reason, processedBy },
       },
-      { idempotencyKey: origin.idempotencyKey }
+      {
+        idempotencyKey: `refund_${prior.id}_${denial.adminId}${IDEMPOTENCY_SUFFIX[processedBy]}`,
+      }
     )
   } catch (stripeError) {
     logger.error('Stripe refund failed:', stripeError)
+    const failure = `Failed to process refund: ${errorMessage(stripeError)}`
+    if (!refundCertainlyFailed(stripeError)) {
+      return {
+        success: false,
+        error: `${failure}. The refund outcome is unknown, so the submission stays denied with its refund pending.`,
+      }
+    }
     const released = await transition(
       { transition: 'releaseRefund', row: reserved.value },
       { at: new Date(), prior }
-    )
-    if (!released.ok) logger.error('Refund reservation was not released:', released.refusal)
-    return { success: false, error: `Failed to process refund: ${errorMessage(stripeError)}` }
+    ).catch((releaseError: unknown) => {
+      logger.error('Refund reservation could not be released:', releaseError)
+      return null
+    })
+    if (!released?.ok) {
+      if (released) logger.error('Refund reservation found a moved row:', released.refusal)
+      return { success: false, error: `${failure}. The refund reservation could not be released.` }
+    }
+    return { success: false, error: failure }
   }
 
   const recorded = await transition(
@@ -105,27 +120,24 @@ export async function denyAndRefund(
   })
   if (!recorded?.ok) {
     if (recorded) logger.error(`Stripe refund ${refund.id} found a moved row:`, recorded.refusal)
-    return {
-      success: false,
-      error: `Refund ${refund.id} was issued but could not be recorded. Do not retry; contact engineering.`,
-    }
+    return { success: false, error: `Refund ${refund.id} was issued but could not be recorded.` }
   }
 
-  logger.info(`Refund processed: ${refund.id} for submission ${prior.id}`)
   await revokeNoteVerificationForSubmission(prior.id, denial.at)
-  return notifyDenial(
-    recorded.value,
-    denial.reason,
-    refund.amount,
-    'Submission denied and refunded, but email notification failed to send'
-  )
+  return notifyDenial(recorded.value, denial.reason, refund.amount)
+}
+
+function refundCertainlyFailed(error: unknown): boolean {
+  if (!(error instanceof Error) || !('type' in error)) return false
+  if (error.type === 'StripeCardError') return true
+  const alreadyRefunded = 'code' in error && error.code === 'charge_already_refunded'
+  return error.type === 'StripeInvalidRequestError' && !alreadyRefunded
 }
 
 export async function notifyDenial(
   submission: Submission,
   reason: string,
-  refundCents: number,
-  emailFailure: string
+  refundCents: number
 ): Promise<ActionResult> {
   try {
     await sendDenialEmail({
@@ -140,11 +152,10 @@ export async function notifyDenial(
       type: 'DENIAL_SENT',
       body: denialSentSms(),
     })
-    logger.info(`Denial email sent to ${submission.email} for submission ${submission.id}`)
     return { success: true }
   } catch (emailError) {
     logger.error('Failed to send denial email:', emailError)
-    return { success: true, warning: emailFailure }
+    return { success: true, warning: 'Submission denied, but email notification failed to send' }
   }
 }
 

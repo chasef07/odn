@@ -20,7 +20,7 @@ export const changeSubmissionStatus = adminAction(
   async (
     { doctorId },
     submissionId: string,
-    newStatus: SubmissionStatus,
+    newStatus: Exclude<SubmissionStatus, 'APPROVED'>,
     denialReason?: string,
     maybeInput?: MaybeSubmissionInput
   ): Promise<ActionResult> => {
@@ -29,13 +29,6 @@ export const changeSubmissionStatus = adminAction(
       const detailPaths = ['/admin', '/admin/search', `/admin/search/${submissionId}`]
 
       switch (newStatus) {
-        case SubmissionStatus.APPROVED: {
-          return {
-            success: false,
-            error: 'Use approveSubmission or reApproveSubmission for approvals',
-          }
-        }
-
         case SubmissionStatus.DENIED: {
           if (!denialReason) {
             return { success: false, error: 'Denial reason is required' }
@@ -47,10 +40,7 @@ export const changeSubmissionStatus = adminAction(
           const paths = [...detailPaths, '/admin/denied']
 
           if (allowed.value.transition === 'overrideDeny') {
-            const result = await denyAndRefund(allowed.value, denial, {
-              idempotencyKey: `refund_${submissionId}_${doctorId}_change`,
-              processedBy: 'admin-status-change',
-            })
+            const result = await denyAndRefund(allowed.value, denial, 'admin-status-change')
             if (result.success) revalidate(paths)
             return result
           }
@@ -62,18 +52,12 @@ export const changeSubmissionStatus = adminAction(
           const notified = await notifyDenial(
             denied.value,
             denialReason,
-            denied.value.paymentAmount ?? 0,
-            'Status changed but email notification failed to send'
+            denied.value.paymentAmount ?? 0
           )
 
           revalidate(paths)
 
-          return {
-            success: true,
-            warning:
-              notified.warning ||
-              'Submission denied. Note: Refund was already processed previously.',
-          }
+          return notified
         }
 
         case SubmissionStatus.MAYBE: {
@@ -113,9 +97,6 @@ export const changeSubmissionStatus = adminAction(
 
           return { success: true }
         }
-
-        default:
-          return { success: false, error: `Unknown status: ${newStatus}` }
       }
     } catch (error) {
       logger.error('Error changing submission status:', error)

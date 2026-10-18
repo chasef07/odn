@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { SubmissionStatus } from '@/db/types'
-import type { Refusal, Transition } from '@/db/submission-lifecycle'
 
 const {
   mockPermit,
@@ -114,18 +113,9 @@ vi.mock('stripe', () => ({
 
 import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/approve'
 import { removeGuardianFromAdultSubmission } from '@/app/admin/_actions/edits'
+import { lifecycleMocks } from './lifecycle-mocks'
 
-function permits(transition: Transition, row: object) {
-  mockPermit.mockResolvedValue({ ok: true, value: { transition, row } })
-}
-
-function refuses(refusal: Refusal) {
-  mockPermit.mockResolvedValue({ ok: false, refusal })
-}
-
-function expectTransition(transition: Transition, input: object) {
-  expect(mockTransition).toHaveBeenCalledWith(expect.objectContaining({ transition }), input)
-}
+const { permits, refuses, expectTransition } = lifecycleMocks(mockPermit, mockTransition)
 
 function expectNoSubmissionUpdates() {
   expect(mockTransition).not.toHaveBeenCalled()

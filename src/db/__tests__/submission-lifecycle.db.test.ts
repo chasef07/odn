@@ -6,6 +6,8 @@ import { insert, selectAll } from '../table'
 import { submissions, users } from '../tables'
 import {
   permit,
+  refundState,
+  reservedRefundId,
   transition,
   type Decision,
   type Permit,
@@ -32,13 +34,12 @@ const everyState: State[] = statuses.flatMap((status) =>
 )
 
 function label({ status, stripeRefundId }: Submission): string {
-  if (stripeRefundId === null) return `${status}/none`
-  return `${status}/${stripeRefundId.startsWith('pending_') ? 'reserved' : 'refunded'}`
+  return `${status}/${refundState(stripeRefundId)}`
 }
 
 async function seed(state: State, overrides: Partial<Submission> = {}): Promise<Submission> {
   const id = randomUUID()
-  const stripeRefundId = { none: null, reserved: `pending_${id}`, refunded: `re_${id}` }[
+  const stripeRefundId = { none: null, reserved: reservedRefundId(id), refunded: `re_${id}` }[
     state.refund
   ]
   const row = await db.one(
@@ -138,7 +139,7 @@ const reservationWrite = (row: Submission, when: Date) => ({
   status: SubmissionStatus.DENIED,
   ...reviewed(when),
   denialReason: 'Legal',
-  stripeRefundId: `pending_${row.id}`,
+  stripeRefundId: reservedRefundId(row.id),
 })
 const maybeWrite = (_: Submission, when: Date) => ({
   status: SubmissionStatus.MAYBE,
@@ -191,6 +192,15 @@ const cases: { [K in Transition]: Case<K> } = {
       denialEmailSentAt: null,
     }),
   },
+  denyRefunded: {
+    start: { status: 'MAYBE', refund: 'refunded' },
+    input: (_, when) => denial(when),
+    writes: (_, when) => ({
+      status: SubmissionStatus.DENIED,
+      ...reviewed(when),
+      denialReason: 'Legal',
+    }),
+  },
   overrideDeny: {
     start: { status: 'APPROVED', refund: 'none' },
     input: (_, when) => denial(when),
@@ -237,11 +247,7 @@ const cases: { [K in Transition]: Case<K> } = {
   recordRefund: {
     start: { status: 'DENIED', refund: 'reserved' },
     input: (_, when) => ({ ...stray, at: when, stripeRefundId: `re_${when.getTime()}` }),
-    writes: (_, when) => ({
-      status: SubmissionStatus.DENIED,
-      stripeRefundId: `re_${when.getTime()}`,
-      refundedAt: when,
-    }),
+    writes: (_, when) => ({ stripeRefundId: `re_${when.getTime()}`, refundedAt: when }),
   },
   releaseRefund: {
     start: { status: 'DENIED', refund: 'reserved' },
@@ -263,6 +269,7 @@ const admitted: Record<Transition, readonly string[]> = {
   reapprove: ['APPROVED/none'],
   deny: ['PENDING_REVIEW/none', 'MAYBE/none'],
   denyManual: ['MANUAL/none'],
+  denyRefunded: ['PENDING_REVIEW/refunded', 'MAYBE/refunded', 'MANUAL/refunded'],
   overrideDeny: ['PENDING_REVIEW/none', 'MAYBE/none', 'MANUAL/none', 'APPROVED/none'],
   overrideDenyRefunded: [
     'PENDING_REVIEW/refunded',
@@ -298,8 +305,7 @@ function otherStatus(status: SubmissionStatus): SubmissionStatus {
 }
 
 function otherRefundId(row: Submission): string | null {
-  if (row.stripeRefundId === null) return 're_late'
-  return row.stripeRefundId.startsWith('pending_') ? null : 're_other'
+  return { none: 're_late', reserved: null, refunded: 're_other' }[refundState(row.stripeRefundId)]
 }
 
 describe('every transition', () => {
@@ -464,7 +470,21 @@ describe('permit', () => {
     })
   })
 
-  it('refuses every decision on a refunded denied row, so a refunded customer is never approved', async () => {
+  it('lets the queue deny a row the old bug left refunded in review, and nothing else', async () => {
+    await seedAdmin()
+    const legacy = await seed({ status: 'MAYBE', refund: 'refunded' })
+
+    expect(await permit(legacy.id, 'denyManual', 'denyRefunded', 'deny')).toEqual({
+      ok: true,
+      value: { transition: 'denyRefunded', row: legacy },
+    })
+    for (const name of transitions.filter(isDecision).filter((name) => name !== 'denyRefunded')) {
+      if (name !== 'overrideDenyRefunded')
+        expect(await permit(legacy.id, name)).toMatchObject({ ok: false })
+    }
+  })
+
+  it('refuses every decision on a refunded denied row', async () => {
     await seedAdmin()
     const refunded = await seed({ status: 'DENIED', refund: 'refunded' })
     for (const name of transitions.filter(isDecision)) {
@@ -473,7 +493,7 @@ describe('permit', () => {
     expect(await reload(refunded.id)).toEqual(refunded)
   })
 
-  it('refuses every decision on a reserved row, so a crash between Stripe and the record step strands nothing', async () => {
+  it('refuses every decision on a reserved row', async () => {
     await seedAdmin()
     const reserved = await seed({ status: 'DENIED', refund: 'reserved' })
     for (const name of transitions.filter(isDecision)) {
@@ -497,7 +517,7 @@ describe('refund settlement', () => {
       denialReason: 'Legal',
       reviewedByAdminId: ADMIN,
       reviewedAt: at(1),
-      stripeRefundId: `pending_${prior.id}`,
+      stripeRefundId: reservedRefundId(prior.id),
       updatedAt: at(1),
     })
 
@@ -551,7 +571,7 @@ describe('refund settlement', () => {
     await expect(
       transition(
         { transition: 'recordRefund', row: reserved },
-        { at: at(1), stripeRefundId: `pending_${reserved.id}` }
+        { at: at(1), stripeRefundId: reservedRefundId(reserved.id) }
       )
     ).rejects.toThrow('is not a Stripe refund id')
     expect(await reload(reserved.id)).toEqual(reserved)

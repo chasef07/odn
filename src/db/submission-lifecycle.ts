@@ -14,6 +14,10 @@ export function refundState(stripeRefundId: string | null): RefundState {
   return stripeRefundId.startsWith(RESERVED_PREFIX) ? 'reserved' : 'refunded'
 }
 
+export function reservedRefundId(submissionId: string): string {
+  return `${RESERVED_PREFIX}${submissionId}`
+}
+
 export type Review = { adminId: string; at: Date }
 export type Approval = Review & { diagnosis: string | null; withRestrictions: boolean }
 export type Denial = Review & { reason: string }
@@ -47,24 +51,21 @@ type OwnedColumn =
   | 'approvalDiagnosis'
   | 'approvalWithRestrictions'
 
-type Next = Patch<Pick<Submission, OwnedColumn>> & Pick<Submission, 'status'>
+type Owned = Patch<Pick<Submission, OwnedColumn | 'status'>>
+type Decided = Owned & Pick<Submission, 'status'>
 
 type Reservation = Pick<
   Submission,
   'status' | 'denialReason' | 'reviewedByAdminId' | 'reviewedAt' | 'stripeRefundId'
 >
 
-type Entry<I extends Stamped> = {
+type Entry<I extends Stamped, W extends Owned = Decided> = {
   readonly from: readonly SubmissionStatus[]
   readonly refund: RefundState
-  readonly write: (input: I, read: Submission) => Next
+  readonly write: (input: I, read: Submission) => W
 }
 
-function entry<I extends Stamped>(spec: Entry<I>): Entry<I> {
-  return spec
-}
-
-function approved(approval: Approval): Next {
+function approved(approval: Approval): Decided {
   return {
     status: SubmissionStatus.APPROVED,
     reviewedByAdminId: approval.adminId,
@@ -75,7 +76,7 @@ function approved(approval: Approval): Next {
   }
 }
 
-function approvedManually(review: Review): Next {
+function approvedManually(review: Review): Decided {
   return {
     status: SubmissionStatus.APPROVED,
     reviewedByAdminId: review.adminId,
@@ -93,7 +94,7 @@ function reserved(denial: Denial, read: Submission): Reservation {
     denialReason: denial.reason,
     reviewedByAdminId: denial.adminId,
     reviewedAt: denial.at,
-    stripeRefundId: `${RESERVED_PREFIX}${read.id}`,
+    stripeRefundId: reservedRefundId(read.id),
   }
 }
 
@@ -110,18 +111,14 @@ function released({ prior }: RefundRelease, read: Submission): Reservation {
   }
 }
 
-function recorded(record: RefundRecord): Next {
+function recorded(record: RefundRecord): Owned {
   if (refundState(record.stripeRefundId) !== 'refunded') {
     throw new Error(`${record.stripeRefundId} is not a Stripe refund id`)
   }
-  return {
-    status: SubmissionStatus.DENIED,
-    stripeRefundId: record.stripeRefundId,
-    refundedAt: record.at,
-  }
+  return { stripeRefundId: record.stripeRefundId, refundedAt: record.at }
 }
 
-function denied(denial: Denial): Next {
+function denied(denial: Denial): Decided {
   return {
     status: SubmissionStatus.DENIED,
     denialReason: denial.reason,
@@ -130,11 +127,11 @@ function denied(denial: Denial): Next {
   }
 }
 
-function deniedManually(denial: Denial): Next {
+function deniedManually(denial: Denial): Decided {
   return { ...denied(denial), denialEmailSentAt: null }
 }
 
-function maybe(review: MaybeReview): Next {
+function maybe(review: MaybeReview): Decided {
   return {
     status: SubmissionStatus.MAYBE,
     maybeReason: review.reason,
@@ -146,7 +143,7 @@ function maybe(review: MaybeReview): Next {
   }
 }
 
-function manual(review: Review): Next {
+function manual(review: Review): Decided {
   return {
     status: SubmissionStatus.MANUAL,
     reviewedByAdminId: review.adminId,
@@ -154,37 +151,42 @@ function manual(review: Review): Next {
   }
 }
 
-function reopened(): Next {
+function reopened(_reopening: Reopening): Decided {
   return { status: SubmissionStatus.PENDING_REVIEW, reviewedByAdminId: null, reviewedAt: null }
 }
 
 const entries = {
-  approve: entry<Approval>({
+  approve: {
     from: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
     refund: 'none',
     write: approved,
-  }),
-  approveManual: entry<Review>({
+  },
+  approveManual: {
     from: [SubmissionStatus.MANUAL],
     refund: 'none',
     write: approvedManually,
-  }),
-  reapprove: entry<Approval>({
+  },
+  reapprove: {
     from: [SubmissionStatus.APPROVED],
     refund: 'none',
     write: approved,
-  }),
-  deny: entry<Denial>({
+  },
+  deny: {
     from: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
     refund: 'none',
     write: reserved,
-  }),
-  denyManual: entry<Denial>({
+  },
+  denyManual: {
     from: [SubmissionStatus.MANUAL],
     refund: 'none',
     write: deniedManually,
-  }),
-  overrideDeny: entry<Denial>({
+  },
+  denyRefunded: {
+    from: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE, SubmissionStatus.MANUAL],
+    refund: 'refunded',
+    write: denied,
+  },
+  overrideDeny: {
     from: [
       SubmissionStatus.PENDING_REVIEW,
       SubmissionStatus.MAYBE,
@@ -193,8 +195,8 @@ const entries = {
     ],
     refund: 'none',
     write: reserved,
-  }),
-  overrideDenyRefunded: entry<Denial>({
+  },
+  overrideDenyRefunded: {
     from: [
       SubmissionStatus.PENDING_REVIEW,
       SubmissionStatus.MAYBE,
@@ -203,13 +205,13 @@ const entries = {
     ],
     refund: 'refunded',
     write: denied,
-  }),
-  maybe: entry<MaybeReview>({
+  },
+  maybe: {
     from: [SubmissionStatus.PENDING_REVIEW],
     refund: 'none',
     write: maybe,
-  }),
-  overrideMaybe: entry<MaybeReview>({
+  },
+  overrideMaybe: {
     from: [
       SubmissionStatus.PENDING_REVIEW,
       SubmissionStatus.MANUAL,
@@ -218,13 +220,13 @@ const entries = {
     ],
     refund: 'none',
     write: maybe,
-  }),
-  markManual: entry<Review>({
+  },
+  markManual: {
     from: [SubmissionStatus.MAYBE],
     refund: 'none',
     write: manual,
-  }),
-  overrideManual: entry<Review>({
+  },
+  overrideManual: {
     from: [
       SubmissionStatus.PENDING_REVIEW,
       SubmissionStatus.MAYBE,
@@ -233,8 +235,8 @@ const entries = {
     ],
     refund: 'none',
     write: manual,
-  }),
-  reopen: entry<Reopening>({
+  },
+  reopen: {
     from: [
       SubmissionStatus.MAYBE,
       SubmissionStatus.MANUAL,
@@ -243,26 +245,26 @@ const entries = {
     ],
     refund: 'none',
     write: reopened,
-  }),
-  recordRefund: entry<RefundRecord>({
+  },
+  recordRefund: {
     from: [SubmissionStatus.DENIED],
     refund: 'reserved',
     write: recorded,
-  }),
-  releaseRefund: entry<RefundRelease>({
+  },
+  releaseRefund: {
     from: [SubmissionStatus.DENIED],
     refund: 'reserved',
     write: released,
-  }),
-}
+  },
+} as const
 
 export type Transition = keyof typeof entries
 export type Settlement = 'recordRefund' | 'releaseRefund'
 export type Decision = Exclude<Transition, Settlement>
 
-type Inputs = { [K in Transition]: (typeof entries)[K] extends Entry<infer I> ? I : never }
+type Inputs = { [K in Transition]: Parameters<(typeof entries)[K]['write']>[0] }
 
-const lifecycle: { [K in Transition]: Entry<Inputs[K]> } = entries
+const lifecycle: { [K in Transition]: Entry<Inputs[K], Owned> } = entries
 
 export type Refusal =
   | { readonly reason: 'missing' }
@@ -278,13 +280,13 @@ type Step<K extends Transition> = { readonly transition: K; readonly row: Submis
 
 export type Permit<K extends Transition = Transition> = { [P in K]: Step<P> }[K]
 
-type UnionToIntersection<U> = (U extends unknown ? (value: U) => void : never) extends (
+type Intersection<U> = (U extends unknown ? (value: U) => void : never) extends (
   value: infer I
 ) => void
   ? I
   : never
 
-type SharedInput<K extends Transition> = [Inputs[K]] extends [UnionToIntersection<Inputs[K]>]
+type SameInputAcross<K extends Transition> = [Inputs[K]] extends [Intersection<Inputs[K]>]
   ? unknown
   : never
 
@@ -302,7 +304,7 @@ function mismatch(
   return null
 }
 
-function versioned(read: Guarded, next: Next): boolean {
+function leavesGuardsUnchanged(read: Guarded, next: Owned): boolean {
   return guarded.every((key) => (next[key] === undefined ? read[key] : next[key]) === read[key])
 }
 
@@ -316,12 +318,12 @@ function pinned(read: Guarded): Record<GuardKey, Sql> {
   }
 }
 
-async function guardedUpdate(read: Submission, next: Next, at: Date): Promise<Submission | null> {
+async function guardedUpdate(read: Submission, next: Owned, at: Date): Promise<Submission | null> {
   return db.one(
     sql`UPDATE submissions SET ${set(submissions, { ...next, updatedAt: at })} WHERE ${and(
       sql`id = ${read.id}`,
       ...Object.values(pinned(read)),
-      versioned(read, next) && sql`updated_at = ${read.updatedAt}`
+      leavesGuardsUnchanged(read, next) && sql`updated_at = ${read.updatedAt}`
     )} RETURNING ${selectAll(submissions)}`
   )
 }
@@ -350,7 +352,7 @@ export async function permit<N extends Decision>(
 
 export async function transition<K extends Transition>(
   step: Step<K>,
-  input: Inputs[K] & SharedInput<K>
+  input: Inputs[K] & SameInputAcross<K>
 ): Promise<Outcome<Submission>> {
   const rule = lifecycle[step.transition]
   const problem = mismatch(rule, step.row)

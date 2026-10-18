@@ -3,7 +3,7 @@
 import { permit, transition } from '@/db/submission-lifecycle'
 import { logger } from '@/lib/logger'
 import { type MaybeApprovedDays, type MaybeReason } from '@/lib/maybe-reasons'
-import { moveSubmissionToMaybe, refused, revalidate } from './shared'
+import { QUEUE_PATHS, moveSubmissionToMaybe, refused, revalidate } from './shared'
 import { adminAction } from '@/lib/admin-session'
 
 export type MaybeSubmissionInput = {
@@ -11,8 +11,6 @@ export type MaybeSubmissionInput = {
   internalNote?: string
   approvedDays?: MaybeApprovedDays | number
 }
-
-const QUEUE_PATHS = ['/admin', '/admin/review', '/admin/maybe']
 
 export const maybeSubmission = adminAction(
   async ({ doctorId }, submissionId: string, input: MaybeSubmissionInput) => {
