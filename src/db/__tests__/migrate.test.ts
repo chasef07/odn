@@ -77,31 +77,41 @@ describe('loadMigrations', () => {
 
   it('refuses a file that controls its own transaction, wherever the statement sits', () => {
     const refused = [
-      'BEGIN;\nCREATE TABLE t (id int);\nCOMMIT;',
+      'BEGIN;\nCREATE TABLE t (id int);',
+      'CREATE TABLE t (id int);\nSTART TRANSACTION;',
       'CREATE TABLE t (id int);\n  commit;',
       'CREATE TABLE t (id int);COMMIT;',
       'CREATE TABLE t (id int);\nEND;',
+      'CREATE TABLE t (id int);\nROLLBACK;',
       'CREATE TABLE t (id int);\nABORT;',
       'CREATE TABLE t (id int);\nSAVEPOINT s;',
+      "CREATE TABLE t (id int);\nPREPARE TRANSACTION 'deploy';",
+      '-- the runner wraps this file\nCOMMIT;',
+      '/* the runner wraps this file */ ROLLBACK;',
     ]
     for (const sql of refused) {
-      expect(refusal(() => loadMigrations(dirWith({ '0001_a.sql': sql })))).toBe(
-        'transaction_control'
-      )
+      expect(
+        refusal(() => loadMigrations(dirWith({ '0001_a.sql': sql }))),
+        sql
+      ).toBe('transaction_control')
     }
   })
 
-  it('accepts BEGIN and END inside quoted bodies, comments and expressions', () => {
+  it('accepts transaction words inside quoted bodies, comments, expressions and longer identifiers', () => {
     const accepted = {
       '0001_a.sql': "INSERT INTO t VALUES ('begin the end')",
       '0002_b.sql': 'UPDATE t SET a = CASE WHEN b THEN 1 ELSE 0\nEND',
       '0003_c.sql': 'DO $$\nBEGIN\n  PERFORM 1;\nEND $$;',
       '0004_d.sql':
         'CREATE FUNCTION f() RETURNS trigger AS $body$\nBEGIN\n  RETURN NEW;\nEND;\n$body$ LANGUAGE plpgsql;',
-      '0005_e.sql': '-- COMMIT happens in the runner\nCREATE TABLE t (id int); /* ROLLBACK? no */',
-      '0006_f.sql': "INSERT INTO t VALUES ('it''s; COMMIT;')",
+      '0005_e.sql':
+        '-- the runner owns the transaction; COMMIT happens there\nCREATE TABLE t (id int);',
+      '0006_f.sql': 'CREATE TABLE t (id int); /* no undo here; ROLLBACK is the runner job */',
+      '0007_g.sql': "INSERT INTO t VALUES ('it''s; COMMIT;')",
+      '0008_h.sql': 'SELECT 1;\nBEGINNING',
+      '0009_i.sql': 'COMMITTED;',
     }
-    expect(loadMigrations(dirWith(accepted))).toHaveLength(6)
+    expect(loadMigrations(dirWith(accepted))).toHaveLength(9)
   })
 
   it('refuses a gap or a duplicate number', () => {
