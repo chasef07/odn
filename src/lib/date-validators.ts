@@ -1,6 +1,8 @@
-import { subDays, differenceInDays } from 'date-fns'
+import { addDays, inclusiveDayCount, parseDateOnly, todayUTC } from './dates'
 import type { IntakeRule } from './intake-rules'
 import { DATE_LIMITS } from './validation-constants'
+
+const US_ZONE_GRACE_DAYS = 1
 
 export interface DatesFormData {
   firstDayOff: string
@@ -13,20 +15,24 @@ export interface DateValidationError {
   rule: IntakeRule
 }
 
+function invalidDay(field: keyof DatesFormData): DateValidationError {
+  return { field, message: 'Expected a YYYY-MM-DD date', rule: 'date_invalid' }
+}
+
 export const validateAbsenceDates = (data: DatesFormData): DateValidationError[] => {
+  const firstDayOff = parseDateOnly(data.firstDayOff)
+  const lastDayOff = parseDateOnly(data.lastDayOff)
+  if (!firstDayOff || !lastDayOff) {
+    return [
+      ...(firstDayOff ? [] : [invalidDay('firstDayOff')]),
+      ...(lastDayOff ? [] : [invalidDay('lastDayOff')]),
+    ]
+  }
+
   const errors: DateValidationError[] = []
+  const oldestFirstDay = addDays(todayUTC(), -(DATE_LIMITS.MAX_DAYS_IN_PAST + US_ZONE_GRACE_DAYS))
 
-  const today = new Date()
-  today.setUTCHours(0, 0, 0, 0)
-
-  const firstDay = new Date(data.firstDayOff)
-  firstDay.setUTCHours(0, 0, 0, 0)
-
-  const lastDay = new Date(data.lastDayOff)
-  lastDay.setUTCHours(0, 0, 0, 0)
-
-  const cutoffDate = subDays(today, DATE_LIMITS.MAX_DAYS_IN_PAST + 1)
-  if (firstDay < cutoffDate) {
+  if (firstDayOff < oldestFirstDay) {
     errors.push({
       field: 'firstDayOff',
       message: `First day off cannot be more than ${DATE_LIMITS.MAX_DAYS_IN_PAST} days in the past`,
@@ -34,7 +40,7 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
     })
   }
 
-  if (lastDay < firstDay) {
+  if (lastDayOff < firstDayOff) {
     errors.push({
       field: 'lastDayOff',
       message: 'Last day off must be on or after first day off',
@@ -42,9 +48,7 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
     })
   }
 
-  const daysDifference = differenceInDays(lastDay, firstDay)
-  const totalDays = daysDifference + 1
-  if (totalDays > DATE_LIMITS.MAX_ABSENCE_DAYS) {
+  if (inclusiveDayCount(firstDayOff, lastDayOff) > DATE_LIMITS.MAX_ABSENCE_DAYS) {
     errors.push({
       field: 'lastDayOff',
       message: `Absence period cannot exceed ${DATE_LIMITS.MAX_ABSENCE_DAYS} consecutive days`,
