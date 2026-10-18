@@ -7,6 +7,7 @@ import {
   type CustomerMatch,
 } from '@/db/submissions'
 import type { SubmissionStatus } from '@/db/types'
+import { parseDateOnly, utcDateFromDateOnly } from '@/lib/dates'
 import { logger } from '@/lib/logger'
 import { toNationalDigits } from '@/lib/phone-utils'
 import {
@@ -153,12 +154,10 @@ function getFriendsFamilyCustomerMatch(customerKey: string): CustomerMatch | nul
       return null
     }
 
-    const parsedDateOfBirth = new Date(`${dateOfBirth}T00:00:00.000Z`)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || Number.isNaN(parsedDateOfBirth.getTime())) {
-      return null
-    }
+    const day = parseDateOnly(dateOfBirth)
+    if (!day) return null
 
-    return { by: 'patient', firstName, lastName, dateOfBirth: parsedDateOfBirth }
+    return { by: 'patient', firstName, lastName, dateOfBirth: utcDateFromDateOnly(day) }
   }
 
   return null
