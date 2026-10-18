@@ -79,6 +79,8 @@ import {
   findSubmissionsPendingReview,
   claimDueFollowUpEmail,
   searchSubmissionsPage,
+  type ReviewClassification,
+  type SubmissionDetailsPatch,
 } from '../submissions'
 import { SubmissionStatus, type Submission } from '../types'
 
@@ -1038,14 +1040,19 @@ describe('approval writes', () => {
   it('approves pending or maybe submissions, clearing a stale denial reason, and refuses the rest', async () => {
     await seedAdmin()
     const pending = await seed({ denialReason: 'stale' })
+    const otherPending = await seed()
     const maybe = await seed({ status: SubmissionStatus.MAYBE })
+    const manual = await seed({ status: SubmissionStatus.MANUAL })
     const denied = await seed({ status: SubmissionStatus.DENIED })
     const approved = await seed({ status: SubmissionStatus.APPROVED })
 
     expect(await approveReviewableSubmission(pending.id, approval)).toBe(1)
+    expect(await reload(otherPending.id)).toEqual(otherPending)
     expect(await approveReviewableSubmission(maybe.id, approval)).toBe(1)
+    expect(await approveReviewableSubmission(manual.id, approval)).toBe(0)
     expect(await approveReviewableSubmission(denied.id, approval)).toBe(0)
     expect(await approveReviewableSubmission(approved.id, approval)).toBe(0)
+    expect(await reload(manual.id)).toEqual(manual)
 
     const row = await reload(pending.id)
     expect(row).toMatchObject({
@@ -1063,10 +1070,13 @@ describe('approval writes', () => {
   it('re-approves only the version that was read and stamps updated_at with the review time', async () => {
     await seedAdmin()
     const approved = await seed({ status: SubmissionStatus.APPROVED, updatedAt: at(0) })
+    const editedAfterRead = await seed({ status: SubmissionStatus.APPROVED, updatedAt: at(1) })
     const pending = await seed({ updatedAt: at(0) })
 
     expect(await reapproveSubmission(approved.id, at(1), approval)).toBe(0)
+    expect(await reapproveSubmission(editedAfterRead.id, at(0), approval)).toBe(0)
     expect(await reapproveSubmission(pending.id, at(0), approval)).toBe(0)
+    expect(await reload(editedAfterRead.id)).toEqual(editedAfterRead)
     expect(await reapproveSubmission(approved.id, at(0), approval)).toBe(1)
 
     expect(await reload(approved.id)).toMatchObject({
@@ -1093,17 +1103,19 @@ describe('approval writes', () => {
       reviewedByAdminId: 'admin_1',
       reviewedAt: REVIEWED_AT,
     })
-    await recordApprovalEmailSent(manual.id, at(2))
 
     expect(await reload(manual.id)).toMatchObject({
       status: 'APPROVED',
       reviewedByAdminId: 'admin_1',
       reviewedAt: REVIEWED_AT,
       denialReason: null,
-      approvalEmailSentAt: at(2),
+      approvalEmailSentAt: null,
       approvalDiagnosis: null,
       approvalWithRestrictions: null,
     })
+
+    await recordApprovalEmailSent(manual.id, at(2))
+    expect((await reload(manual.id)).approvalEmailSentAt).toEqual(at(2))
   })
 })
 
@@ -1116,11 +1128,14 @@ describe('denial and refund writes', () => {
     const maybe = await seed({ status: SubmissionStatus.MAYBE })
     const refunded = await seed({ stripeRefundId: 're_done' })
     const denied = await seed({ status: SubmissionStatus.DENIED })
+    const manual = await seed({ status: SubmissionStatus.MANUAL })
 
     expect(await markSubmissionRefundReserved(pending.id, denial)).toBe(1)
     expect(await markSubmissionRefundReserved(maybe.id, denial)).toBe(1)
     expect(await markSubmissionRefundReserved(refunded.id, denial)).toBe(0)
     expect(await markSubmissionRefundReserved(denied.id, denial)).toBe(0)
+    expect(await markSubmissionRefundReserved(manual.id, denial)).toBe(0)
+    expect(await reload(manual.id)).toEqual(manual)
     expect(await markSubmissionRefundReserved(pending.id, denial)).toBe(0)
 
     expect(await reload(pending.id)).toMatchObject({
@@ -1153,6 +1168,7 @@ describe('denial and refund writes', () => {
     const manual = await seed({ status: SubmissionStatus.MANUAL, denialEmailSentAt: at(0) })
 
     await markSubmissionDenied(plain.id, { ...denial, updatedAt: at(1) })
+    expect((await reload(plain.id)).updatedAt).toEqual(at(1))
     await recordDenialEmailSent(plain.id, at(2))
     await markSubmissionDeniedAndRefunded(withRefund.id, {
       ...denial,
@@ -1268,37 +1284,49 @@ describe('status and detail edits', () => {
     })
   })
 
-  it('writes edited details including dates and JSON symptoms, and classifies only pending rows', async () => {
+  it('writes every edited detail column including dates and JSON symptoms, and classifies only pending rows', async () => {
     const pending = await seed()
     const approved = await seed({ status: SubmissionStatus.APPROVED })
-
-    await updateSubmissionDetails(
-      pending.id,
-      {
-        phone: '(555) 987-6543',
-        smsOptIn: false,
-        smsOptInAt: null,
-        smsConsentVersion: null,
-        smsPhoneE164: null,
-        firstDayOff: new Date('2026-04-01T00:00:00.000Z'),
-        symptoms: ['Cough'],
-      },
-      at(1)
-    )
-    const classification = {
+    const details: Required<SubmissionDetailsPatch> = {
+      patientFirstName: 'Ann',
+      patientLastName: 'Lee',
+      patientDateOfBirth: new Date('1985-02-03T00:00:00.000Z'),
+      guardianFirstName: 'Gus',
+      guardianLastName: 'Lee',
+      guardianDateOfBirth: new Date('1960-07-08T00:00:00.000Z'),
+      email: 'ann@example.com',
+      phone: '(555) 987-6543',
+      state: 'NY',
       notePurpose: 'school',
-      otherNotePurpose: null,
-      absenceReason: 'Illness',
-      otherAbsenceReason: null,
+      otherNotePurpose: 'exam',
+      firstDayOff: new Date('2026-04-01T00:00:00.000Z'),
+      lastDayOff: new Date('2026-04-03T00:00:00.000Z'),
+      absenceReason: 'injury',
+      otherAbsenceReason: 'sprain',
+      symptoms: ['Cough'],
+      otherSymptomText: 'hoarse',
+      additionalInformation: 'none',
+      smsOptIn: true,
+      smsOptInAt: at(1),
+      smsConsentVersion: 'v2',
+      smsPhoneE164: '+15559876543',
+    }
+
+    await updateSubmissionDetails(pending.id, details, at(1))
+    expect(await reload(pending.id)).toEqual({ ...pending, ...details, updatedAt: at(1) })
+
+    const classification: ReviewClassification = {
+      notePurpose: 'other',
+      otherNotePurpose: 'court',
+      absenceReason: 'other',
+      otherAbsenceReason: 'jury duty',
     }
     expect(await updatePendingSubmissionClassification(pending.id, classification, at(2))).toBe(1)
     expect(await updatePendingSubmissionClassification(approved.id, classification, at(2))).toBe(0)
 
     expect(await reload(pending.id)).toEqual({
       ...pending,
-      phone: '(555) 987-6543',
-      firstDayOff: new Date('2026-04-01T00:00:00.000Z'),
-      symptoms: ['Cough'],
+      ...details,
       ...classification,
       updatedAt: at(2),
     })
@@ -1345,12 +1373,13 @@ describe('insertSubmission', () => {
   it('reports a second insert for the same payment intent as a duplicate and returns that row', async () => {
     await insertSubmission({ ...row, stripePaymentIntentId: 'pi_other', patientFirstName: 'Other' })
     await insertSubmission(row)
+    await seed({ patientFirstName: 'Newer', createdAt: new Date('2100-01-01T00:00:00.000Z') })
 
     await expect(insertSubmission({ ...row, patientFirstName: 'Retry' })).resolves.toMatchObject({
       inserted: false,
       submission: { patientFirstName: 'John', stripePaymentIntentId: 'pi_123' },
     })
-    expect(await countSubmissions()).toBe(2)
+    expect(await countSubmissions()).toBe(3)
   })
 
   it('applies the column defaults when optional fields are omitted', async () => {
@@ -1379,14 +1408,19 @@ describe('follow-up claim release and acknowledgement', () => {
     const claimedAt = at(0)
     const held = await seed({ followUpEmailClaimedAt: claimedAt })
     const otherClaim = await seed({ followUpEmailClaimedAt: at(1) })
+    const earlierClaim = await seed({ followUpEmailClaimedAt: at(-1) })
     const sent = await seed({ followUpEmailClaimedAt: claimedAt, followUpEmailSentAt: at(1) })
 
     await releaseFollowUpEmailClaimAt(otherClaim.id, claimedAt)
+    await releaseFollowUpEmailClaimAt(earlierClaim.id, claimedAt)
     await releaseFollowUpEmailClaimAt(sent.id, claimedAt)
     expect((await reload(otherClaim.id)).followUpEmailClaimedAt).toEqual(at(1))
+    expect((await reload(earlierClaim.id)).followUpEmailClaimedAt).toEqual(at(-1))
     expect((await reload(sent.id)).followUpEmailClaimedAt).toEqual(claimedAt)
 
     expect(await acknowledgeFollowUpEmailSent(otherClaim.id, claimedAt)).toBe(0)
+    expect(await acknowledgeFollowUpEmailSent(earlierClaim.id, claimedAt)).toBe(0)
+    expect(await reload(earlierClaim.id)).toEqual(earlierClaim)
     expect(await acknowledgeFollowUpEmailSent(sent.id, claimedAt)).toBe(0)
     expect((await reload(sent.id)).followUpEmailSentAt).toEqual(at(1))
     expect(await acknowledgeFollowUpEmailSent(held.id, claimedAt)).toBe(1)
@@ -1405,13 +1439,12 @@ describe('follow-up claim release and acknowledgement', () => {
 describe('deletes', () => {
   it('deletes one row, throws for a missing one, and reports how many a full delete removed', async () => {
     const first = await seed()
-    await seed()
-    await seed()
+    for (const status of Object.values(SubmissionStatus)) await seed({ status })
 
     await deleteSubmissionById(first.id)
     expect(await findSubmissionById(first.id)).toBeNull()
     await expect(deleteSubmissionById(first.id)).rejects.toThrow('not found')
-    expect(await deleteAllSubmissions()).toBe(2)
+    expect(await deleteAllSubmissions()).toBe(Object.values(SubmissionStatus).length)
     expect(await countSubmissions()).toBe(0)
   })
 })
@@ -1576,23 +1609,48 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
   })
 
   it('returns submission_changed when the submission is not approved or changed since it was read', async () => {
+    const changedBeforeRead = await seed({ status: SubmissionStatus.APPROVED, updatedAt: at(0) })
+    const editedAfterRead = await seed({
+      status: SubmissionStatus.APPROVED,
+      updatedAt: new Date('2026-06-21T00:00:00.000Z'),
+    })
+    const pending = await seed({ updatedAt: submissionUpdatedAt })
+
+    for (const submission of [changedBeforeRead, editedAfterRead, pending]) {
+      const ticketId = await seedTicket(
+        SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+        SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
+      )
+      const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
+      expect(await commit(ticketId, jobId, submission.id)).toBe('submission_changed')
+      expect(await reload(submission.id)).toEqual(submission)
+    }
+  })
+
+  it('rolls back the ticket and job guards when the submission write fails', async () => {
     const ticketId = await seedTicket(
       SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
       SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
     )
     const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
-    const changed = await seed({ status: SubmissionStatus.APPROVED, updatedAt: at(0) })
-    const pending = await seed({ updatedAt: submissionUpdatedAt })
+    const submission = await seed({
+      status: SubmissionStatus.APPROVED,
+      updatedAt: submissionUpdatedAt,
+    })
+    const before = await ticketAndJob(ticketId, jobId)
 
-    expect(await commit(ticketId, jobId, changed.id)).toBe('submission_changed')
-    expect(await reload(changed.id)).toEqual(changed)
+    await expect(
+      commitSupportAutomationSubmissionUpdate({
+        ticketId,
+        jobId,
+        submissionId: submission.id,
+        submissionUpdatedAt,
+        committedAt,
+        updateData: { ...updateData, patientDateOfBirth: new Date(Number.NaN) },
+      })
+    ).rejects.toThrow()
 
-    const secondTicket = await seedTicket(
-      SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
-    )
-    const secondJob = await seedJob(secondTicket, SMS_SUPPORT_JOB_STATUS.RUNNING)
-    expect(await commit(secondTicket, secondJob, pending.id)).toBe('submission_changed')
-    expect(await reload(pending.id)).toEqual(pending)
+    expect(await ticketAndJob(ticketId, jobId)).toEqual(before)
+    expect(await reload(submission.id)).toEqual(submission)
   })
 })
