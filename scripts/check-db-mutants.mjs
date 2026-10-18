@@ -53,13 +53,6 @@ const EQUIVALENT = [
       'run_after is compared with a Date taken while the query is built, so no stored row can equal it and <= selects the same rows as <.',
   },
   {
-    module: 'submission-lifecycle',
-    function: 'recorded',
-    mutation: 'drop SET assignment: status: SubmissionStatus.DENIED',
-    reason:
-      'recordRefund is admitted only from DENIED and the UPDATE pins the read status, so writing DENIED again changes nothing.',
-  },
-  {
     module: 'submissions',
     function: 'findSmsSupportSubmissionCandidatesForPhone',
     mutation:
@@ -303,9 +296,9 @@ function statement(masked, depth, range, emit, singleRow) {
 
 function patchAliases(source) {
   const aliases = new Map(
-    [...source.matchAll(/^(?:export )?type (\w+)\s*=\s*([^\n]*(?:\n(?!\n)[^\n]*)*)/gm)].map(
-      ([, name, body]) => [name, body]
-    )
+    [
+      ...source.matchAll(/^(?:export )?type (\w+)(?:<[^>]*>)?\s*=\s*([^\n]*(?:\n[ \t]+[^\n]*)*)/gm),
+    ].map(([, name, body]) => [name, body])
   )
   const patchLike = new Set()
   let grew = true
@@ -336,10 +329,8 @@ function patchObjects(source) {
     if (source[from] === '{') objects.add(from)
   }
   for (const call of source.matchAll(/(?<![\w.])set\(/g)) argument(call.index + call[0].length, 1)
-  const annotation = new RegExp(
-    `: (?:Patch<[^>]+>|${patchAliases(source).join('|')})\\s*(=|\\{)`,
-    'g'
-  )
+  const shapes = ['Patch<[^>]+>', ...patchAliases(source).map((alias) => `\\b${alias}\\b`)]
+  const annotation = new RegExp(`: (?:${shapes.join('|')})\\s*(=|\\{)`, 'g')
   for (const match of source.matchAll(annotation)) {
     const at = match.index + match[0].length - 1
     if (match[1] === '=') {

@@ -20,6 +20,11 @@ async function migrateExternal(url: string): Promise<TestDatabase> {
 
 export async function setup(project: TestProject) {
   const external = process.env.TEST_DATABASE_URL
+  if (external && !['localhost', '127.0.0.1'].includes(new URL(external).hostname)) {
+    throw new Error(
+      'TEST_DATABASE_URL must point at localhost; its tables are truncated before every test'
+    )
+  }
   database = external ? await migrateExternal(external) : await startTestDatabase()
   project.provide('testDatabaseUrl', database.url)
 }
