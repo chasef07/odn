@@ -1,6 +1,6 @@
 import { SubmissionStatus } from '@/db/types'
 import { getCustomerKey, isOpenStatus, MS_PER_DAY, toIsoDate } from '@/lib/analytics-shared'
-import { dateOnlyFromUtcDate } from '@/lib/dates'
+import { addMonthsUTC, dateOnlyFromUtcDate } from '@/lib/dates'
 import { DOCTOR_10_OFFER_CODE, normalizeOfferCode } from '@/lib/offer-codes'
 
 export type FriendsFamilySegmentKey =
@@ -203,8 +203,7 @@ function buildCustomerSegment(
   const sorted = [...submissions].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   const latest = sorted[0]
   const thirtyDaysAgo = new Date(referenceDate.getTime() - 30 * MS_PER_DAY)
-  const sixMonthsAgo = new Date(referenceDate)
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  const sixMonthsAgo = addMonthsUTC(referenceDate, -6)
 
   const approvedDates = sorted.map(approvedAt).filter((date): date is Date => Boolean(date))
   const lastApprovedAt =

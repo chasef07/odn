@@ -77,6 +77,12 @@ export function addDays(day: DateOnly, days: number): DateOnly {
   return dateOnlyFromUtcDate(new Date(utcDateFromDateOnly(day).getTime() + days * MS_PER_DAY))
 }
 
+export function addMonthsUTC(at: Date, months: number): Date {
+  const shifted = new Date(at.getTime())
+  shifted.setUTCMonth(shifted.getUTCMonth() + months)
+  return shifted
+}
+
 export function inclusiveDayCount(first: DateOnly, last: DateOnly): number {
   const elapsed = utcDateFromDateOnly(last).getTime() - utcDateFromDateOnly(first).getTime()
   return elapsed / MS_PER_DAY + 1
@@ -126,5 +132,8 @@ export function businessDayStart(at: Instant = now()): Instant {
   const hour = Number(formatInTimeZone(at, BUSINESS_TIME_ZONE, 'H'))
   const today = todayET(at)
   const day = hour < BUSINESS_DAY_START_HOUR ? addDays(today, -1) : today
-  return fromZonedTime(`${day}T06:00:00`, BUSINESS_TIME_ZONE) as Instant
+  return fromZonedTime(
+    `${day}T${String(BUSINESS_DAY_START_HOUR).padStart(2, '0')}:00:00`,
+    BUSINESS_TIME_ZONE
+  ) as Instant
 }

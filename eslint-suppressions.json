@@ -3,10 +3,5 @@
     "local/no-adhoc-dates": {
       "count": 3
     }
-  },
-  "src/lib/friends-family-analytics.ts": {
-    "local/no-adhoc-dates": {
-      "count": 1
-    }
   }
 }
