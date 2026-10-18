@@ -1342,14 +1342,15 @@ describe('insertSubmission', () => {
     expect(await findSubmissionById(inserted.id)).toEqual(inserted)
   })
 
-  it('reports a second insert for the same payment intent as a duplicate and returns the first row', async () => {
+  it('reports a second insert for the same payment intent as a duplicate and returns that row', async () => {
+    await insertSubmission({ ...row, stripePaymentIntentId: 'pi_other', patientFirstName: 'Other' })
     await insertSubmission(row)
 
     await expect(insertSubmission({ ...row, patientFirstName: 'Retry' })).resolves.toMatchObject({
       inserted: false,
       submission: { patientFirstName: 'John', stripePaymentIntentId: 'pi_123' },
     })
-    expect(await countSubmissions()).toBe(1)
+    expect(await countSubmissions()).toBe(2)
   })
 
   it('applies the column defaults when optional fields are omitted', async () => {
@@ -1386,6 +1387,8 @@ describe('follow-up claim release and acknowledgement', () => {
     expect((await reload(sent.id)).followUpEmailClaimedAt).toEqual(claimedAt)
 
     expect(await acknowledgeFollowUpEmailSent(otherClaim.id, claimedAt)).toBe(0)
+    expect(await acknowledgeFollowUpEmailSent(sent.id, claimedAt)).toBe(0)
+    expect((await reload(sent.id)).followUpEmailSentAt).toEqual(at(1))
     expect(await acknowledgeFollowUpEmailSent(held.id, claimedAt)).toBe(1)
     expect(await acknowledgeFollowUpEmailSent(held.id, claimedAt)).toBe(0)
     expect(await reload(held.id)).toMatchObject({
@@ -1481,7 +1484,17 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
       SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
     )
     const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
+    const otherTicketId = await seedTicket(
+      SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
+    )
+    const otherJobId = await seedJob(otherTicketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
     const submission = await seed({
+      status: SubmissionStatus.APPROVED,
+      updatedAt: submissionUpdatedAt,
+      denialReason: 'x',
+    })
+    const otherSubmission = await seed({
       status: SubmissionStatus.APPROVED,
       updatedAt: submissionUpdatedAt,
       denialReason: 'x',
@@ -1492,6 +1505,10 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
     const { ticket, job } = await ticketAndJob(ticketId, jobId)
     expect(ticket.failureReason).toBeNull()
     expect(job).toMatchObject({ status: SMS_SUPPORT_JOB_STATUS.COMMITTING, lockedAt: committedAt })
+    expect((await ticketAndJob(ticketId, otherJobId)).job.status).toBe(
+      SMS_SUPPORT_JOB_STATUS.RUNNING
+    )
+    expect(await reload(otherSubmission.id)).toEqual(otherSubmission)
     expect(await reload(submission.id)).toEqual({
       ...submission,
       denialReason: null,
@@ -1506,6 +1523,25 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
     const ticketId = await seedTicket(
       SMS_SUPPORT_STATUS.NEEDS_CSR,
       SMS_SUPPORT_AUTOMATION_STATUS.RUNNING
+    )
+    const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
+    const submission = await seed({
+      status: SubmissionStatus.APPROVED,
+      updatedAt: submissionUpdatedAt,
+    })
+
+    expect(await commit(ticketId, jobId, submission.id)).toBe('cancelled')
+
+    const { ticket, job } = await ticketAndJob(ticketId, jobId)
+    expect(ticket.failureReason).toBe('earlier failure')
+    expect(job.status).toBe(SMS_SUPPORT_JOB_STATUS.RUNNING)
+    expect(await reload(submission.id)).toEqual(submission)
+  })
+
+  it('returns cancelled when the ticket is in automation but its automation is not running', async () => {
+    const ticketId = await seedTicket(
+      SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      SMS_SUPPORT_AUTOMATION_STATUS.FAILED
     )
     const jobId = await seedJob(ticketId, SMS_SUPPORT_JOB_STATUS.RUNNING)
     const submission = await seed({
