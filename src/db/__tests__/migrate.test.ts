@@ -73,6 +73,9 @@ describe('loadMigrations', () => {
     expect(refusal(() => loadMigrations(dirWith({ '0001_Add-Column.sql': '' })))).toBe(
       'bad_file_name'
     )
+    expect(refusal(() => loadMigrations(dirWith({ '0001_add_column.SQL': '' })))).toBe(
+      'bad_file_name'
+    )
   })
 
   it('refuses a file that controls its own transaction, wherever the statement sits', () => {
