@@ -4,8 +4,11 @@ import noComments from './eslint-rules/no-comments.mjs'
 import envSdk from './eslint-rules/env-sdk.mjs'
 import adminRules from './eslint-rules/admin-server-action.mjs'
 import dbBoundary from './eslint-rules/db-boundary.mjs'
+import dates from './eslint-rules/dates.mjs'
 
-const localRules = { rules: { ...noComments.rules, ...envSdk.rules, ...dbBoundary.rules } }
+const localRules = {
+  rules: { ...noComments.rules, ...envSdk.rules, ...dbBoundary.rules, ...dates.rules },
+}
 const TESTS = ['src/**/__tests__/**', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}']
 
 const eslintConfig = [
@@ -54,6 +57,13 @@ const eslintConfig = [
     ignores: ['src/db/**'],
     rules: {
       'local/db-boundary': 'error',
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx}'],
+    ignores: [...TESTS, 'src/lib/dates.ts'],
+    rules: {
+      'local/no-adhoc-dates': 'error',
     },
   },
   {
