@@ -17,8 +17,8 @@ import {
   findLatestApprovedSubmissionIdsForSupportPhone,
   findSmsSupportSubmissionCandidatesForPhone,
 } from '@/db/submissions'
-import { isAtLeastAge, isIsoDateOnlyInSaneRange } from '@/lib/date-only'
-import { formatDateUTC } from '@/lib/utils'
+import { ageOn, dateOnlyFromUtcDate, parseDateOnly, todayUTC, type DateOnly } from '@/lib/dates'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { normalizeMedicalRecordNumber } from '@/lib/note-verification'
 import { normalizeSmsKeyword } from '@/lib/telnyx'
@@ -599,8 +599,9 @@ async function handleSubmissionReference(
 }
 
 async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void> {
-  const isoDate = parseUsDateToIso(body)
-  if (!isoDate || !isIsoDateOnlyInSaneRange(isoDate, { minYear: 1900 })) {
+  const dateOfBirth = parseUsDate(body)
+  const today = todayUTC()
+  if (!dateOfBirth || dateOfBirth < DATE_LIMITS.EARLIEST_DATE_OF_BIRTH || dateOfBirth > today) {
     await reply(ticket, invalidDateSms())
     return
   }
@@ -615,8 +616,8 @@ async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void>
     return
   }
 
-  const currentAdult = isAtLeastAge(formatDateUTC(submission.patientDateOfBirth), 18)
-  const nextAdult = isAtLeastAge(isoDate, 18)
+  const currentAdult = ageOn(dateOnlyFromUtcDate(submission.patientDateOfBirth), today) >= 18
+  const nextAdult = ageOn(dateOfBirth, today) >= 18
   if (currentAdult !== nextAdult) {
     await moveToCsr(ticket, {
       category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
@@ -628,7 +629,7 @@ async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void>
 
   await queueAutomation(ticket, {
     category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
-    data: { patientDateOfBirth: isoDate },
+    data: { patientDateOfBirth: dateOfBirth },
   })
 }
 
@@ -1037,28 +1038,9 @@ function isConfirmReply(body: string): boolean {
   return normalized === '1' || normalized === 'YES' || normalized === 'Y'
 }
 
-function parseUsDateToIso(value: string): string | null {
+function parseUsDate(value: string): DateOnly | null {
   const match = /^\s*(\d{2})\/(\d{2})\/(\d{4})\s*$/.exec(value)
-  if (!match) return null
-
-  const month = Number(match[1])
-  const day = Number(match[2])
-  const year = Number(match[3])
-  const date = new Date(Date.UTC(year, month - 1, day))
-
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return null
-  }
-
-  return [
-    String(year).padStart(4, '0'),
-    String(month).padStart(2, '0'),
-    String(day).padStart(2, '0'),
-  ].join('-')
+  return match ? parseDateOnly(`${match[3]}-${match[1]}-${match[2]}`) : null
 }
 
 function ticketCollectedData(ticket: SmsSupportTicket): SmsSupportCollectedData {

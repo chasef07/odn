@@ -7,6 +7,8 @@ import { validatePaidSubmissionData } from './fixtures/checkout-validator-147a48
 import { cases, now } from './fixtures/intake-cases'
 
 const BASE_VALIDATOR_BLOB = 'd767ed5bee6f1b7bab0c5434d412799f1d022940'
+const BASE_DATE_ONLY_IMPORT = "from '@/lib/date-only'"
+const FIXTURE_DATE_ONLY_IMPORT = "from './date-only-147a48e'"
 
 function baseRejection(draft: unknown): string | null {
   return validatePaidSubmissionData(draft as FormData).errors[0] ?? null
@@ -26,8 +28,13 @@ afterAll(() => {
 })
 
 describe('checkout in shadow mode rejects everything the validator at main 147a48e rejected', () => {
-  it('fixture is byte-identical to blob d767ed5 at 147a48e', () => {
-    const source = readFileSync('src/lib/__tests__/fixtures/checkout-validator-147a48e.ts')
+  it('fixture is byte-identical to blob d767ed5 at 147a48e once its date-only import is restored', () => {
+    const source = Buffer.from(
+      readFileSync('src/lib/__tests__/fixtures/checkout-validator-147a48e.ts', 'utf8').replace(
+        FIXTURE_DATE_ONLY_IMPORT,
+        BASE_DATE_ONLY_IMPORT
+      )
+    )
     const blob = createHash('sha1').update(`blob ${source.length}\0`).update(source).digest('hex')
     expect(blob, 'compare with: git rev-parse 147a48e:src/lib/paid-submission-validation.ts').toBe(
       BASE_VALIDATOR_BLOB

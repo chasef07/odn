@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { parseIsoDateOnlyAsUTCDate } from '@/lib/date-only'
+import { parseDateOnly, utcDateFromDateOnly } from '@/lib/dates'
 import type { FormData } from '@/lib/form-storage'
 import { INTAKE_RULES, isIntakeRule, rule, type IntakeRule } from '@/lib/intake-rules'
 import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
@@ -101,8 +101,8 @@ export function backRoute(route: IntakeRoute, draft: IntakeDraft): IntakeRoute {
 }
 
 function isoDate(value: string, ctx: z.RefinementCtx): Date {
-  const date = parseIsoDateOnlyAsUTCDate(value)
-  if (date) return date
+  const day = parseDateOnly(value)
+  if (day) return utcDateFromDateOnly(day)
   ctx.addIssue({
     code: 'custom',
     message: 'Expected a YYYY-MM-DD date',

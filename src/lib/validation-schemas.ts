@@ -4,6 +4,7 @@ import { parseDateOnly, todayUTC } from '@/lib/dates'
 import { validateAbsenceDates } from '@/lib/date-validators'
 import { ABSENCE_REASONS, AVAILABLE_STATES } from '@/lib/form-constants'
 import { rule } from '@/lib/intake-rules'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 
 const NAME_REGEX = /^(?=.*\p{L})[\p{L}\p{M} '’‘.-]+$/u
@@ -19,8 +20,6 @@ function nameField(label: string) {
       params: rule('name_characters'),
     })
 }
-
-const EARLIEST_DATE_OF_BIRTH = '1900-01-01'
 
 const dateOfBirthField = z
   .string({ error: 'Date of birth is required' })
@@ -45,7 +44,7 @@ const dateOfBirthField = z
       return
     }
 
-    if (parsed < EARLIEST_DATE_OF_BIRTH) {
+    if (parsed < DATE_LIMITS.EARLIEST_DATE_OF_BIRTH) {
       ctx.addIssue({
         code: 'custom',
         message: 'Please enter a valid date of birth',
