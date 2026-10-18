@@ -8,11 +8,6 @@ import { SubmissionStatus } from '../types'
 
 const {
   mockSubmissionCreate,
-  mockSubmissionFindUnique,
-  mockSubmissionFindFirst,
-  mockSubmissionFindMany,
-  mockSubmissionCount,
-  mockSubmissionGroupBy,
   mockSubmissionUpdate,
   mockSubmissionUpdateMany,
   mockSubmissionDelete,
@@ -21,11 +16,6 @@ const {
   mockJobUpdateMany,
 } = vi.hoisted(() => ({
   mockSubmissionCreate: vi.fn(),
-  mockSubmissionFindUnique: vi.fn(),
-  mockSubmissionFindFirst: vi.fn(),
-  mockSubmissionFindMany: vi.fn(),
-  mockSubmissionCount: vi.fn(),
-  mockSubmissionGroupBy: vi.fn(),
   mockSubmissionUpdate: vi.fn(),
   mockSubmissionUpdateMany: vi.fn(),
   mockSubmissionDelete: vi.fn(),
@@ -38,11 +28,6 @@ vi.mock('../client', () => {
   const client = {
     submission: {
       create: mockSubmissionCreate,
-      findUnique: mockSubmissionFindUnique,
-      findFirst: mockSubmissionFindFirst,
-      findMany: mockSubmissionFindMany,
-      count: mockSubmissionCount,
-      groupBy: mockSubmissionGroupBy,
       update: mockSubmissionUpdate,
       updateMany: mockSubmissionUpdateMany,
       delete: mockSubmissionDelete,
@@ -63,26 +48,9 @@ import {
   acknowledgeFollowUpEmailSent,
   approveManualSubmission,
   approveReviewableSubmission,
-  claimDueFollowUpEmail,
   commitSupportAutomationSubmissionUpdate,
-  countSmsOptedInSubmissionsForPhone,
-  countSubmissions,
-  countSubmissionsByStatus,
   deleteAllSubmissions,
   deleteSubmissionById,
-  findApprovedSubmissionsForEmail,
-  findApprovedSubmissionsMissingApprovalEmail,
-  findApprovedSubmissionsOverlapping,
-  findApprovedSupportSubmissionIdsByReference,
-  findDueFollowUpEmails,
-  findLatestSubmission,
-  findLatestSubmissionIdForInboundSmsPhone,
-  findLatestSubmissionsForBouncedEmail,
-  findRecentSubmissions,
-  findSmsSupportSubmissionCandidatesForPhone,
-  findSubmissionById,
-  findSubmissionForSupportTicket,
-  findSubmissionIdForPaymentIntent,
   insertSubmission,
   markPendingSubmissionMaybe,
   markSubmissionMaybe,
@@ -95,7 +63,6 @@ import {
   releaseFollowUpEmailClaimAt,
   releaseSubmissionRefundReservation,
   removeSubmissionGuardian,
-  searchSubmissionsPage,
   updatePendingSubmissionClassification,
   updateSubmissionDetails,
   type SubmissionInsert,
@@ -108,73 +75,6 @@ beforeEach(() => {
 const submissionId = 'sub_123'
 const doctorId = 'doctor_123'
 const now = new Date('2026-06-01T12:00:00.000Z')
-
-describe('submission queries', () => {
-  beforeEach(() => {
-    mockSubmissionUpdate.mockResolvedValue({})
-  })
-
-  it('finds a submission by id', async () => {
-    mockSubmissionFindUnique.mockResolvedValue(null)
-
-    await findSubmissionById(submissionId)
-
-    expect(mockSubmissionFindUnique).toHaveBeenCalledWith({
-      where: { id: submissionId },
-    })
-  })
-
-  it('searches submissions by Medical Record # with the same filter for rows and total', async () => {
-    mockSubmissionFindMany.mockResolvedValue([])
-    mockSubmissionCount.mockResolvedValue(1)
-
-    const result = await searchSubmissionsPage(
-      { by: 'medicalRecordNumber', medicalRecordNumber: 'FAT5YHAB' },
-      { skip: 0, take: 10 }
-    )
-
-    const expectedWhere = {
-      noteVerifications: {
-        some: {
-          medicalRecordNumber: 'FAT5YHAB',
-        },
-      },
-    }
-
-    expect(mockSubmissionFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expectedWhere,
-      })
-    )
-    expect(mockSubmissionCount).toHaveBeenCalledWith({ where: expectedWhere })
-    expect(result).toEqual({ submissions: [], total: 1 })
-  })
-
-  it('finds approved submissions overlapping the window by case-insensitive patient identity', async () => {
-    mockSubmissionFindMany.mockResolvedValue([])
-    const dob = new Date('1990-05-15')
-    const windowStart = new Date('2024-12-16T00:00:00.000Z')
-    const windowEnd = new Date('2025-01-14T00:00:00.000Z')
-
-    await findApprovedSubmissionsOverlapping(
-      { patientFirstName: 'JOHN', patientLastName: 'DOE', patientDateOfBirth: dob },
-      { windowStart, windowEnd }
-    )
-
-    expect(mockSubmissionFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          patientFirstName: { equals: 'JOHN', mode: 'insensitive' },
-          patientLastName: { equals: 'DOE', mode: 'insensitive' },
-          patientDateOfBirth: dob,
-          status: SubmissionStatus.APPROVED,
-          firstDayOff: { lte: windowEnd },
-          lastDayOff: { gte: windowStart },
-        }),
-      })
-    )
-  })
-})
 
 describe('submission edits', () => {
   beforeEach(() => {
@@ -482,20 +382,6 @@ describe('submission approval writes', () => {
 describe('intake submission queries', () => {
   const intakeNow = new Date('2026-08-23T12:00:00.000Z')
 
-  const dueFollowUpWhere = {
-    status: SubmissionStatus.APPROVED,
-    approvalEmailSentAt: { not: null },
-    followUpEmailSentAt: null,
-    createdAt: {
-      gte: new Date('2026-08-16T12:00:00.000Z'),
-      lte: new Date('2026-08-18T12:00:00.000Z'),
-    },
-    OR: [
-      { followUpEmailClaimedAt: null },
-      { followUpEmailClaimedAt: { lte: new Date('2026-08-23T11:30:00.000Z') } },
-    ],
-  }
-
   it('inserts the submission row with its JSON columns as given', async () => {
     const created = { id: 'sub_1' }
     mockSubmissionCreate.mockResolvedValue(created)
@@ -549,58 +435,6 @@ describe('intake submission queries', () => {
     expect(data.symptoms).toBeUndefined()
   })
 
-  it('finds only the id of the submission for a payment intent', async () => {
-    mockSubmissionFindUnique.mockResolvedValue({ id: 'sub_existing' })
-
-    await expect(findSubmissionIdForPaymentIntent('pi_123')).resolves.toEqual({
-      id: 'sub_existing',
-    })
-
-    expect(mockSubmissionFindUnique).toHaveBeenCalledWith({
-      where: { stripePaymentIntentId: 'pi_123' },
-      select: { id: true },
-    })
-  })
-
-  it('selects only delivered approved notes purchased 5-7 days ago for follow-up', async () => {
-    mockSubmissionFindMany.mockResolvedValue([])
-
-    await expect(findDueFollowUpEmails(intakeNow)).resolves.toEqual([])
-
-    expect(mockSubmissionFindMany).toHaveBeenCalledWith({
-      where: dueFollowUpWhere,
-      orderBy: { createdAt: 'asc' },
-      take: 100,
-      select: {
-        id: true,
-        email: true,
-        patientFirstName: true,
-        patientLastName: true,
-        notePurpose: true,
-      },
-    })
-  })
-
-  it('claims a follow-up only while the submission is still due and reports the claimed count', async () => {
-    mockSubmissionUpdateMany.mockResolvedValue({ count: 1 })
-
-    await expect(claimDueFollowUpEmail('sub_123', intakeNow)).resolves.toBe(1)
-
-    expect(mockSubmissionUpdateMany).toHaveBeenCalledWith({
-      where: {
-        id: 'sub_123',
-        ...dueFollowUpWhere,
-      },
-      data: { followUpEmailClaimedAt: intakeNow },
-    })
-  })
-
-  it('reports zero when another invocation already holds the claim', async () => {
-    mockSubmissionUpdateMany.mockResolvedValue({ count: 0 })
-
-    await expect(claimDueFollowUpEmail('sub_123', intakeNow)).resolves.toBe(0)
-  })
-
   it('releases only the claim this run holds', async () => {
     mockSubmissionUpdateMany.mockResolvedValue({ count: 1 })
 
@@ -634,54 +468,6 @@ describe('intake submission queries', () => {
     })
   })
 
-  it('finds a full submission by id', async () => {
-    mockSubmissionFindUnique.mockResolvedValue(null)
-
-    await expect(findSubmissionById('sub_123')).resolves.toBeNull()
-
-    expect(mockSubmissionFindUnique).toHaveBeenCalledWith({ where: { id: 'sub_123' } })
-  })
-
-  it('finds the newest submission', async () => {
-    mockSubmissionFindFirst.mockResolvedValue(null)
-
-    await expect(findLatestSubmission()).resolves.toBeNull()
-
-    expect(mockSubmissionFindFirst).toHaveBeenCalledWith({ orderBy: { createdAt: 'desc' } })
-  })
-
-  it('finds approved submissions for an email, most recently reviewed first', async () => {
-    mockSubmissionFindMany.mockResolvedValue([])
-
-    await expect(findApprovedSubmissionsForEmail('patient@example.com')).resolves.toEqual([])
-
-    expect(mockSubmissionFindMany).toHaveBeenCalledWith({
-      where: {
-        email: 'patient@example.com',
-        status: 'APPROVED',
-      },
-      orderBy: {
-        reviewedAt: 'desc',
-      },
-    })
-  })
-
-  it('finds approved submissions that never got an approval email', async () => {
-    mockSubmissionFindMany.mockResolvedValue([])
-
-    await expect(findApprovedSubmissionsMissingApprovalEmail()).resolves.toEqual([])
-
-    expect(mockSubmissionFindMany).toHaveBeenCalledWith({
-      where: {
-        status: 'APPROVED',
-        approvalEmailSentAt: null,
-      },
-      orderBy: {
-        reviewedAt: 'desc',
-      },
-    })
-  })
-
   it('stamps the approval email send time', async () => {
     mockSubmissionUpdate.mockResolvedValue({ id: 'sub_123' })
     const sentAt = new Date('2026-08-23T12:00:00.000Z')
@@ -693,45 +479,6 @@ describe('intake submission queries', () => {
       data: {
         approvalEmailSentAt: sentAt,
       },
-    })
-  })
-
-  it('counts every submission', async () => {
-    mockSubmissionCount.mockResolvedValue(12)
-
-    await expect(countSubmissions()).resolves.toBe(12)
-
-    expect(mockSubmissionCount).toHaveBeenCalledWith()
-  })
-
-  it('lists the five newest submissions with summary columns', async () => {
-    mockSubmissionFindMany.mockResolvedValue([])
-
-    await expect(findRecentSubmissions()).resolves.toEqual([])
-
-    expect(mockSubmissionFindMany).toHaveBeenCalledWith({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        status: true,
-        createdAt: true,
-        patientFirstName: true,
-        patientLastName: true,
-      },
-    })
-  })
-
-  it('counts submissions per status', async () => {
-    const counts = [{ status: 'APPROVED', _count: 4 }]
-    mockSubmissionGroupBy.mockResolvedValue(counts)
-
-    await expect(countSubmissionsByStatus()).resolves.toBe(counts)
-
-    expect(mockSubmissionGroupBy).toHaveBeenCalledWith({
-      by: ['status'],
-      _count: true,
     })
   })
 
@@ -749,157 +496,6 @@ describe('intake submission queries', () => {
     await expect(deleteAllSubmissions()).resolves.toBe(10)
 
     expect(mockSubmissionDeleteMany).toHaveBeenCalledWith({})
-  })
-})
-
-describe('sms support submission queries', () => {
-  describe('findLatestSubmissionsForBouncedEmail', () => {
-    it('reads the two latest submissions for the bounced email', async () => {
-      const submissions = [{ id: 'sub_123' }]
-      mockSubmissionFindMany.mockResolvedValue(submissions)
-
-      await expect(findLatestSubmissionsForBouncedEmail('john@example.com')).resolves.toEqual(
-        submissions
-      )
-      expect(mockSubmissionFindMany).toHaveBeenCalledWith({
-        where: { email: 'john@example.com' },
-        orderBy: { createdAt: 'desc' },
-        take: 2,
-        select: {
-          id: true,
-          patientFirstName: true,
-          patientLastName: true,
-          email: true,
-          phone: true,
-          smsOptIn: true,
-          smsPhoneE164: true,
-          status: true,
-        },
-      })
-    })
-  })
-
-  describe('findLatestSubmissionIdForInboundSmsPhone', () => {
-    it('reads the id of the newest submission for the phone', async () => {
-      mockSubmissionFindFirst.mockResolvedValue({ id: 'sub_123' })
-
-      await expect(findLatestSubmissionIdForInboundSmsPhone('+15551234567')).resolves.toEqual({
-        id: 'sub_123',
-      })
-      expect(mockSubmissionFindFirst).toHaveBeenCalledWith({
-        where: { smsPhoneE164: '+15551234567' },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true },
-      })
-    })
-  })
-
-  describe('countSmsOptedInSubmissionsForPhone', () => {
-    it('counts opted-in submissions for the phone', async () => {
-      mockSubmissionCount.mockResolvedValue(2)
-
-      await expect(countSmsOptedInSubmissionsForPhone('+15551234567')).resolves.toBe(2)
-      expect(mockSubmissionCount).toHaveBeenCalledWith({
-        where: {
-          smsPhoneE164: '+15551234567',
-          smsOptIn: true,
-        },
-      })
-    })
-  })
-
-  describe('findSubmissionForSupportTicket', () => {
-    it('reads the SMS contact fields of the submission', async () => {
-      mockSubmissionFindUnique.mockResolvedValue(null)
-
-      await expect(findSubmissionForSupportTicket('sub_123')).resolves.toBeNull()
-      expect(mockSubmissionFindUnique).toHaveBeenCalledWith({
-        where: { id: 'sub_123' },
-        select: {
-          id: true,
-          smsOptIn: true,
-          smsPhoneE164: true,
-          patientFirstName: true,
-          patientLastName: true,
-        },
-      })
-    })
-  })
-
-  describe('findSmsSupportSubmissionCandidatesForPhone', () => {
-    it('finds opted-in submissions for the phone with their sent outbound SMS', async () => {
-      mockSubmissionFindMany.mockResolvedValue([])
-
-      await findSmsSupportSubmissionCandidatesForPhone('+15551234567')
-
-      expect(mockSubmissionFindMany).toHaveBeenCalledWith({
-        where: {
-          smsPhoneE164: '+15551234567',
-          smsOptIn: true,
-        },
-        select: {
-          id: true,
-          status: true,
-          smsMessages: {
-            where: {
-              direction: 'outbound',
-              to: '+15551234567',
-              sentAt: { not: null },
-            },
-            select: { id: true },
-            take: 1,
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      })
-    })
-
-    it('does not treat a failed outbound SMS as conversation evidence', async () => {
-      mockSubmissionFindMany.mockImplementation(
-        async (query: { select?: { smsMessages?: { where?: { sentAt?: { not?: null } } } } }) => {
-          const excludesUnsentMessages = query.select?.smsMessages?.where?.sentAt?.not === null
-          return [
-            {
-              id: 'sub_pending',
-              status: 'PENDING_REVIEW',
-              smsMessages: excludesUnsentMessages ? [] : [{ id: 'sms_sending_failed' }],
-            },
-            { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
-          ]
-        }
-      )
-
-      const candidates = await findSmsSupportSubmissionCandidatesForPhone('+15551234567')
-
-      expect(candidates).toEqual([
-        { id: 'sub_pending', status: 'PENDING_REVIEW', smsMessages: [] },
-        { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
-      ])
-    })
-  })
-
-  describe('findApprovedSupportSubmissionIdsByReference', () => {
-    it('matches approved submissions for the phone by id prefix or medical record number', async () => {
-      mockSubmissionFindMany.mockResolvedValue([{ id: 'abc12345-submission' }])
-
-      await findApprovedSupportSubmissionIdsByReference('+15551234567', {
-        idPrefix: 'abc12345',
-        medicalRecordNumber: 'ABC12345',
-      })
-
-      expect(mockSubmissionFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            smsPhoneE164: '+15551234567',
-            status: 'APPROVED',
-            OR: expect.arrayContaining([
-              { id: { startsWith: 'abc12345' } },
-              { noteVerifications: { some: { medicalRecordNumber: 'ABC12345' } } },
-            ]),
-          }),
-        })
-      )
-    })
   })
 })
 

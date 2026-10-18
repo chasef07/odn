@@ -5,6 +5,10 @@ import {
   SMS_SUPPORT_JOB_STATUS,
   SMS_SUPPORT_STATUS,
 } from '@/lib/sms-support-types'
+import { db } from './pool'
+import { and, array, count, likeContains, likeStartsWith, or, sql, type Sql } from './sql'
+import { select, selectAll, set } from './table'
+import { noteVerifications, smsMessages, submissions } from './tables'
 import {
   NoteVerificationStatus,
   SubmissionStatus,
@@ -175,42 +179,81 @@ export type SubmissionAdminDetail = Submission & {
   smsMessages: SubmissionSmsMessage[]
 }
 
-const friendsFamilyAnalyticsSelect = {
-  id: true,
-  status: true,
-  patientFirstName: true,
-  patientLastName: true,
-  patientDateOfBirth: true,
-  guardianFirstName: true,
-  guardianLastName: true,
-  recipient: true,
-  email: true,
-  phone: true,
-  notePurpose: true,
-  firstDayOff: true,
-  lastDayOff: true,
-  denialReason: true,
-  maybeReason: true,
-  stripeRefundId: true,
-  refundedAt: true,
-  offerCode: true,
-  paymentAmount: true,
-  createdAt: true,
-  reviewedAt: true,
-  approvalEmailSentAt: true,
-} satisfies Prisma.SubmissionSelect
+const summaryKeys = [
+  'id',
+  'patientFirstName',
+  'patientLastName',
+  'email',
+  'status',
+  'notePurpose',
+  'firstDayOff',
+  'lastDayOff',
+  'createdAt',
+] as const
+
+const friendsFamilyAnalyticsKeys = [
+  'id',
+  'status',
+  'patientFirstName',
+  'patientLastName',
+  'patientDateOfBirth',
+  'guardianFirstName',
+  'guardianLastName',
+  'recipient',
+  'email',
+  'phone',
+  'notePurpose',
+  'firstDayOff',
+  'lastDayOff',
+  'denialReason',
+  'maybeReason',
+  'stripeRefundId',
+  'refundedAt',
+  'offerCode',
+  'paymentAmount',
+  'createdAt',
+  'reviewedAt',
+  'approvalEmailSentAt',
+] as const
+
+const contactKeys = [
+  'id',
+  'patientFirstName',
+  'patientLastName',
+  'email',
+  'phone',
+  'smsOptIn',
+  'smsPhoneE164',
+  'status',
+] as const
+
+function patientIdentityWhere({
+  patientFirstName,
+  patientLastName,
+  patientDateOfBirth,
+}: PatientIdentity): Sql {
+  return and(
+    sql`lower(patient_first_name) = lower(${patientFirstName})`,
+    sql`lower(patient_last_name) = lower(${patientLastName})`,
+    sql`patient_date_of_birth = ${patientDateOfBirth}`
+  )
+}
+
+function hasNoteVerificationWithRecordNumber(medicalRecordNumber: string): Sql {
+  return sql`EXISTS (SELECT 1 FROM note_verifications WHERE note_verifications.submission_id = submissions.id AND note_verifications.medical_record_number = ${medicalRecordNumber})`
+}
+
+async function countSubmissionsWhere(where: Sql): Promise<number> {
+  const [row] = await db.rows(sql`SELECT ${count('n')} FROM submissions WHERE ${where}`)
+  return row.n
+}
 
 export async function findSubmissionById(id: string): Promise<Submission | null> {
-  return prisma.submission.findUnique({
-    where: { id },
-  })
+  return db.one(sql`SELECT ${selectAll(submissions)} FROM submissions WHERE id = ${id}`)
 }
 
 export async function findSubmissionStatus(id: string): Promise<Pick<Submission, 'status'> | null> {
-  return prisma.submission.findUnique({
-    where: { id },
-    select: { status: true },
-  })
+  return db.one(sql`SELECT ${select(submissions, ['status'])} FROM submissions WHERE id = ${id}`)
 }
 
 export async function findSubmissionForDenial(
@@ -228,21 +271,20 @@ export async function findSubmissionForDenial(
   | 'patientLastName'
   | 'status'
 > | null> {
-  return prisma.submission.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      stripePaymentIntentId: true,
-      stripeRefundId: true,
-      email: true,
-      phone: true,
-      smsOptIn: true,
-      smsPhoneE164: true,
-      patientFirstName: true,
-      patientLastName: true,
-      status: true,
-    },
-  })
+  return db.one(
+    sql`SELECT ${select(submissions, [
+      'id',
+      'stripePaymentIntentId',
+      'stripeRefundId',
+      'email',
+      'phone',
+      'smsOptIn',
+      'smsPhoneE164',
+      'patientFirstName',
+      'patientLastName',
+      'status',
+    ])} FROM submissions WHERE id = ${id}`
+  )
 }
 
 export async function findSubmissionGuardianDetails(
@@ -256,92 +298,73 @@ export async function findSubmissionGuardianDetails(
   | 'guardianLastName'
   | 'guardianDateOfBirth'
 > | null> {
-  return prisma.submission.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      patientDateOfBirth: true,
-      recipient: true,
-      guardianFirstName: true,
-      guardianLastName: true,
-      guardianDateOfBirth: true,
-    },
-  })
+  return db.one(
+    sql`SELECT ${select(submissions, [
+      'id',
+      'patientDateOfBirth',
+      'recipient',
+      'guardianFirstName',
+      'guardianLastName',
+      'guardianDateOfBirth',
+    ])} FROM submissions WHERE id = ${id}`
+  )
 }
 
 export async function findSubmissionSmsContact(
   id: string
 ): Promise<Pick<Submission, 'phone' | 'smsOptIn' | 'smsPhoneE164'> | null> {
-  return prisma.submission.findUnique({
-    where: { id },
-    select: {
-      phone: true,
-      smsOptIn: true,
-      smsPhoneE164: true,
-    },
-  })
+  return db.one(
+    sql`SELECT ${select(submissions, ['phone', 'smsOptIn', 'smsPhoneE164'])} FROM submissions WHERE id = ${id}`
+  )
 }
 
 export async function findSubmissionForAdminDetail(
   id: string
 ): Promise<SubmissionAdminDetail | null> {
-  return prisma.submission.findUnique({
-    where: { id },
-    include: {
-      noteVerifications: {
-        where: {
-          status: NoteVerificationStatus.ACTIVE,
-          revokedAt: null,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
-      smsMessages: {
-        select: {
-          id: true,
-          type: true,
-          direction: true,
-          providerStatus: true,
-          errorCode: true,
-          errorMessage: true,
-          sentAt: true,
-          receivedAt: true,
-          finalizedAt: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
-  })
+  const submission = await findSubmissionById(id)
+  if (!submission) return null
+  const [verifications, messages] = await Promise.all([
+    db.rows(
+      sql`SELECT ${selectAll(noteVerifications)} FROM note_verifications WHERE submission_id = ${id} AND status = ${NoteVerificationStatus.ACTIVE} AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1`
+    ),
+    db.rows(
+      sql`SELECT ${select(smsMessages, [
+        'id',
+        'type',
+        'direction',
+        'providerStatus',
+        'errorCode',
+        'errorMessage',
+        'sentAt',
+        'receivedAt',
+        'finalizedAt',
+        'createdAt',
+      ])} FROM sms_messages WHERE submission_id = ${id} ORDER BY created_at DESC`
+    ),
+  ])
+  return { ...submission, noteVerifications: verifications, smsMessages: messages }
 }
 
 export async function findSubmissionsPendingReview(): Promise<Submission[]> {
-  return prisma.submission.findMany({
-    where: {
-      status: SubmissionStatus.PENDING_REVIEW,
-    },
-    orderBy: {
-      createdAt: 'asc',
-    },
-  })
+  return db.rows(
+    sql`SELECT ${selectAll(submissions)} FROM submissions WHERE status = ${SubmissionStatus.PENDING_REVIEW} ORDER BY created_at ASC`
+  )
 }
 
-function submissionStatusWhere({
-  status,
-  reviewedSince,
-}: SubmissionStatusFilter): Prisma.SubmissionWhereInput {
-  return reviewedSince === undefined ? { status } : { status, reviewedAt: { gte: reviewedSince } }
+function submissionStatusWhere({ status, reviewedSince }: SubmissionStatusFilter): Sql {
+  return and(
+    sql`status = ${status}`,
+    reviewedSince !== undefined && sql`reviewed_at >= ${reviewedSince}`
+  )
 }
 
 export async function findSubmissionIdsByStatus(
   filter: SubmissionStatusFilter,
   take: number
 ): Promise<Pick<Submission, 'id'>[]> {
-  return prisma.submission.findMany({
-    where: submissionStatusWhere(filter),
-    select: { id: true },
-    take,
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id'])} FROM submissions WHERE ${submissionStatusWhere(filter)} LIMIT ${take}`
+  )
 }
 
 export async function findSubmissionsApprovedSince(
@@ -353,23 +376,9 @@ export async function findSubmissionsApprovedSince(
     'id' | 'patientFirstName' | 'patientLastName' | 'email' | 'approvalEmailSentAt'
   >[]
 > {
-  return prisma.submission.findMany({
-    where: {
-      status: SubmissionStatus.APPROVED,
-      reviewedAt: { gte: since },
-    },
-    select: {
-      id: true,
-      patientFirstName: true,
-      patientLastName: true,
-      email: true,
-      approvalEmailSentAt: true,
-    },
-    orderBy: {
-      approvalEmailSentAt: 'desc',
-    },
-    take,
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id', 'patientFirstName', 'patientLastName', 'email', 'approvalEmailSentAt'])} FROM submissions WHERE ${submissionStatusWhere({ status: SubmissionStatus.APPROVED, reviewedSince: since })} ORDER BY approval_email_sent_at DESC LIMIT ${take}`
+  )
 }
 
 export async function findSubmissionsDeniedSince(
@@ -378,23 +387,9 @@ export async function findSubmissionsDeniedSince(
 ): Promise<
   Pick<Submission, 'id' | 'patientFirstName' | 'patientLastName' | 'email' | 'denialEmailSentAt'>[]
 > {
-  return prisma.submission.findMany({
-    where: {
-      status: SubmissionStatus.DENIED,
-      reviewedAt: { gte: since },
-    },
-    select: {
-      id: true,
-      patientFirstName: true,
-      patientLastName: true,
-      email: true,
-      denialEmailSentAt: true,
-    },
-    orderBy: {
-      denialEmailSentAt: 'desc',
-    },
-    take,
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id', 'patientFirstName', 'patientLastName', 'email', 'denialEmailSentAt'])} FROM submissions WHERE ${submissionStatusWhere({ status: SubmissionStatus.DENIED, reviewedSince: since })} ORDER BY denial_email_sent_at DESC LIMIT ${take}`
+  )
 }
 
 export async function findMaybeSubmissions(): Promise<
@@ -417,31 +412,25 @@ export async function findMaybeSubmissions(): Promise<
     | 'reviewedAt'
   >[]
 > {
-  return prisma.submission.findMany({
-    where: {
-      status: SubmissionStatus.MAYBE,
-    },
-    select: {
-      id: true,
-      patientFirstName: true,
-      patientLastName: true,
-      email: true,
-      patientDateOfBirth: true,
-      recipient: true,
-      guardianFirstName: true,
-      guardianLastName: true,
-      guardianDateOfBirth: true,
-      firstDayOff: true,
-      lastDayOff: true,
-      maybeReason: true,
-      maybeApprovedDays: true,
-      maybeEmailSentAt: true,
-      reviewedAt: true,
-    },
-    orderBy: {
-      reviewedAt: 'desc',
-    },
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, [
+      'id',
+      'patientFirstName',
+      'patientLastName',
+      'email',
+      'patientDateOfBirth',
+      'recipient',
+      'guardianFirstName',
+      'guardianLastName',
+      'guardianDateOfBirth',
+      'firstDayOff',
+      'lastDayOff',
+      'maybeReason',
+      'maybeApprovedDays',
+      'maybeEmailSentAt',
+      'reviewedAt',
+    ])} FROM submissions WHERE status = ${SubmissionStatus.MAYBE} ORDER BY reviewed_at DESC`
+  )
 }
 
 export async function findManualSubmissions(): Promise<
@@ -456,23 +445,9 @@ export async function findManualSubmissions(): Promise<
     | 'reviewedAt'
   >[]
 > {
-  return prisma.submission.findMany({
-    where: {
-      status: SubmissionStatus.MANUAL,
-    },
-    select: {
-      id: true,
-      patientFirstName: true,
-      patientLastName: true,
-      email: true,
-      firstDayOff: true,
-      lastDayOff: true,
-      reviewedAt: true,
-    },
-    orderBy: {
-      reviewedAt: 'desc',
-    },
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id', 'patientFirstName', 'patientLastName', 'email', 'firstDayOff', 'lastDayOff', 'reviewedAt'])} FROM submissions WHERE status = ${SubmissionStatus.MANUAL} ORDER BY reviewed_at DESC`
+  )
 }
 
 export async function findPatientHistory({
@@ -485,70 +460,40 @@ export async function findPatientHistory({
   email: string
   excludeSubmissionId: string
 }): Promise<PatientHistorySubmission[]> {
-  return prisma.submission.findMany({
-    where: {
-      id: { not: excludeSubmissionId },
-      OR: [
-        {
-          patientFirstName: { equals: patientFirstName, mode: 'insensitive' },
-          patientLastName: { equals: patientLastName, mode: 'insensitive' },
-          patientDateOfBirth: patientDateOfBirth,
-        },
-        {
-          email: { equals: email, mode: 'insensitive' },
-        },
-      ],
-    },
-    select: {
-      id: true,
-      patientFirstName: true,
-      patientLastName: true,
-      email: true,
-      status: true,
-      notePurpose: true,
-      firstDayOff: true,
-      lastDayOff: true,
-      createdAt: true,
-      reviewedAt: true,
-      denialReason: true,
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-  })
+  const where = and(
+    sql`id <> ${excludeSubmissionId}`,
+    or(
+      patientIdentityWhere({ patientFirstName, patientLastName, patientDateOfBirth }),
+      sql`lower(email) = lower(${email})`
+    )
+  )
+  return db.rows(
+    sql`SELECT ${select(submissions, [...summaryKeys, 'reviewedAt', 'denialReason'])} FROM submissions WHERE ${where} ORDER BY created_at DESC LIMIT 20`
+  )
 }
 
-function submissionSearchWhere(search: SubmissionSearch | null): Prisma.SubmissionWhereInput {
-  if (!search) return {}
+function submissionSearchWhere(search: SubmissionSearch | null): Sql {
+  if (!search) return and()
 
   switch (search.by) {
     case 'anyName':
-      return {
-        OR: [
-          { patientFirstName: { contains: search.term, mode: 'insensitive' } },
-          { patientLastName: { contains: search.term, mode: 'insensitive' } },
-        ],
-      }
+      return or(
+        sql`patient_first_name ILIKE ${likeContains(search.term)}`,
+        sql`patient_last_name ILIKE ${likeContains(search.term)}`
+      )
     case 'fullName':
-      return {
-        AND: [
-          { patientFirstName: { contains: search.firstName, mode: 'insensitive' } },
-          { patientLastName: { contains: search.lastName, mode: 'insensitive' } },
-        ],
-      }
+      return and(
+        sql`patient_first_name ILIKE ${likeContains(search.firstName)}`,
+        sql`patient_last_name ILIKE ${likeContains(search.lastName)}`
+      )
     case 'email':
-      return { email: { contains: search.term, mode: 'insensitive' } }
+      return sql`email ILIKE ${likeContains(search.term)}`
     case 'idPrefix':
-      return { id: { startsWith: search.prefix } }
+      return sql`id LIKE ${likeStartsWith(search.prefix)}`
     case 'medicalRecordNumber':
-      return {
-        noteVerifications: {
-          some: {
-            medicalRecordNumber: search.medicalRecordNumber,
-          },
-        },
-      }
+      return hasNoteVerificationWithRecordNumber(search.medicalRecordNumber)
     case 'phone':
-      return { phone: { contains: search.term } }
+      return sql`phone LIKE ${likeContains(search.term)}`
   }
 }
 
@@ -557,28 +502,18 @@ export async function searchSubmissionsPage(
   { skip, take }: { skip: number; take: number }
 ): Promise<{ submissions: SubmissionSummary[]; total: number }> {
   const where = submissionSearchWhere(search)
-  const [submissions, total] = await Promise.all([
-    prisma.submission.findMany({
-      where,
-      select: {
-        id: true,
-        patientFirstName: true,
-        patientLastName: true,
-        email: true,
-        status: true,
-        notePurpose: true,
-        firstDayOff: true,
-        lastDayOff: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take,
-    }),
-    prisma.submission.count({ where }),
+  const [rows, total] = await Promise.all([
+    db.rows(
+      sql`SELECT ${select(submissions, summaryKeys)} FROM submissions WHERE ${where} ORDER BY created_at DESC LIMIT ${take} OFFSET ${skip}`
+    ),
+    countSubmissionsWhere(where),
   ])
 
-  return { submissions, total }
+  return { submissions: rows, total }
+}
+
+function createdSincePageWhere(createdSince: Date, cursor: string | undefined): Sql {
+  return and(sql`created_at >= ${createdSince}`, cursor !== undefined && sql`id > ${cursor}`)
 }
 
 export async function findFriendsFamilyAnalyticsPage(
@@ -586,60 +521,43 @@ export async function findFriendsFamilyAnalyticsPage(
   take: number,
   cursor: string | undefined
 ): Promise<FriendsFamilyAnalyticsRow[]> {
-  return prisma.submission.findMany({
-    where: {
-      createdAt: { gte: createdSince },
-    },
-    select: friendsFamilyAnalyticsSelect,
-    orderBy: { id: 'asc' },
-    take,
-    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, friendsFamilyAnalyticsKeys)} FROM submissions WHERE ${createdSincePageWhere(createdSince, cursor)} ORDER BY id ASC LIMIT ${take}`
+  )
 }
 
-function customerMatchWhere(match: CustomerMatch): Prisma.SubmissionWhereInput {
+function customerMatchWhere(match: CustomerMatch): Sql {
   switch (match.by) {
     case 'email':
-      return { email: { equals: match.email, mode: 'insensitive' } }
+      return sql`lower(email) = lower(${match.email})`
     case 'phone': {
       const digits = match.digits
-      const phoneFilters: Prisma.SubmissionWhereInput[] = [{ phone: { contains: digits } }]
-
-      if (digits.length >= 10) {
-        const tenDigits = digits.slice(0, 10)
-        phoneFilters.push({
-          phone: {
-            equals: `(${tenDigits.slice(0, 3)}) ${tenDigits.slice(3, 6)}-${tenDigits.slice(6, 10)}`,
-          },
-        })
-        phoneFilters.push({
-          AND: [
-            { phone: { contains: tenDigits.slice(0, 3) } },
-            { phone: { contains: tenDigits.slice(3, 6) } },
-            { phone: { contains: tenDigits.slice(6, 10) } },
-          ],
-        })
-      }
-
-      return { OR: phoneFilters }
+      if (digits.length < 10) return sql`phone LIKE ${likeContains(digits)}`
+      const tenDigits = digits.slice(0, 10)
+      const area = tenDigits.slice(0, 3)
+      const exchange = tenDigits.slice(3, 6)
+      const line = tenDigits.slice(6, 10)
+      return and(
+        sql`phone LIKE ${likeContains(area)}`,
+        sql`phone LIKE ${likeContains(exchange)}`,
+        sql`phone LIKE ${likeContains(line)}`
+      )
     }
     case 'patient':
-      return {
-        patientFirstName: { equals: match.firstName, mode: 'insensitive' },
-        patientLastName: { equals: match.lastName, mode: 'insensitive' },
+      return patientIdentityWhere({
+        patientFirstName: match.firstName,
+        patientLastName: match.lastName,
         patientDateOfBirth: match.dateOfBirth,
-      }
+      })
   }
 }
 
 export async function findFriendsFamilyCustomerSubmissions(
   match: CustomerMatch
 ): Promise<FriendsFamilyAnalyticsRow[]> {
-  return prisma.submission.findMany({
-    where: customerMatchWhere(match),
-    select: friendsFamilyAnalyticsSelect,
-    orderBy: { createdAt: 'desc' },
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, friendsFamilyAnalyticsKeys)} FROM submissions WHERE ${customerMatchWhere(match)} ORDER BY created_at DESC`
+  )
 }
 
 export async function findBusinessAnalyticsPage(
@@ -647,57 +565,39 @@ export async function findBusinessAnalyticsPage(
   take: number,
   cursor: string | undefined
 ): Promise<BusinessAnalyticsRow[]> {
-  return prisma.submission.findMany({
-    where: { createdAt: { gte: createdSince } },
-    select: {
-      id: true,
-      status: true,
-      state: true,
-      patientFirstName: true,
-      patientLastName: true,
-      patientDateOfBirth: true,
-      email: true,
-      phone: true,
-      offerCode: true,
-      attributionChannel: true,
-      paymentAmount: true,
-      stripeRefundId: true,
-      refundedAt: true,
-      createdAt: true,
-    },
-    orderBy: { id: 'asc' },
-    take,
-    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, [
+      'id',
+      'status',
+      'state',
+      'patientFirstName',
+      'patientLastName',
+      'patientDateOfBirth',
+      'email',
+      'phone',
+      'offerCode',
+      'attributionChannel',
+      'paymentAmount',
+      'stripeRefundId',
+      'refundedAt',
+      'createdAt',
+    ])} FROM submissions WHERE ${createdSincePageWhere(createdSince, cursor)} ORDER BY id ASC LIMIT ${take}`
+  )
 }
 
 export async function findApprovedSubmissionsOverlapping(
-  { patientFirstName, patientLastName, patientDateOfBirth }: PatientIdentity,
+  identity: PatientIdentity,
   { windowStart, windowEnd }: { windowStart: Date; windowEnd: Date }
 ): Promise<Pick<Submission, 'id' | 'firstDayOff' | 'lastDayOff' | 'reviewedAt'>[]> {
-  return prisma.submission.findMany({
-    where: {
-      patientFirstName: { equals: patientFirstName, mode: 'insensitive' },
-      patientLastName: { equals: patientLastName, mode: 'insensitive' },
-      patientDateOfBirth: patientDateOfBirth,
-      status: SubmissionStatus.APPROVED,
-      firstDayOff: {
-        lte: windowEnd,
-      },
-      lastDayOff: {
-        gte: windowStart,
-      },
-    },
-    select: {
-      id: true,
-      firstDayOff: true,
-      lastDayOff: true,
-      reviewedAt: true,
-    },
-    orderBy: {
-      firstDayOff: 'asc',
-    },
-  })
+  const where = and(
+    patientIdentityWhere(identity),
+    sql`status = ${SubmissionStatus.APPROVED}`,
+    sql`first_day_off <= ${windowEnd}`,
+    sql`last_day_off >= ${windowStart}`
+  )
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id', 'firstDayOff', 'lastDayOff', 'reviewedAt'])} FROM submissions WHERE ${where} ORDER BY first_day_off ASC`
+  )
 }
 
 export async function markPendingSubmissionMaybe(id: string, review: MaybeReview): Promise<number> {
@@ -1046,10 +946,9 @@ export async function insertSubmission(submission: SubmissionInsert): Promise<Su
 export async function findSubmissionIdForPaymentIntent(
   stripePaymentIntentId: string
 ): Promise<Pick<Submission, 'id'> | null> {
-  return prisma.submission.findUnique({
-    where: { stripePaymentIntentId },
-    select: { id: true },
-  })
+  return db.one(
+    sql`SELECT ${select(submissions, ['id'])} FROM submissions WHERE stripe_payment_intent_id = ${stripePaymentIntentId}`
+  )
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -1058,20 +957,18 @@ const FOLLOW_UP_MAX_AGE_DAYS = 7
 const CLAIM_TIMEOUT_MS = 30 * 60 * 1000
 const FOLLOW_UP_BATCH_SIZE = 100
 
-function dueFollowUpEmailWhere(now: Date): Prisma.SubmissionWhereInput {
-  return {
-    status: SubmissionStatus.APPROVED,
-    approvalEmailSentAt: { not: null },
-    followUpEmailSentAt: null,
-    createdAt: {
-      gte: new Date(now.getTime() - FOLLOW_UP_MAX_AGE_DAYS * MS_PER_DAY),
-      lte: new Date(now.getTime() - FOLLOW_UP_MIN_AGE_DAYS * MS_PER_DAY),
-    },
-    OR: [
-      { followUpEmailClaimedAt: null },
-      { followUpEmailClaimedAt: { lte: new Date(now.getTime() - CLAIM_TIMEOUT_MS) } },
-    ],
-  }
+function dueFollowUpEmailWhere(now: Date): Sql {
+  return and(
+    sql`status = ${SubmissionStatus.APPROVED}`,
+    sql`approval_email_sent_at IS NOT NULL`,
+    sql`follow_up_email_sent_at IS NULL`,
+    sql`created_at >= ${new Date(now.getTime() - FOLLOW_UP_MAX_AGE_DAYS * MS_PER_DAY)}`,
+    sql`created_at <= ${new Date(now.getTime() - FOLLOW_UP_MIN_AGE_DAYS * MS_PER_DAY)}`,
+    or(
+      sql`follow_up_email_claimed_at IS NULL`,
+      sql`follow_up_email_claimed_at <= ${new Date(now.getTime() - CLAIM_TIMEOUT_MS)}`
+    )
+  )
 }
 
 export async function findDueFollowUpEmails(
@@ -1079,29 +976,15 @@ export async function findDueFollowUpEmails(
 ): Promise<
   Pick<Submission, 'id' | 'email' | 'patientFirstName' | 'patientLastName' | 'notePurpose'>[]
 > {
-  return prisma.submission.findMany({
-    where: dueFollowUpEmailWhere(now),
-    orderBy: { createdAt: 'asc' },
-    take: FOLLOW_UP_BATCH_SIZE,
-    select: {
-      id: true,
-      email: true,
-      patientFirstName: true,
-      patientLastName: true,
-      notePurpose: true,
-    },
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id', 'email', 'patientFirstName', 'patientLastName', 'notePurpose'])} FROM submissions WHERE ${dueFollowUpEmailWhere(now)} ORDER BY created_at ASC LIMIT ${FOLLOW_UP_BATCH_SIZE}`
+  )
 }
 
 export async function claimDueFollowUpEmail(id: string, now: Date): Promise<number> {
-  const claim = await prisma.submission.updateMany({
-    where: {
-      id,
-      ...dueFollowUpEmailWhere(now),
-    },
-    data: { followUpEmailClaimedAt: now },
-  })
-  return claim.count
+  return db.affected(
+    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: now })} WHERE id = ${id} AND ${dueFollowUpEmailWhere(now)}`
+  )
 }
 
 export async function releaseFollowUpEmailClaimAt(id: string, claimedAt: Date): Promise<void> {
@@ -1131,37 +1014,25 @@ export async function acknowledgeFollowUpEmailSent(id: string, claimedAt: Date):
 }
 
 export async function findLatestSubmission(): Promise<Submission | null> {
-  return prisma.submission.findFirst({
-    orderBy: { createdAt: 'desc' },
-  })
+  return db.one(
+    sql`SELECT ${selectAll(submissions)} FROM submissions ORDER BY created_at DESC LIMIT 1`
+  )
 }
 
 export async function findApprovedSubmissionsForEmail(email: string): Promise<Submission[]> {
-  return prisma.submission.findMany({
-    where: {
-      email,
-      status: SubmissionStatus.APPROVED,
-    },
-    orderBy: {
-      reviewedAt: 'desc',
-    },
-  })
+  return db.rows(
+    sql`SELECT ${selectAll(submissions)} FROM submissions WHERE email = ${email} AND status = ${SubmissionStatus.APPROVED} ORDER BY reviewed_at DESC`
+  )
 }
 
 export async function findApprovedSubmissionsMissingApprovalEmail(): Promise<Submission[]> {
-  return prisma.submission.findMany({
-    where: {
-      status: SubmissionStatus.APPROVED,
-      approvalEmailSentAt: null,
-    },
-    orderBy: {
-      reviewedAt: 'desc',
-    },
-  })
+  return db.rows(
+    sql`SELECT ${selectAll(submissions)} FROM submissions WHERE status = ${SubmissionStatus.APPROVED} AND approval_email_sent_at IS NULL ORDER BY reviewed_at DESC`
+  )
 }
 
 export async function countSubmissions(): Promise<number> {
-  return prisma.submission.count()
+  return countSubmissionsWhere(and())
 }
 
 export async function findRecentSubmissions(): Promise<
@@ -1170,28 +1041,17 @@ export async function findRecentSubmissions(): Promise<
     'id' | 'email' | 'status' | 'createdAt' | 'patientFirstName' | 'patientLastName'
   >[]
 > {
-  return prisma.submission.findMany({
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      email: true,
-      status: true,
-      createdAt: true,
-      patientFirstName: true,
-      patientLastName: true,
-    },
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id', 'email', 'status', 'createdAt', 'patientFirstName', 'patientLastName'])} FROM submissions ORDER BY created_at DESC LIMIT 5`
+  )
 }
 
 export async function countSubmissionsByStatus(): Promise<
   { status: SubmissionStatus; _count: number }[]
 > {
-  const statusCounts = await prisma.submission.groupBy({
-    by: ['status'],
-    _count: true,
-  })
-  return statusCounts
+  return db.rows(
+    sql`SELECT ${select(submissions, ['status'])}, ${count('_count')} FROM submissions GROUP BY status`
+  )
 }
 
 export async function deleteSubmissionById(id: string): Promise<void> {
@@ -1219,20 +1079,13 @@ export type SmsSupportAutomationCommitResult = 'cancelled' | 'submission_changed
 export async function findLatestSubmissionIdForInboundSmsPhone(
   smsPhoneE164: string
 ): Promise<Pick<Submission, 'id'> | null> {
-  return prisma.submission.findFirst({
-    where: { smsPhoneE164 },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true },
-  })
+  return db.one(
+    sql`SELECT ${select(submissions, ['id'])} FROM submissions WHERE sms_phone_e164 = ${smsPhoneE164} ORDER BY created_at DESC LIMIT 1`
+  )
 }
 
 export async function countSmsOptedInSubmissionsForPhone(smsPhoneE164: string): Promise<number> {
-  return prisma.submission.count({
-    where: {
-      smsPhoneE164,
-      smsOptIn: true,
-    },
-  })
+  return countSubmissionsWhere(sql`sms_phone_e164 = ${smsPhoneE164} AND sms_opt_in`)
 }
 
 export async function findLatestSubmissionsForBouncedEmail(
@@ -1250,21 +1103,9 @@ export async function findLatestSubmissionsForBouncedEmail(
     | 'status'
   >[]
 > {
-  return prisma.submission.findMany({
-    where: { email },
-    orderBy: { createdAt: 'desc' },
-    take: 2,
-    select: {
-      id: true,
-      patientFirstName: true,
-      patientLastName: true,
-      email: true,
-      phone: true,
-      smsOptIn: true,
-      smsPhoneE164: true,
-      status: true,
-    },
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, contactKeys)} FROM submissions WHERE email = ${email} ORDER BY created_at DESC LIMIT 2`
+  )
 }
 
 export async function findSubmissionForSupportTicket(
@@ -1273,16 +1114,9 @@ export async function findSubmissionForSupportTicket(
   Submission,
   'id' | 'smsOptIn' | 'smsPhoneE164' | 'patientFirstName' | 'patientLastName'
 > | null> {
-  return prisma.submission.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      smsOptIn: true,
-      smsPhoneE164: true,
-      patientFirstName: true,
-      patientLastName: true,
-    },
-  })
+  return db.one(
+    sql`SELECT ${select(submissions, ['id', 'smsOptIn', 'smsPhoneE164', 'patientFirstName', 'patientLastName'])} FROM submissions WHERE id = ${id}`
+  )
 }
 
 export async function findSmsSupportSubmissionCandidatesForPhone(phoneE164: string): Promise<
@@ -1290,92 +1124,55 @@ export async function findSmsSupportSubmissionCandidatesForPhone(phoneE164: stri
     smsMessages: Pick<SmsMessage, 'id'>[]
   })[]
 > {
-  return prisma.submission.findMany({
-    where: {
-      smsPhoneE164: phoneE164,
-      smsOptIn: true,
-    },
-    select: {
-      id: true,
-      status: true,
-      smsMessages: {
-        where: {
-          direction: 'outbound',
-          to: phoneE164,
-          sentAt: { not: null },
-        },
-        select: { id: true },
-        take: 1,
-      },
-    },
-    orderBy: { createdAt: 'desc' },
+  const candidates = await db.rows(
+    sql`SELECT ${select(submissions, ['id', 'status'])} FROM submissions WHERE sms_phone_e164 = ${phoneE164} AND sms_opt_in ORDER BY created_at DESC`
+  )
+  const sentMessages = await db.rows(
+    sql`SELECT ${select(smsMessages, ['id', 'submissionId'])} FROM sms_messages WHERE submission_id = ANY(${array(candidates.map((candidate) => candidate.id))}) AND direction = 'outbound' AND "to" = ${phoneE164} AND sent_at IS NOT NULL`
+  )
+  return candidates.map((candidate) => {
+    const sent = sentMessages.find((message) => message.submissionId === candidate.id)
+    return { ...candidate, smsMessages: sent ? [{ id: sent.id }] : [] }
   })
 }
 
 export async function findApprovedSubmissionIdForSupportTicket(
   id: string
 ): Promise<Pick<Submission, 'id'> | null> {
-  return prisma.submission.findFirst({
-    where: {
-      id,
-      status: SubmissionStatus.APPROVED,
-    },
-    select: { id: true },
-  })
+  return db.one(
+    sql`SELECT ${select(submissions, ['id'])} FROM submissions WHERE id = ${id} AND status = ${SubmissionStatus.APPROVED}`
+  )
 }
 
 export async function findLatestApprovedSubmissionIdsForSupportPhone(
   smsPhoneE164: string
 ): Promise<Pick<Submission, 'id'>[]> {
-  return prisma.submission.findMany({
-    where: {
-      smsPhoneE164,
-      status: SubmissionStatus.APPROVED,
-    },
-    select: { id: true },
-    orderBy: { createdAt: 'desc' },
-    take: 2,
-  })
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id'])} FROM submissions WHERE sms_phone_e164 = ${smsPhoneE164} AND status = ${SubmissionStatus.APPROVED} ORDER BY created_at DESC LIMIT 2`
+  )
 }
 
 export async function findApprovedSupportSubmissionIdsByReference(
   smsPhoneE164: string,
   { idPrefix, medicalRecordNumber }: { idPrefix?: string; medicalRecordNumber?: string }
 ): Promise<Pick<Submission, 'id'>[]> {
-  const supportReferenceFilters: Prisma.SubmissionWhereInput[] = []
-  if (idPrefix !== undefined) {
-    supportReferenceFilters.push({ id: { startsWith: idPrefix } })
-  }
-  if (medicalRecordNumber !== undefined) {
-    supportReferenceFilters.push({
-      noteVerifications: { some: { medicalRecordNumber } },
-    })
-  }
-
-  return prisma.submission.findMany({
-    where: {
-      smsPhoneE164,
-      status: SubmissionStatus.APPROVED,
-      OR: supportReferenceFilters,
-    },
-    select: { id: true },
-    take: 2,
-  })
+  const where = and(
+    sql`sms_phone_e164 = ${smsPhoneE164}`,
+    sql`status = ${SubmissionStatus.APPROVED}`,
+    or(
+      idPrefix !== undefined && sql`id LIKE ${likeStartsWith(idPrefix)}`,
+      medicalRecordNumber !== undefined && hasNoteVerificationWithRecordNumber(medicalRecordNumber)
+    )
+  )
+  return db.rows(sql`SELECT ${select(submissions, ['id'])} FROM submissions WHERE ${where} LIMIT 2`)
 }
 
 export async function findApprovedSubmissionBirthDateForSupport(
   id: string
 ): Promise<Pick<Submission, 'id' | 'patientDateOfBirth'> | null> {
-  return prisma.submission.findFirst({
-    where: {
-      id,
-      status: SubmissionStatus.APPROVED,
-    },
-    select: {
-      id: true,
-      patientDateOfBirth: true,
-    },
-  })
+  return db.one(
+    sql`SELECT ${select(submissions, ['id', 'patientDateOfBirth'])} FROM submissions WHERE id = ${id} AND status = ${SubmissionStatus.APPROVED}`
+  )
 }
 
 export async function commitSupportAutomationSubmissionUpdate({

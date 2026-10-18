@@ -45,6 +45,14 @@ const EQUIVALENT = [
     mutation: 'drop ORDER BY: created_at DESC',
     reason: ONE_ACTIVE_JOB,
   },
+  {
+    module: 'submissions',
+    function: 'findSmsSupportSubmissionCandidatesForPhone',
+    mutation:
+      'drop conjunct: submission_id = ANY(${array(candidates.map((candidate) => candidate.id))})',
+    reason:
+      'Messages are matched to candidates by submissionId in JS and only the count per candidate is read, so rows of other submissions are fetched and never returned.',
+  },
 ]
 
 const KEYWORDS =
