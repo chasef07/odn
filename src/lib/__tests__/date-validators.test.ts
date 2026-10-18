@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { validateAbsenceDates, type DatesFormData } from '../date-validators'
 import { addDays, subDays, format } from 'date-fns'
+import { useProcessTimeZone } from './process-time-zone'
 
 describe('validateAbsenceDates', () => {
   let today: Date
@@ -247,3 +248,34 @@ describe('validateAbsenceDates', () => {
     })
   })
 })
+
+describe.each(['America/Los_Angeles', 'America/New_York', 'UTC', 'Asia/Tokyo'])(
+  'validateAbsenceDates across the November DST change in a %s browser',
+  (zone) => {
+    useProcessTimeZone(zone)
+
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2026-11-01T18:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('rejects an 8-day absence', () => {
+      expect(validateAbsenceDates({ firstDayOff: '2026-11-01', lastDayOff: '2026-11-08' })).toEqual([
+        {
+          field: 'lastDayOff',
+          message: 'Absence period cannot exceed 7 consecutive days',
+          rule: 'absence_too_long',
+        },
+      ])
+    })
+
+    it('accepts a 7-day absence', () => {
+      expect(validateAbsenceDates({ firstDayOff: '2026-11-01', lastDayOff: '2026-11-07' })).toEqual(
+        []
+      )
+    })
+  }
+)
