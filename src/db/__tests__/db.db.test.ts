@@ -120,6 +120,29 @@ describe('db', () => {
   )
 
   it(
+    'nests three levels deep so the innermost rollback keeps the middle and outer work',
+    { timeout: 2000 },
+    async () => {
+      const total = () => db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        await db.transaction(async (middle) => {
+          await middle.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+          await expect(
+            db.transaction(async (inner) => {
+              await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_3' })}`)
+              throw new Error('deepest abort')
+            })
+          ).rejects.toThrow('deepest abort')
+          expect(await total()).toEqual({ n: 2 })
+        })
+        expect(await total()).toEqual({ n: 2 })
+      })
+      expect(await total()).toEqual({ n: 2 })
+    }
+  )
+
+  it(
     'rejects a nested transaction that starts while a sibling nested transaction is open',
     { timeout: 2000 },
     async () => {
