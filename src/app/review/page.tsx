@@ -5,7 +5,6 @@ import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedR
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { z } from 'zod'
-import { formatInTimeZone } from 'date-fns-tz'
 import Link from 'next/link'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -26,7 +25,7 @@ import { capitalizeName } from '@/lib/name-case'
 import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 import { UI_TIMING } from '@/lib/validation-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
-import { es } from 'date-fns/locale'
+import { formatDateOnly, parseDateOnly } from '@/lib/dates'
 
 const ROUTE = '/review'
 
@@ -191,21 +190,10 @@ export default function ReviewPage() {
     }, UI_TIMING.PROCESSING_DELAY_MS)
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return t('Not provided')
-    try {
-      const date = new Date(`${dateString}T00:00:00Z`)
-      return formatInTimeZone(
-        date,
-        'UTC',
-        locale === 'es' ? "d 'de' MMMM 'de' yyyy" : 'MMMM d, yyyy',
-        {
-          locale: locale === 'es' ? es : undefined,
-        }
-      )
-    } catch {
-      return dateString
-    }
+  const formatDate = (value?: string) => {
+    if (!value) return t('Not provided')
+    const day = parseDateOnly(value)
+    return day ? formatDateOnly(day, 'long', locale) : value
   }
 
   return (
