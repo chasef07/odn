@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { loadEnv } from 'vite'
 
-const DB_TESTS = 'src/db/**/*.db.test.ts'
+const DB_TESTS = 'src/**/*.db.test.ts'
 
 export default defineConfig(({ mode }) => {
   const { DATABASE_URL: _ignored, ...env } = loadEnv(mode, process.cwd(), '')
