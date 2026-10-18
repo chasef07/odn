@@ -19,13 +19,11 @@ function baseSuppressions() {
     console.error(`check-suppressions: base ${base} is not a commit here. Run git fetch origin.`)
     process.exit(1)
   }
-  try {
-    return JSON.parse(
-      execFileSync('git', ['show', `${base}:${FILE}`], { encoding: 'utf8', stdio: 'pipe' })
-    )
-  } catch {
-    return null
-  }
+  const listed = execFileSync('git', ['ls-tree', '--name-only', base, '--', FILE], {
+    encoding: 'utf8',
+  })
+  if (listed.trim() === '') return null
+  return JSON.parse(execFileSync('git', ['show', `${base}:${FILE}`], { encoding: 'utf8' }))
 }
 
 const previous = baseSuppressions()
