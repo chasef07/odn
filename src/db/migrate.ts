@@ -8,7 +8,7 @@ export const MIGRATIONS_DIR = path.join(import.meta.dirname, 'migrations')
 
 const FILE_NAME = /^(\d{4})_[a-z0-9_]+\.sql$/
 const QUOTED_OR_COMMENT =
-  /\$([A-Za-z_][A-Za-z0-9_]*)?\$[\s\S]*?\$\1\$|'(?:[^']|'')*'|--[^\n]*|\/\*[\s\S]*?\*\//g
+  /\$([A-Za-z_][A-Za-z0-9_]*)?\$[\s\S]*?\$\1\$|(?<![\w$])[Ee]'(?:[^'\\]|\\[\s\S]|'')*'|'(?:[^']|'')*'|--[^\n]*|\/\*[\s\S]*?\*\//g
 const TRANSACTION_CONTROL =
   /(^|;)\s*(BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|SAVEPOINT|PREPARE\s+TRANSACTION)\b/i
 const LOCK_KEY = 7204911
