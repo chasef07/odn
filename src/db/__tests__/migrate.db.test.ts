@@ -312,6 +312,39 @@ describe('adoptPrismaHistory', () => {
     expect(await ledger()).toHaveLength(2)
   })
 
+  it('migrates a fresh database whose only Prisma attempt was rolled back', async () => {
+    await pool.query(PRISMA_LEDGER)
+    await pool.query(
+      "INSERT INTO _prisma_migrations (id, checksum, migration_name, finished_at, rolled_back_at) VALUES ('undone', 'abc', '20260617000000_create_things', now(), now())"
+    )
+
+    expect(await migrate(pool, [first])).toEqual({ applied: [first.name], alreadyApplied: 0 })
+  })
+
+  it('migrates a fresh database whose only Prisma attempt never finished', async () => {
+    await pool.query(PRISMA_LEDGER)
+    await pool.query(
+      "INSERT INTO _prisma_migrations (id, checksum, migration_name) VALUES ('unresolved', 'abc', '20260617000000_create_things')"
+    )
+
+    expect(await migrate(pool, [first])).toEqual({ applied: [first.name], alreadyApplied: 0 })
+  })
+
+  it('sees no drift after the cutover in Prisma attempts that were rolled back or never finished', async () => {
+    await applyLikePrisma([first], ['20260617000000_create_things'])
+    await adoptPrismaHistory(pool, [first])
+    await pool.query(
+      `INSERT INTO _prisma_migrations (id, checksum, migration_name, finished_at, rolled_back_at) VALUES
+       ('undone', 'abc', '20260801000000_add_note', now(), now()),
+       ('unresolved', 'abc', '20260802000000_add_flag', NULL, NULL)`
+    )
+
+    expect(await migrate(pool, [first, second])).toEqual({
+      applied: [second.name],
+      alreadyApplied: 1,
+    })
+  })
+
   it('stays a no-op after a later migration was applied by the runner', async () => {
     await applyLikePrisma([first], ['20260617000000_create_things'])
     await adoptPrismaHistory(pool, [first, second])
