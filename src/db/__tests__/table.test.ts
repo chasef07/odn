@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sql } from '../sql'
-import { insert, select, selectAll, set } from '../table'
+import { col, defineTable, insert, select, selectAll, set } from '../table'
 import { noteVerifications, submissions, telnyxWebhookEvents } from '../tables'
 
 const UUID = /^[0-9a-f-]{36}$/
@@ -23,6 +23,22 @@ describe('select', () => {
     const { text } = selectAll(telnyxWebhookEvents).compile()
     expect(text.split(', ')).toHaveLength(6)
     expect(text).toContain('"telnyx_webhook_events"."last_error" AS "lastError"')
+  })
+})
+
+describe('defineTable', () => {
+  it('refuses a column kind that does not fit the domain type', () => {
+    type Row = { total: number; at: Date }
+    defineTable<Row>('rows', {
+      // @ts-expect-error a number column is 'int', not 'text'
+      total: col('total', 'text'),
+      at: col('at', 'timestamp'),
+    })
+    defineTable<Row>('rows', {
+      total: col('total', 'int'),
+      // @ts-expect-error a Date column is 'timestamp' or 'date', not 'int'
+      at: col('at', 'int'),
+    })
   })
 })
 

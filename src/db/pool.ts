@@ -50,7 +50,7 @@ export type Db = {
   affected(query: Sql<unknown>): Promise<number>
 }
 
-type Transaction = { client(): pg.PoolClient; depth: number }
+type Transaction = { client(): pg.PoolClient; depth: number; childOpen: boolean }
 
 const current = new AsyncLocalStorage<Transaction>()
 
@@ -81,6 +81,7 @@ function begin(client: pg.PoolClient, depth: number) {
   let finished = false
   const transaction: Transaction = {
     depth,
+    childOpen: false,
     client() {
       if (finished) throw new Error('tx handle used after the transaction finished')
       return client
@@ -96,21 +97,32 @@ function begin(client: pg.PoolClient, depth: number) {
 }
 
 async function nested<T>(outer: Transaction, work: (tx: Db) => Promise<T>): Promise<T> {
+  if (outer.childOpen) {
+    throw new Error(
+      'a nested db.transaction started while a sibling nested transaction was still open; savepoints are a stack, so await the sibling first'
+    )
+  }
   const client = outer.client()
   const savepoint = `sp${outer.depth + 1}`
   const { transaction, tx, finish } = begin(client, outer.depth + 1)
-  await client.query(extended(`SAVEPOINT ${savepoint}`))
+  outer.childOpen = true
   try {
-    const result = await current.run(transaction, () => work(tx))
-    await client.query(extended(`RELEASE SAVEPOINT ${savepoint}`))
-    return result
-  } catch (error) {
-    await client.query(extended(`ROLLBACK TO SAVEPOINT ${savepoint}`))
-    throw error
+    await client.query(extended(`SAVEPOINT ${savepoint}`))
+    try {
+      const result = await current.run(transaction, () => work(tx))
+      await client.query(extended(`RELEASE SAVEPOINT ${savepoint}`))
+      return result
+    } catch (error) {
+      await client.query(extended(`ROLLBACK TO SAVEPOINT ${savepoint}`))
+      throw error
+    }
   } finally {
     finish()
+    outer.childOpen = false
   }
 }
+
+const connectionErrorRejectsTheQuery = () => undefined
 
 export const db: Db & { transaction<T>(work: (tx: Db) => Promise<T>): Promise<T> } = {
   ...over(() => current.getStore()?.client() ?? getPool()),
@@ -119,25 +131,19 @@ export const db: Db & { transaction<T>(work: (tx: Db) => Promise<T>): Promise<T>
     if (outer) return nested(outer, work)
     const client = await getPool().connect()
     const { transaction, tx, finish } = begin(client, 0)
-    let broken: Error | undefined
-    const onError = (error: Error) => {
-      broken = error
-    }
-    client.on('error', onError)
+    client.on('error', connectionErrorRejectsTheQuery)
     try {
       await client.query(extended('BEGIN'))
       const result = await current.run(transaction, () => work(tx))
       await client.query(extended('COMMIT'))
       return result
     } catch (error) {
-      await client.query(extended('ROLLBACK')).catch((rollbackError: Error) => {
-        broken = rollbackError
-      })
+      await client.query(extended('ROLLBACK')).catch(() => undefined)
       throw error
     } finally {
       finish()
-      client.removeListener('error', onError)
-      client.release(broken)
+      client.removeListener('error', connectionErrorRejectsTheQuery)
+      client.release()
     }
   },
 }

@@ -119,6 +119,120 @@ describe('db', () => {
     }
   )
 
+  it(
+    'nests three levels deep so the innermost rollback keeps the middle and outer work',
+    { timeout: 2000 },
+    async () => {
+      const total = () => db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        await db.transaction(async (middle) => {
+          await middle.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+          await expect(
+            db.transaction(async (inner) => {
+              await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_3' })}`)
+              throw new Error('deepest abort')
+            })
+          ).rejects.toThrow('deepest abort')
+          expect(await total()).toEqual({ n: 2 })
+        })
+        expect(await total()).toEqual({ n: 2 })
+      })
+      expect(await total()).toEqual({ n: 2 })
+    }
+  )
+
+  it(
+    'rejects a nested transaction that starts while a sibling nested transaction is open',
+    { timeout: 2000 },
+    async () => {
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        const [failed, sibling] = await Promise.allSettled([
+          db.transaction(async (inner) => {
+            await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+            throw new Error('inner abort')
+          }),
+          db.transaction((inner) =>
+            inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_3' })}`)
+          ),
+        ])
+        expect(failed).toMatchObject({ status: 'rejected', reason: new Error('inner abort') })
+        expect(sibling).toMatchObject({
+          status: 'rejected',
+          reason: new Error(
+            'a nested db.transaction started while a sibling nested transaction was still open; savepoints are a stack, so await the sibling first'
+          ),
+        })
+        expect(await tx.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+      })
+      expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+    }
+  )
+
+  it(
+    'closes an inner handle when its savepoint finishes while the outer transaction is still open',
+    { timeout: 2000 },
+    async () => {
+      await db.transaction(async (tx) => {
+        const inner = await db.transaction(async (handle) => handle)
+        await expect(inner.rows(sql`SELECT 1`)).rejects.toThrow(
+          'tx handle used after the transaction finished'
+        )
+        expect(await tx.one(sql`SELECT 1 AS one`)).toEqual({ one: 1 })
+      })
+    }
+  )
+
+  it(
+    'runs sequential sibling nested transactions, including one after a failed sibling',
+    { timeout: 2000 },
+    async () => {
+      const total = () => db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)
+      await db.transaction(async () => {
+        await db.transaction((inner) => inner.affected(sql`${insert(telnyxWebhookEvents, event)}`))
+        await db.transaction((inner) =>
+          inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+        )
+        await expect(
+          db.transaction(async (inner) => {
+            await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_3' })}`)
+            throw new Error('inner abort')
+          })
+        ).rejects.toThrow('inner abort')
+        await db.transaction((inner) =>
+          inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_4' })}`)
+        )
+        expect(await total()).toEqual({ n: 3 })
+      })
+      expect(await total()).toEqual({ n: 3 })
+    }
+  )
+
+  it('leaves no error listener behind after many transactions on one client', async () => {
+    const warnings: string[] = []
+    const onWarning = (warning: Error) => {
+      warnings.push(warning.name)
+    }
+    process.on('warning', onWarning)
+    try {
+      const acquired = nextAcquiredClient()
+      await db.transaction(async () => undefined)
+      const client = await acquired
+      const baseline = client.listenerCount('error')
+      for (let i = 0; i < 12; i++) {
+        await db.transaction(async (tx) => {
+          await tx.one(sql`SELECT 1 AS one`)
+        })
+      }
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(client.listenerCount('error')).toBe(baseline)
+      expect(warnings).not.toContain('MaxListenersExceededWarning')
+    } finally {
+      process.off('warning', onWarning)
+    }
+  })
+
   it('refuses a tx handle once the transaction has committed or rolled back', async () => {
     const committed = await db.transaction(async (tx) => tx)
     await expect(committed.rows(sql`SELECT 1`)).rejects.toThrow(
@@ -139,17 +253,43 @@ describe('db', () => {
 
   it('rejects the work, discards the client and stays alive when the connection drops mid-transaction', async () => {
     const acquired = nextAcquiredClient()
+    const uncaught = vi.fn()
+    process.on('uncaughtException', uncaught)
 
-    await expect(
-      db.transaction(async (tx) => {
-        dropConnection(await acquired)
-        await tx.rows(sql`SELECT 1`)
-      })
-    ).rejects.toThrow(/Connection terminated/)
+    try {
+      await expect(
+        db.transaction(async (tx) => {
+          dropConnection(await acquired)
+          await tx.rows(sql`SELECT 1`)
+        })
+      ).rejects.toThrow(/Connection terminated/)
+    } finally {
+      process.removeListener('uncaughtException', uncaught)
+    }
 
+    expect(uncaught).not.toHaveBeenCalled()
     expect(getPool().totalCount).toBe(0)
     expect(await db.one(sql`SELECT 1 AS one`)).toEqual({ one: 1 })
   })
+
+  it(
+    'releases the savepoint when a nested transaction returns, leaving only the outer transaction lock',
+    { timeout: 2000 },
+    async () => {
+      const transactionLocks = (tx: Db) =>
+        tx.one(
+          sql`SELECT ${count('n')} FROM pg_locks WHERE pid = pg_backend_pid() AND locktype = 'transactionid'`
+        )
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        await db.transaction(async (inner) => {
+          await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+          expect(await transactionLocks(inner)).toEqual({ n: 2 })
+        })
+        expect(await transactionLocks(tx)).toEqual({ n: 1 })
+      })
+    }
+  )
 
   it('logs an idle connection failure by message and code, never the error object', () => {
     const error = Object.assign(new Error('terminating connection due to administrator command'), {

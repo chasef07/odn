@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { getPool } from '../pool'
 import type { Column } from '../table'
 import { tables } from '../tables'
+import { NoteVerificationStatus, SubmissionStatus } from '../types'
 
 type ColumnRow = {
   column_name: string
@@ -20,6 +21,11 @@ const KIND_OF_DATA_TYPE: Record<string, Column['kind']> = {
   'USER-DEFINED': 'enum',
 }
 
+const LABELS_OF_ENUM: Record<string, string[]> = {
+  SubmissionStatus: Object.values(SubmissionStatus).sort(),
+  NoteVerificationStatus: Object.values(NoteVerificationStatus).sort(),
+}
+
 function liveKind(row: ColumnRow): string {
   return KIND_OF_DATA_TYPE[row.data_type] ?? `${row.data_type} (${row.udt_name})`
 }
@@ -35,6 +41,28 @@ describe('every table descriptor matches the migrated schema', () => {
         .map((table) => table.name)
         .sort()
     )
+  })
+
+  it('every enum column has exactly the labels src/db/types.ts exports', async () => {
+    const { rows } = await getPool().query<{
+      table_name: string
+      column_name: string
+      udt_name: string
+    }>(
+      "SELECT table_name, column_name, udt_name FROM information_schema.columns WHERE table_schema = 'public' AND data_type = 'USER-DEFINED' ORDER BY table_name, column_name"
+    )
+    expect(rows.length).toBeGreaterThan(0)
+
+    for (const { table_name, column_name, udt_name } of rows) {
+      const { rows: labels } = await getPool().query<{ enumlabel: string }>(
+        'SELECT enumlabel FROM pg_enum JOIN pg_type ON pg_type.oid = enumtypid WHERE typname = $1',
+        [udt_name]
+      )
+      expect(
+        labels.map((label) => label.enumlabel).sort(),
+        `${table_name}.${column_name} is ${udt_name}`
+      ).toEqual(LABELS_OF_ENUM[udt_name])
+    }
   })
 
   for (const table of Object.values(tables)) {
