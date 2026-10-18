@@ -190,17 +190,43 @@ describe('db', () => {
 
   it('rejects the work, discards the client and stays alive when the connection drops mid-transaction', async () => {
     const acquired = nextAcquiredClient()
+    const uncaught = vi.fn()
+    process.on('uncaughtException', uncaught)
 
-    await expect(
-      db.transaction(async (tx) => {
-        dropConnection(await acquired)
-        await tx.rows(sql`SELECT 1`)
-      })
-    ).rejects.toThrow(/Connection terminated/)
+    try {
+      await expect(
+        db.transaction(async (tx) => {
+          dropConnection(await acquired)
+          await tx.rows(sql`SELECT 1`)
+        })
+      ).rejects.toThrow(/Connection terminated/)
+    } finally {
+      process.removeListener('uncaughtException', uncaught)
+    }
 
+    expect(uncaught).not.toHaveBeenCalled()
     expect(getPool().totalCount).toBe(0)
     expect(await db.one(sql`SELECT 1 AS one`)).toEqual({ one: 1 })
   })
+
+  it(
+    'releases the savepoint when a nested transaction returns, leaving only the outer transaction lock',
+    { timeout: 2000 },
+    async () => {
+      const transactionLocks = (tx: Db) =>
+        tx.one(
+          sql`SELECT ${count('n')} FROM pg_locks WHERE pid = pg_backend_pid() AND locktype = ${'transactionid'}`
+        )
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        await db.transaction(async (inner) => {
+          await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+          expect(await transactionLocks(inner)).toEqual({ n: 2 })
+        })
+        expect(await transactionLocks(tx)).toEqual({ n: 1 })
+      })
+    }
+  )
 
   it('logs an idle connection failure by message and code, never the error object', () => {
     const error = Object.assign(new Error('terminating connection due to administrator command'), {
