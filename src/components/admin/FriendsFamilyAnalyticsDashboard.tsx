@@ -9,6 +9,7 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { formatCurrency, formatNumber, formatShortDate } from '@/lib/analytics-format'
 import { cn } from '@/lib/utils'
+import { todayET } from '@/lib/dates'
 import type {
   FriendsFamilyAnalytics,
   FriendsFamilyCustomerRow,
@@ -179,7 +180,7 @@ export function FriendsFamilyAnalyticsDashboard({
     try {
       const result = await exportFriendsFamilyCustomers({ segment: activeSegment })
       if (result.success && result.data) {
-        const today = new Date().toISOString().slice(0, 10)
+        const today = todayET()
         const filename = `customer-segment-${activeSegment}-${today}.csv`
         downloadCsv(filename, buildCsv(result.data, showScore))
       } else {
