@@ -23,18 +23,22 @@ const DATE_ONLY_FORMATS: Record<DateOnlyStyle, Record<DateLocale, string>> = {
   short: { en: 'MM/dd/yy', es: 'MM/dd/yy' },
 }
 
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+}
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) return isLeapYear(year) ? 29 : 28
+  return [4, 6, 9, 11].includes(month) ? 30 : 31
+}
+
 export function parseDateOnly(value: string): DateOnly | null {
   const match = DATE_ONLY_PATTERN.exec(value)
   if (!match) return null
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
-  const date = new Date(Date.UTC(year, month - 1, day))
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) {
     return null
   }
   return value as DateOnly
@@ -50,6 +54,11 @@ export function utcDateFromDateOnly(day: DateOnly): Date {
 
 export function now(): Instant {
   return new Date() as Instant
+}
+
+export function parseInstant(value: string): Instant | null {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : (date as Instant)
 }
 
 export function instantOf(date: Date): Instant {
@@ -69,6 +78,10 @@ export function todayUTC(at: Instant = now()): DateOnly {
   return dateOnlyFromUtcDate(at)
 }
 
+export function currentYearET(at: Instant = now()): number {
+  return Number(todayET(at).slice(0, 4))
+}
+
 export function todayInViewerZone(at: Instant = now()): DateOnly {
   return todayIn(Intl.DateTimeFormat().resolvedOptions().timeZone, at)
 }
@@ -78,8 +91,11 @@ export function addDays(day: DateOnly, days: number): DateOnly {
 }
 
 export function addMonthsUTC(at: Date, months: number): Date {
+  const monthIndex = at.getUTCFullYear() * 12 + at.getUTCMonth() + months
+  const year = Math.floor(monthIndex / 12)
+  const month = monthIndex - year * 12
   const shifted = new Date(at.getTime())
-  shifted.setUTCMonth(shifted.getUTCMonth() + months)
+  shifted.setUTCFullYear(year, month, Math.min(at.getUTCDate(), daysInMonth(year, month + 1)))
   return shifted
 }
 

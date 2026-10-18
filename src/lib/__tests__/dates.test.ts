@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   addDays,
   addMonthsUTC,
+  currentYearET,
   ageOn,
   businessDayStart,
   dateOnlyFromUtcDate,
@@ -11,6 +12,7 @@ import {
   inclusiveDayCount,
   instantOf,
   parseDateOnly,
+  parseInstant,
   todayET,
   todayInViewerZone,
   todayUTC,
@@ -174,6 +176,21 @@ describe('ageOn', () => {
     expect(ageOn(day('2008-02-29'), day('2026-02-28'))).toBe(17)
     expect(ageOn(day('2008-02-29'), day('2026-03-01'))).toBe(18)
     expect(ageOn(day('2008-02-29'), day('2028-02-29'))).toBe(20)
+  })
+})
+
+describe('parseInstant', () => {
+  it('reads an ISO instant and refuses text that is not one', () => {
+    expect(parseInstant('2026-10-17T01:30:00.000Z')?.toISOString()).toBe('2026-10-17T01:30:00.000Z')
+    expect(parseInstant('not a date')).toBeNull()
+    expect(parseInstant('')).toBeNull()
+  })
+})
+
+describe('currentYearET', () => {
+  it('turns the year at midnight ET, not UTC', () => {
+    expect(currentYearET(at('2027-01-01T04:59:00Z'))).toBe(2026)
+    expect(currentYearET(at('2027-01-01T05:00:00Z'))).toBe(2027)
   })
 })
 

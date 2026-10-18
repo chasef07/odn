@@ -38,8 +38,10 @@ export function getDefaultIssueDate(): Date {
 }
 
 export function parseIssueDateInput(evaluationDate?: string): Date {
-  const day = evaluationDate ? parseDateOnly(evaluationDate) : null
-  return day ? utcDateFromDateOnly(day) : getDefaultIssueDate()
+  if (!evaluationDate) return getDefaultIssueDate()
+  const day = parseDateOnly(evaluationDate)
+  if (!day) throw new Error(`Invalid evaluation date: ${evaluationDate}`)
+  return utcDateFromDateOnly(day)
 }
 
 export function getPatientInitials(firstName: string, lastName: string): string {
