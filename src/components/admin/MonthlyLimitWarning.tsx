@@ -1,5 +1,4 @@
-import { ADMIN_TIME_ZONE } from '@/lib/admin-utils'
-import { formatInTimeZone } from 'date-fns-tz'
+import { formatDateOnlyRange, formatInstantET, instantOf } from '@/lib/dates'
 import { MonthlyUsage } from '@/lib/monthly-limit'
 import { Card } from '@/components/ui/card'
 
@@ -83,12 +82,11 @@ export function MonthlyLimitWarning({
           <ul className="mt-1 ml-2 list-inside list-disc space-y-0.5">
             {monthlyUsage.submissions.map((sub) => (
               <li key={sub.id}>
-                {formatInTimeZone(sub.firstDayOff, 'UTC', 'MMM d')} -{' '}
-                {formatInTimeZone(sub.lastDayOff, 'UTC', 'MMM d')} ({sub.days} day
+                {formatDateOnlyRange(sub.firstDayOff, sub.lastDayOff)} ({sub.days} day
                 {sub.days > 1 ? 's' : ''})
                 {sub.approvedAt && (
                   <span className="ml-1 opacity-70">
-                    • {formatInTimeZone(sub.approvedAt, ADMIN_TIME_ZONE, 'MMM d')}
+                    • {formatInstantET(instantOf(sub.approvedAt), { includeYear: false })}
                   </span>
                 )}
               </li>

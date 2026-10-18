@@ -1,11 +1,6 @@
 import { SubmissionStatus } from '@/db/types'
-import {
-  getCustomerKey,
-  isOpenStatus,
-  MS_PER_DAY,
-  toCalendarDate,
-  toIsoDate,
-} from '@/lib/analytics-shared'
+import { getCustomerKey, isOpenStatus, MS_PER_DAY, toIsoDate } from '@/lib/analytics-shared'
+import { dateOnlyFromUtcDate } from '@/lib/dates'
 import { normalizeOfferCode } from '@/lib/offer-codes'
 import { ATTRIBUTION_CHANNEL_LABELS, type AttributionChannel } from '@/lib/attribution'
 
@@ -263,7 +258,7 @@ function bucketKey(date: Date, granularity: TrendGranularity): string {
   const start = bucketStart(date, granularity)
   switch (granularity) {
     case 'day':
-      return toCalendarDate(start)
+      return dateOnlyFromUtcDate(start)
     case 'month':
       return `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}`
     case 'quarter':

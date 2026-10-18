@@ -5,16 +5,16 @@ import { useRouter } from 'next/navigation'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { removeGuardianFromAdultSubmission } from '@/app/admin/_actions/edits'
-import { calculateAge } from '@/lib/admin-utils'
+import { ageOn, todayUTC, type DateOnly } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 type RemoveGuardianModeControlProps = {
   submissionId: string
-  patientDateOfBirth: string | Date
+  patientDateOfBirth: DateOnly
   recipient: string
   guardianFirstName?: string | null
   guardianLastName?: string | null
-  guardianDateOfBirth?: string | Date | null
+  guardianDateOfBirth?: string | null
   disabled?: boolean
   className?: string
   onPendingChange?: (isPending: boolean) => void
@@ -38,8 +38,7 @@ export function RemoveGuardianModeControl({
   const [error, setError] = useState<string | null>(null)
   const [isRemoved, setIsRemoved] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
-  const patientAge = calculateAge(patientDateOfBirth)
-  const isMinor = patientAge < 18
+  const isMinor = ageOn(patientDateOfBirth, todayUTC()) < 18
   const hasGuardianMode =
     !isRemoved &&
     (recipient === 'someone_else' ||

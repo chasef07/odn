@@ -18,8 +18,7 @@ import {
   supportStatusClass,
   supportStatusLabel,
 } from '@/lib/sms-support-types'
-import { formatDateUTC } from '@/lib/utils'
-import { formatDateTimeET } from '@/lib/admin-utils'
+import { dateOnlyFromUtcDate, formatInstantET, instantOf } from '@/lib/dates'
 
 export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailType }) {
   const router = useRouter()
@@ -167,8 +166,8 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
                       <span className="font-medium uppercase">{message.direction}</span>
                       <span>
-                        {formatDateTimeET(
-                          message.receivedAt || message.sentAt || message.createdAt
+                        {formatInstantET(
+                          instantOf(message.receivedAt || message.sentAt || message.createdAt)
                         )}
                       </span>
                     </div>
@@ -219,11 +218,11 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                 </p>
                 <p className="text-gray-600">{ticket.submission.email}</p>
                 <p className="text-gray-600">
-                  DOB: {formatDateUTC(ticket.submission.patientDateOfBirth)}
+                  DOB: {dateOnlyFromUtcDate(ticket.submission.patientDateOfBirth)}
                 </p>
                 <p className="text-gray-600">
-                  Dates: {formatDateUTC(ticket.submission.firstDayOff)} -{' '}
-                  {formatDateUTC(ticket.submission.lastDayOff)}
+                  Dates: {dateOnlyFromUtcDate(ticket.submission.firstDayOff)} -{' '}
+                  {dateOnlyFromUtcDate(ticket.submission.lastDayOff)}
                 </p>
                 <p className="text-gray-600">Purpose: {ticket.submission.notePurpose}</p>
                 <Link
@@ -252,7 +251,9 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                       </span>
                       <span className="text-xs text-gray-500">Attempts: {job.attempts}</span>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">{formatDateTimeET(job.createdAt)}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {formatInstantET(instantOf(job.createdAt))}
+                    </p>
                     {job.lastError && <p className="mt-2 text-xs text-red-700">{job.lastError}</p>}
                   </div>
                 ))

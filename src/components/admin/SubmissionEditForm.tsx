@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { getTodayET } from '@/lib/admin-utils'
+import { todayET } from '@/lib/dates'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import {
   Select,
@@ -67,7 +67,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
     submission.additionalInformation || ''
   )
 
-  const [evaluationDate, setEvaluationDate] = useState(getTodayET())
+  const [evaluationDate, setEvaluationDate] = useState<string>(todayET())
   const [diagnosis, setDiagnosis] = useState('')
   const [withRestrictions, setWithRestrictions] = useState(true)
 
@@ -223,7 +223,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
 
             <RemoveGuardianModeControl
               submissionId={submission.id}
-              patientDateOfBirth={patientDateOfBirth}
+              patientDateOfBirth={submission.patientDateOfBirth}
               recipient={recipient}
               guardianFirstName={guardianFirstName}
               guardianLastName={guardianLastName}

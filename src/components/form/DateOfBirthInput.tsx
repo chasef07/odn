@@ -2,7 +2,8 @@
 
 import { useRef, useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
-import { differenceInYears } from 'date-fns'
+import { ageOn, parseDateOnly, todayInViewerZone } from '@/lib/dates'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface DateOfBirthInputProps {
@@ -117,23 +118,12 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
   }
 
   const computedAge = (() => {
-    if (mm && dd && yyyy.length === 4) {
-      const monthNum = parseInt(mm)
-      const dayNum = parseInt(dd)
-      const yearNum = parseInt(yyyy)
-      if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900) {
-        const dob = new Date(yearNum, monthNum - 1, dayNum)
-        if (
-          dob.getFullYear() === yearNum &&
-          dob.getMonth() === monthNum - 1 &&
-          dob.getDate() === dayNum &&
-          dob <= new Date()
-        ) {
-          return differenceInYears(new Date(), dob)
-        }
-      }
+    const dateOfBirth = parseDateOnly(`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`)
+    const today = todayInViewerZone()
+    if (!dateOfBirth || dateOfBirth < DATE_LIMITS.EARLIEST_DATE_OF_BIRTH || dateOfBirth > today) {
+      return null
     }
-    return null
+    return ageOn(dateOfBirth, today)
   })()
 
   const inputClasses =

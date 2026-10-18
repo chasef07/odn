@@ -3,7 +3,7 @@ import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { getDeniedSubmissionsForToday } from '@/app/admin/_actions/queues'
-import { formatDateWithTime } from '@/lib/admin-utils'
+import { formatInstantET, instantOf } from '@/lib/dates'
 import { requireAdminSession } from '@/lib/admin-session'
 
 export default async function DeniedSubmissionsPage() {
@@ -117,7 +117,7 @@ export default async function DeniedSubmissionsPage() {
                         </td>
                         <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-red-600">
                           {submission.denialEmailSentAt
-                            ? formatDateWithTime(submission.denialEmailSentAt)
+                            ? formatInstantET(instantOf(submission.denialEmailSentAt))
                             : 'N/A'}
                         </td>
                       </tr>

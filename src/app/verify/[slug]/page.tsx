@@ -3,7 +3,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { AlertCircle, Check, ShieldCheck } from 'lucide-react'
 import { findNoteVerificationBySlug } from '@/db/note-verifications'
-import { formatDisplayDate } from '@/lib/note-verification'
+import { dateOnlyFromUtcDate, formatDateOnly } from '@/lib/dates'
 import { localizePath, translate, translateReactTree, type Locale } from '@/lib/i18n'
 
 type PageProps = {
@@ -71,15 +71,7 @@ export default async function VerifySlugPage({ params, locale = 'en' }: PageProp
     verification.submission.status === 'APPROVED' &&
     !verification.submission.refundedAt
 
-  const formatDate = (value: Date) =>
-    locale === 'es'
-      ? new Intl.DateTimeFormat('es-US', {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-          timeZone: 'UTC',
-        }).format(value)
-      : formatDisplayDate(value)
+  const formatDate = (value: Date) => formatDateOnly(dateOnlyFromUtcDate(value), 'long', locale)
 
   return translateReactTree(
     <main className="bg-background min-h-screen px-4 py-8 sm:px-6">

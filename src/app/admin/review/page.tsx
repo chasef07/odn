@@ -18,7 +18,8 @@ import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
-import { calculateDaysDifference, getTodayET, type DenialReason } from '@/lib/admin-utils'
+import { type DenialReason } from '@/lib/admin-utils'
+import { dateOnlyFromUtcDate, inclusiveDayCount, todayET } from '@/lib/dates'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import { ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import type { Submission } from '@/db/types'
@@ -47,7 +48,7 @@ export default function AdminReviewPage() {
   const [showDenialDialog, setShowDenialDialog] = useState(false)
   const [showMaybeDialog, setShowMaybeDialog] = useState(false)
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
-  const [evaluationDate, setEvaluationDate] = useState(getTodayET())
+  const [evaluationDate, setEvaluationDate] = useState<string>(todayET())
   const [diagnosis, setDiagnosis] = useState('')
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [maybeError, setMaybeError] = useState<string | null>(null)
@@ -68,7 +69,10 @@ export default function AdminReviewPage() {
   const isReviewBusy = isTransitioning || isGuardianRemovalPending || isSavingClassification
   const suggestedMaybeReason =
     currentSubmission &&
-    calculateDaysDifference(currentSubmission.firstDayOff, currentSubmission.lastDayOff) > 7
+    inclusiveDayCount(
+      dateOnlyFromUtcDate(currentSubmission.firstDayOff),
+      dateOnlyFromUtcDate(currentSubmission.lastDayOff)
+    ) > 7
       ? DATES_EXCEED_ALLOWED_RANGE_REASON
       : undefined
   const selectedNotePurpose =
@@ -130,9 +134,9 @@ export default function AdminReviewPage() {
       const result = await getMonthlyLimitData(
         currentSubmission.patientFirstName,
         currentSubmission.patientLastName,
-        new Date(currentSubmission.patientDateOfBirth),
-        new Date(currentSubmission.firstDayOff),
-        new Date(currentSubmission.lastDayOff)
+        dateOnlyFromUtcDate(currentSubmission.patientDateOfBirth),
+        dateOnlyFromUtcDate(currentSubmission.firstDayOff),
+        dateOnlyFromUtcDate(currentSubmission.lastDayOff)
       )
 
       if (result.success && result.data) {
@@ -230,7 +234,7 @@ export default function AdminReviewPage() {
       }))
 
       setTimeout(() => {
-        setEvaluationDate(getTodayET())
+        setEvaluationDate(todayET())
 
         if (isLastSubmission) {
           setShowCompletion(true)

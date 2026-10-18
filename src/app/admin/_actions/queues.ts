@@ -13,8 +13,7 @@ import {
 } from '@/db/submissions'
 import { SubmissionStatus, type SmsSupportTicket } from '@/db/types'
 import { logger } from '@/lib/logger'
-import { getBusinessDayStart } from '@/lib/admin-utils'
-import { formatDateUTC } from '@/lib/utils'
+import { businessDayStart, dateOnlyFromUtcDate, parseDateOnly } from '@/lib/dates'
 import { SMS_SUPPORT_STATUS } from '@/lib/sms-support-types'
 import { adminAction } from '@/lib/admin-session'
 
@@ -51,7 +50,7 @@ export const getSubmissionsForReview = adminAction(async () => {
 
 export const getDashboardStats = adminAction(async () => {
   try {
-    const today = getBusinessDayStart()
+    const today = businessDayStart()
     const [
       pendingCount,
       approvedToday,
@@ -98,7 +97,7 @@ export const getDashboardStats = adminAction(async () => {
 
 export const getApprovedSubmissionsForToday = adminAction(async () => {
   try {
-    const today = getBusinessDayStart()
+    const today = businessDayStart()
     const submissions = await findSubmissionsApprovedSince(today, DASHBOARD_TODAY_LIST_LIMIT)
 
     return { success: true, data: submissions }
@@ -110,7 +109,7 @@ export const getApprovedSubmissionsForToday = adminAction(async () => {
 
 export const getDeniedSubmissionsForToday = adminAction(async () => {
   try {
-    const today = getBusinessDayStart()
+    const today = businessDayStart()
     const submissions = await findSubmissionsDeniedSince(today, DASHBOARD_TODAY_LIST_LIMIT)
 
     return { success: true, data: submissions }
@@ -125,17 +124,23 @@ export const getMonthlyLimitData = adminAction(
     _admin,
     patientFirstName: string,
     patientLastName: string,
-    patientDateOfBirth: Date,
-    firstDayOff: Date,
-    lastDayOff: Date
+    patientDateOfBirth: string,
+    firstDayOff: string,
+    lastDayOff: string
   ) => {
+    const dateOfBirth = parseDateOnly(patientDateOfBirth)
+    const firstDay = parseDateOnly(firstDayOff)
+    const lastDay = parseDateOnly(lastDayOff)
+    if (!dateOfBirth || !firstDay || !lastDay) {
+      return { success: false, error: 'Expected YYYY-MM-DD dates' }
+    }
     try {
       const result = await wouldExceedMonthlyLimit(
         patientFirstName,
         patientLastName,
-        patientDateOfBirth,
-        firstDayOff,
-        lastDayOff
+        dateOfBirth,
+        firstDay,
+        lastDay
       )
 
       return { success: true, data: result }
@@ -155,13 +160,15 @@ export const getMaybeSubmissions = adminAction(async () => {
       patientFirstName: sub.patientFirstName,
       patientLastName: sub.patientLastName,
       email: sub.email,
-      patientDateOfBirth: formatDateUTC(sub.patientDateOfBirth),
+      patientDateOfBirth: dateOnlyFromUtcDate(sub.patientDateOfBirth),
       recipient: sub.recipient,
       guardianFirstName: sub.guardianFirstName,
       guardianLastName: sub.guardianLastName,
-      guardianDateOfBirth: sub.guardianDateOfBirth ? formatDateUTC(sub.guardianDateOfBirth) : null,
-      firstDayOff: formatDateUTC(sub.firstDayOff),
-      lastDayOff: formatDateUTC(sub.lastDayOff),
+      guardianDateOfBirth: sub.guardianDateOfBirth
+        ? dateOnlyFromUtcDate(sub.guardianDateOfBirth)
+        : null,
+      firstDayOff: dateOnlyFromUtcDate(sub.firstDayOff),
+      lastDayOff: dateOnlyFromUtcDate(sub.lastDayOff),
       maybeReason: sub.maybeReason,
       maybeApprovedDays: sub.maybeApprovedDays,
       maybeEmailSentAt: sub.maybeEmailSentAt,
@@ -184,8 +191,8 @@ export const getManualSubmissions = adminAction(async () => {
       patientFirstName: sub.patientFirstName,
       patientLastName: sub.patientLastName,
       email: sub.email,
-      firstDayOff: formatDateUTC(sub.firstDayOff),
-      lastDayOff: formatDateUTC(sub.lastDayOff),
+      firstDayOff: dateOnlyFromUtcDate(sub.firstDayOff),
+      lastDayOff: dateOnlyFromUtcDate(sub.lastDayOff),
       reviewedAt: sub.reviewedAt,
     }))
 

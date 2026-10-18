@@ -1,14 +1,11 @@
 import { SubmissionStatus } from '@/db/types'
+import { dateOnlyFromUtcDate } from '@/lib/dates'
 import { toNationalDigits } from '@/lib/phone-utils'
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 export function toIsoDate(date: Date): string {
   return date.toISOString()
-}
-
-export function toCalendarDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
 }
 
 export function normalizeEmail(email: string): string {
@@ -38,7 +35,7 @@ export function getCustomerKey(submission: CustomerKeyInput): string {
     return `phone:${phone}`
   }
 
-  return `patient:${submission.patientFirstName.toLowerCase()}:${submission.patientLastName.toLowerCase()}:${toCalendarDate(submission.patientDateOfBirth)}`
+  return `patient:${submission.patientFirstName.toLowerCase()}:${submission.patientLastName.toLowerCase()}:${dateOnlyFromUtcDate(submission.patientDateOfBirth)}`
 }
 
 export function isOpenStatus(status: SubmissionStatus): boolean {

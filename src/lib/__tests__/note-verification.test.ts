@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  formatDisplayDate,
   generateMedicalRecordNumber,
   generateVerificationSlug,
   getConfiguredPhysician,
@@ -40,7 +39,6 @@ describe('note verification helpers', () => {
   it('formats return guidance from the approved last day off', () => {
     const lastDayOff = new Date(Date.UTC(2026, 3, 4))
 
-    expect(formatDisplayDate(lastDayOff)).toBe('April 4, 2026')
     expect(getReturnGuidance(lastDayOff)).toBe('May return after April 4, 2026')
   })
 

@@ -12,12 +12,13 @@ import {
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { getPatientHistory, type PatientHistoryEntry } from '@/app/admin/_actions/search'
-import { formatDateRange, formatDateWithTime, NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
+import { NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
+import { formatDateOnlyRange, formatInstantET, instantOf, type DateOnly } from '@/lib/dates'
 
 interface PatientHistoryPopupProps {
   patientFirstName: string
   patientLastName: string
-  patientDateOfBirth: Date | string
+  patientDateOfBirth: DateOnly
   email: string
   currentSubmissionId: string
 }
@@ -36,15 +37,10 @@ export function PatientHistoryPopup({
   useEffect(() => {
     async function fetchHistory() {
       setIsLoading(true)
-      const dob =
-        typeof patientDateOfBirth === 'string'
-          ? new Date(patientDateOfBirth + 'T12:00:00Z')
-          : patientDateOfBirth
-
       const result = await getPatientHistory(
         patientFirstName,
         patientLastName,
-        dob,
+        patientDateOfBirth,
         email,
         currentSubmissionId
       )
@@ -111,7 +107,7 @@ export function PatientHistoryPopup({
                 <div className="mt-2 space-y-1 text-xs text-gray-600">
                   <div>
                     <span className="text-gray-400">Dates: </span>
-                    {formatDateRange(entry.firstDayOff, entry.lastDayOff)}
+                    {formatDateOnlyRange(entry.firstDayOff, entry.lastDayOff)}
                   </div>
                   <div>
                     <span className="text-gray-400">Email: </span>
@@ -119,7 +115,7 @@ export function PatientHistoryPopup({
                   </div>
                   <div>
                     <span className="text-gray-400">Submitted: </span>
-                    {formatDateWithTime(entry.createdAt)}
+                    {formatInstantET(instantOf(entry.createdAt))}
                   </div>
                   {entry.denialReason && (
                     <div>

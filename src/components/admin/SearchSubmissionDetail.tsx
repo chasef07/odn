@@ -28,7 +28,7 @@ import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
-import { calculateDaysDifference, formatDateTimeET, getTodayET } from '@/lib/admin-utils'
+import { formatInstantET, inclusiveDayCount, instantOf, parseDateOnly, todayET } from '@/lib/dates'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import { updateSubmission } from '@/app/admin/_actions/edits'
 import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/approve'
@@ -134,13 +134,15 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     submission.additionalInformation || ''
   )
 
-  const [evaluationDate, setEvaluationDate] = useState<string>(getTodayET())
+  const [evaluationDate, setEvaluationDate] = useState<string>(todayET())
 
   const [diagnosis, setDiagnosis] = useState('')
 
   const [withRestrictions, setWithRestrictions] = useState(true)
+  const editedFirstDay = parseDateOnly(firstDayOff)
+  const editedLastDay = parseDateOnly(lastDayOff)
   const suggestedMaybeReason =
-    calculateDaysDifference(firstDayOff, lastDayOff) > 7
+    editedFirstDay && editedLastDay && inclusiveDayCount(editedFirstDay, editedLastDay) > 7
       ? DATES_EXCEED_ALLOWED_RANGE_REASON
       : undefined
   const latestNoteVerification = submission.noteVerifications[0]
@@ -336,7 +338,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
   const formatDateTime = (date: Date | null) => {
     if (!date) return 'N/A'
-    return formatDateTimeET(date)
+    return formatInstantET(instantOf(date))
   }
 
   const showApproveButton = true
@@ -432,7 +434,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
           <RemoveGuardianModeControl
             submissionId={submission.id}
-            patientDateOfBirth={patientDateOfBirth}
+            patientDateOfBirth={submission.patientDateOfBirth}
             recipient={recipient}
             guardianFirstName={guardianFirstName}
             guardianLastName={guardianLastName}

@@ -1,12 +1,18 @@
-import { subDays, differenceInDays, startOfDay } from 'date-fns'
 import { findApprovedSubmissionsOverlapping } from '@/db/submissions'
+import {
+  addDays,
+  dateOnlyFromUtcDate,
+  inclusiveDayCount,
+  utcDateFromDateOnly,
+  type DateOnly,
+} from '@/lib/dates'
 
 export interface MonthlyUsage {
   totalDays: number
   submissions: Array<{
     id: string
-    firstDayOff: Date
-    lastDayOff: Date
+    firstDayOff: DateOnly
+    lastDayOff: DateOnly
     days: number
     approvedAt: Date | null
   }>
@@ -20,26 +26,29 @@ const WINDOW_DAYS = 30
 export async function getMonthlyDaysUsed(
   patientFirstName: string,
   patientLastName: string,
-  patientDateOfBirth: Date,
-  referenceDate: Date
+  patientDateOfBirth: DateOnly,
+  referenceDay: DateOnly
 ): Promise<MonthlyUsage> {
-  const normalizedReference = startOfDay(referenceDate)
-
-  const windowStart = subDays(normalizedReference, WINDOW_DAYS)
-  const windowEnd = subDays(normalizedReference, 1)
-
   const submissions = await findApprovedSubmissionsOverlapping(
-    { patientFirstName, patientLastName, patientDateOfBirth },
-    { windowStart, windowEnd }
+    {
+      patientFirstName,
+      patientLastName,
+      patientDateOfBirth: utcDateFromDateOnly(patientDateOfBirth),
+    },
+    {
+      windowStart: utcDateFromDateOnly(addDays(referenceDay, -WINDOW_DAYS)),
+      windowEnd: utcDateFromDateOnly(addDays(referenceDay, -1)),
+    }
   )
 
   const submissionsWithDays = submissions.map((sub) => {
-    const days = differenceInDays(sub.lastDayOff, sub.firstDayOff) + 1
+    const firstDayOff = dateOnlyFromUtcDate(sub.firstDayOff)
+    const lastDayOff = dateOnlyFromUtcDate(sub.lastDayOff)
     return {
       id: sub.id,
-      firstDayOff: sub.firstDayOff,
-      lastDayOff: sub.lastDayOff,
-      days,
+      firstDayOff,
+      lastDayOff,
+      days: inclusiveDayCount(firstDayOff, lastDayOff),
       approvedAt: sub.reviewedAt,
     }
   })
@@ -57,9 +66,9 @@ export async function getMonthlyDaysUsed(
 export async function wouldExceedMonthlyLimit(
   patientFirstName: string,
   patientLastName: string,
-  patientDateOfBirth: Date,
-  firstDayOff: Date,
-  lastDayOff: Date
+  patientDateOfBirth: DateOnly,
+  firstDayOff: DateOnly,
+  lastDayOff: DateOnly
 ): Promise<{
   currentUsage: MonthlyUsage
   requestedDays: number
@@ -72,7 +81,7 @@ export async function wouldExceedMonthlyLimit(
     patientDateOfBirth,
     firstDayOff
   )
-  const requestedDays = differenceInDays(lastDayOff, firstDayOff) + 1
+  const requestedDays = inclusiveDayCount(firstDayOff, lastDayOff)
   const newTotal = currentUsage.totalDays + requestedDays
 
   return {
