@@ -26,6 +26,40 @@ function baseSuppressions() {
   return JSON.parse(execFileSync('git', ['show', `${base}:${FILE}`], { encoding: 'utf8' }))
 }
 
+function inlineLocalDisables() {
+  try {
+    return execFileSync(
+      'git',
+      [
+        'grep',
+        '--untracked',
+        '-nE',
+        'eslint-(disable|enable).*local/',
+        '--',
+        '*.ts',
+        '*.tsx',
+        '*.js',
+        '*.mjs',
+      ],
+      { encoding: 'utf8' }
+    )
+      .split('\n')
+      .filter(Boolean)
+  } catch (error) {
+    if (error.status === 1) return []
+    throw error
+  }
+}
+
+const inline = inlineLocalDisables()
+if (inline.length > 0) {
+  console.error(
+    'check-suppressions: an inline directive turns off a local/ rule. Fix the code instead:'
+  )
+  for (const line of inline) console.error(`  ${line}`)
+  process.exit(1)
+}
+
 const previous = baseSuppressions()
 if (previous === null) {
   console.log(`check-suppressions: ${base} has no ${FILE}, so this change introduces it.`)
