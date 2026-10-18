@@ -317,14 +317,24 @@ describe('status queues', () => {
       reviewedAt: at(1),
       reviewedByAdminId: admin,
     })
+    const atCutoff = await seed({
+      status: SubmissionStatus.APPROVED,
+      reviewedAt: T0,
+      reviewedByAdminId: admin,
+    })
     await seed({ status: SubmissionStatus.APPROVED, reviewedAt: at(-1), reviewedByAdminId: admin })
     await seed({ status: SubmissionStatus.DENIED, reviewedAt: at(1), reviewedByAdminId: admin })
 
     expect(
-      await findSubmissionIdsByStatus({ status: SubmissionStatus.APPROVED, reviewedSince: T0 }, 10)
-    ).toEqual([{ id: recent.id }])
+      ids(
+        await findSubmissionIdsByStatus(
+          { status: SubmissionStatus.APPROVED, reviewedSince: T0 },
+          10
+        )
+      ).sort()
+    ).toEqual([recent.id, atCutoff.id].sort())
     expect(await findSubmissionIdsByStatus({ status: SubmissionStatus.APPROVED }, 10)).toHaveLength(
-      2
+      3
     )
     expect(await findSubmissionIdsByStatus({ status: SubmissionStatus.APPROVED }, 1)).toHaveLength(
       1
@@ -456,6 +466,7 @@ describe('patient history', () => {
     })
     await seed({ patientFirstName: 'Jane', email: 'jane@example.com' })
     await seed({ patientDateOfBirth: new Date('1991-05-15T00:00:00.000Z'), email: 'x@y.co' })
+    await seed({ patientDateOfBirth: new Date('1989-05-15T00:00:00.000Z'), email: 'z@y.co' })
 
     const history = await findPatientHistory({
       patientFirstName: 'john',
@@ -601,15 +612,16 @@ describe('analytics pages', () => {
     const a = await seed({ id: '00000000-0000-4000-8000-00000000000a', createdAt: at(3) })
     const b = await seed({ id: '00000000-0000-4000-8000-00000000000b', createdAt: at(1) })
     await seed({ id: '00000000-0000-4000-8000-000000000009', createdAt: at(-5) })
+    const atCutoff = await seed({ id: '00000000-0000-4000-8000-00000000000d', createdAt: T0 })
 
     const page1 = await findFriendsFamilyAnalyticsPage(T0, 2, undefined)
     const page2 = await findFriendsFamilyAnalyticsPage(T0, 2, b.id)
     expect(ids(page1)).toEqual([a.id, b.id])
-    expect(ids(page2)).toEqual([c.id])
+    expect(ids(page2)).toEqual([c.id, atCutoff.id])
     expect(Object.keys(page1[0])).toHaveLength(22)
 
     const business = await findBusinessAnalyticsPage(T0, 10, a.id)
-    expect(ids(business)).toEqual([b.id, c.id])
+    expect(ids(business)).toEqual([b.id, c.id, atCutoff.id])
     expect(ids(await findBusinessAnalyticsPage(T0, 1, a.id))).toEqual([b.id])
     expect(business[0]).toEqual({
       id: b.id,
@@ -713,6 +725,7 @@ describe('follow-up emails due', () => {
   const delivered = { status: SubmissionStatus.APPROVED, approvalEmailSentAt: now }
 
   it('selects delivered approved notes bought 5 to 7 days ago that are unsent and unclaimed or stale, oldest first', async () => {
+    const oldestDue = await seed({ ...delivered, createdAt: daysAgo(7) })
     const due = await seed({ ...delivered, createdAt: daysAgo(6) })
     const staleClaim = await seed({
       ...delivered,
@@ -733,8 +746,8 @@ describe('follow-up emails due', () => {
 
     const rows = await findDueFollowUpEmails(now)
 
-    expect(ids(rows)).toEqual([due.id, edgeClaim.id, staleClaim.id])
-    expect(rows[0]).toEqual({
+    expect(ids(rows)).toEqual([oldestDue.id, due.id, edgeClaim.id, staleClaim.id])
+    expect(rows[1]).toEqual({
       id: due.id,
       email: 'john@example.com',
       patientFirstName: 'John',
@@ -886,6 +899,13 @@ describe('sms support lookups', () => {
     ])
     expect(candidates[0].smsMessages[0]).toEqual({ id: expect.any(String) })
     expect(await findSmsSupportSubmissionCandidatesForPhone('+10000000000')).toEqual([])
+
+    const onlyCandidatePhone = '+15558887777'
+    const onlyCandidate = await seed({ smsPhoneE164: onlyCandidatePhone, smsOptIn: true })
+    const sent = await seedSms(onlyCandidate.id, { to: onlyCandidatePhone })
+    expect(await findSmsSupportSubmissionCandidatesForPhone(onlyCandidatePhone)).toEqual([
+      { id: onlyCandidate.id, status: 'PENDING_REVIEW', smsMessages: [{ id: sent }] },
+    ])
   })
 
   it('resolves approved submissions for support by id, phone, reference and birth date', async () => {
