@@ -46,6 +46,13 @@ const EQUIVALENT = [
     reason: ONE_ACTIVE_JOB,
   },
   {
+    module: 'sms-support',
+    function: 'runnableJob',
+    mutation: 'swap <= for <: j.run_after <= ${new Date()}',
+    reason:
+      'run_after is compared with a Date taken while the query is built, so no stored row can equal it and <= selects the same rows as <.',
+  },
+  {
     module: 'submissions',
     function: 'findSmsSupportSubmissionCandidatesForPhone',
     mutation:
@@ -59,7 +66,7 @@ const MUTANTS_PER_JOB = 150
 
 const ORDERED_KINDS = new Set(['int', 'timestamp', 'date'])
 const COLUMN = /\b(?:col|nullable)\('(\w+)', '(\w+)'\)|\b(uuid|jsonCol|nullableJson)\('(\w+)'/g
-const OPERATOR = /(?<![<>!=-])(<>|<=|>=|=|<|>)(?![=<>])/g
+const OPERATOR = /(?<![<>!=-])(<>|<=|>=|=|<|>)(?![=<>])|\bIS (NOT )?DISTINCT FROM\b/g
 const SWAPS = {
   '=': ['<>', '>=', '<='],
   '<>': ['='],
@@ -67,6 +74,8 @@ const SWAPS = {
   '<=': ['<'],
   '>': ['>='],
   '>=': ['>'],
+  'IS DISTINCT FROM': ['IS NOT DISTINCT FROM'],
+  'IS NOT DISTINCT FROM': ['IS DISTINCT FROM'],
 }
 
 function orderedColumns() {
@@ -106,9 +115,10 @@ function enumMembers(source) {
 }
 
 const KEYWORDS =
-  /(?<![\w.])(SELECT|UPDATE|DELETE|INSERT|VALUES|SET|FROM|LEFT JOIN|INNER JOIN|JOIN|ON CONFLICT|ON|WHERE|GROUP BY|HAVING|ORDER BY|LIMIT|OFFSET|RETURNING|UNION)(?!\w)/g
+  /(?<![\w.])(SELECT|UPDATE|DELETE|INSERT|VALUES|SET|(?<!DISTINCT )FROM|LEFT JOIN|INNER JOIN|JOIN|ON CONFLICT|ON|WHERE|GROUP BY|HAVING|ORDER BY|LIMIT|OFFSET|RETURNING|UNION)(?!\w)/g
 const COMPARISON = /(=|<>|<|>|(?<![\w.])(LIKE|ILIKE|IS|IN|EXISTS)(?!\w))/
 const HOLE = '\u0001'
+const LITERAL = '\u0002'
 const CLOSERS = { '(': ')', '[': ']', '{': '}' }
 
 function skipString(source, index) {
@@ -426,12 +436,12 @@ function mutantsOf(source, ordered) {
       emit,
       /\.one\(\s*$/.test(source.slice(0, tag.index))
     )
-    const unquoted = masked.replace(/'[^']*'/g, (literal) => ' '.repeat(literal.length))
+    const unquoted = masked.replace(/'[^']*'/g, (literal) => LITERAL.repeat(literal.length))
     for (const match of unquoted.matchAll(OPERATOR)) {
-      const operator = match[1]
+      const operator = match[0]
       const end = match.index + operator.length
       const left = /[\w."]*$/.exec(unquoted.slice(0, match.index).trimEnd())[0]
-      const right = /^\s*(\u0001+|[\w."]*)/.exec(unquoted.slice(end))
+      const right = /^\s*(\u0001+|\u0002+|[\w."]*)/.exec(unquoted.slice(end))
       const column = (token) => token.replaceAll('"', '').split('.').at(-1)
       const isOrdered = ordered.has(column(left)) || ordered.has(column(right[1]))
       const from = unquoted.slice(0, match.index).trimEnd().length - left.length
