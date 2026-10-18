@@ -27,11 +27,17 @@ describe.each(PROCESS_TIME_ZONES)('isAgeValid in a %s runtime', (zone) => {
   })
 
   it('ages a leap-day birthday up on March 1 in a common year', () => {
-    vi.setSystemTime(new Date('2025-02-28T15:00:00Z'))
-    expect(isAgeValid('2007-02-29')).toBe(false)
-    vi.setSystemTime(new Date('2025-03-01T15:00:00Z'))
-    expect(isAgeValid('2007-02-29')).toBe(false)
-    expect(isAgeValid('2004-02-29', 21)).toBe(true)
+    vi.setSystemTime(new Date('2026-02-28T15:00:00Z'))
+    expect(isAgeValid('2008-02-29')).toBe(false)
+    vi.setSystemTime(new Date('2026-03-01T15:00:00Z'))
+    expect(isAgeValid('2008-02-29')).toBe(true)
+  })
+
+  it('ages a leap-day birthday up on February 29 in a leap year', () => {
+    vi.setSystemTime(new Date('2028-02-28T15:00:00Z'))
+    expect(isAgeValid('2008-02-29', 20)).toBe(false)
+    vi.setSystemTime(new Date('2028-02-29T15:00:00Z'))
+    expect(isAgeValid('2008-02-29', 20)).toBe(true)
   })
 
   it('turns 18 at UTC midnight, whatever the runtime zone', () => {
