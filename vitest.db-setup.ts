@@ -1,4 +1,6 @@
 import type { TestProject } from 'vitest/node'
+import { loadMigrations, migrate } from './src/db/migrate'
+import { createPool } from './src/db/pool'
 import { startTestDatabase, type TestDatabase } from './src/db/test-database'
 
 declare module 'vitest' {
@@ -9,8 +11,16 @@ declare module 'vitest' {
 
 let database: TestDatabase | null = null
 
+async function migrateExternal(url: string): Promise<TestDatabase> {
+  const pool = createPool(url)
+  await migrate(pool, loadMigrations())
+  await pool.end()
+  return { url, stop: async () => undefined }
+}
+
 export async function setup(project: TestProject) {
-  database = await startTestDatabase()
+  const external = process.env.TEST_DATABASE_URL
+  database = external ? await migrateExternal(external) : await startTestDatabase()
   project.provide('testDatabaseUrl', database.url)
 }
 
