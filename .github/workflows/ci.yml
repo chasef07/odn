@@ -78,7 +78,7 @@ jobs:
   db-mutants:
     name: DB mutants (${{ matrix.module }} ${{ matrix.shard }})
     needs: db-mutant-modules
-    if: needs.db-mutant-modules.outputs.changed == 'true'
+    if: needs.db-mutant-modules.outputs.changed == 'true' && needs.db-mutant-modules.outputs.jobs != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
