@@ -29,6 +29,50 @@ jobs:
       - name: npm run check
         run: npm run check
 
+  db-mutant-modules:
+    name: DB mutant modules
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changes.outputs.db }}
+      modules: ${{ steps.list.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect src/db or harness changes
+        id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- src/db scripts/check-db-mutants.mjs; then
+            echo "db=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "db=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: List db-tested modules
+        id: list
+        run: echo "modules=$(node scripts/check-db-mutants.mjs --modules)" >> "$GITHUB_OUTPUT"
+
+  db-mutants:
+    name: DB mutants (${{ matrix.module }})
+    needs: db-mutant-modules
+    if: needs.db-mutant-modules.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.db-mutant-modules.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: npm run check:db-mutants
+        run: npm run check:db-mutants -- --module ${{ matrix.module }}
+
   build:
     name: Build
     runs-on: ubuntu-latest
