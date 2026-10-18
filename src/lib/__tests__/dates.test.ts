@@ -36,6 +36,14 @@ describe('parseDateOnly', () => {
     expect(parseDateOnly('2000-02-29')).toBe('2000-02-29')
   })
 
+  it('accepts years below 100 as written', () => {
+    expect(parseDateOnly('0050-02-28')).toBe('0050-02-28')
+    expect(parseDateOnly('0004-02-29')).toBe('0004-02-29')
+    expect(parseDateOnly('0001-01-01')).toBe('0001-01-01')
+    expect(parseDateOnly('0003-02-29')).toBeNull()
+    expect(parseDateOnly('0000-01-01')).toBeNull()
+  })
+
   it('rejects impossible days instead of rolling them into the next month', () => {
     expect(parseDateOnly('2023-02-29')).toBeNull()
     expect(parseDateOnly('2100-02-29')).toBeNull()
@@ -77,6 +85,18 @@ describe.each(PROCESS_TIME_ZONES)('in process time zone %s', (zone) => {
     )
     expect(addMonthsUTC(at('2026-03-08T12:00:00Z'), 8).toISOString()).toBe(
       '2026-11-08T12:00:00.000Z'
+    )
+  })
+
+  it('clamps a month-end instant to the last day of the target month', () => {
+    expect(addMonthsUTC(at('2026-08-31T12:00:00Z'), -6).toISOString()).toBe(
+      '2026-02-28T12:00:00.000Z'
+    )
+    expect(addMonthsUTC(at('2024-08-31T12:00:00Z'), -6).toISOString()).toBe(
+      '2024-02-29T12:00:00.000Z'
+    )
+    expect(addMonthsUTC(at('2026-03-31T23:00:00Z'), 1).toISOString()).toBe(
+      '2026-04-30T23:00:00.000Z'
     )
   })
 
