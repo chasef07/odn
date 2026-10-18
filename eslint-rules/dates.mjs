@@ -15,6 +15,10 @@ const DATE_SETTERS = new Set([
   'setUTCMilliseconds',
 ])
 
+const LOCAL_GETTERS = new Set(['getFullYear', 'getMonth', 'getDate', 'getDay', 'getHours'])
+
+const DATE_STATICS = new Set(['UTC', 'parse'])
+
 const LOCALE_FORMATTERS = new Set(['toLocaleDateString', 'toLocaleTimeString'])
 
 const DATE_OPTION_KEYS = new Set([
@@ -79,6 +83,12 @@ const noAdhocDates = {
         "Don't build a Date from a hand-made string. Parse a yyyy-MM-dd day with parseDateOnly() and convert it with utcDateFromDateOnly() from '@/lib/dates'.",
       timeSuffix:
         "Don't append a time of day to a date string. A calendar day is a DateOnly from '@/lib/dates'; use utcDateFromDateOnly() for a database date, or businessDayStart() for the 6am ET reset.",
+      parts:
+        "Don't build a Date from year, month and day numbers. Parse a yyyy-MM-dd day with parseDateOnly() from '@/lib/dates', and use addDays() or addMonthsUTC() for arithmetic.",
+      static:
+        "`Date.{{name}}()` hand-builds a moment. Use parseDateOnly() and utcDateFromDateOnly() for a calendar day, or instantOf() for a Date you already hold, from '@/lib/dates'.",
+      getter:
+        "`.{{name}}()` reads the runtime's zone. Use todayET(), todayInViewerZone(), dateOnlyFromUtcDate() or ageOn() from '@/lib/dates'.",
       setter:
         "`.{{name}}()` mutates a Date in the runtime's zone or by hand. Use addDays(), todayET(), todayUTC() or businessDayStart() from '@/lib/dates'.",
       locale:
@@ -103,6 +113,10 @@ const noAdhocDates = {
       },
       NewExpression(node) {
         if (!isNewDate(node)) return
+        if (node.arguments.length >= 2) {
+          context.report({ node, messageId: 'parts' })
+          return
+        }
         const argument = node.arguments[0]
         if (!argument) return
         if (
@@ -123,6 +137,14 @@ const noAdhocDates = {
         if (callee.type !== 'MemberExpression') return
         const name = propertyName(callee)
         if (!name) return
+        if (callee.object.type === 'Identifier' && callee.object.name === 'Date') {
+          if (DATE_STATICS.has(name)) context.report({ node, messageId: 'static', data: { name } })
+          return
+        }
+        if (LOCAL_GETTERS.has(name)) {
+          context.report({ node, messageId: 'getter', data: { name } })
+          return
+        }
         if (DATE_SETTERS.has(name)) {
           context.report({ node, messageId: 'setter', data: { name } })
           return

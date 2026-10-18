@@ -10,6 +10,7 @@ import {
   Hr,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
+import { currentYearET } from '@/lib/dates'
 
 interface BounceAlertEmailProps {
   bouncedEmail: string
@@ -30,7 +31,7 @@ export const BounceAlertEmail = ({
   patientPhone,
   submissionId,
 }: BounceAlertEmailProps) => {
-  const currentYear = new Date().getFullYear()
+  const currentYear = currentYearET()
   const hasSubmission = !!(patientFirstName && patientLastName)
   const patientName = hasSubmission ? `${patientFirstName} ${patientLastName}` : 'Unknown'
 

@@ -19,6 +19,7 @@ import {
   type MaybeApprovedDays,
   type MaybeReason,
 } from '@/lib/maybe-reasons'
+import { currentYearET } from '@/lib/dates'
 
 interface MaybeEmailProps {
   patientName: string
@@ -31,7 +32,7 @@ export const MaybeEmail = ({
   reason = DEFAULT_MAYBE_REASON,
   approvedDays = null,
 }: MaybeEmailProps) => {
-  const currentYear = new Date().getFullYear()
+  const currentYear = currentYearET()
   const isDatesExceedAllowedRange = reason === DATES_EXCEED_ALLOWED_RANGE_REASON
   const isMoreInfoNeeded = reason === MORE_INFO_NEEDED_REASON
   const messageParagraphs = getMaybeEmailMessage({ reason, approvedDays })

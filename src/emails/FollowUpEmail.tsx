@@ -13,6 +13,7 @@ import {
 import { Tailwind } from '@react-email/tailwind'
 import { getRecipientName } from '@/lib/email-helpers'
 import { DOCTOR_10_OFFER_CODE, OFFER_QUERY_PARAM } from '@/lib/offer-codes'
+import { currentYearET } from '@/lib/dates'
 
 interface FollowUpEmailProps {
   patientName: string
@@ -26,7 +27,7 @@ export const FollowUpEmail = ({
   patientName = 'Patient',
   notePurpose = 'work',
 }: FollowUpEmailProps) => {
-  const currentYear = new Date().getFullYear()
+  const currentYear = currentYearET()
   const shouldMentionQrVerification = QR_RELEVANT_PURPOSES.has(notePurpose)
 
   return (

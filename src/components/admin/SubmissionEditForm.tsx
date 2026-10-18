@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { todayET } from '@/lib/dates'
+import { parseDateOnly, todayET, utcDateFromDateOnly } from '@/lib/dates'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import {
   Select,
@@ -26,9 +26,9 @@ interface SubmissionEditFormProps {
   submission: FormattedSubmission
 }
 
-function parseDateSafe(dateString: string): Date {
-  const [year, month, day] = dateString.split('-').map(Number)
-  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+function dayInput(value: string): Date | null {
+  const day = parseDateOnly(value)
+  return day ? utcDateFromDateOnly(day) : null
 }
 
 export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
@@ -112,21 +112,36 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
     setError(null)
     setSuccess(null)
 
+    const savedDateOfBirth = dayInput(patientDateOfBirth)
+    const savedGuardianDateOfBirth = guardianDateOfBirth ? dayInput(guardianDateOfBirth) : null
+    const savedFirstDayOff = dayInput(firstDayOff)
+    const savedLastDayOff = dayInput(lastDayOff)
+    if (
+      !savedDateOfBirth ||
+      !savedFirstDayOff ||
+      !savedLastDayOff ||
+      (guardianDateOfBirth && !savedGuardianDateOfBirth)
+    ) {
+      setError('Enter every date as a real calendar day.')
+      setIsLoading(false)
+      return
+    }
+
     try {
       const result = await updateSubmission(submission.id, {
         patientFirstName,
         patientLastName,
-        patientDateOfBirth: parseDateSafe(patientDateOfBirth),
+        patientDateOfBirth: savedDateOfBirth,
         guardianFirstName: guardianFirstName || null,
         guardianLastName: guardianLastName || null,
-        guardianDateOfBirth: guardianDateOfBirth ? parseDateSafe(guardianDateOfBirth) : null,
+        guardianDateOfBirth: savedGuardianDateOfBirth,
         email,
         phone,
         state,
         notePurpose,
         otherNotePurpose: otherNotePurpose || null,
-        firstDayOff: parseDateSafe(firstDayOff),
-        lastDayOff: parseDateSafe(lastDayOff),
+        firstDayOff: savedFirstDayOff,
+        lastDayOff: savedLastDayOff,
         absenceReason,
         otherAbsenceReason: otherAbsenceReason || null,
         symptoms,

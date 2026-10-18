@@ -1,3 +1,5 @@
+import { parseInstant } from '@/lib/dates'
+
 export const ATTRIBUTION_COOKIE = 'odn_attr'
 export const ATTRIBUTION_MAX_AGE_SECONDS = 90 * 24 * 60 * 60
 
@@ -246,7 +248,7 @@ function parseTouch(value: unknown): AttributionTouch | null {
   }
 
   const at = cleanValue(raw.at)
-  if (!at || Number.isNaN(Date.parse(at))) return null
+  if (!at || !parseInstant(at)) return null
 
   return {
     channel: channel as AttributionChannel,
