@@ -119,6 +119,34 @@ describe('db', () => {
     }
   )
 
+  it(
+    'rejects a nested transaction that starts while a sibling nested transaction is open',
+    { timeout: 2000 },
+    async () => {
+      await db.transaction(async (tx) => {
+        await tx.affected(sql`${insert(telnyxWebhookEvents, event)}`)
+        const [failed, sibling] = await Promise.allSettled([
+          db.transaction(async (inner) => {
+            await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+            throw new Error('inner abort')
+          }),
+          db.transaction((inner) =>
+            inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_3' })}`)
+          ),
+        ])
+        expect(failed).toMatchObject({ status: 'rejected', reason: new Error('inner abort') })
+        expect(sibling).toMatchObject({
+          status: 'rejected',
+          reason: new Error(
+            'a nested db.transaction started while a sibling nested transaction was still open; savepoints are a stack, so await the sibling first'
+          ),
+        })
+        expect(await tx.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+      })
+      expect(await db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)).toEqual({ n: 1 })
+    }
+  )
+
   it('refuses a tx handle once the transaction has committed or rolled back', async () => {
     const committed = await db.transaction(async (tx) => tx)
     await expect(committed.rows(sql`SELECT 1`)).rejects.toThrow(
