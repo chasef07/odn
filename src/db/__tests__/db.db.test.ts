@@ -170,6 +170,69 @@ describe('db', () => {
     }
   )
 
+  it(
+    'closes an inner handle when its savepoint finishes while the outer transaction is still open',
+    { timeout: 2000 },
+    async () => {
+      await db.transaction(async (tx) => {
+        const inner = await db.transaction(async (handle) => handle)
+        await expect(inner.rows(sql`SELECT 1`)).rejects.toThrow(
+          'tx handle used after the transaction finished'
+        )
+        expect(await tx.one(sql`SELECT 1 AS one`)).toEqual({ one: 1 })
+      })
+    }
+  )
+
+  it(
+    'runs sequential sibling nested transactions, including one after a failed sibling',
+    { timeout: 2000 },
+    async () => {
+      const total = () => db.one(sql`SELECT ${count('n')} FROM telnyx_webhook_events`)
+      await db.transaction(async () => {
+        await db.transaction((inner) => inner.affected(sql`${insert(telnyxWebhookEvents, event)}`))
+        await db.transaction((inner) =>
+          inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_2' })}`)
+        )
+        await expect(
+          db.transaction(async (inner) => {
+            await inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_3' })}`)
+            throw new Error('inner abort')
+          })
+        ).rejects.toThrow('inner abort')
+        await db.transaction((inner) =>
+          inner.affected(sql`${insert(telnyxWebhookEvents, { ...event, id: 'evt_4' })}`)
+        )
+        expect(await total()).toEqual({ n: 3 })
+      })
+      expect(await total()).toEqual({ n: 3 })
+    }
+  )
+
+  it('leaves no error listener behind after many transactions on one client', async () => {
+    const warnings: string[] = []
+    const onWarning = (warning: Error) => {
+      warnings.push(warning.name)
+    }
+    process.on('warning', onWarning)
+    try {
+      const acquired = nextAcquiredClient()
+      await db.transaction(async () => undefined)
+      const client = await acquired
+      const baseline = client.listenerCount('error')
+      for (let i = 0; i < 12; i++) {
+        await db.transaction(async (tx) => {
+          await tx.one(sql`SELECT 1 AS one`)
+        })
+      }
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(client.listenerCount('error')).toBe(baseline)
+      expect(warnings).not.toContain('MaxListenersExceededWarning')
+    } finally {
+      process.off('warning', onWarning)
+    }
+  })
+
   it('refuses a tx handle once the transaction has committed or rolled back', async () => {
     const committed = await db.transaction(async (tx) => tx)
     await expect(committed.rows(sql`SELECT 1`)).rejects.toThrow(
