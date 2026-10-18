@@ -122,6 +122,8 @@ async function nested<T>(outer: Transaction, work: (tx: Db) => Promise<T>): Prom
   }
 }
 
+const connectionErrorRejectsTheQuery = () => undefined
+
 export const db: Db & { transaction<T>(work: (tx: Db) => Promise<T>): Promise<T> } = {
   ...over(() => current.getStore()?.client() ?? getPool()),
   async transaction(work) {
@@ -129,25 +131,19 @@ export const db: Db & { transaction<T>(work: (tx: Db) => Promise<T>): Promise<T>
     if (outer) return nested(outer, work)
     const client = await getPool().connect()
     const { transaction, tx, finish } = begin(client, 0)
-    let broken: Error | undefined
-    const onError = (error: Error) => {
-      broken = error
-    }
-    client.on('error', onError)
+    client.on('error', connectionErrorRejectsTheQuery)
     try {
       await client.query(extended('BEGIN'))
       const result = await current.run(transaction, () => work(tx))
       await client.query(extended('COMMIT'))
       return result
     } catch (error) {
-      await client.query(extended('ROLLBACK')).catch((rollbackError: Error) => {
-        broken = rollbackError
-      })
+      await client.query(extended('ROLLBACK')).catch(() => undefined)
       throw error
     } finally {
       finish()
-      client.removeListener('error', onError)
-      client.release(broken)
+      client.removeListener('error', connectionErrorRejectsTheQuery)
+      client.release()
     }
   },
 }
