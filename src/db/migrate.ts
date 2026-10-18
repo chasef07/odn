@@ -56,7 +56,7 @@ export function controlsTransaction(sql: string): boolean {
 
 export function loadMigrations(dir = MIGRATIONS_DIR): Migration[] {
   const files = readdirSync(dir)
-    .filter((file) => file.endsWith('.sql'))
+    .filter((file) => file.toLowerCase().endsWith('.sql'))
     .sort()
   return files.map((file, index) => {
     const match = FILE_NAME.exec(file)
