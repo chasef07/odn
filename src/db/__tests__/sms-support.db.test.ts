@@ -487,6 +487,13 @@ describe('ticket creation and lookup', () => {
       submissionId: null,
     })
     expect(await findActiveSupportTicketForPhone(UNKNOWN_PHONE)).toBeNull()
+
+    const automatingPhone = '+15557777777'
+    const automating = await seedTicket({
+      phoneE164: automatingPhone,
+      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+    })
+    expect(await findActiveSupportTicketForPhone(automatingPhone)).toEqual(automating)
   })
 
   it('reads the contact, outbound, alert and retry projections of the asked ticket only', async () => {
@@ -649,8 +656,9 @@ describe('ticket conversation lifecycle', () => {
       csrAlertedAt: null,
     })
 
-    await markSupportTicketAdminReplyFailed(ticket.id, 'Telnyx timeout')
-    expect(await readTicket(ticket.id)).toMatchObject({
+    const unanswered = await seedTicket({ status: SMS_SUPPORT_STATUS.OPEN })
+    await markSupportTicketAdminReplyFailed(unanswered.id, 'Telnyx timeout')
+    expect(await readTicket(unanswered.id)).toMatchObject({
       status: SMS_SUPPORT_STATUS.NEEDS_CSR,
       state: SMS_SUPPORT_STATE.CSR_REVIEW,
       adminSummary: 'Admin reply failed to send by SMS.',
@@ -737,6 +745,10 @@ describe('ticket automation lifecycle', () => {
       status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
       automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
     })
+    const succeeded = await seedTicket({
+      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.SUCCEEDED,
+    })
 
     expect(await claimSupportTicketAutomationRun(queued.id)).toBe(1)
     expect(await readTicket(otherQueued.id)).toEqual(otherQueued)
@@ -748,10 +760,15 @@ describe('ticket automation lifecycle', () => {
     expect(await claimSupportTicketAutomationRun(queued.id)).toBe(1)
     expect(await claimSupportTicketAutomationRun(failed.id)).toBe(0)
     expect(await claimSupportTicketAutomationRun(needsCsr.id)).toBe(0)
+    expect(await claimSupportTicketAutomationRun(succeeded.id)).toBe(0)
+    expect(await readTicket(succeeded.id)).toEqual(succeeded)
   })
 
   it('closes after automation only the asked ticket while it is running automation', async () => {
-    const running = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
+    const running = await seedTicket({
+      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
+      failureReason: 'earlier failure',
+    })
     const needsCsr = await seedTicket({ status: SMS_SUPPORT_STATUS.NEEDS_CSR })
     const otherRunning = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
 
@@ -851,6 +868,25 @@ describe('job lookup', () => {
     expect((await findLatestSupportAutomationJob(ticket.id))?.id).toBe(committing.id)
     expect(await findCommittingSupportJob(ticket.id)).toBeNull()
     expect(await readJob(elsewhere.id)).toEqual(elsewhere)
+  })
+
+  it('treats queued, running and committing automation jobs as active and finished ones as not', async () => {
+    for (const status of [
+      SMS_SUPPORT_JOB_STATUS.QUEUED,
+      SMS_SUPPORT_JOB_STATUS.RUNNING,
+      SMS_SUPPORT_JOB_STATUS.COMMITTING,
+    ]) {
+      const ticket = await seedTicket()
+      const job = await seedJob(ticket.id, { status })
+      expect(await findActiveSupportAutomationJob(ticket.id)).toEqual(job)
+      expect(await findActiveSupportAutomationJobId(ticket.id)).toEqual({ id: job.id })
+    }
+    for (const status of [SMS_SUPPORT_JOB_STATUS.SUCCEEDED, SMS_SUPPORT_JOB_STATUS.FAILED]) {
+      const ticket = await seedTicket()
+      await seedJob(ticket.id, { status })
+      expect(await findActiveSupportAutomationJob(ticket.id)).toBeNull()
+      expect(await findActiveSupportAutomationJobId(ticket.id)).toBeNull()
+    }
   })
 
   it('returns a job with its own ticket nested', async () => {
@@ -986,7 +1022,11 @@ describe('job claiming and completion', () => {
 
   it('fails a job with its error', async () => {
     const ticket = await seedTicket()
-    const job = await seedJob(ticket.id, { status: SMS_SUPPORT_JOB_STATUS.RUNNING, lockedBy: 'w' })
+    const job = await seedJob(ticket.id, {
+      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
+      lockedAt: T0,
+      lockedBy: 'w',
+    })
 
     await failSupportJob(job.id, 'Resend timeout')
 
@@ -1017,6 +1057,12 @@ describe('job claiming and completion', () => {
       kind: 'D',
       status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED,
     })
+    const failed = await seedJob(ticket.id, {
+      kind: 'E',
+      status: SMS_SUPPORT_JOB_STATUS.FAILED,
+      lastError: 'earlier failure',
+      completedAt: T0,
+    })
     const elsewhere = await seedJob(other.id)
 
     await failQueuedOrRunningSupportJobs(ticket.id, {
@@ -1035,6 +1081,7 @@ describe('job claiming and completion', () => {
     }
     expect(await readJob(committing.id)).toEqual(committing)
     expect(await readJob(succeeded.id)).toEqual(succeeded)
+    expect(await readJob(failed.id)).toEqual(failed)
     expect(await readJob(elsewhere.id)).toEqual(elsewhere)
   })
 })
@@ -1060,6 +1107,12 @@ describe('stale job recovery', () => {
       status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
       lockedAt: T0,
     })
+    const lockedAtCutoff = await seedJob(ticket.id, {
+      kind: 'D',
+      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
+      lockedAt: T1,
+      lockedBy: 'w',
+    })
 
     await requeueStaleRunningSupportJobs(T1)
 
@@ -1073,6 +1126,7 @@ describe('stale job recovery', () => {
     expect(requeued!.runAfter.getTime()).toBeGreaterThan(T0.getTime())
     expect(await readJob(fresh.id)).toEqual(fresh)
     expect(await readJob(committing.id)).toEqual(committing)
+    expect(await readJob(lockedAtCutoff.id)).toEqual(lockedAtCutoff)
   })
 
   it('lists stale committing jobs with their ticket and fails each one exactly once', async () => {
@@ -1081,6 +1135,7 @@ describe('stale job recovery', () => {
     const stale = await seedJob(ticket.id, {
       status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
       lockedAt: T0,
+      lockedBy: 'w',
     })
     const otherStale = await seedJob(other.id, {
       status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
@@ -1096,6 +1151,11 @@ describe('stale job recovery', () => {
       status: SMS_SUPPORT_JOB_STATUS.RUNNING,
       lockedAt: T0,
     })
+    const lockedAtCutoff = await seedJob(ticket.id, {
+      kind: 'D',
+      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+      lockedAt: T1,
+    })
     const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id)
 
     expect((await findStaleCommittingSupportJobs(T1, 10)).sort(byId)).toEqual(
@@ -1110,6 +1170,7 @@ describe('stale job recovery', () => {
     const options = { staleBefore: T1, lastError: 'stalled' }
     expect(await failStaleCommittingSupportJob(fresh.id, options)).toBe(0)
     expect(await failStaleCommittingSupportJob(staleRunning.id, options)).toBe(0)
+    expect(await failStaleCommittingSupportJob(lockedAtCutoff.id, options)).toBe(0)
     const outcomes = await Promise.all([
       failStaleCommittingSupportJob(stale.id, options),
       failStaleCommittingSupportJob(stale.id, options),
@@ -1122,7 +1183,7 @@ describe('stale job recovery', () => {
       lastError: 'stalled',
       completedAt: expect.any(Date),
     })
-    for (const job of [otherStale, fresh, staleRunning]) {
+    for (const job of [otherStale, fresh, staleRunning, lockedAtCutoff]) {
       expect(await readJob(job.id)).toEqual(job)
     }
     expect(await findStaleCommittingSupportJobs(T1, 10)).toEqual([{ ...otherStale, ticket: other }])
@@ -1189,15 +1250,20 @@ describe('queue and detail reads', () => {
 
   it('filters by one status and limits closed tickets', async () => {
     const needsCsr = await seedTicket({ status: SMS_SUPPORT_STATUS.NEEDS_CSR })
-    await seedTicket({ status: SMS_SUPPORT_STATUS.OPEN })
+    const open = await seedTicket({ status: SMS_SUPPORT_STATUS.OPEN })
+    const message = await seedMessage({ supportTicketId: needsCsr.id, body: 'mine' })
+    await seedMessage({ supportTicketId: open.id, body: 'elsewhere' })
+    const job = await seedJob(needsCsr.id)
+    await seedJob(open.id)
     const olderClosed = await seedTicket({ status: SMS_SUPPORT_STATUS.CLOSED })
     const newerClosed = await seedTicket({ status: SMS_SUPPORT_STATUS.CLOSED })
     await touch(olderClosed.id, T0)
     await touch(newerClosed.id, T1)
 
-    expect(
-      (await findSupportTicketsWithStatus(SMS_SUPPORT_STATUS.NEEDS_CSR)).map((t) => t.id)
-    ).toEqual([needsCsr.id])
+    const needingCsr = await findSupportTicketsWithStatus(SMS_SUPPORT_STATUS.NEEDS_CSR)
+    expect(needingCsr.map((t) => t.id)).toEqual([needsCsr.id])
+    expect(needingCsr[0].messages).toEqual([pick(message, listMessageKeys)])
+    expect(needingCsr[0].jobs).toEqual([pick(job, listJobKeys)])
     expect((await findClosedSupportTicketsForQueue(1)).map((t) => t.id)).toEqual([newerClosed.id])
     expect((await findClosedSupportTicketsForQueue(5)).map((t) => t.id)).toEqual([
       newerClosed.id,

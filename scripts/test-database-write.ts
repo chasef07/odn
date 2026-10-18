@@ -24,7 +24,7 @@ async function testDatabaseWrite() {
     }
 
     console.log('📝 Creating test submission...')
-    const submission = await insertSubmission(testData)
+    const { submission } = await insertSubmission(testData)
 
     console.log('✅ Submission created successfully!')
     console.log(`   ID: ${submission.id}`)

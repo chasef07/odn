@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { SubmissionStatus, type JsonValue, type Submission } from '@/db/types'
+import { SubmissionStatus, type JsonValue } from '@/db/types'
 import { findSubmissionIdForPaymentIntent, insertSubmission } from '@/db/submissions'
 import {
   attachPaymentIntentToTemporarySubmission,
@@ -163,9 +163,8 @@ export async function POST(request: NextRequest) {
 
     const data = intake.data
 
-    let submission: Submission
     try {
-      submission = await insertSubmission({
+      const { submission, inserted } = await insertSubmission({
         stripePaymentIntentId: paymentIntent.id,
         paymentAmount: paymentIntent.amount,
         offerCode: paymentIntent.metadata?.offer_code || null,
@@ -205,6 +204,15 @@ export async function POST(request: NextRequest) {
         firstDayOff: data.firstDayOff,
         lastDayOff: data.lastDayOff,
       })
+
+      if (!inserted) {
+        logger.info('Submission already processed by a concurrent delivery (idempotent):', {
+          eventId: event.id,
+          paymentIntentId: paymentIntent.id,
+          submissionId: submission.id,
+        })
+        return NextResponse.json({ received: true })
+      }
 
       logger.info('Submission created successfully:', {
         eventId: event.id,

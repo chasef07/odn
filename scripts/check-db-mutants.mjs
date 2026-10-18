@@ -46,6 +46,13 @@ const EQUIVALENT = [
     reason: ONE_ACTIVE_JOB,
   },
   {
+    module: 'sms-support',
+    function: 'runnableJob',
+    mutation: 'swap <= for <: j.run_after <= ${new Date()}',
+    reason:
+      'run_after is compared with a Date taken while the query is built, so no stored row can equal it and <= selects the same rows as <.',
+  },
+  {
     module: 'submissions',
     function: 'findSmsSupportSubmissionCandidatesForPhone',
     mutation:
@@ -55,10 +62,63 @@ const EQUIVALENT = [
   },
 ]
 
+const MUTANTS_PER_JOB = 150
+
+const ORDERED_KINDS = new Set(['int', 'timestamp', 'date'])
+const COLUMN = /\b(?:col|nullable)\('(\w+)', '(\w+)'\)|\b(uuid|jsonCol|nullableJson)\('(\w+)'/g
+const OPERATOR = /(?<![<>!=-])(<>|<=|>=|=|<|>)(?![=<>])|\bIS (NOT )?DISTINCT FROM\b/g
+const SWAPS = {
+  '=': ['<>', '>=', '<='],
+  '<>': ['='],
+  '<': ['<='],
+  '<=': ['<'],
+  '>': ['>='],
+  '>=': ['>'],
+  'IS DISTINCT FROM': ['IS NOT DISTINCT FROM'],
+  'IS NOT DISTINCT FROM': ['IS DISTINCT FROM'],
+}
+
+function orderedColumns() {
+  const kinds = new Map()
+  for (const match of readFileSync('src/db/tables.ts', 'utf8').matchAll(COLUMN)) {
+    const [name, kind] = match[1] ? [match[1], match[2]] : [match[4], match[3]]
+    kinds.set(name, [...(kinds.get(name) ?? []), kind])
+  }
+  return new Set(
+    [...kinds]
+      .filter(([, all]) => all.every((kind) => ORDERED_KINDS.has(kind)))
+      .map(([name]) => name)
+  )
+}
+
+function enumMembers(source) {
+  const files = [...source.matchAll(/^import [^;]*? from '([^']+)'/gms)].map(([, specifier]) =>
+    specifier.startsWith('@/')
+      ? `src/${specifier.slice(2)}.ts`
+      : specifier.startsWith('./')
+        ? `src/db/${specifier.slice(2)}.ts`
+        : null
+  )
+  const members = new Map()
+  for (const text of [
+    source,
+    ...files.filter((file) => file && existsSync(file)).map((file) => readFileSync(file, 'utf8')),
+  ]) {
+    for (const [, name, body] of text.matchAll(/export const (\w+) = \{([^}]*)\} as const/g)) {
+      members.set(
+        name,
+        [...body.matchAll(/(\w+):/g)].map(([, key]) => key)
+      )
+    }
+  }
+  return members
+}
+
 const KEYWORDS =
-  /(?<![\w.])(SELECT|UPDATE|DELETE|INSERT|VALUES|SET|FROM|LEFT JOIN|INNER JOIN|JOIN|ON CONFLICT|ON|WHERE|GROUP BY|HAVING|ORDER BY|LIMIT|OFFSET|RETURNING|UNION)(?!\w)/g
+  /(?<![\w.])(SELECT|UPDATE|DELETE|INSERT|VALUES|SET|(?<!DISTINCT )FROM|LEFT JOIN|INNER JOIN|JOIN|ON CONFLICT|ON|WHERE|GROUP BY|HAVING|ORDER BY|LIMIT|OFFSET|RETURNING|UNION)(?!\w)/g
 const COMPARISON = /(=|<>|<|>|(?<![\w.])(LIKE|ILIKE|IS|IN|EXISTS)(?!\w))/
 const HOLE = '\u0001'
+const LITERAL = '\u0002'
 const CLOSERS = { '(': ')', '[': ']', '{': '}' }
 
 function skipString(source, index) {
@@ -215,6 +275,7 @@ function statement(masked, depth, range, emit, singleRow) {
         }
       }
     }
+    if (keyword === 'RETURNING') emit('drop RETURNING', body, whole, '')
     const onlyRow = singleRow && masked.slice(...body) === '1'
     if ((keyword === 'LIMIT' && !onlyRow) || keyword === 'OFFSET')
       emit(`drop ${keyword}`, body, whole, '')
@@ -233,7 +294,42 @@ function statement(masked, depth, range, emit, singleRow) {
   }
 }
 
-function mutantsOf(source) {
+function patchObjects(source) {
+  const objects = new Set()
+  const argument = (open, index) => {
+    const parts = splitList(source, open, scanCode(source, open, ')'))
+    if (!parts[index]) return
+    const [from] = trim(source, parts[index])
+    if (source[from] === '{') objects.add(from)
+  }
+  for (const call of source.matchAll(/(?<![\w.])set\(/g)) argument(call.index + call[0].length, 1)
+  for (const match of source.matchAll(/: Patch<[^>]+>\s*(=|\{)/g)) {
+    const at = match.index + match[0].length - 1
+    if (match[1] === '=') {
+      objects.add(trim(source, [at + 1, source.length])[0])
+      continue
+    }
+    const body = [at + 1, scanCode(source, at + 1, '}')]
+    for (const ret of source.slice(...body).matchAll(/\breturn \{/g)) {
+      objects.add(body[0] + ret.index + ret[0].length - 1)
+    }
+  }
+  for (const declaration of source.matchAll(/function (\w+)\(/g)) {
+    const open = declaration.index + declaration[0].length
+    const index = splitList(source, open, scanCode(source, open, ')')).findIndex(([from, to]) =>
+      source.slice(from, to).includes('Patch<')
+    )
+    if (index < 0) continue
+    for (const call of source.matchAll(
+      new RegExp(`(?<![\\w.]|function )${declaration[1]}\\(`, 'g')
+    )) {
+      argument(call.index + call[0].length, index)
+    }
+  }
+  return [...objects].filter((at) => source[at] === '{')
+}
+
+function mutantsOf(source, ordered) {
   const mutants = []
   const seen = new Map()
   const add = (fn, kind, shown, [start, end], replacement) => {
@@ -270,6 +366,60 @@ function mutantsOf(source) {
     })
   }
 
+  for (const open of patchObjects(source)) {
+    const close = scanCode(source, open + 1, '}')
+    const parts = splitList(source, open + 1, close).map((part) => trim(source, part))
+    parts.forEach(([from, to], index) => {
+      const fn = declarationAt(source, from)
+      const text = source.slice(from, to)
+      const removed =
+        source[to] === ',' ? [from, to + 1] : index > 0 ? [parts[index - 1][1], to] : [from, to]
+      add(fn, 'drop SET assignment', text, removed, '')
+      if (text.startsWith('...')) return
+      const pair = /^(\w+)\s*:\s*([\s\S]+)$/.exec(text)
+      if (pair && pair[2] !== 'null')
+        add(fn, 'null SET value', text, [from, to], `${pair[1]}: null`)
+      if (/^\w+$/.test(text)) add(fn, 'null SET value', text, [from, to], `${text}: null`)
+    })
+  }
+
+  const members = enumMembers(source)
+  for (const list of source.matchAll(/\[\s*((\w+)\.\w+\s*(?:,\s*\2\.\w+\s*)*),?\s*\]/g)) {
+    const all = members.get(list[2])
+    if (!all) continue
+    const fn = declarationAt(source, list.index)
+    const present = list[1].split(',').map((item) => item.trim().split('.')[1])
+    const shown = `[${present.join(', ')}]`
+    const at = [list.index, list.index + list[0].length]
+    const render = (names) => `[${names.map((name) => `${list[2]}.${name}`).join(', ')}]`
+    if (present.length > 1) {
+      for (const name of present) {
+        add(
+          fn,
+          `drop ${name} from status list`,
+          shown,
+          at,
+          render(present.filter((other) => other !== name))
+        )
+      }
+    }
+    for (const name of all.filter((name) => !present.includes(name))) {
+      add(fn, `add ${name} to status list`, shown, at, render([...present, name]))
+    }
+  }
+
+  for (const call of source.matchAll(/(?<![\w.])(\w+)\.transaction\(/g)) {
+    const open = call.index + call[0].length
+    const close = scanCode(source, open, ')')
+    add(
+      declarationAt(source, call.index),
+      'drop transaction',
+      `${call[1]}.transaction`,
+      [call.index, close + 1],
+      `(${source.slice(open, close)})(${call[1]})`
+    )
+  }
+
   for (const tag of source.matchAll(/(?<![\w.])sql`/g)) {
     const start = tag.index + tag[0].length
     const { end, holes } = scanTemplate(source, start)
@@ -286,6 +436,25 @@ function mutantsOf(source) {
       emit,
       /\.one\(\s*$/.test(source.slice(0, tag.index))
     )
+    const unquoted = masked.replace(/'[^']*'/g, (literal) => LITERAL.repeat(literal.length))
+    for (const match of unquoted.matchAll(OPERATOR)) {
+      const operator = match[0]
+      const end = match.index + operator.length
+      const left = /[\w."]*$/.exec(unquoted.slice(0, match.index).trimEnd())[0]
+      const right = /^\s*(\u0001+|\u0002+|[\w."]*)/.exec(unquoted.slice(end))
+      const column = (token) => token.replaceAll('"', '').split('.').at(-1)
+      const isOrdered = ordered.has(column(left)) || ordered.has(column(right[1]))
+      const from = unquoted.slice(0, match.index).trimEnd().length - left.length
+      for (const swap of SWAPS[operator]) {
+        if (operator === '=' && swap !== '<>' && !isOrdered) continue
+        emit(
+          `swap ${operator} for ${swap}`,
+          [from, end + right[0].length],
+          [match.index, end],
+          swap
+        )
+      }
+    }
     const fragment =
       clauses(masked, depth, [0, masked.length]).length === 0 && COMPARISON.test(masked)
     if (fragment) {
@@ -320,13 +489,30 @@ const { values } = parseArgs({
     out: { type: 'string', default: join(tmpdir(), 'db-mutants.tsv') },
     list: { type: 'boolean', default: false },
     modules: { type: 'boolean', default: false },
+    shard: { type: 'string', default: '1/1' },
   },
 })
 
+const ordered = orderedColumns()
+const mutantsIn = (name) => mutantsOf(readFileSync(`src/db/${name}.ts`, 'utf8'), ordered)
+
 if (values.modules) {
-  console.log(JSON.stringify(testedModules(values.module)))
+  const jobs = testedModules(values.module).flatMap((module) => {
+    const shards = Math.max(1, Math.ceil(mutantsIn(module).length / MUTANTS_PER_JOB))
+    return Array.from({ length: shards }, (_, index) => ({
+      module,
+      shard: `${index + 1}/${shards}`,
+    }))
+  })
+  console.log(JSON.stringify(jobs))
   process.exit(0)
 }
+
+const shard = /^(\d+)\/(\d+)$/.exec(values.shard)
+if (!shard || Number(shard[1]) < 1 || Number(shard[1]) > Number(shard[2])) {
+  throw new Error(`--shard takes k/n with 1 <= k <= n, not ${values.shard}`)
+}
+const inShard = (_, index) => index % Number(shard[2]) === Number(shard[1]) - 1
 
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {})
 
@@ -337,7 +523,8 @@ for (const name of testedModules(values.module)) {
   const file = `src/db/${name}.ts`
   const test = `src/db/__tests__/${name}.db.test.ts`
   const original = readFileSync(file, 'utf8')
-  const mutants = mutantsOf(original)
+  const generated = mutantsOf(original, ordered)
+  const mutants = generated.filter(inShard)
   if (values.list) {
     for (const mutant of mutants) console.log(`${name}\t${mutant.function}\t${mutant.mutation}`)
     continue
@@ -372,11 +559,11 @@ for (const name of testedModules(values.module)) {
   }
   if (readFileSync(file, 'utf8') !== original) throw new Error(`${file} was not restored`)
   console.log(
-    `${name}: ${mutants.length} mutants in ${((Date.now() - moduleStarted) / 1000).toFixed(1)}s`
+    `${name} shard ${values.shard}: ${mutants.length} of ${generated.length} mutants in ${((Date.now() - moduleStarted) / 1000).toFixed(1)}s`
   )
   for (const entry of EQUIVALENT.filter((entry) => entry.module === name)) {
     if (
-      !mutants.some(
+      !generated.some(
         (mutant) => mutant.function === entry.function && mutant.mutation === entry.mutation
       )
     ) {

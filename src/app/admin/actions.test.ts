@@ -18,6 +18,8 @@ const {
   mockMarkPendingSubmissionMaybe,
   mockMarkSubmissionMaybe,
   mockRecordMaybeEmailSent,
+  mockFindSubmissionIdsByStatus,
+  mockFindSupportTicketIdsByStatus,
   mockSendDenialEmail,
   mockSendMaybeEmail,
   mockSendTransactionalSmsForSubmission,
@@ -41,6 +43,8 @@ const {
   mockMarkPendingSubmissionMaybe: vi.fn(),
   mockMarkSubmissionMaybe: vi.fn(),
   mockRecordMaybeEmailSent: vi.fn(),
+  mockFindSubmissionIdsByStatus: vi.fn(),
+  mockFindSupportTicketIdsByStatus: vi.fn(),
   mockSendDenialEmail: vi.fn(),
   mockSendMaybeEmail: vi.fn(),
   mockSendTransactionalSmsForSubmission: vi.fn(),
@@ -80,10 +84,12 @@ vi.mock('@/db/submissions', () => ({
   markPendingSubmissionMaybe: mockMarkPendingSubmissionMaybe,
   markSubmissionMaybe: mockMarkSubmissionMaybe,
   recordMaybeEmailSent: mockRecordMaybeEmailSent,
+  findSubmissionIdsByStatus: mockFindSubmissionIdsByStatus,
 }))
 
 vi.mock('@/db/sms-support', () => ({
   findSmsPhoneOptOut: vi.fn(),
+  findSupportTicketIdsByStatus: mockFindSupportTicketIdsByStatus,
 }))
 
 vi.mock('@/lib/email', () => ({
@@ -129,6 +135,53 @@ import { denySubmission } from '@/app/admin/_actions/deny'
 import { maybeSubmission } from '@/app/admin/_actions/maybe'
 import { searchSubmissions } from '@/app/admin/_actions/search'
 import { updateSubmission, updateReviewClassification } from '@/app/admin/_actions/edits'
+import { getDashboardStats } from '@/app/admin/_actions/queues'
+
+describe('getDashboardStats', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({ user: { id: 'doctor_123' } })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('counts each queue from the ids it finds', async () => {
+    mockFindSubmissionIdsByStatus.mockResolvedValue([{ id: 'a' }, { id: 'b' }])
+    mockFindSupportTicketIdsByStatus.mockResolvedValue([{ id: 't' }])
+
+    await expect(getDashboardStats()).resolves.toEqual({
+      success: true,
+      data: {
+        pendingCount: 2,
+        approvedToday: 2,
+        deniedToday: 2,
+        maybeCount: 2,
+        manualCount: 2,
+        needsAdminSupportCount: 1,
+      },
+    })
+  })
+
+  it('fails instead of showing zero counts when a queue query fails', async () => {
+    mockFindSubmissionIdsByStatus.mockRejectedValue(new Error('connection refused'))
+    mockFindSupportTicketIdsByStatus.mockResolvedValue([])
+
+    await expect(getDashboardStats()).resolves.toEqual({
+      success: false,
+      error: 'Failed to fetch dashboard stats',
+    })
+  })
+
+  it('fails instead of showing zero support tickets when the ticket query fails', async () => {
+    mockFindSubmissionIdsByStatus.mockResolvedValue([])
+    mockFindSupportTicketIdsByStatus.mockRejectedValue(new Error('connection refused'))
+
+    await expect(getDashboardStats()).resolves.toMatchObject({ success: false })
+  })
+})
 
 describe('searchSubmissions', () => {
   beforeEach(() => {

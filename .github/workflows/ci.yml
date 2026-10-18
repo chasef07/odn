@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.changes.outputs.db }}
-      modules: ${{ steps.list.outputs.modules }}
+      jobs: ${{ steps.list.outputs.jobs }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,12 +49,12 @@ jobs:
           else
             echo "db=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: List db-tested modules
+      - name: List db-tested modules and their shards
         id: list
-        run: echo "modules=$(node scripts/check-db-mutants.mjs --modules)" >> "$GITHUB_OUTPUT"
+        run: echo "jobs=$(node scripts/check-db-mutants.mjs --modules)" >> "$GITHUB_OUTPUT"
 
   db-mutants:
-    name: DB mutants (${{ matrix.module }})
+    name: DB mutants (${{ matrix.module }} ${{ matrix.shard }})
     needs: db-mutant-modules
     if: needs.db-mutant-modules.outputs.changed == 'true'
     runs-on: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: ${{ fromJSON(needs.db-mutant-modules.outputs.modules) }}
+        include: ${{ fromJSON(needs.db-mutant-modules.outputs.jobs) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,7 +71,7 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - name: npm run check:db-mutants
-        run: npm run check:db-mutants -- --module ${{ matrix.module }}
+        run: npm run check:db-mutants -- --module ${{ matrix.module }} --shard ${{ matrix.shard }}
 
   build:
     name: Build

@@ -62,6 +62,7 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
+import { revalidatePath } from 'next/cache'
 import { POST } from '../route'
 
 const now = new Date()
@@ -139,9 +140,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: validFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_ok',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
+      submission: {
+        id: 'sub_ok',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+      },
+      inserted: true,
     })
 
     const response = await POST(buildRequest())
@@ -169,9 +173,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: validFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_email_failure',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
+      submission: {
+        id: 'sub_email_failure',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+      },
+      inserted: true,
     })
     mockSendPaymentConfirmationEmail.mockRejectedValue(new Error('Resend unavailable'))
 
@@ -180,6 +187,33 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(response.status).toBe(200)
     expect(mockInsertSubmission).toHaveBeenCalledOnce()
     expect(mockSendPaymentConfirmationEmail).toHaveBeenCalledOnce()
+  })
+
+  it('acknowledges a concurrent duplicate delivery without emailing or texting again', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockFindTempByPaymentIntent.mockResolvedValue({
+      id: 'temp_dup',
+      paymentIntentId: 'pi_test_123',
+      formData: validFormData,
+    })
+    mockInsertSubmission.mockResolvedValue({
+      submission: {
+        id: 'sub_first',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      },
+      inserted: false,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockInsertSubmission).toHaveBeenCalledOnce()
+    expect(mockSendPaymentConfirmationEmail).not.toHaveBeenCalled()
+    expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('does not resend the purchase email when Stripe retries an existing submission', async () => {
@@ -201,11 +235,14 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: validFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: '78a58d67-1111-4444-8888-123456789abc',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
-      phone: '(555) 123-4567',
-      smsOptIn: true,
+      submission: {
+        id: '78a58d67-1111-4444-8888-123456789abc',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      },
+      inserted: true,
     })
 
     const response = await POST(buildRequest())
@@ -236,11 +273,14 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: validFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_sms_pending',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
-      phone: '(555) 123-4567',
-      smsOptIn: true,
+      submission: {
+        id: 'sub_sms_pending',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      },
+      inserted: true,
     })
 
     const response = await POST(buildRequest())
@@ -262,11 +302,14 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       },
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_no_sms',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
-      phone: '(555) 123-4567',
-      smsOptIn: false,
+      submission: {
+        id: 'sub_no_sms',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+        phone: '(555) 123-4567',
+        smsOptIn: false,
+      },
+      inserted: true,
     })
 
     const response = await POST(buildRequest())
@@ -284,11 +327,14 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: validFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_sms_error',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
-      phone: '(555) 123-4567',
-      smsOptIn: true,
+      submission: {
+        id: 'sub_sms_error',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+        phone: '(555) 123-4567',
+        smsOptIn: true,
+      },
+      inserted: true,
     })
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -329,9 +375,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: validFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_offer',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
+      submission: {
+        id: 'sub_offer',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+      },
+      inserted: true,
     })
 
     const response = await POST(buildRequest())
@@ -363,9 +412,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: { ...validFormData, attribution: { first: touch, last: touch } },
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_attr',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
+      submission: {
+        id: 'sub_attr',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+      },
+      inserted: true,
     })
 
     const response = await POST(buildRequest())
@@ -387,9 +439,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: validFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_none',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
+      submission: {
+        id: 'sub_none',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+      },
+      inserted: true,
     })
 
     await POST(buildRequest())
@@ -412,9 +467,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: badFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_maybe',
-      email: badFormData.email,
-      patientFirstName: badFormData.patientFirstName,
+      submission: {
+        id: 'sub_maybe',
+        email: badFormData.email,
+        patientFirstName: badFormData.patientFirstName,
+      },
+      inserted: true,
     })
 
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -463,9 +521,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: badFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_minor_maybe',
-      email: badFormData.email,
-      patientFirstName: badFormData.patientFirstName,
+      submission: {
+        id: 'sub_minor_maybe',
+        email: badFormData.email,
+        patientFirstName: badFormData.patientFirstName,
+      },
+      inserted: true,
     })
 
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -496,9 +557,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: badFormData,
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_future_maybe',
-      email: badFormData.email,
-      patientFirstName: badFormData.patientFirstName,
+      submission: {
+        id: 'sub_future_maybe',
+        email: badFormData.email,
+        patientFirstName: badFormData.patientFirstName,
+      },
+      inserted: true,
     })
 
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -521,9 +585,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: { ...validFormData, notePurpose: 'legal' },
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_legal',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
+      submission: {
+        id: 'sub_legal',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+      },
+      inserted: true,
     })
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -547,9 +614,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: { ...validFormData, state: 'CA', email: 'john@gmail.con' },
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_state',
-      email: validFormData.email,
-      patientFirstName: validFormData.patientFirstName,
+      submission: {
+        id: 'sub_state',
+        email: validFormData.email,
+        patientFirstName: validFormData.patientFirstName,
+      },
+      inserted: true,
     })
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -570,9 +640,12 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       formData: { ...validFormData, phone: '+1 555 123 4567', email: 'John@Example.com' },
     })
     mockInsertSubmission.mockResolvedValue({
-      id: 'sub_phone',
-      email: 'john@example.com',
-      patientFirstName: validFormData.patientFirstName,
+      submission: {
+        id: 'sub_phone',
+        email: 'john@example.com',
+        patientFirstName: validFormData.patientFirstName,
+      },
+      inserted: true,
     })
 
     const response = await POST(buildRequest())

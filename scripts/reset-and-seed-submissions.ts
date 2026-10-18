@@ -136,7 +136,7 @@ async function resetAndSeedSubmissions() {
 
     let count = 0
     for (const data of newTestData) {
-      const submission = await insertSubmission({
+      const { submission } = await insertSubmission({
         stripePaymentIntentId: `pi_test_${Date.now()}_${count}`,
         status: SubmissionStatus.PENDING_REVIEW,
         recipient: 'myself',

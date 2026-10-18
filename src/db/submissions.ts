@@ -1,5 +1,3 @@
-import { Prisma } from '@prisma/client'
-import prisma from './client'
 import {
   SMS_SUPPORT_AUTOMATION_STATUS,
   SMS_SUPPORT_JOB_STATUS,
@@ -7,8 +5,14 @@ import {
 } from '@/lib/sms-support-types'
 import { db } from './pool'
 import { and, array, count, likeContains, likeStartsWith, or, sql, type Sql } from './sql'
-import { select, selectAll, set } from './table'
-import { noteVerifications, smsMessages, submissions } from './tables'
+import { insert, select, selectAll, set, type Patch } from './table'
+import {
+  noteVerifications,
+  smsMessages,
+  smsSupportJobs,
+  smsSupportTickets,
+  submissions,
+} from './tables'
 import {
   NoteVerificationStatus,
   SubmissionStatus,
@@ -79,6 +83,48 @@ export type ReviewClassification = {
   otherNotePurpose: string | null
   absenceReason: string
   otherAbsenceReason: string | null
+}
+
+const detailColumns = keysOf<SubmissionDetailsPatch>({
+  patientFirstName: true,
+  patientLastName: true,
+  patientDateOfBirth: true,
+  guardianFirstName: true,
+  guardianLastName: true,
+  guardianDateOfBirth: true,
+  email: true,
+  phone: true,
+  state: true,
+  notePurpose: true,
+  otherNotePurpose: true,
+  firstDayOff: true,
+  lastDayOff: true,
+  absenceReason: true,
+  otherAbsenceReason: true,
+  symptoms: true,
+  otherSymptomText: true,
+  additionalInformation: true,
+  smsOptIn: true,
+  smsOptInAt: true,
+  smsConsentVersion: true,
+  smsPhoneE164: true,
+})
+
+const classificationColumns = keysOf<ReviewClassification>({
+  notePurpose: true,
+  otherNotePurpose: true,
+  absenceReason: true,
+  otherAbsenceReason: true,
+})
+
+function keysOf<T>(columns: Record<keyof T, true>): (keyof T)[] {
+  return Object.keys(columns) as (keyof T)[]
+}
+
+function pick<T extends object>(source: T, keys: readonly (keyof T)[]): Partial<T> {
+  const picked: Partial<T> = {}
+  for (const key of keys) picked[key] = source[key]
+  return picked
 }
 
 export type SubmissionSearch =
@@ -600,124 +646,102 @@ export async function findApprovedSubmissionsOverlapping(
   )
 }
 
+async function updateById(id: string, patch: Patch<Submission>): Promise<void> {
+  const affected = await db.affected(
+    sql`UPDATE submissions SET ${set(submissions, patch)} WHERE id = ${id}`
+  )
+  if (affected === 0) throw new Error(`Submission ${id} not found`)
+}
+
+function maybePatch(review: MaybeReview): Patch<Submission> {
+  return {
+    status: SubmissionStatus.MAYBE,
+    maybeReason: review.maybeReason,
+    maybeInternalNote: review.maybeInternalNote,
+    maybeApprovedDays: review.maybeApprovedDays,
+    maybeEmailSentAt: null,
+    reviewedByAdminId: review.reviewedByAdminId,
+    reviewedAt: review.reviewedAt,
+    updatedAt: review.reviewedAt,
+  }
+}
+
+function reviewPatch(review: Review): Patch<Submission> {
+  return { reviewedByAdminId: review.reviewedByAdminId, reviewedAt: review.reviewedAt }
+}
+
+function denialPatch(denial: Denial): Patch<Submission> {
+  return {
+    status: SubmissionStatus.DENIED,
+    ...reviewPatch(denial),
+    denialReason: denial.denialReason,
+  }
+}
+
+function approvalPatch(approval: Approval): Patch<Submission> {
+  return {
+    status: SubmissionStatus.APPROVED,
+    ...reviewPatch(approval),
+    denialReason: null,
+    approvalDiagnosis: approval.approvalDiagnosis,
+    approvalWithRestrictions: approval.approvalWithRestrictions,
+  }
+}
+
+const reviewableStatuses = array(
+  [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
+  '"SubmissionStatus"'
+)
+
 export async function markPendingSubmissionMaybe(id: string, review: MaybeReview): Promise<number> {
-  const result = await prisma.submission.updateMany({
-    where: {
-      id,
-      status: SubmissionStatus.PENDING_REVIEW,
-    },
-    data: {
-      status: SubmissionStatus.MAYBE,
-      maybeReason: review.maybeReason,
-      maybeInternalNote: review.maybeInternalNote,
-      maybeApprovedDays: review.maybeApprovedDays,
-      maybeEmailSentAt: null,
-      reviewedByAdminId: review.reviewedByAdminId,
-      reviewedAt: review.reviewedAt,
-      updatedAt: review.reviewedAt,
-    },
-  })
-  return result.count
+  return db.affected(
+    sql`UPDATE submissions SET ${set(submissions, maybePatch(review))} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
+  )
 }
 
 export async function markSubmissionMaybe(id: string, review: MaybeReview): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.MAYBE,
-      maybeReason: review.maybeReason,
-      maybeInternalNote: review.maybeInternalNote,
-      maybeApprovedDays: review.maybeApprovedDays,
-      maybeEmailSentAt: null,
-      reviewedByAdminId: review.reviewedByAdminId,
-      reviewedAt: review.reviewedAt,
-      updatedAt: review.reviewedAt,
-    },
-  })
+  await updateById(id, maybePatch(review))
 }
 
 export async function recordMaybeEmailSent(id: string, sentAt: Date): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      maybeEmailSentAt: sentAt,
-    },
-  })
+  await updateById(id, { maybeEmailSentAt: sentAt })
 }
 
 export async function recordApprovalEmailSent(id: string, sentAt: Date): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: { approvalEmailSentAt: sentAt },
-  })
+  await updateById(id, { approvalEmailSentAt: sentAt })
 }
 
 export async function recordDenialEmailSent(id: string, sentAt: Date): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: { denialEmailSentAt: sentAt },
-  })
+  await updateById(id, { denialEmailSentAt: sentAt })
 }
 
 export async function markMaybeSubmissionManual(id: string, review: Review): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.MANUAL,
-      reviewedByAdminId: review.reviewedByAdminId,
-      reviewedAt: review.reviewedAt,
-    },
-  })
+  await updateById(id, { status: SubmissionStatus.MANUAL, ...reviewPatch(review) })
 }
 
 export async function markSubmissionManual(id: string, change: StatusChange): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.MANUAL,
-      reviewedByAdminId: change.reviewedByAdminId,
-      reviewedAt: change.reviewedAt,
-      updatedAt: change.updatedAt,
-    },
+  await updateById(id, {
+    status: SubmissionStatus.MANUAL,
+    ...reviewPatch(change),
+    updatedAt: change.updatedAt,
   })
 }
 
-export async function approveManualSubmission(
-  id: string,
-  { reviewedByAdminId, reviewedAt }: Review
-): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.APPROVED,
-      reviewedByAdminId,
-      reviewedAt,
-      denialReason: null,
-      approvalEmailSentAt: null,
-      approvalDiagnosis: null,
-      approvalWithRestrictions: null,
-    },
+export async function approveManualSubmission(id: string, review: Review): Promise<void> {
+  await updateById(id, {
+    status: SubmissionStatus.APPROVED,
+    ...reviewPatch(review),
+    denialReason: null,
+    approvalEmailSentAt: null,
+    approvalDiagnosis: null,
+    approvalWithRestrictions: null,
   })
 }
 
 export async function approveReviewableSubmission(id: string, approval: Approval): Promise<number> {
-  const result = await prisma.submission.updateMany({
-    where: {
-      id,
-      status: {
-        in: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
-      },
-    },
-    data: {
-      status: SubmissionStatus.APPROVED,
-      reviewedByAdminId: approval.reviewedByAdminId,
-      reviewedAt: approval.reviewedAt,
-      denialReason: null,
-      approvalDiagnosis: approval.approvalDiagnosis,
-      approvalWithRestrictions: approval.approvalWithRestrictions,
-    },
-  })
-  return result.count
+  return db.affected(
+    sql`UPDATE submissions SET ${set(submissions, approvalPatch(approval))} WHERE id = ${id} AND status = ANY(${reviewableStatuses})`
+  )
 }
 
 export async function reapproveSubmission(
@@ -725,138 +749,76 @@ export async function reapproveSubmission(
   expectedUpdatedAt: Date,
   approval: Approval
 ): Promise<number> {
-  const result = await prisma.submission.updateMany({
-    where: {
-      id,
-      status: SubmissionStatus.APPROVED,
-      updatedAt: expectedUpdatedAt,
-    },
-    data: {
-      status: SubmissionStatus.APPROVED,
-      reviewedByAdminId: approval.reviewedByAdminId,
-      reviewedAt: approval.reviewedAt,
-      denialReason: null,
-      approvalDiagnosis: approval.approvalDiagnosis,
-      approvalWithRestrictions: approval.approvalWithRestrictions,
-      updatedAt: approval.reviewedAt,
-    },
-  })
-  return result.count
+  return db.affected(
+    sql`UPDATE submissions SET ${set(submissions, { ...approvalPatch(approval), updatedAt: approval.reviewedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.APPROVED} AND updated_at = ${expectedUpdatedAt}`
+  )
 }
 
 export async function markSubmissionDenied(
   id: string,
   denial: Denial & StatusChange
 ): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.DENIED,
-      denialReason: denial.denialReason,
-      reviewedByAdminId: denial.reviewedByAdminId,
-      reviewedAt: denial.reviewedAt,
-      updatedAt: denial.updatedAt,
-    },
-  })
+  await updateById(id, { ...denialPatch(denial), updatedAt: denial.updatedAt })
 }
 
 export async function markSubmissionDeniedAndRefunded(
   id: string,
   denial: Denial & StatusChange & { stripeRefundId: string; refundedAt: Date }
 ): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.DENIED,
-      denialReason: denial.denialReason,
-      reviewedByAdminId: denial.reviewedByAdminId,
-      reviewedAt: denial.reviewedAt,
-      stripeRefundId: denial.stripeRefundId,
-      refundedAt: denial.refundedAt,
-      updatedAt: denial.updatedAt,
-    },
+  await updateById(id, {
+    ...denialPatch(denial),
+    updatedAt: denial.updatedAt,
+    stripeRefundId: denial.stripeRefundId,
+    refundedAt: denial.refundedAt,
   })
 }
 
 export async function denyManualSubmission(id: string, denial: Denial): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.DENIED,
-      denialReason: denial.denialReason,
-      reviewedByAdminId: denial.reviewedByAdminId,
-      reviewedAt: denial.reviewedAt,
-      denialEmailSentAt: null,
-    },
-  })
+  await updateById(id, { ...denialPatch(denial), denialEmailSentAt: null })
 }
 
 export async function markSubmissionRefundReserved(id: string, denial: Denial): Promise<number> {
-  const result = await prisma.submission.updateMany({
-    where: {
-      id,
-      status: {
-        in: [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
-      },
-      stripeRefundId: null,
-    },
-    data: {
-      status: SubmissionStatus.DENIED,
-      denialReason: denial.denialReason,
-      reviewedByAdminId: denial.reviewedByAdminId,
-      reviewedAt: denial.reviewedAt,
-      stripeRefundId: `pending_${id}`,
-      refundedAt: denial.reviewedAt,
-    },
-  })
-  return result.count
+  const patch: Patch<Submission> = {
+    ...denialPatch(denial),
+    stripeRefundId: `pending_${id}`,
+    refundedAt: denial.reviewedAt,
+  }
+  return db.affected(
+    sql`UPDATE submissions SET ${set(submissions, patch)} WHERE id = ${id} AND status = ANY(${reviewableStatuses}) AND stripe_refund_id IS NULL`
+  )
 }
 
 export async function releaseSubmissionRefundReservation(id: string): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.PENDING_REVIEW,
-      stripeRefundId: null,
-      reviewedByAdminId: null,
-      reviewedAt: null,
-      refundedAt: null,
-      denialReason: null,
-    },
+  await updateById(id, {
+    status: SubmissionStatus.PENDING_REVIEW,
+    stripeRefundId: null,
+    reviewedByAdminId: null,
+    reviewedAt: null,
+    refundedAt: null,
+    denialReason: null,
   })
 }
 
 export async function recordSubmissionRefund(id: string, stripeRefundId: string): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      stripeRefundId,
-    },
-  })
+  await updateById(id, { stripeRefundId })
 }
 
 export async function returnSubmissionToReview(id: string, updatedAt: Date): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      status: SubmissionStatus.PENDING_REVIEW,
-      reviewedByAdminId: null,
-      reviewedAt: null,
-      updatedAt,
-    },
+  await updateById(id, {
+    status: SubmissionStatus.PENDING_REVIEW,
+    reviewedByAdminId: null,
+    reviewedAt: null,
+    updatedAt,
   })
 }
 
 export async function removeSubmissionGuardian(id: string, updatedAt: Date): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      recipient: 'myself',
-      guardianFirstName: null,
-      guardianLastName: null,
-      guardianDateOfBirth: null,
-      updatedAt,
-    },
+  await updateById(id, {
+    recipient: 'myself',
+    guardianFirstName: null,
+    guardianLastName: null,
+    guardianDateOfBirth: null,
+    updatedAt,
   })
 }
 
@@ -865,13 +827,7 @@ export async function updateSubmissionDetails(
   patch: SubmissionDetailsPatch,
   updatedAt: Date
 ): Promise<void> {
-  await prisma.submission.update({
-    where: { id },
-    data: {
-      ...patch,
-      updatedAt,
-    },
-  })
+  await updateById(id, { ...pick(patch, detailColumns), updatedAt })
 }
 
 export async function updatePendingSubmissionClassification(
@@ -879,17 +835,9 @@ export async function updatePendingSubmissionClassification(
   classification: ReviewClassification,
   updatedAt: Date
 ): Promise<number> {
-  const result = await prisma.submission.updateMany({
-    where: {
-      id,
-      status: SubmissionStatus.PENDING_REVIEW,
-    },
-    data: {
-      ...classification,
-      updatedAt,
-    },
-  })
-  return result.count
+  return db.affected(
+    sql`UPDATE submissions SET ${set(submissions, { ...pick(classification, classificationColumns), updatedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
+  )
 }
 
 export type SubmissionInsert = {
@@ -932,15 +880,24 @@ export type SubmissionInsert = {
   additionalInformation?: string | null
 }
 
-export async function insertSubmission(submission: SubmissionInsert): Promise<Submission> {
-  const { attribution, symptoms, ...columns } = submission
-  return prisma.submission.create({
-    data: {
-      ...columns,
-      attribution: attribution as Prisma.InputJsonValue | undefined,
-      symptoms: symptoms as Prisma.InputJsonValue | undefined,
-    },
-  })
+export type SubmissionInsertResult = { submission: Submission; inserted: boolean }
+
+export async function insertSubmission(
+  submission: SubmissionInsert
+): Promise<SubmissionInsertResult> {
+  const inserted = await db.one(
+    sql`${insert(submissions, submission)} ON CONFLICT (stripe_payment_intent_id) DO NOTHING RETURNING ${selectAll(submissions)}`
+  )
+  if (inserted) return { submission: inserted, inserted: true }
+  const existing = await db.one(
+    sql`SELECT ${selectAll(submissions)} FROM submissions WHERE stripe_payment_intent_id = ${submission.stripePaymentIntentId}`
+  )
+  if (!existing) {
+    throw new Error(
+      `Submission for payment intent ${submission.stripePaymentIntentId} was neither inserted nor found`
+    )
+  }
+  return { submission: existing, inserted: false }
 }
 
 export async function findSubmissionIdForPaymentIntent(
@@ -988,29 +945,15 @@ export async function claimDueFollowUpEmail(id: string, now: Date): Promise<numb
 }
 
 export async function releaseFollowUpEmailClaimAt(id: string, claimedAt: Date): Promise<void> {
-  await prisma.submission.updateMany({
-    where: {
-      id,
-      followUpEmailSentAt: null,
-      followUpEmailClaimedAt: claimedAt,
-    },
-    data: { followUpEmailClaimedAt: null },
-  })
+  await db.affected(
+    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: null })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
+  )
 }
 
 export async function acknowledgeFollowUpEmailSent(id: string, claimedAt: Date): Promise<number> {
-  const acknowledgement = await prisma.submission.updateMany({
-    where: {
-      id,
-      followUpEmailSentAt: null,
-      followUpEmailClaimedAt: claimedAt,
-    },
-    data: {
-      followUpEmailClaimedAt: null,
-      followUpEmailSentAt: claimedAt,
-    },
-  })
-  return acknowledgement.count
+  return db.affected(
+    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: null, followUpEmailSentAt: claimedAt })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
+  )
 }
 
 export async function findLatestSubmission(): Promise<Submission | null> {
@@ -1055,14 +998,12 @@ export async function countSubmissionsByStatus(): Promise<
 }
 
 export async function deleteSubmissionById(id: string): Promise<void> {
-  await prisma.submission.delete({
-    where: { id },
-  })
+  const affected = await db.affected(sql`DELETE FROM submissions WHERE id = ${id}`)
+  if (affected === 0) throw new Error(`Submission ${id} not found`)
 }
 
 export async function deleteAllSubmissions(): Promise<number> {
-  const result = await prisma.submission.deleteMany({})
-  return result.count
+  return db.affected(sql`DELETE FROM submissions`)
 }
 
 export type SmsSupportAutomationSubmissionUpdate = {
@@ -1190,44 +1131,25 @@ export async function commitSupportAutomationSubmissionUpdate({
   committedAt: Date
   updateData: SmsSupportAutomationSubmissionUpdate
 }): Promise<SmsSupportAutomationCommitResult> {
-  return prisma.$transaction(async (tx) => {
-    const ticketGuard = await tx.smsSupportTicket.updateMany({
-      where: {
-        id: ticketId,
-        status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-        automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
-      },
-      data: {
-        failureReason: null,
-      },
-    })
+  return db.transaction(async (tx) => {
+    const ticketGuard = await tx.affected(
+      sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, { failureReason: null })} WHERE id = ${ticketId} AND status = ${SMS_SUPPORT_STATUS.RUNNING_AUTOMATION} AND automation_status = ${SMS_SUPPORT_AUTOMATION_STATUS.RUNNING}`
+    )
 
-    if (ticketGuard.count !== 1) return 'cancelled' as const
+    if (ticketGuard !== 1) return 'cancelled'
 
-    const jobGuard = await tx.smsSupportJob.updateMany({
-      where: {
-        id: jobId,
-        status: SMS_SUPPORT_JOB_STATUS.RUNNING,
-      },
-      data: {
-        status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-        lockedAt: committedAt,
-      },
-    })
+    const jobGuard = await tx.affected(
+      sql`UPDATE sms_support_jobs SET ${set(smsSupportJobs, { status: SMS_SUPPORT_JOB_STATUS.COMMITTING, lockedAt: committedAt })} WHERE id = ${jobId} AND status = ${SMS_SUPPORT_JOB_STATUS.RUNNING}`
+    )
 
-    if (jobGuard.count !== 1) return 'cancelled' as const
+    if (jobGuard !== 1) return 'cancelled'
 
-    const submissionUpdate = await tx.submission.updateMany({
-      where: {
-        id: submissionId,
-        status: SubmissionStatus.APPROVED,
-        updatedAt: submissionUpdatedAt,
-      },
-      data: updateData,
-    })
+    const submissionUpdate = await tx.affected(
+      sql`UPDATE submissions SET ${set(submissions, updateData)} WHERE id = ${submissionId} AND status = ${SubmissionStatus.APPROVED} AND updated_at = ${submissionUpdatedAt}`
+    )
 
-    if (submissionUpdate.count !== 1) return 'submission_changed' as const
+    if (submissionUpdate !== 1) return 'submission_changed'
 
-    return 'updated' as const
+    return 'updated'
   })
 }

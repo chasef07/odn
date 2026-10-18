@@ -665,7 +665,6 @@ export async function escalateSupportTicketAfterAutomationFailure(
 export async function claimSupportTicketAutomationRun(ticketId: string): Promise<number> {
   return db.affected(
     sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, {
-      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
       automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
       failureReason: null,
     })} WHERE id = ${ticketId} AND status = ${SMS_SUPPORT_STATUS.RUNNING_AUTOMATION} AND automation_status = ANY(${array(ACTIVE_AUTOMATION_STATUSES)})`
