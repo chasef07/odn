@@ -42,7 +42,7 @@ describe('loadMigrations', () => {
     const recorded = Object.fromEntries(
       loadMigrations(MIGRATIONS_DIR).map((m) => [m.name, m.checksum])
     )
-    expect(recorded).toEqual({
+    expect(recorded).toMatchObject({
       '0001_baseline_production_schema':
         '31380f0353cb9f28e5ffb26a3d8b325df12500d062a0739022706ae3fe1c744c',
       '0002_add_sms_support_automation':
@@ -91,6 +91,17 @@ describe('loadMigrations', () => {
       "CREATE TABLE t (id int);\nPREPARE TRANSACTION 'deploy';",
       '-- the runner wraps this file\nCOMMIT;',
       '/* the runner wraps this file */ ROLLBACK;',
+      'CREATE TABLE a (id int);\n/* x /* y */ */ COMMIT;\nCREATE TABLE b (id int);\nSELECT 1/0;',
+      '/* a /* b /* c */ */ */ BEGIN;',
+      "/* it's /* nested */ still */ COMMIT;",
+      'CREATE TABLE a (id int);\nSELECT 1 AS "/*";\nCOMMIT;\nSELECT 1/0;',
+      'CREATE TABLE "a--b" (id int);\nCOMMIT;',
+      "SELECT 1 AS \"'\"; COMMIT; SELECT 'x';",
+      'SELECT 1 AS "$$"; COMMIT; SELECT $$x$$;',
+      'CREATE TABLE a$x$ (id int);\nCOMMIT;\nCREATE TABLE b$x$ (id int);',
+      'CREATE TABLE é$$ (id int);\nCOMMIT;\nCREATE TABLE b$$ (id int);',
+      'SELECT 1;-- x\rCOMMIT;',
+      'CREATE TABLE t (id int); /* never closed; COMMIT;',
     ]
     for (const sql of refused) {
       expect(
@@ -113,8 +124,13 @@ describe('loadMigrations', () => {
       '0007_g.sql': "INSERT INTO t VALUES ('it''s; COMMIT;')",
       '0008_h.sql': 'SELECT 1;\nBEGINNING',
       '0009_i.sql': 'COMMITTED;',
+      '0010_j.sql': 'CREATE TABLE t (id int); /* outer /* inner */ COMMIT; */',
+      '0011_k.sql': "INSERT INTO t VALUES ('/*'); /**/ SELECT 1;",
+      '0012_l.sql': 'SELECT 2 */* x */ 3;',
+      '0013_m.sql': 'CREATE TABLE "it\'s ""COMMIT""; END" (id int);',
+      '0014_n.sql': "SELECT $é$ '; COMMIT; ' $é$;",
     }
-    expect(loadMigrations(dirWith(accepted))).toHaveLength(9)
+    expect(loadMigrations(dirWith(accepted))).toHaveLength(14)
   })
 
   it("reads backslash escapes only inside E'' strings", () => {

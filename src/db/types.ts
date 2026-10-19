@@ -183,6 +183,7 @@ export type User = {
   email: string
   emailVerified: boolean
   name: string
+  image: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -196,7 +197,20 @@ export type Account = {
   refreshToken: string | null
   idToken: string | null
   expiresAt: Date | null
+  refreshTokenExpiresAt: Date | null
+  scope: string | null
   password: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type Verification = {
+  id: string
+  identifier: string
+  value: string
+  expiresAt: Date
+  createdAt: Date
+  updatedAt: Date
 }
 
 export type Session = {

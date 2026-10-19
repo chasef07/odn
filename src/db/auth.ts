@@ -2,9 +2,12 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { db, getPool } from './pool'
 import { sql } from './sql'
 import { insert, select } from './table'
-import { accounts, sessions, users } from './tables'
+import { accounts, sessions, users, verifications } from './tables'
 
-type AuthOptions = Omit<BetterAuthOptions, 'database' | 'user' | 'account' | 'session'> & {
+type AuthOptions = Omit<
+  BetterAuthOptions,
+  'database' | 'user' | 'account' | 'session' | 'verification'
+> & {
   session?: Omit<NonNullable<BetterAuthOptions['session']>, 'modelName' | 'fields'>
 }
 
@@ -42,6 +45,17 @@ export function createAuth(options: AuthOptions) {
         refreshToken: accounts.columns.refreshToken.name,
         idToken: accounts.columns.idToken.name,
         accessTokenExpiresAt: accounts.columns.expiresAt.name,
+        refreshTokenExpiresAt: accounts.columns.refreshTokenExpiresAt.name,
+        createdAt: accounts.columns.createdAt.name,
+        updatedAt: accounts.columns.updatedAt.name,
+      },
+    },
+    verification: {
+      modelName: verifications.name,
+      fields: {
+        expiresAt: verifications.columns.expiresAt.name,
+        createdAt: verifications.columns.createdAt.name,
+        updatedAt: verifications.columns.updatedAt.name,
       },
     },
   })

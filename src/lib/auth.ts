@@ -46,6 +46,9 @@ export const auth = {
   get api() {
     return getAuth().api
   },
+  get $context() {
+    return getAuth().$context
+  },
   handler(request: Request): Promise<Response> {
     return getAuth().handler(request)
   },
