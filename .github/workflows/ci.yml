@@ -20,6 +20,10 @@ jobs:
     env:
       TZ: UTC
       SUPPRESSIONS_BASE: origin/${{ github.base_ref || 'main' }}
+      RESEND_FROM_EMAIL: shell-leak@example.test
+      NEXT_PUBLIC_SITE_URL: https://shell-leak.example.test
+      TELNYX_SMS_ENABLED: 'true'
+      INTAKE_VALIDATION_ENFORCED: 'true'
     steps:
       - uses: actions/checkout@v4
         with:
