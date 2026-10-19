@@ -24,6 +24,7 @@ import {
   instantOf,
   todayUTC,
 } from '@/lib/dates'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 
 interface SubmissionCardProps {
   submission: Submission
@@ -310,6 +311,7 @@ export function SubmissionCard({
                 <Input
                   id="evaluationDate"
                   type="date"
+                  min={DATE_LIMITS.EARLIEST_DAY}
                   value={evaluationDate ?? ''}
                   onChange={(e) => onEvaluationDateChange(e.target.value)}
                   className="h-8 text-sm"

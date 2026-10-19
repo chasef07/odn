@@ -54,7 +54,6 @@ export function MaybeReasonDialog({
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset dialog state when it opens
       setReason(defaultReason)
       setApprovedDays('')
       setInternalNote('')

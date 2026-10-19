@@ -12,6 +12,7 @@ import { logger } from '@/lib/logger'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { ageOn, dateOnlyFromUtcDate, todayUTC } from '@/lib/dates'
 import { adminAction } from '@/lib/admin-session'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 
 export const removeGuardianFromAdultSubmission = adminAction(
   async (_admin, submissionId: string) => {
@@ -84,6 +85,16 @@ export const updateSubmission = adminAction(
     }
   ) => {
     try {
+      const dates = [
+        data.patientDateOfBirth,
+        data.guardianDateOfBirth,
+        data.firstDayOff,
+        data.lastDayOff,
+      ]
+      if (dates.some((date) => date && dateOnlyFromUtcDate(date) < DATE_LIMITS.EARLIEST_DAY)) {
+        return { success: false, error: `Every date must be ${DATE_LIMITS.EARLIEST_DAY} or later.` }
+      }
+
       let updateData: typeof data & {
         smsOptIn?: boolean
         smsOptInAt?: Date | null

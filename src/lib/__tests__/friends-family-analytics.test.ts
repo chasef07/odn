@@ -343,6 +343,28 @@ describe('friends-family analytics segmentation', () => {
     expect(analytics.customers[0].email).toBe('fresh@example.com')
   })
 
+  it('lists a customer with no approved note after every approved customer', () => {
+    const analytics = buildFriendsFamilyAnalytics(
+      [
+        submission({
+          id: 'pending',
+          email: 'pending@example.com',
+          status: SubmissionStatus.MAYBE,
+          createdAt: daysAgo(1),
+          approvalEmailSentAt: null,
+        }),
+        submission({ id: 'approved', email: 'approved@example.com', createdAt: daysAgo(60) }),
+      ],
+      referenceDate,
+      { segment: 'all_customers' }
+    )
+
+    expect(analytics.customers.map((customer) => customer.email)).toEqual([
+      'approved@example.com',
+      'pending@example.com',
+    ])
+  })
+
   it('reports gross, refunded, and net revenue separately', () => {
     const analytics = buildFriendsFamilyAnalytics(
       [
