@@ -72,7 +72,28 @@ describe('SubmissionEditForm dates', () => {
     fireEvent.change(document.getElementById('firstDayOff')!, { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
-    expect(await screen.findByText('Enter every date as a real calendar day.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Enter every date as a real calendar day, 1900 or later.')
+    ).toBeInTheDocument()
     expect(mockUpdateSubmission).not.toHaveBeenCalled()
+  })
+
+  it('refuses to save a day before 1900', async () => {
+    render(<SubmissionEditForm submission={submission} />)
+    fireEvent.change(document.getElementById('firstDayOff')!, { target: { value: '0050-11-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(
+      await screen.findByText('Enter every date as a real calendar day, 1900 or later.')
+    ).toBeInTheDocument()
+    expect(mockUpdateSubmission).not.toHaveBeenCalled()
+  })
+
+  it('offers no day before 1900 in any date field', () => {
+    render(<SubmissionEditForm submission={submission} />)
+    const inputs = Array.from(document.querySelectorAll('input[type="date"]'))
+
+    expect(inputs.map((input) => input.id)).toContain('evaluationDate')
+    for (const input of inputs) expect(input.getAttribute('min')).toBe('1900-01-01')
   })
 })

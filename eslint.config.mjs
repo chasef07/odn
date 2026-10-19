@@ -24,6 +24,9 @@ const eslintConfig = [
   ...nextVitals,
   prettierConfig,
   {
+    linterOptions: { noInlineConfig: true },
+  },
+  {
     ignores: [
       'node_modules/**',
       '.next/**',
@@ -95,6 +98,26 @@ const eslintConfig = [
     rules: {
       'no-console': ['warn', { allow: ['error', 'warn', 'info'] }],
     },
+  },
+  {
+    name: 'logger owns console.debug for development output',
+    files: ['src/lib/logger.ts'],
+    rules: { 'no-console': 'off' },
+  },
+  {
+    name: 'review page re-registers its keyboard shortcuts only on the listed queue state and resets the classification draft for each submission',
+    files: ['src/app/admin/review/page.tsx'],
+    rules: { 'react-hooks/exhaustive-deps': 'off', 'react-hooks/set-state-in-effect': 'off' },
+  },
+  {
+    name: 'dialogs reset their fields each time they open',
+    files: ['src/components/admin/MaybeReasonDialog.tsx', 'src/components/admin/SelectDenialDialog.tsx'],
+    rules: { 'react-hooks/set-state-in-effect': 'off' },
+  },
+  {
+    name: 'DateOfBirthInput syncs its split fields from the external form value',
+    files: ['src/components/form/DateOfBirthInput.tsx'],
+    rules: { 'react-hooks/set-state-in-effect': 'off' },
   },
 ]
 

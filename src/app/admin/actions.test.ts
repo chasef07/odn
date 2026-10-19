@@ -237,6 +237,15 @@ describe('updateSubmission', () => {
     vi.clearAllMocks()
   })
 
+  it('refuses a date before 1900 without writing', async () => {
+    const result = await updateSubmission('sub_123', {
+      firstDayOff: new Date('0050-11-01T00:00:00.000Z'),
+    })
+
+    expect(result).toEqual({ success: false, error: 'Every date must be 1900-01-01 or later.' })
+    expect(mockUpdateSubmissionDetails).not.toHaveBeenCalled()
+  })
+
   it('clears SMS consent when admins change the consented phone number', async () => {
     mockFindSubmissionSmsContact.mockResolvedValue({
       phone: '(555) 123-4567',
