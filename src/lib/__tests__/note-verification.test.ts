@@ -47,6 +47,12 @@ describe('note verification helpers', () => {
     expect(() => parseIssueDateInput('10/12/2026')).toThrow('Invalid evaluation date: 10/12/2026')
   })
 
+  it('refuses an evaluation date before 1900', () => {
+    expect(() => parseIssueDateInput('0050-01-01')).toThrow('Invalid evaluation date: 0050-01-01')
+    expect(() => parseIssueDateInput('1899-12-31')).toThrow('Invalid evaluation date: 1899-12-31')
+    expect(parseIssueDateInput('1900-01-01').toISOString()).toBe('1900-01-01T00:00:00.000Z')
+  })
+
   it('formats patient initials without exposing the full name', () => {
     expect(getPatientInitials('Jane', 'Doe')).toBe('J.D.')
   })
