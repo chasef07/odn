@@ -1,6 +1,6 @@
 import pg from 'pg'
 import { expect, it } from 'vitest'
-import { startTestDatabase } from '../test-database'
+import { localTestDatabaseUrl, startTestDatabase } from '../test-database'
 
 it('answers the query queued behind a failed extended-protocol query with its own result', async () => {
   const database = await startTestDatabase({ migrated: false })
@@ -24,4 +24,10 @@ it('answers the query queued behind a failed extended-protocol query with its ow
     await client.end()
     await database.stop()
   }
+})
+
+it('refuses a localhost url whose host query parameter points pg at another server', () => {
+  expect(() =>
+    localTestDatabaseUrl('postgresql://localhost/prod_test?host=db.example.com')
+  ).toThrow('TEST_DATABASE_URL must name a localhost database ending in _test')
 })
