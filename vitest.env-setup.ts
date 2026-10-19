@@ -1,26 +1,3 @@
-import { env } from '@/lib/env'
+import { resetTestEnv } from './vitest.test-env'
 
-const TEST_ENV = {
-  DATABASE_URL: 'postgresql://unit-tests-have-no-database',
-  NEXT_PUBLIC_SITE_URL: 'https://onlinedoctornote.com',
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_placeholder',
-  STRIPE_SECRET_KEY: 'sk_test_placeholder',
-  STRIPE_WEBHOOK_SECRET: 'whsec_placeholder',
-  STRIPE_PRICE_ID: 'price_placeholder',
-  CRON_SECRET: 'cron_placeholder',
-  BETTER_AUTH_SECRET: 'better_auth_placeholder_secret_32_chars',
-  BETTER_AUTH_URL: 'http://localhost:3000',
-  RESEND_API_KEY: 're_placeholder',
-  RESEND_WEBHOOK_SECRET: 'whsec_resend_placeholder',
-  RESEND_FROM_EMAIL: 'noreply@onlinedoctornote.com',
-  DOCTOR_NAME: 'Jason Buchwald',
-  DOCTOR_CREDENTIALS: 'MD FACEP',
-  DOCTOR_SIGNATURE_URL: '/images/doctor-signature.png',
-  VERIFICATION_BASE_URL: 'https://phealthclinic.com',
-  TELNYX_SMS_ENABLED: 'false',
-}
-
-for (const name of Object.keys(process.env)) {
-  if (name in env || name.startsWith('NEXT_PUBLIC_')) delete process.env[name]
-}
-Object.assign(process.env, TEST_ENV)
+resetTestEnv()

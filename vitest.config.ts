@@ -1,8 +1,11 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { resetTestEnv } from './vitest.test-env'
 
 const DB_TESTS = 'src/db/**/*.db.test.ts'
+
+resetTestEnv()
 
 export default defineConfig({
   plugins: [react()],
