@@ -2,7 +2,6 @@ import bcrypt from 'bcryptjs'
 import { describe, expect, it } from 'vitest'
 import { auth } from '@/lib/auth'
 import {
-  createAuth,
   createCredentialAccount,
   createVerifiedUser,
   deleteAllAuthAccounts,
@@ -148,26 +147,34 @@ describe('better-auth on the pg pool', () => {
 })
 
 describe('the auth tables carry every column better-auth writes', () => {
-  const instance = createAuth({
-    secret: 'schema-check-secret-of-32-characters',
-    baseURL: 'http://localhost',
-  })
+  it('has a table with every column for each model the configured auth uses', async () => {
+    const { tables } = await auth.$context
+    const missing: string[] = []
 
-  for (const model of ['user', 'session', 'account'] as const) {
-    it(model, async () => {
-      const { tables } = await instance.$context
-      const table = tables[model]
+    for (const table of Object.values(tables)) {
       const { rows } = await getPool().query<{ column_name: string }>(
         'SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
         ['public', table.modelName]
       )
       const columns = rows.map((row) => row.column_name)
-      const written = [
+      for (const column of [
         'id',
         ...Object.entries(table.fields).map(([field, attributes]) => attributes.fieldName ?? field),
-      ]
+      ]) {
+        if (!columns.includes(column)) missing.push(`${table.modelName}.${column}`)
+      }
+    }
 
-      expect(written.filter((column) => !columns.includes(column))).toEqual([])
+    expect(Object.keys(tables).sort()).toEqual(['account', 'session', 'user', 'verification'])
+    expect(missing).toEqual([])
+  })
+
+  it('answers a reset-password request with an unknown token as a client error', async () => {
+    const response = await auth.api.resetPassword({
+      body: { newPassword: 'a long enough passphrase', token: 'unknown' },
+      asResponse: true,
     })
-  }
+
+    expect(response.status).toBe(400)
+  })
 })
