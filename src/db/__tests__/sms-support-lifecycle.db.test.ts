@@ -951,7 +951,11 @@ describe('takeOver', () => {
       kind: 'done',
       status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED,
     })
-    const elsewhere = await seedJob(other.id, { status: SMS_SUPPORT_JOB_STATUS.COMMITTING })
+    const elsewhere = await seedJob(other.id, { kind: 'queued' })
+    const elsewhereCommitting = await seedJob(other.id, {
+      kind: 'committing',
+      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+    })
 
     const result = await takeOver('closeByAdmin', ticket.id, cancel)
 
@@ -970,6 +974,7 @@ describe('takeOver', () => {
     }
     expect(await readJob(done.id)).toEqual(done)
     expect(await readJob(elsewhere.id)).toEqual(elsewhere)
+    expect(await readJob(elsewhereCommitting.id)).toEqual(elsewhereCommitting)
     expect(await readTicket(other.id)).toEqual(other)
   })
 
