@@ -1,6 +1,7 @@
 import { col, defineTable, jsonCol, nullable, nullableJson, uuid } from './table'
 import {
   lifecycleColumns,
+  refundColumns,
   type Account,
   type NoteVerification,
   type ResendWebhookEvent,
@@ -10,6 +11,7 @@ import {
   type SmsSupportJob,
   type SmsSupportTicket,
   type Submission,
+  type SubmissionBirth,
   type SubmissionDetails,
   type TelnyxWebhookEvent,
   type TemporarySubmission,
@@ -130,6 +132,11 @@ export const submissions = defineTable<Submission>('submissions', {
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
 })
+
+export const submissionBirth = defineTable<SubmissionBirth>(
+  submissions.name,
+  without(submissions.columns, refundColumns)
+)
 
 export const submissionDetails = defineTable<SubmissionDetails>(
   submissions.name,

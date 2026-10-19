@@ -11,6 +11,7 @@ import {
   smsMessages,
   smsSupportJobs,
   smsSupportTickets,
+  submissionBirth,
   submissionDetails,
   submissions,
 } from './tables'
@@ -680,7 +681,7 @@ export async function insertSubmission(
   submission: SubmissionInsert
 ): Promise<SubmissionInsertResult> {
   const inserted = await db.one(
-    sql`${insert(submissions, submission)} ON CONFLICT (stripe_payment_intent_id) DO NOTHING RETURNING ${selectAll(submissions)}`
+    sql`${insert(submissionBirth, submission)} ON CONFLICT (stripe_payment_intent_id) DO NOTHING RETURNING ${selectAll(submissions)}`
   )
   if (inserted) return { submission: inserted, inserted: true }
   const existing = await db.one(

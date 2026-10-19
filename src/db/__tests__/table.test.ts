@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sql } from '../sql'
 import { col, defineTable, insert, select, selectAll, set } from '../table'
-import { noteVerifications, submissions, telnyxWebhookEvents } from '../tables'
+import { noteVerifications, submissionBirth, submissions, telnyxWebhookEvents } from '../tables'
 
 const UUID = /^[0-9a-f-]{36}$/
 
@@ -43,6 +43,19 @@ describe('defineTable', () => {
 })
 
 describe('insert', () => {
+  it('writes no refund column through the birth descriptor, whatever the values carry', () => {
+    const { text } = insert(submissionBirth, {
+      stripePaymentIntentId: 'pi_1',
+      status: 'DENIED',
+      // @ts-expect-error a row is born without a refund
+      stripeRefundId: 're_1',
+      refundedAt: new Date(),
+    }).compile()
+
+    expect(text).toContain('"status"')
+    expect(text).not.toContain('refund')
+  })
+
   it('fills id, created_at and updated_at when the table has them and the caller did not', () => {
     const { text, values } = insert(noteVerifications, {
       submissionId: 'sub_1',
