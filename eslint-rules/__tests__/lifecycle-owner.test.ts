@@ -146,6 +146,7 @@ describe('local/lifecycle-owner', () => {
       'db.one(sql`SELECT ${selectAll(submissions)} FROM submissions WHERE refunded_at IS NOT NULL`)':
         [],
       'const state = select(submissions, ["status", "refundedAt"], { alias: "s" })': [],
+      'const wiped = deleteEveryRow(submissions)': [],
       'db.affected(sql`${insert(submissionBirth, submission)} ON CONFLICT (stripe_payment_intent_id) DO NOTHING RETURNING ${selectAll(submissions)}`)':
         [],
       'db.affected(insert(submissionBirth, { status }))': [],

@@ -11,7 +11,7 @@ const LIFECYCLE_COLUMN = /\b(status|stripe_refund_id|refunded_at)\b/i
 const REFUND_COLUMN = /\b(stripe_refund_id|refunded_at)\b/i
 
 const TABLES_MODULE = /(^|\/)tables$/
-const READ_HELPERS = new Set(['select', 'selectAll'])
+const DESCRIPTOR_CONSUMERS = new Set(['select', 'selectAll', 'deleteEveryRow'])
 
 function templateText(node) {
   return node.quasis
@@ -91,7 +91,7 @@ function isReadHelperArgument(identifier) {
   return (
     call.type === 'CallExpression' &&
     call.callee.type === 'Identifier' &&
-    READ_HELPERS.has(call.callee.name) &&
+    DESCRIPTOR_CONSUMERS.has(call.callee.name) &&
     call.arguments[0] === identifier
   )
 }
@@ -110,7 +110,7 @@ const lifecycleOwner = {
       interpolation:
         'An UPDATE of submissions interpolates only set(submissionDetails, ...) inside SET; name every other column in the text.',
       descriptor:
-        'Outside src/db/submission-lifecycle.ts the submissions descriptor is read-only: pass it, under its own name, only as the first argument of select or selectAll.',
+        'Outside src/db/submission-lifecycle.ts the submissions descriptor is only read or wiped: pass it, under its own name, only as the first argument of select, selectAll or deleteEveryRow.',
     },
   },
   create(context) {
