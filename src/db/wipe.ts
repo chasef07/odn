@@ -1,4 +1,4 @@
-import { parse } from 'pg-connection-string'
+import pg from 'pg'
 import { env } from '@/lib/env'
 import { db } from './pool'
 import { expression, identifier, sql } from './sql'
@@ -8,8 +8,8 @@ const WIPEABLE_DATABASE = /^(?:odn|postgres|\w+_(?:dev|test))$/
 const currentDatabase = expression<string>()('name', sql`current_database()`)
 
 function describeTarget(databaseUrl: string, database: string): string {
-  const { host, port } = parse(databaseUrl)
-  return `database "${database}" on host "${host || 'default'}"${port ? ` port ${port}` : ''}`
+  const { host, port } = new pg.Client({ connectionString: databaseUrl })
+  return `database "${database}" on host "${host}" port ${port}`
 }
 
 export function wipeRefusal(databaseUrl: string, database: string): string | null {

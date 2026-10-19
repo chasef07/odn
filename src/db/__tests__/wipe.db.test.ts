@@ -11,6 +11,7 @@ const DUPLICATE_HOST =
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 describe('wipeRefusal', () => {
@@ -34,6 +35,15 @@ describe('wipeRefusal', () => {
 
     expect(refusal).toContain('database "onlinedoctornote" on host "127.0.0.1"')
     expect(refusal).not.toContain('hunter2')
+  })
+
+  it('names the host and port pg takes from PGHOST and PGPORT when the URL has none', () => {
+    vi.stubEnv('PGHOST', '/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db')
+    vi.stubEnv('PGPORT', '6543')
+
+    expect(wipeRefusal('postgresql:///onlinedoctornote', 'onlinedoctornote')).toContain(
+      'on host "/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db" port 6543'
+    )
   })
 
   it('names the host pg connects to when the URL repeats the host parameter', () => {
