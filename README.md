@@ -10,14 +10,14 @@ Online Doctor's Note (ODN) sells doctor's notes for work or school. A patient an
 
 The app depends on these outside services and libraries.
 
-| Service               | What ODN uses it for                                                                                                                                                 | Code                                                                         |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Stripe                | Takes the payment through a payment intent. Its `payment_intent.succeeded` webhook creates the submission. A denial refunds the payment.                             | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe-prod3`                     |
-| Resend                | Sends the payment confirmation, approval, denial, maybe, and follow-up emails. The approval email has the PDF attached. Its `email.bounced` webhook alerts the team. | `src/lib/email.ts`, `src/emails`, `src/app/api/webhooks/resend`              |
-| Telnyx                | Sends transactional SMS when `TELNYX_SMS_ENABLED=true`. Its webhook records delivery status and opt-outs, and turns inbound texts into support tickets.              | `src/lib/telnyx.ts`, `src/lib/sms-support.ts`, `src/app/api/webhooks/telnyx` |
-| better-auth           | Runs doctor login and sessions on the app's own Postgres tables, with bcrypt password hashes.                                                                        | `src/lib/auth.ts`, `src/db/auth.ts`, `src/app/api/auth/[...all]`             |
-| `@react-pdf/renderer` | Renders the note PDF inside the app process. `qrcode` draws the QR code. Both are libraries, not remote services.                                                    | `src/lib/pdf/generate-pdf.tsx`, `src/lib/qr-code.ts`                         |
-| Cloud Scheduler       | Calls the two cron routes every hour with `Authorization: Bearer $CRON_SECRET`. One deletes expired drafts and one sends follow-up emails.                           | `src/app/api/cron`, `docs/CLOUD_RUN.md`                                      |
+| Service               | What ODN uses it for                                                                                                                                                                               | Code                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Stripe                | Takes the payment through a payment intent. Its `payment_intent.succeeded` webhook creates the submission. A denial refunds the payment.                                                           | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe-prod3`                     |
+| Resend                | Sends the payment confirmation, approval, denial, maybe, and follow-up emails. The approval email has the PDF attached. Its `email.bounced` webhook alerts the team and texts an opted-in patient. | `src/lib/email.ts`, `src/emails`, `src/app/api/webhooks/resend`              |
+| Telnyx                | Sends transactional SMS when `TELNYX_SMS_ENABLED=true`. Its webhook records delivery status and opt-outs, and turns inbound texts into support tickets.                                            | `src/lib/telnyx.ts`, `src/lib/sms-support.ts`, `src/app/api/webhooks/telnyx` |
+| better-auth           | Runs doctor login and sessions on the app's own Postgres tables, with bcrypt password hashes.                                                                                                      | `src/lib/auth.ts`, `src/db/auth.ts`, `src/app/api/auth/[...all]`             |
+| `@react-pdf/renderer` | Renders the note PDF inside the app process. `qrcode` draws the QR code. Both are libraries, not remote services.                                                                                  | `src/lib/pdf/generate-pdf.tsx`, `src/lib/qr-code.ts`                         |
+| Cloud Scheduler       | Calls the two cron routes every hour with `Authorization: Bearer $CRON_SECRET`. One deletes expired drafts and one sends follow-up emails.                                                         | `src/app/api/cron`, `docs/CLOUD_RUN.md`                                      |
 
 ## Architecture
 
@@ -40,6 +40,7 @@ flowchart TB
       direction LR
       pages["App Router pages<br/>intake steps, /es, /payment,<br/>/verify, /admin"]
       actions["Admin server actions<br/>src/app/admin/_actions<br/>each one built with adminAction"]
+      lookup["Public server action<br/>lookupMedicalRecord in<br/>src/app/verify/actions.ts"]
       routes["API routes in src/app/api<br/>create-payment-intent, verify-payment,<br/>get-price, auth, cron"]
       webhooks["Webhooks in src/app/api/webhooks<br/>stripe-prod3, resend, telnyx"]
     end
@@ -78,6 +79,7 @@ flowchart TB
   scheduler -->|Bearer CRON_SECRET| routes
   proxy --> pages
   pages -->|server action| actions
+  pages -->|server action| lookup
   pages -->|fetch| routes
 
   entry --> lib
@@ -92,6 +94,7 @@ flowchart TB
   modules --> pool
   authdb --> pool
   migrate --> pool
+  pool -->|DATABASE_URL| env
   pool -->|unix socket| postgres
 ```
 
@@ -127,14 +130,14 @@ Approving a `PENDING_REVIEW` or `MAYBE` submission issues the PDF and emails it.
 
 Denying a `PENDING_REVIEW` or `MAYBE` submission refunds the payment in three steps. The action reserves the refund on the row, calls Stripe, and then records the refund id. If Stripe refused the refund for certain, the action releases the reservation and the submission goes back to its earlier status. If the outcome is unknown, the submission stays `DENIED` with the refund pending. A submission that an earlier denial refunded is not refunded again.
 
-From a submission's page under `/admin/search`, `changeSubmissionStatus` can also override the status.
+From a submission's page under `/admin/search`, `changeSubmissionStatus` can also override the status. A `DENIED` submission whose payment was refunded or is being refunded cannot move out of `DENIED`. Only a denial that issued no refund, such as a `MANUAL` one, can.
 
-| Target           | Allowed from                                     | Side effects                                                                        |
-| ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| `DENIED`         | `PENDING_REVIEW`, `MAYBE`, `MANUAL`, `APPROVED`  | Refunds the payment if no earlier denial did, emails the patient, revokes the note. |
-| `MAYBE`          | `PENDING_REVIEW`, `MANUAL`, `APPROVED`, `DENIED` | Revokes the note.                                                                   |
-| `MANUAL`         | `PENDING_REVIEW`, `MAYBE`, `APPROVED`, `DENIED`  | Revokes the note.                                                                   |
-| `PENDING_REVIEW` | `MAYBE`, `MANUAL`, `APPROVED`, `DENIED`          | Clears the reviewer and revokes the note.                                           |
+| Target           | Allowed from                                                    | Side effects                                                                                          |
+| ---------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `DENIED`         | `PENDING_REVIEW`, `MAYBE`, `MANUAL`, `APPROVED`                 | Refunds the payment if no earlier denial did, emails the patient, revokes the note.                   |
+| `MAYBE`          | `PENDING_REVIEW`, `MANUAL`, `APPROVED`, `DENIED` with no refund | Revokes the note. From `PENDING_REVIEW`, a reason that sends email also emails and texts the patient. |
+| `MANUAL`         | `PENDING_REVIEW`, `MAYBE`, `APPROVED`, `DENIED` with no refund  | Revokes the note.                                                                                     |
+| `PENDING_REVIEW` | `MAYBE`, `MANUAL`, `APPROVED`, `DENIED` with no refund          | Clears the reviewer and revokes the note.                                                             |
 
 ## How a request flows
 
@@ -143,7 +146,7 @@ This is one paid request, from the first form to the PDF in the patient's inbox.
 1. **Intake.** The patient walks the pages in `INTAKE_STEPS` in `src/lib/intake.ts`, from `/get-started` to `/review`. The same table drives the progress bar and the back links. `/guardian-info` shows only for a note about someone else, and `/symptoms` is skipped for some absence reasons. Each page checks its fields with its step schema in `src/lib/validation-schemas.ts`, and `src/lib/form-storage.ts` keeps the draft in the browser's local storage.
 2. **Checkout.** `/review` leads to `/approved` and then to `/payment`. `src/app/payment/page.tsx` posts the draft to `src/app/api/create-payment-intent/route.ts`. That route runs `parseIntake`, which uses the same schemas as the pages. A draft that cannot be stored gets a 400. A rule failure, such as an under-18 patient, blocks checkout only when its rule is `always` in `src/lib/intake-rules.ts` or `INTAKE_VALIDATION_ENFORCED=true`. Otherwise the route logs it and goes on. The route then saves the draft with `createTemporarySubmission` and creates the Stripe payment intent, with the draft's id in the intent's metadata.
 3. **Payment.** The browser confirms the card with Stripe Elements. `/payment/success` reads the result from `src/app/api/verify-payment/route.ts` for conversion tracking.
-4. **Webhook.** Stripe calls `src/app/api/webhooks/stripe-prod3/route.ts` with `payment_intent.succeeded`. The route checks the signature, finds the draft by payment intent or by the metadata id, parses it again, and calls `insertSubmission`. A clean draft becomes `PENDING_REVIEW`. A draft that fails a rule becomes `MAYBE` with the reasons in its internal note. A repeated delivery finds the existing submission and returns 200. Only a draft that cannot be stored returns a 500, so that Stripe retries it. The route then sends the payment confirmation email and, to an opted-in phone, an SMS.
+4. **Webhook.** Stripe calls `src/app/api/webhooks/stripe-prod3/route.ts` with `payment_intent.succeeded`. The route checks the signature, finds the draft by payment intent or by the metadata id, parses it again, and calls `insertSubmission`. A clean draft becomes `PENDING_REVIEW`. A draft that fails a rule becomes `MAYBE` with the reasons in its internal note. A repeated delivery finds the existing submission and returns 200. The route returns a 500, so that Stripe retries, when the draft is missing, cannot be stored, or fails to insert, and on any unexpected error. The route then sends the payment confirmation email and, to an opted-in phone, an SMS.
 5. **Review.** A doctor opens `/admin/review`, which loads the queue through `getSubmissionsForReview` in `src/app/admin/_actions/queues.ts`.
 6. **Note PDF.** `approveSubmission` in `src/app/admin/_actions/approve.ts` creates a note verification with a medical record number and a slug. It renders the PDF with `generateDoctorNotePDF` from `src/lib/pdf/generate-pdf.tsx` and moves the submission to `APPROVED`. If another doctor changed the submission first, the update matches no row and the action revokes the new verification.
 7. **Email.** `sendApprovalEmail` in `src/lib/email.ts` sends the PDF and the verification link through Resend. The action then records the send time and texts an opted-in patient. If the email fails, the approval stays and the doctor sees a warning.
@@ -216,7 +219,7 @@ To run part of the tests, use `npm run test:unit` for the tests that need no dat
 | Resend         | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_FROM_EMAIL`                                                                                                                      |
 | Telnyx         | `TELNYX_SMS_ENABLED`. When it is `true`, also `TELNYX_API_KEY` and `TELNYX_FROM_NUMBER`. `TELNYX_PUBLIC_KEY` verifies the webhook, and `TELNYX_WEBHOOK_ENABLED=false` turns it off. |
 | Auth and crons | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the app's own origin), `CRON_SECRET`                                                                                                       |
-| Note content   | `DOCTOR_NAME`, `DOCTOR_CREDENTIALS`, `DOCTOR_SIGNATURE_URL`, `DOCTOR_NPI`, `VERIFICATION_BASE_URL` (the host in QR codes and verification links)                                    |
+| Note content   | `DOCTOR_NAME`, `DOCTOR_CREDENTIALS`, `DOCTOR_SIGNATURE_URL`, `DOCTOR_NPI` (has a built-in default), `VERIFICATION_BASE_URL` (the host in QR codes and verification links)           |
 | Intake         | `INTAKE_VALIDATION_ENFORCED`, `false` when unset                                                                                                                                    |
 | Public         | `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. These two are the only ones `next build` needs.                                                                       |
 
