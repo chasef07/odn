@@ -9,6 +9,7 @@ const {
   mockSendSms,
   mockGenerateDoctorNotePDF,
   betweenReadAndWrite,
+  afterWrite,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockRefundsCreate: vi.fn(),
@@ -18,6 +19,7 @@ const {
   mockSendSms: vi.fn(),
   mockGenerateDoctorNotePDF: vi.fn(async () => Buffer.from('pdf')),
   betweenReadAndWrite: { run: null as null | (() => Promise<void>) },
+  afterWrite: { throwOnce: null as null | string },
 }))
 
 vi.mock('@/lib/auth', () => ({ auth: { api: { getSession: mockGetSession } } }))
@@ -48,7 +50,15 @@ vi.mock('@/db/submission-lifecycle', async (importOriginal) => {
     if (run) await run()
     return read
   }
-  return { ...actual, permit }
+  const transition: typeof actual.transition = async (step, input) => {
+    const outcome = await actual.transition(step, input)
+    if (afterWrite.throwOnce === step.transition) {
+      afterWrite.throwOnce = null
+      throw new Error(`connection reset after ${step.transition}`)
+    }
+    return outcome
+  }
+  return { ...actual, permit, transition }
 })
 
 import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/approve'
@@ -104,6 +114,7 @@ function stripeError(type: string, message: string, code?: string): Error {
 beforeEach(async () => {
   vi.resetAllMocks()
   betweenReadAndWrite.run = null
+  afterWrite.throwOnce = null
   stripeRefunds.length = 0
   mockRefundsList.mockImplementation(listRefunds)
   const admin = await createVerifiedUser({ email: 'doc@example.com', name: 'Doc' })
@@ -343,7 +354,7 @@ describe('a refund made in the Stripe dashboard', () => {
     expect(mockRefundsList).not.toHaveBeenCalled()
   })
 
-  it('fails instead of reporting a record when a concurrent settlement recorded the refund first', async () => {
+  it('reports a refund another run recorded first as recorded, without a second email', async () => {
     const approved = await approvedThenRefundedInStripe()
     await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
     mockRefundsList.mockImplementationOnce(async (params) => {
@@ -353,14 +364,56 @@ describe('a refund made in the Stripe dashboard', () => {
       return listRefunds(params)
     })
 
-    await expect(settleRefundReservation(approved.id, undefined)).rejects.toThrow(
-      'Refund re_dashboard was issued but could not be recorded.'
-    )
+    expect(await settleRefundReservation(approved.id, undefined)).toEqual({
+      settled: 'recorded',
+      refundId: 're_dashboard',
+      notice: { success: true, warning: 'Refund re_dashboard was already recorded by another run' },
+    })
     expect(await reload(approved.id)).toMatchObject({
       status: SubmissionStatus.DENIED,
       stripeRefundId: 're_dashboard',
     })
     expect(mockSendDenialEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('finishes the denial itself when its own record committed but the reply was lost', async () => {
+    const pending = await seedPending()
+    expect(await approveSubmission(pending.id)).toEqual({ success: true })
+    expect(await activeNotes(pending.id)).toBe(1)
+    mockRefundsCreate.mockResolvedValueOnce({ id: 're_lost_reply', amount: 2495 })
+    afterWrite.throwOnce = 'recordRefund'
+
+    expect(await changeSubmissionStatus(pending.id, SubmissionStatus.DENIED, 'Legal')).toEqual({
+      success: true,
+    })
+    const row = await reload(pending.id)
+    expect(row).toMatchObject({ status: SubmissionStatus.DENIED, stripeRefundId: 're_lost_reply' })
+    expect(row.denialEmailSentAt).not.toBeNull()
+    expect(await activeNotes(pending.id)).toBe(0)
+    expect(mockSendDenialEmail).toHaveBeenCalledExactlyOnceWith(DENIAL_EMAIL)
+  })
+
+  it('fails instead of reporting a record when a concurrent settlement released the row first', async () => {
+    const pending = await seedPending()
+    mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
+    await denySubmission(pending.id, 'Legal')
+    mockRefundsList.mockImplementationOnce(async (params) => {
+      expect(await settleRefundReservation(pending.id, SubmissionStatus.MAYBE)).toEqual({
+        settled: 'released',
+        status: SubmissionStatus.MAYBE,
+      })
+      stripeRefunds.push(dashboardRefund(pending))
+      return listRefunds(params)
+    })
+
+    await expect(settleRefundReservation(pending.id, undefined)).rejects.toThrow(
+      'Refund re_dashboard was issued but could not be recorded.'
+    )
+    expect(await reload(pending.id)).toMatchObject({
+      status: SubmissionStatus.MAYBE,
+      stripeRefundId: null,
+    })
+    expect(mockSendDenialEmail).not.toHaveBeenCalled()
   })
 
   it('fails instead of reporting a release when a concurrent settlement released the row first', async () => {
@@ -531,6 +584,10 @@ describe('the detail-page deny', () => {
     expect(await changeSubmissionStatus(pending.id, 'SHIPPED' as never)).toEqual({
       success: false,
       error: 'Cannot change submission to status: SHIPPED',
+    })
+    expect(await changeSubmissionStatus(pending.id, ['DENIED'] as never, 'Legal')).toEqual({
+      success: false,
+      error: 'Cannot change submission to status: ["DENIED"]',
     })
     expect(await reload(pending.id)).toEqual(pending)
   })

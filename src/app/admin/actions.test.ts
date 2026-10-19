@@ -5,6 +5,7 @@ const {
   mockRefundsCreate,
   mockPermit,
   mockTransition,
+  mockFindSubmissionById,
   mockFindSubmissionSmsContact,
   mockSearchSubmissionsPage,
   mockUpdateSubmissionDetails,
@@ -24,6 +25,7 @@ const {
   mockRefundsCreate: vi.fn(),
   mockPermit: vi.fn(),
   mockTransition: vi.fn(),
+  mockFindSubmissionById: vi.fn<(id: string) => Promise<object | null>>(async () => null),
   mockFindSubmissionSmsContact: vi.fn(),
   mockSearchSubmissionsPage: vi.fn(),
   mockUpdateSubmissionDetails: vi.fn(),
@@ -62,6 +64,7 @@ vi.mock('@/db/submission-lifecycle', () => ({
 }))
 
 vi.mock('@/db/submissions', () => ({
+  findSubmissionById: mockFindSubmissionById,
   findSubmissionSmsContact: mockFindSubmissionSmsContact,
   searchSubmissionsPage: mockSearchSubmissionsPage,
   updateSubmissionDetails: mockUpdateSubmissionDetails,
@@ -649,6 +652,76 @@ describe('denySubmission - Denial Automation', () => {
         error: `Refund ${mockRefundId} was issued but could not be recorded.`,
       })
       expectNoTransition('releaseRefund')
+      expect(mockSendDenialEmail).not.toHaveBeenCalled()
+    })
+
+    it('reports a refund another run recorded first as recorded, without emailing again', async () => {
+      permits('deny', mockSubmission)
+      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
+      mockTransition.mockImplementation(async (step: { transition: string; row: object }) =>
+        step.transition === 'recordRefund'
+          ? { ok: false, refusal: { reason: 'stale' } }
+          : { ok: true, value: step.row }
+      )
+      mockFindSubmissionById.mockResolvedValueOnce({
+        ...mockSubmission,
+        status: SubmissionStatus.DENIED,
+        stripeRefundId: mockRefundId,
+        refundedAt: new Date('2026-03-05T12:00:00.000Z'),
+        denialEmailSentAt: new Date('2026-03-05T12:00:01.000Z'),
+      })
+
+      const result = await denySubmission(mockSubmissionId, 'Legal')
+
+      expect(result).toEqual({
+        success: true,
+        warning: `Refund ${mockRefundId} was already recorded by another run`,
+      })
+      expect(mockFindSubmissionById).toHaveBeenCalledExactlyOnceWith(mockSubmissionId)
+      expect(mockRevokeNoteVerificationForSubmission).toHaveBeenCalledWith(
+        mockSubmissionId,
+        expect.any(Date)
+      )
+      expect(mockSendDenialEmail).not.toHaveBeenCalled()
+    })
+
+    it('sends the denial email itself when another run recorded the refund but its email predates it', async () => {
+      permits('deny', mockSubmission)
+      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
+      mockTransition.mockImplementation(async (step: { transition: string; row: object }) =>
+        step.transition === 'recordRefund'
+          ? { ok: false, refusal: { reason: 'stale' } }
+          : { ok: true, value: step.row }
+      )
+      mockFindSubmissionById.mockResolvedValueOnce({
+        ...mockSubmission,
+        email: 'current@example.com',
+        status: SubmissionStatus.DENIED,
+        stripeRefundId: mockRefundId,
+        refundedAt: new Date('2026-03-05T12:00:01.000Z'),
+        denialEmailSentAt: new Date('2026-03-05T12:00:00.000Z'),
+      })
+
+      expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual({ success: true })
+      expect(mockSendDenialEmail).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ to: 'current@example.com', refundAmount: 24.95 })
+      )
+    })
+
+    it('reports a refund that could not be recorded when the row cannot be read back either', async () => {
+      permits('deny', mockSubmission)
+      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
+      mockTransition.mockImplementation(async (step: { transition: string; row: object }) =>
+        step.transition === 'recordRefund'
+          ? { ok: false, refusal: { reason: 'stale' } }
+          : { ok: true, value: step.row }
+      )
+      mockFindSubmissionById.mockRejectedValueOnce(new Error('connection lost'))
+
+      expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual({
+        success: false,
+        error: `Refund ${mockRefundId} was issued but could not be recorded.`,
+      })
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
     })
   })

@@ -130,12 +130,31 @@ export async function finishRefundedDenial(
     return null
   })
   if (!recorded?.ok) {
-    if (recorded) logger.error(`Stripe refund ${refund.id} found a moved row:`, recorded.refusal)
-    return { success: false, error: `Refund ${refund.id} was issued but could not be recorded.` }
+    const current = await findSubmissionById(reserved.id).catch((readError: unknown) => {
+      logger.error(`Stripe refund ${refund.id} could not be checked:`, readError)
+      return null
+    })
+    if (current?.stripeRefundId !== refund.id) {
+      if (recorded) logger.error(`Stripe refund ${refund.id} found a moved row:`, recorded.refusal)
+      return { success: false, error: `Refund ${refund.id} was issued but could not be recorded.` }
+    }
+    await revokeNoteVerificationForSubmission(reserved.id, at)
+    if (denialEmailedAfterRefund(current)) {
+      return { success: true, warning: `Refund ${refund.id} was already recorded by another run` }
+    }
+    return notifyDenial(current, reason, refund.amount)
   }
 
   await revokeNoteVerificationForSubmission(reserved.id, at)
   return notifyDenial(recorded.value, reason, refund.amount)
+}
+
+function denialEmailedAfterRefund(row: Submission): boolean {
+  return (
+    row.denialEmailSentAt !== null &&
+    row.refundedAt !== null &&
+    row.denialEmailSentAt >= row.refundedAt
+  )
 }
 
 const REFUND_SETTLED = new Set(['pending', 'requires_action', 'succeeded'])

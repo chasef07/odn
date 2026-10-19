@@ -39,7 +39,8 @@ export const changeSubmissionStatus = adminAction(
   ): Promise<ActionResult> => {
     try {
       if (!isOverrideTarget(newStatus)) {
-        return { success: false, error: `Cannot change submission to status: ${String(newStatus)}` }
+        const shown = typeof newStatus === 'string' ? newStatus : JSON.stringify(newStatus)
+        return { success: false, error: `Cannot change submission to status: ${shown}` }
       }
       const now = new Date()
       const detailPaths = ['/admin', '/admin/search', `/admin/search/${submissionId}`]
