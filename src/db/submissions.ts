@@ -11,6 +11,7 @@ import {
   smsMessages,
   smsSupportJobs,
   smsSupportTickets,
+  submissionDetails,
   submissions,
 } from './tables'
 import {
@@ -20,6 +21,7 @@ import {
   type NoteVerification,
   type SmsMessage,
   type Submission,
+  type SubmissionDetails,
 } from './types'
 
 export type SubmissionStatusFilter = {
@@ -585,12 +587,9 @@ export async function findApprovedSubmissionsOverlapping(
   )
 }
 
-async function updateById(
-  id: string,
-  patch: Omit<Patch<Submission>, 'status' | 'stripeRefundId' | 'refundedAt'>
-): Promise<void> {
+async function updateById(id: string, patch: Patch<SubmissionDetails>): Promise<void> {
   const affected = await db.affected(
-    sql`UPDATE submissions SET ${set(submissions, patch)} WHERE id = ${id}`
+    sql`UPDATE submissions SET ${set(submissionDetails, patch)} WHERE id = ${id}`
   )
   if (affected === 0) throw new Error(`Submission ${id} not found`)
 }
@@ -631,7 +630,7 @@ export async function updatePendingSubmissionClassification(
   updatedAt: Date
 ): Promise<number> {
   return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { ...pick(classification, classificationColumns), updatedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
+    sql`UPDATE submissions SET ${set(submissionDetails, { ...pick(classification, classificationColumns), updatedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
   )
 }
 
@@ -735,19 +734,19 @@ export async function findDueFollowUpEmails(
 
 export async function claimDueFollowUpEmail(id: string, now: Date): Promise<number> {
   return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: now })} WHERE id = ${id} AND ${dueFollowUpEmailWhere(now)}`
+    sql`UPDATE submissions SET ${set(submissionDetails, { followUpEmailClaimedAt: now })} WHERE id = ${id} AND ${dueFollowUpEmailWhere(now)}`
   )
 }
 
 export async function releaseFollowUpEmailClaimAt(id: string, claimedAt: Date): Promise<void> {
   await db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: null })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
+    sql`UPDATE submissions SET ${set(submissionDetails, { followUpEmailClaimedAt: null })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
   )
 }
 
 export async function acknowledgeFollowUpEmailSent(id: string, claimedAt: Date): Promise<number> {
   return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: null, followUpEmailSentAt: claimedAt })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
+    sql`UPDATE submissions SET ${set(submissionDetails, { followUpEmailClaimedAt: null, followUpEmailSentAt: claimedAt })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
   )
 }
 
@@ -940,7 +939,7 @@ export async function commitSupportAutomationSubmissionUpdate({
     if (jobGuard !== 1) return 'cancelled'
 
     const submissionUpdate = await tx.affected(
-      sql`UPDATE submissions SET ${set(submissions, updateData)} WHERE id = ${submissionId} AND status = ${SubmissionStatus.APPROVED} AND updated_at = ${submissionUpdatedAt}`
+      sql`UPDATE submissions SET ${set(submissionDetails, updateData)} WHERE id = ${submissionId} AND status = ${SubmissionStatus.APPROVED} AND updated_at = ${submissionUpdatedAt}`
     )
 
     if (submissionUpdate !== 1) return 'submission_changed'
