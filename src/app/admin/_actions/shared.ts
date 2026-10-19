@@ -16,6 +16,7 @@ import { revokeNoteVerificationForSubmission } from '@/db/note-verifications'
 import {
   permit,
   refundState,
+  RELEASE_TARGETS,
   transition,
   type Denial,
   type Permit,
@@ -180,11 +181,15 @@ export async function settleRefundReservation(
 
   if (!releaseTo) {
     throw new Error(
-      `Stripe holds no refund for ${row.stripePaymentIntentId}; rerun with --release-to <${Object.values(SubmissionStatus).join('|')}> to release the reservation`
+      `Stripe holds no refund for ${row.stripePaymentIntentId}; rerun with --release-to <${RELEASE_TARGETS.join('|')}> to release the reservation`
     )
   }
-  const status = Object.values(SubmissionStatus).find((candidate) => candidate === releaseTo)
-  if (!status) throw new Error(`${releaseTo} is not a submission status`)
+  const status = RELEASE_TARGETS.find((candidate) => candidate === releaseTo)
+  if (!status) {
+    throw new Error(
+      `${releaseTo} is not a status a refund reservation can be released to; use one of ${RELEASE_TARGETS.join(', ')}`
+    )
+  }
   const released = await transition(
     { transition: 'releaseRefund', row },
     {

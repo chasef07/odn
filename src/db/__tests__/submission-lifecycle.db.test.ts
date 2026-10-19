@@ -5,6 +5,7 @@ import { sql } from '../sql'
 import {
   permit,
   refundState,
+  RELEASE_TARGETS,
   reservedRefundId,
   transition,
   type Decision,
@@ -584,6 +585,10 @@ describe('refund settlement', () => {
     await expect(
       transition(step, { at: at(1), prior: { ...reserved, stripeRefundId: 're_old' } })
     ).rejects.toThrow('needs the row read before its reservation')
+    await expect(
+      transition(step, { at: at(1), prior: { ...reserved, stripeRefundId: null } })
+    ).rejects.toThrow(`release of ${reserved.id} cannot restore DENIED, which no deny starts from`)
+    expect(RELEASE_TARGETS).toEqual(['PENDING_REVIEW', 'MAYBE', 'MANUAL', 'APPROVED'])
     await expect(
       transition(
         { transition: 'recordRefund', row: reserved },

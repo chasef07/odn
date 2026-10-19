@@ -102,6 +102,11 @@ function released({ prior }: RefundRelease, read: Submission): Reservation {
   if (prior.id !== read.id || refundState(prior.stripeRefundId) !== 'none') {
     throw new Error(`release of ${read.id} needs the row read before its reservation`)
   }
+  if (!RELEASE_TARGETS.includes(prior.status)) {
+    throw new Error(
+      `release of ${read.id} cannot restore ${prior.status}, which no deny starts from`
+    )
+  }
   return {
     status: prior.status,
     denialReason: prior.denialReason,
@@ -259,7 +264,7 @@ const entries = {
 } as const
 
 export const RELEASE_TARGETS: readonly SubmissionStatus[] = [
-  ...new Set([...entries.deny.from, ...entries.overrideDeny.from]),
+  ...new Set<SubmissionStatus>([...entries.deny.from, ...entries.overrideDeny.from]),
 ]
 
 export type Transition = keyof typeof entries
