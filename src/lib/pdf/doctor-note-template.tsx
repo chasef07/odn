@@ -4,6 +4,7 @@ import { getStateLicense } from '../state-licenses'
 import { getPdfActivitiesText } from '../email-helpers'
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { dateOnlyFromUtcDate, formatDateOnly } from '../dates'
 
 function validateFontFiles(): void {
   const fontPaths = [
@@ -369,34 +370,8 @@ const styles = StyleSheet.create({
   },
 })
 
-function formatDate(date: Date): string {
-  const d = new Date(date)
-  const monthNames = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ]
-  const month = monthNames[d.getUTCMonth()]
-  const day = d.getUTCDate()
-  const year = d.getUTCFullYear()
-  return `${month} ${day}, ${year}`
-}
-
-function formatDateOfBirth(date: Date): string {
-  const d = new Date(date)
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(d.getUTCDate()).padStart(2, '0')
-  const year = d.getUTCFullYear()
-  return `${month}/${day}/${year}`
+function formatDay(date: Date, style: 'long' | 'numeric' = 'long'): string {
+  return formatDateOnly(dateOnlyFromUtcDate(date), style)
 }
 
 function formatExcuseFrom(purpose: string, other?: string | null): string {
@@ -467,10 +442,10 @@ export function DoctorNoteTemplate({
   const conditionPhrase = getConditionPhrase(absenceReason)
 
   const excuseFrom = formatExcuseFrom(notePurpose, otherNotePurpose)
-  const dateIssuedFormatted = formatDate(issueDate)
-  const firstDayFormatted = formatDate(firstDayOff)
-  const lastDayFormatted = formatDate(lastDayOff)
-  const dobFormatted = formatDateOfBirth(patientDateOfBirth)
+  const dateIssuedFormatted = formatDay(issueDate)
+  const firstDayFormatted = formatDay(firstDayOff)
+  const lastDayFormatted = formatDay(lastDayOff)
+  const dobFormatted = formatDay(patientDateOfBirth, 'numeric')
 
   const medicalRecordNumber =
     verificationInfo?.medicalRecordNumber ||

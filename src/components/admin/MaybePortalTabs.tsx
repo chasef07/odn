@@ -1,32 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { formatInTimeZone } from 'date-fns-tz'
 import { MaybeActionButtons } from './MaybeActionButtons'
 import { ManualActionButtons } from './ManualActionButtons'
-import { formatDateWithTime } from '@/lib/admin-utils'
+import { formatDateOnlyRange, formatInstantET, instantOf } from '@/lib/dates'
 import { getMaybeReasonLabel } from '@/lib/maybe-reasons'
 import type { MaybeSubmission, ManualSubmission } from '@/app/admin/_actions/queues'
-
-function formatCalendarDate(dateString: string): string {
-  const [year, month, day] = dateString.split('-').map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
-  return formatInTimeZone(date, 'UTC', 'MMM d, yyyy')
-}
-
-function formatDateRange(start: string, end: string): string {
-  if (start === end) {
-    return formatCalendarDate(start)
-  }
-  const [startYear, startMonth, startDay] = start.split('-').map(Number)
-  const [endYear, endMonth, endDay] = end.split('-').map(Number)
-  const startDate = new Date(Date.UTC(startYear, startMonth - 1, startDay))
-  const endDate = new Date(Date.UTC(endYear, endMonth - 1, endDay))
-
-  const startFormatted = formatInTimeZone(startDate, 'UTC', 'MMM d')
-  const endFormatted = formatInTimeZone(endDate, 'UTC', 'MMM d, yyyy')
-  return `${startFormatted} - ${endFormatted}`
-}
 
 interface MaybePortalTabsProps {
   maybeSubmissions: MaybeSubmission[]
@@ -170,7 +149,7 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                         </a>
                       </td>
                       <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-600">
-                        {formatDateRange(submission.firstDayOff, submission.lastDayOff)}
+                        {formatDateOnlyRange(submission.firstDayOff, submission.lastDayOff)}
                       </td>
                       {maybeSubmission && (
                         <>
@@ -184,12 +163,16 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                             )}
                           </td>
                           <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-                            {maybeEmailSentAt ? formatDateWithTime(maybeEmailSentAt) : 'Not sent'}
+                            {maybeEmailSentAt
+                              ? formatInstantET(instantOf(maybeEmailSentAt))
+                              : 'Not sent'}
                           </td>
                         </>
                       )}
                       <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-                        {submission.reviewedAt ? formatDateWithTime(submission.reviewedAt) : 'N/A'}
+                        {submission.reviewedAt
+                          ? formatInstantET(instantOf(submission.reviewedAt))
+                          : 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
                         {maybeSubmission ? (

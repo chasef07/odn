@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  formatDisplayDate,
   generateMedicalRecordNumber,
   generateVerificationSlug,
   getConfiguredPhysician,
   getPatientInitials,
   getReturnGuidance,
   normalizeMedicalRecordNumber,
+  parseIssueDateInput,
 } from '@/lib/note-verification'
 import { checkVerificationLookupLimit, getRateLimitKey } from '@/lib/verification-rate-limit'
 
@@ -33,6 +33,20 @@ describe('note verification helpers', () => {
     expect(normalizeMedicalRecordNumber('ph-2026-a7b3c9d2')).toBe('A7B3C9D2')
   })
 
+  it('issues on the evaluation date, or on today in ET when none is given', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-17T02:30:00Z'))
+    expect(parseIssueDateInput('2026-10-12').toISOString()).toBe('2026-10-12T00:00:00.000Z')
+    expect(parseIssueDateInput().toISOString()).toBe('2026-10-16T00:00:00.000Z')
+    expect(parseIssueDateInput('').toISOString()).toBe('2026-10-16T00:00:00.000Z')
+    vi.useRealTimers()
+  })
+
+  it('refuses an evaluation date that is not a real day instead of issuing today', () => {
+    expect(() => parseIssueDateInput('2027-02-29')).toThrow('Invalid evaluation date: 2027-02-29')
+    expect(() => parseIssueDateInput('10/12/2026')).toThrow('Invalid evaluation date: 10/12/2026')
+  })
+
   it('formats patient initials without exposing the full name', () => {
     expect(getPatientInitials('Jane', 'Doe')).toBe('J.D.')
   })
@@ -40,7 +54,6 @@ describe('note verification helpers', () => {
   it('formats return guidance from the approved last day off', () => {
     const lastDayOff = new Date(Date.UTC(2026, 3, 4))
 
-    expect(formatDisplayDate(lastDayOff)).toBe('April 4, 2026')
     expect(getReturnGuidance(lastDayOff)).toBe('May return after April 4, 2026')
   })
 

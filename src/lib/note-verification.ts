@@ -3,7 +3,13 @@ import { createNoteVerificationWithUniqueIdentifiers } from '@/db/note-verificat
 import type { NoteVerification, Submission } from '@/db/types'
 import { env } from '@/lib/env'
 import { getStateLicense } from '@/lib/state-licenses'
-import { getTodayET } from '@/lib/admin-utils'
+import {
+  dateOnlyFromUtcDate,
+  formatDateOnly,
+  parseDateOnly,
+  todayET,
+  utcDateFromDateOnly,
+} from '@/lib/dates'
 
 export { getVerificationBaseUrl, getVerificationUrl } from '@/lib/verification-url'
 
@@ -28,18 +34,14 @@ export type NoteVerificationSnapshot = {
 }
 
 export function getDefaultIssueDate(): Date {
-  return new Date(`${getTodayET()}T00:00:00Z`)
+  return utcDateFromDateOnly(todayET())
 }
 
 export function parseIssueDateInput(evaluationDate?: string): Date {
   if (!evaluationDate) return getDefaultIssueDate()
-
-  const [year, month, day] = evaluationDate.split('-').map(Number)
-  if (!year || !month || !day) {
-    return getDefaultIssueDate()
-  }
-
-  return new Date(Date.UTC(year, month - 1, day))
+  const day = parseDateOnly(evaluationDate)
+  if (!day) throw new Error(`Invalid evaluation date: ${evaluationDate}`)
+  return utcDateFromDateOnly(day)
 }
 
 export function getPatientInitials(firstName: string, lastName: string): string {
@@ -49,26 +51,7 @@ export function getPatientInitials(firstName: string, lastName: string): string 
 }
 
 export function getReturnGuidance(lastDayOff: Date): string {
-  return `May return after ${formatDisplayDate(lastDayOff)}`
-}
-
-export function formatDisplayDate(date: Date): string {
-  const d = new Date(date)
-  const monthNames = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ]
-  return `${monthNames[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`
+  return `May return after ${formatDateOnly(dateOnlyFromUtcDate(lastDayOff))}`
 }
 
 export function generateMedicalRecordNumber(): string {

@@ -10,6 +10,7 @@ import {
   Link,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
+import { currentYearET } from '@/lib/dates'
 
 interface DenialEmailProps {
   patientName: string
@@ -29,7 +30,7 @@ export const DenialEmail = ({
     currency: 'USD',
   }).format(refundAmount)
 
-  const currentYear = new Date().getFullYear()
+  const currentYear = currentYearET()
 
   return (
     <Html>

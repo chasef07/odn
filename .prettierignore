@@ -24,3 +24,5 @@ src/db/migrations
 .claude
 
 docs-legacy
+
+eslint-suppressions.json

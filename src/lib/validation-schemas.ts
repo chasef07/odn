@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { isAgeValid } from '@/lib/age-validators'
-import { compareDateOnly, getUTCDateOnlyParts, parseIsoDateOnly } from '@/lib/date-only'
+import { parseDateOnly, todayUTC } from '@/lib/dates'
 import { validateAbsenceDates } from '@/lib/date-validators'
 import { ABSENCE_REASONS, AVAILABLE_STATES } from '@/lib/form-constants'
 import { rule } from '@/lib/intake-rules'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 import { formatPhoneNumber, toNationalDigits } from '@/lib/phone-utils'
 
 const NAME_REGEX = /^(?=.*\p{L})[\p{L}\p{M} '’‘.-]+$/u
@@ -24,7 +25,7 @@ const dateOfBirthField = z
   .string({ error: 'Date of birth is required' })
   .min(1, 'Date of birth is required')
   .superRefine((val, ctx) => {
-    const parsed = parseIsoDateOnly(val)
+    const parsed = parseDateOnly(val)
     if (!parsed) {
       ctx.addIssue({
         code: 'custom',
@@ -34,8 +35,7 @@ const dateOfBirthField = z
       return
     }
 
-    const today = getUTCDateOnlyParts(new Date())
-    if (compareDateOnly(parsed, today) > 0) {
+    if (parsed > todayUTC()) {
       ctx.addIssue({
         code: 'custom',
         message: 'Date of birth cannot be in the future',
@@ -44,7 +44,7 @@ const dateOfBirthField = z
       return
     }
 
-    if (compareDateOnly(parsed, { year: 1900, month: 1, day: 1 }) < 0) {
+    if (parsed < DATE_LIMITS.EARLIEST_DATE_OF_BIRTH) {
       ctx.addIssue({
         code: 'custom',
         message: 'Please enter a valid date of birth',
@@ -213,8 +213,8 @@ export const absenceDatesSchema = z
     lastDayOff: z.string({ error: 'Please select end date' }).min(1, 'Please select end date'),
   })
   .superRefine((data, ctx) => {
-    const first = parseIsoDateOnly(data.firstDayOff)
-    const last = parseIsoDateOnly(data.lastDayOff)
+    const first = parseDateOnly(data.firstDayOff)
+    const last = parseDateOnly(data.lastDayOff)
     if (!first) {
       ctx.addIssue({
         code: 'custom',

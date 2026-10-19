@@ -15,7 +15,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { ApprovalDialogContent } from '@/components/admin/ApprovalDialogContent'
-import { getTodayET } from '@/lib/admin-utils'
+import { todayET } from '@/lib/dates'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { approveSubmission } from '@/app/admin/_actions/approve'
@@ -40,7 +40,7 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
 
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
-  const [evaluationDate, setEvaluationDate] = useState(getTodayET())
+  const [evaluationDate, setEvaluationDate] = useState<string>(todayET())
   const [diagnosis, setDiagnosis] = useState('')
   const [withRestrictions, setWithRestrictions] = useState(true)
 
@@ -59,7 +59,7 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
 
   const handleApproveClick = () => {
     setApprovalError(null)
-    setEvaluationDate(getTodayET())
+    setEvaluationDate(todayET())
     setDiagnosis('')
     setWithRestrictions(true)
     setShowApprovalDialog(true)

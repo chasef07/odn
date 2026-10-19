@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
+import { formatDateOnly, type DateOnly } from '@/lib/dates'
 import {
   searchSubmissions,
   type AdminSearchType,
@@ -98,17 +99,10 @@ export function SearchPage({
     }
   }
 
-  const formatDateRange = (firstDay: string, lastDay: string) => {
-    const formatDate = (dateStr: string) => {
-      const [year, month, day] = dateStr.split('-')
-      return `${month}/${day}/${year.slice(2)}`
-    }
-
-    if (firstDay === lastDay) {
-      return formatDate(firstDay)
-    }
-    return `${formatDate(firstDay)} - ${formatDate(lastDay)}`
-  }
+  const formatDateRange = (firstDay: DateOnly, lastDay: DateOnly) =>
+    firstDay === lastDay
+      ? formatDateOnly(firstDay, 'short')
+      : `${formatDateOnly(firstDay, 'short')} - ${formatDateOnly(lastDay, 'short')}`
 
   return (
     <div className="space-y-6">

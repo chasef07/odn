@@ -28,7 +28,14 @@ import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
-import { calculateDaysDifference, formatDateTimeET, getTodayET } from '@/lib/admin-utils'
+import {
+  formatInstantET,
+  inclusiveDayCount,
+  instantOf,
+  parseDateOnly,
+  todayET,
+  utcDateFromDateOnly,
+} from '@/lib/dates'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import { updateSubmission } from '@/app/admin/_actions/edits'
 import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/approve'
@@ -44,9 +51,9 @@ interface SearchSubmissionDetailProps {
   submission: FormattedSubmission
 }
 
-function parseDateSafe(dateString: string): Date {
-  const [year, month, day] = dateString.split('-').map(Number)
-  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+function dayInput(value: string): Date | null {
+  const day = parseDateOnly(value)
+  return day ? utcDateFromDateOnly(day) : null
 }
 
 type SmsMessageForDisplay = FormattedSubmission['smsMessages'][number]
@@ -134,13 +141,15 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     submission.additionalInformation || ''
   )
 
-  const [evaluationDate, setEvaluationDate] = useState<string>(getTodayET())
+  const [evaluationDate, setEvaluationDate] = useState<string>(todayET())
 
   const [diagnosis, setDiagnosis] = useState('')
 
   const [withRestrictions, setWithRestrictions] = useState(true)
+  const editedFirstDay = parseDateOnly(firstDayOff)
+  const editedLastDay = parseDateOnly(lastDayOff)
   const suggestedMaybeReason =
-    calculateDaysDifference(firstDayOff, lastDayOff) > 7
+    editedFirstDay && editedLastDay && inclusiveDayCount(editedFirstDay, editedLastDay) > 7
       ? DATES_EXCEED_ALLOWED_RANGE_REASON
       : undefined
   const latestNoteVerification = submission.noteVerifications[0]
@@ -157,21 +166,36 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setError(null)
     setSuccess(null)
 
+    const savedDateOfBirth = dayInput(patientDateOfBirth)
+    const savedGuardianDateOfBirth = guardianDateOfBirth ? dayInput(guardianDateOfBirth) : null
+    const savedFirstDayOff = dayInput(firstDayOff)
+    const savedLastDayOff = dayInput(lastDayOff)
+    if (
+      !savedDateOfBirth ||
+      !savedFirstDayOff ||
+      !savedLastDayOff ||
+      (guardianDateOfBirth && !savedGuardianDateOfBirth)
+    ) {
+      setError('Enter every date as a real calendar day.')
+      setIsLoading(false)
+      return
+    }
+
     try {
       const result = await updateSubmission(submission.id, {
         patientFirstName,
         patientLastName,
-        patientDateOfBirth: parseDateSafe(patientDateOfBirth),
+        patientDateOfBirth: savedDateOfBirth,
         guardianFirstName: guardianFirstName || null,
         guardianLastName: guardianLastName || null,
-        guardianDateOfBirth: guardianDateOfBirth ? parseDateSafe(guardianDateOfBirth) : null,
+        guardianDateOfBirth: savedGuardianDateOfBirth,
         email,
         phone,
         state,
         notePurpose,
         otherNotePurpose: otherNotePurpose || null,
-        firstDayOff: parseDateSafe(firstDayOff),
-        lastDayOff: parseDateSafe(lastDayOff),
+        firstDayOff: savedFirstDayOff,
+        lastDayOff: savedLastDayOff,
         absenceReason,
         otherAbsenceReason: otherAbsenceReason || null,
         symptoms,
@@ -336,7 +360,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
   const formatDateTime = (date: Date | null) => {
     if (!date) return 'N/A'
-    return formatDateTimeET(date)
+    return formatInstantET(instantOf(date))
   }
 
   const showApproveButton = true
@@ -432,7 +456,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
           <RemoveGuardianModeControl
             submissionId={submission.id}
-            patientDateOfBirth={patientDateOfBirth}
+            patientDateOfBirth={submission.patientDateOfBirth}
             recipient={recipient}
             guardianFirstName={guardianFirstName}
             guardianLastName={guardianLastName}

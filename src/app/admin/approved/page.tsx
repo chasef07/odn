@@ -3,7 +3,7 @@ import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 import { getApprovedSubmissionsForToday } from '@/app/admin/_actions/queues'
-import { formatDateWithTime } from '@/lib/admin-utils'
+import { formatInstantET, instantOf } from '@/lib/dates'
 import { requireAdminSession } from '@/lib/admin-session'
 
 export default async function ApprovedSubmissionsPage() {
@@ -119,7 +119,7 @@ export default async function ApprovedSubmissionsPage() {
                         </td>
                         <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-green-600">
                           {submission.approvalEmailSentAt
-                            ? formatDateWithTime(submission.approvalEmailSentAt)
+                            ? formatInstantET(instantOf(submission.approvalEmailSentAt))
                             : 'N/A'}
                         </td>
                       </tr>

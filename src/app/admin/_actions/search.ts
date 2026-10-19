@@ -9,7 +9,7 @@ import {
 } from '@/db/submissions'
 import type { NoteVerification, Submission, SubmissionStatus } from '@/db/types'
 import { logger } from '@/lib/logger'
-import { formatDateUTC } from '@/lib/utils'
+import { dateOnlyFromUtcDate, parseDateOnly, utcDateFromDateOnly, type DateOnly } from '@/lib/dates'
 import { formatPhoneNumber } from '@/lib/phone-utils'
 import { getVerificationUrl, normalizeMedicalRecordNumber } from '@/lib/note-verification'
 import { adminAction } from '@/lib/admin-session'
@@ -34,8 +34,8 @@ export type PatientHistoryEntry = {
   email: string
   status: SubmissionStatus
   notePurpose: string
-  firstDayOff: string
-  lastDayOff: string
+  firstDayOff: DateOnly
+  lastDayOff: DateOnly
   createdAt: Date
   reviewedAt: Date | null
   denialReason: string | null
@@ -46,15 +46,17 @@ export const getPatientHistory = adminAction(
     _admin,
     patientFirstName: string,
     patientLastName: string,
-    patientDateOfBirth: Date,
+    patientDateOfBirth: string,
     email: string,
     currentSubmissionId: string
   ): Promise<{ success: boolean; data?: PatientHistoryEntry[]; error?: string }> => {
+    const dateOfBirth = parseDateOnly(patientDateOfBirth)
+    if (!dateOfBirth) return { success: false, error: 'Expected a YYYY-MM-DD date of birth' }
     try {
       const submissions = await findPatientHistory({
         patientFirstName,
         patientLastName,
-        patientDateOfBirth,
+        patientDateOfBirth: utcDateFromDateOnly(dateOfBirth),
         email,
         excludeSubmissionId: currentSubmissionId,
       })
@@ -66,8 +68,8 @@ export const getPatientHistory = adminAction(
         email: sub.email,
         status: sub.status,
         notePurpose: sub.notePurpose,
-        firstDayOff: formatDateUTC(sub.firstDayOff),
-        lastDayOff: formatDateUTC(sub.lastDayOff),
+        firstDayOff: dateOnlyFromUtcDate(sub.firstDayOff),
+        lastDayOff: dateOnlyFromUtcDate(sub.lastDayOff),
         createdAt: sub.createdAt,
         reviewedAt: sub.reviewedAt,
         denialReason: sub.denialReason,
@@ -88,8 +90,8 @@ export type SearchSubmission = {
   email: string
   status: SubmissionStatus
   notePurpose: string
-  firstDayOff: string
-  lastDayOff: string
+  firstDayOff: DateOnly
+  lastDayOff: DateOnly
   createdAt: Date
 }
 
@@ -171,8 +173,8 @@ export const searchSubmissions = adminAction(
         email: sub.email,
         status: sub.status,
         notePurpose: sub.notePurpose,
-        firstDayOff: formatDateUTC(sub.firstDayOff),
-        lastDayOff: formatDateUTC(sub.lastDayOff),
+        firstDayOff: dateOnlyFromUtcDate(sub.firstDayOff),
+        lastDayOff: dateOnlyFromUtcDate(sub.lastDayOff),
         createdAt: sub.createdAt,
       }))
 
@@ -192,10 +194,10 @@ export type FormattedSubmission = Omit<
   SubmissionWithNoteVerifications,
   'patientDateOfBirth' | 'guardianDateOfBirth' | 'firstDayOff' | 'lastDayOff' | 'noteVerifications'
 > & {
-  patientDateOfBirth: string
-  guardianDateOfBirth: string | null
-  firstDayOff: string
-  lastDayOff: string
+  patientDateOfBirth: DateOnly
+  guardianDateOfBirth: DateOnly | null
+  firstDayOff: DateOnly
+  lastDayOff: DateOnly
   noteVerifications: Array<
     SubmissionWithNoteVerifications['noteVerifications'][number] & { verificationUrl: string }
   >
@@ -224,12 +226,12 @@ export const getSubmissionById = adminAction(
 
       const formattedSubmission: FormattedSubmission = {
         ...submission,
-        patientDateOfBirth: formatDateUTC(submission.patientDateOfBirth),
+        patientDateOfBirth: dateOnlyFromUtcDate(submission.patientDateOfBirth),
         guardianDateOfBirth: submission.guardianDateOfBirth
-          ? formatDateUTC(submission.guardianDateOfBirth)
+          ? dateOnlyFromUtcDate(submission.guardianDateOfBirth)
           : null,
-        firstDayOff: formatDateUTC(submission.firstDayOff),
-        lastDayOff: formatDateUTC(submission.lastDayOff),
+        firstDayOff: dateOnlyFromUtcDate(submission.firstDayOff),
+        lastDayOff: dateOnlyFromUtcDate(submission.lastDayOff),
         noteVerifications: submission.noteVerifications.map((verification) => ({
           ...verification,
           verificationUrl: getVerificationUrl(verification.verificationSlug),

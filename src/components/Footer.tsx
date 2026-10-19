@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Mail, Phone } from 'lucide-react'
 import { useI18n } from '@/components/i18n/I18nProvider'
+import { currentYearET } from '@/lib/dates'
 
 export default function Footer() {
   const { t, path } = useI18n()
@@ -64,7 +65,7 @@ export default function Footer() {
 
         <div className="mt-8 flex flex-col items-center gap-4 border-t border-gray-100 pt-8 text-center md:flex-row md:justify-between md:text-left">
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} OnlineDoctorNote.com · {t('HIPAA Compliant')}
+            © {currentYearET()} OnlineDoctorNote.com · {t('HIPAA Compliant')}
           </p>
           <p className="text-sm text-gray-400">
             {t('Powered by')}{' '}

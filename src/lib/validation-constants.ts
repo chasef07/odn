@@ -1,5 +1,5 @@
 export const DATE_LIMITS = {
-  MIN_YEAR: 1900,
+  EARLIEST_DATE_OF_BIRTH: '1900-01-01',
   MAX_DAYS_IN_PAST: 7,
   MAX_ABSENCE_DAYS: 7,
 } as const

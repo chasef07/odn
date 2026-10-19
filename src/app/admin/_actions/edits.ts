@@ -10,8 +10,7 @@ import {
 } from '@/db/submissions'
 import { logger } from '@/lib/logger'
 import { toE164UsPhone } from '@/lib/phone-utils'
-import { formatDateUTC } from '@/lib/utils'
-import { isAtLeastAge } from '@/lib/date-only'
+import { ageOn, dateOnlyFromUtcDate, todayUTC } from '@/lib/dates'
 import { adminAction } from '@/lib/admin-session'
 
 export const removeGuardianFromAdultSubmission = adminAction(
@@ -23,7 +22,7 @@ export const removeGuardianFromAdultSubmission = adminAction(
         return { success: false, error: 'Submission not found' }
       }
 
-      if (!isAtLeastAge(formatDateUTC(submission.patientDateOfBirth), 18)) {
+      if (ageOn(dateOnlyFromUtcDate(submission.patientDateOfBirth), todayUTC()) < 18) {
         return {
           success: false,
           error: 'Guardian information is required for patients under 18.',

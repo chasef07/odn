@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit --incremental false",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run format:check && npm run lint && npm run typecheck && node scripts/check-comments.mjs && node scripts/check-doc-refs.mjs && vitest run",
+    "check": "npm run format:check && npm run lint && node scripts/check-suppressions.mjs && npm run typecheck && node scripts/check-comments.mjs && node scripts/check-doc-refs.mjs && vitest run",
     "test": "vitest",
     "test:unit": "vitest run --project unit",
     "test:db": "vitest run --project db",

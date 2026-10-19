@@ -1,11 +1,6 @@
 import { SubmissionStatus } from '@/db/types'
-import {
-  getCustomerKey,
-  isOpenStatus,
-  MS_PER_DAY,
-  toCalendarDate,
-  toIsoDate,
-} from '@/lib/analytics-shared'
+import { getCustomerKey, isOpenStatus, MS_PER_DAY, toIsoDate } from '@/lib/analytics-shared'
+import { addMonthsUTC, dateOnlyFromUtcDate } from '@/lib/dates'
 import { DOCTOR_10_OFFER_CODE, normalizeOfferCode } from '@/lib/offer-codes'
 
 export type FriendsFamilySegmentKey =
@@ -208,8 +203,7 @@ function buildCustomerSegment(
   const sorted = [...submissions].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   const latest = sorted[0]
   const thirtyDaysAgo = new Date(referenceDate.getTime() - 30 * MS_PER_DAY)
-  const sixMonthsAgo = new Date(referenceDate)
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  const sixMonthsAgo = addMonthsUTC(referenceDate, -6)
 
   const approvedDates = sorted.map(approvedAt).filter((date): date is Date => Boolean(date))
   const lastApprovedAt =
@@ -248,7 +242,7 @@ function buildCustomerSegment(
   const uniquePatients = new Set(
     sorted.map(
       (submission) =>
-        `${submission.patientFirstName.toLowerCase()}:${submission.patientLastName.toLowerCase()}:${toCalendarDate(submission.patientDateOfBirth)}`
+        `${submission.patientFirstName.toLowerCase()}:${submission.patientLastName.toLowerCase()}:${dateOnlyFromUtcDate(submission.patientDateOfBirth)}`
     )
   ).size
 
@@ -388,8 +382,8 @@ function buildCustomerSegment(
       notePurpose: submission.notePurpose,
       submittedAt: toIsoDate(submission.createdAt),
       reviewedAt: submission.reviewedAt ? toIsoDate(submission.reviewedAt) : null,
-      firstDayOff: toCalendarDate(submission.firstDayOff),
-      lastDayOff: toCalendarDate(submission.lastDayOff),
+      firstDayOff: dateOnlyFromUtcDate(submission.firstDayOff),
+      lastDayOff: dateOnlyFromUtcDate(submission.lastDayOff),
       denialReason: submission.denialReason,
       maybeReason: submission.maybeReason,
       refunded: Boolean(submission.refundedAt) || Boolean(submission.stripeRefundId),

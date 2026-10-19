@@ -1,0 +1,12 @@
+{
+  "src/db/pool.ts": {
+    "local/no-adhoc-dates": {
+      "count": 3
+    }
+  },
+  "src/lib/business-analytics.ts": {
+    "local/no-adhoc-dates": {
+      "count": 7
+    }
+  }
+}

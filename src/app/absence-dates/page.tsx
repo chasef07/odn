@@ -3,11 +3,11 @@
 import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { format } from 'date-fns'
 import { FormLayout } from '@/components/form-layout'
 import { FormCard } from '@/components/form/FormCard'
 import { FormField } from '@/components/form/FormField'
 import { FormNavigation } from '@/components/form/FormNavigation'
+import { todayInViewerZone } from '@/lib/dates'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { backRoute, nextRoute } from '@/lib/intake'
 import { absenceDatesSchema } from '@/lib/validation-schemas'
@@ -21,7 +21,7 @@ type FormData = {
 
 export default function AbsenceDatesPage() {
   const router = useRouter()
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = todayInViewerZone()
   const savedData = getFormData()
 
   const {

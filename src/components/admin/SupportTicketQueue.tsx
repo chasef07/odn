@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { formatDateTimeET } from '@/lib/admin-utils'
+import { formatInstantET, instantOf } from '@/lib/dates'
 import type { SupportTicketListItem } from '@/db/sms-support'
 import {
   supportCategoryLabel,
@@ -121,7 +121,7 @@ export function SupportTicketQueue({
                         </p>
                       </td>
                       <td className="px-4 py-4 text-right align-top text-sm text-gray-500">
-                        {formatDateTimeET(ticket.updatedAt, { includeYear: false })}
+                        {formatInstantET(instantOf(ticket.updatedAt), { includeYear: false })}
                       </td>
                     </tr>
                   )

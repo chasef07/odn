@@ -15,7 +15,7 @@ import {
 } from '@/db/submissions'
 import { generateDoctorNotePDF, generatePDFFilename } from '@/lib/pdf/generate-pdf'
 import { generateQrCodeDataUrl } from '@/lib/qr-code'
-import { parseIsoDateOnlyAsUTCDate } from '@/lib/date-only'
+import { parseDateOnly, utcDateFromDateOnly } from '@/lib/dates'
 import {
   createNoteVerification,
   getVerificationUrl,
@@ -262,9 +262,9 @@ function updateDataForPdf(updates: SupportAutomationPayload['updates']): Partial
   const data: Partial<Submission> = {}
 
   if (updates.patientDateOfBirth) {
-    const date = parseIsoDateOnlyAsUTCDate(updates.patientDateOfBirth)
-    if (!date) throw new Error('Invalid patient birthday')
-    data.patientDateOfBirth = date
+    const day = parseDateOnly(updates.patientDateOfBirth)
+    if (!day) throw new Error('Invalid patient birthday')
+    data.patientDateOfBirth = utcDateFromDateOnly(day)
   }
 
   if (updates.notePurpose) {

@@ -14,6 +14,7 @@ import {
   Column,
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
+import { currentYearET } from '@/lib/dates'
 
 interface PaymentConfirmationEmailProps {
   patientName: string
@@ -24,7 +25,7 @@ export const PaymentConfirmationEmail = ({
   patientName = 'Patient',
   submissionId = '550E8400',
 }: PaymentConfirmationEmailProps) => {
-  const currentYear = new Date().getFullYear()
+  const currentYear = currentYearET()
   const shortId = submissionId.toUpperCase().substring(0, 8)
 
   return (

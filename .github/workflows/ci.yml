@@ -17,8 +17,13 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      SUPPRESSIONS_BASE: origin/${{ github.base_ref || 'main' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -28,6 +33,25 @@ jobs:
         run: npx prisma validate
       - name: npm run check
         run: npm run check
+
+  time-zones:
+    name: Tests (${{ matrix.tz }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [America/Los_Angeles, Asia/Tokyo]
+    env:
+      TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: vitest run
+        run: npx vitest run
 
   db-mutant-modules:
     name: DB mutant modules

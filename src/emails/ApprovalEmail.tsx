@@ -14,6 +14,7 @@ import {
 } from '@react-email/components'
 import { Tailwind } from '@react-email/tailwind'
 import { getRecipientName, getAbsenceFromText } from '@/lib/email-helpers'
+import { currentYearET } from '@/lib/dates'
 
 interface ApprovalEmailProps {
   patientName: string
@@ -40,7 +41,7 @@ export const ApprovalEmail = ({
   }
 
   const subjectPurpose = subjectPurposeMap[notePurpose] || ''
-  const currentYear = new Date().getFullYear()
+  const currentYear = currentYearET()
 
   const subjectLine = isCaregiver
     ? "Your Caregiver's Note Has Arrived!"

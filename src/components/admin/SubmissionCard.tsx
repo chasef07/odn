@@ -15,12 +15,15 @@ import {
 } from '@/components/ui/select'
 import type { Submission } from '@/db/types'
 import {
-  calculateAge,
-  formatDateRange,
-  calculateDaysDifference,
-  formatFullDate,
-  formatDateWithTime,
-} from '@/lib/admin-utils'
+  ageOn,
+  dateOnlyFromUtcDate,
+  formatDateOnly,
+  formatDateOnlyRange,
+  formatInstantET,
+  inclusiveDayCount,
+  instantOf,
+  todayUTC,
+} from '@/lib/dates'
 
 interface SubmissionCardProps {
   submission: Submission
@@ -71,9 +74,16 @@ export function SubmissionCard({
   isClassificationSaving = false,
   isClassificationDisabled = false,
 }: SubmissionCardProps) {
-  const patientAge = calculateAge(submission.patientDateOfBirth)
-  const dateRange = formatDateRange(submission.firstDayOff, submission.lastDayOff)
-  const dayCount = calculateDaysDifference(submission.firstDayOff, submission.lastDayOff)
+  const today = todayUTC()
+  const patientDateOfBirth = dateOnlyFromUtcDate(submission.patientDateOfBirth)
+  const guardianDateOfBirth = submission.guardianDateOfBirth
+    ? dateOnlyFromUtcDate(submission.guardianDateOfBirth)
+    : null
+  const firstDayOff = dateOnlyFromUtcDate(submission.firstDayOff)
+  const lastDayOff = dateOnlyFromUtcDate(submission.lastDayOff)
+  const patientAge = ageOn(patientDateOfBirth, today)
+  const dateRange = formatDateOnlyRange(firstDayOff, lastDayOff)
+  const dayCount = inclusiveDayCount(firstDayOff, lastDayOff)
   const hasGuardian = submission.recipient === 'someone_else'
 
   const symptoms = submission.symptoms
@@ -115,7 +125,7 @@ export function SubmissionCard({
               <PatientHistoryPopup
                 patientFirstName={submission.patientFirstName}
                 patientLastName={submission.patientLastName}
-                patientDateOfBirth={submission.patientDateOfBirth}
+                patientDateOfBirth={patientDateOfBirth}
                 email={submission.email}
                 currentSubmissionId={submission.id}
               />
@@ -123,7 +133,7 @@ export function SubmissionCard({
             <div>
               <span className="text-muted-foreground">DOB: </span>
               <span>
-                {formatFullDate(submission.patientDateOfBirth)} (Age {patientAge})
+                {formatDateOnly(patientDateOfBirth)} (Age {patientAge})
               </span>
             </div>
             <div>
@@ -155,12 +165,11 @@ export function SubmissionCard({
                   {submission.guardianFirstName} {submission.guardianLastName}
                 </span>
               </div>
-              {submission.guardianDateOfBirth && (
+              {guardianDateOfBirth && (
                 <div>
                   <span className="text-muted-foreground">DOB: </span>
                   <span>
-                    {formatFullDate(submission.guardianDateOfBirth)} (Age{' '}
-                    {calculateAge(submission.guardianDateOfBirth)})
+                    {formatDateOnly(guardianDateOfBirth)} (Age {ageOn(guardianDateOfBirth, today)})
                   </span>
                 </div>
               )}
@@ -170,11 +179,11 @@ export function SubmissionCard({
 
         <RemoveGuardianModeControl
           submissionId={submission.id}
-          patientDateOfBirth={submission.patientDateOfBirth}
+          patientDateOfBirth={patientDateOfBirth}
           recipient={submission.recipient}
           guardianFirstName={submission.guardianFirstName}
           guardianLastName={submission.guardianLastName}
-          guardianDateOfBirth={submission.guardianDateOfBirth}
+          guardianDateOfBirth={guardianDateOfBirth}
           onPendingChange={onGuardianRemovalPendingChange}
           onRemoved={onGuardianRemoved}
         />
@@ -343,7 +352,7 @@ export function SubmissionCard({
           <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Submitted
           </h3>
-          <p className="text-xs">{formatDateWithTime(submission.createdAt)}</p>
+          <p className="text-xs">{formatInstantET(instantOf(submission.createdAt))}</p>
         </div>
       </CardContent>
     </Card>
