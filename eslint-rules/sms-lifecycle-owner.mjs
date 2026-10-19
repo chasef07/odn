@@ -1,9 +1,20 @@
 const HOLE = '\u0000'
+const HOLE_INDEX = /\u0000(\d+)\u0000/g
 const EVERY_COLUMN = '*'
+const SQL_TOKEN = new RegExp(
+  String.raw`\u0000\d+\u0000|--[^\n]*|/\*[\s\S]*?(?:\*/|$)|'(?:[^']|'')*(?:'|$)|\$([A-Za-z_]\w*)?\$[\s\S]*?(?:\$\1\$|$)|[()]|[^\u0000'$()/-]+|[\s\S]`,
+  'g'
+)
+const QUOTED = /^(?:'|\$\w*\$)/
+const COMMENT = /^(?:--|\/\*)/
+const ROW_CONSTRUCTOR = /\bSET\s*$/i
 const INSERT_TARGET = /\bINSERT\s+INTO\s+(?:"?public"?\.)?"?(\w+)"?/i
-const DO_UPDATE_SET = /\bDO\s+UPDATE\s+SET\b([\s\S]*?)(?=\s(?:WHERE|RETURNING)\s|;|$)/gi
-const TABLES_MODULE = /(^|\/)tables$/
+const DO_UPDATE_SET = /\bDO\s+UPDATE\s+SET\b([\s\S]*?)(?=\s(?:WHERE|RETURNING)\b|;|$)/gi
+const TABLES_MODULE = /(^|\/)tables(\.[cm]?js|\.ts)?$/
+const TABLES_FILE = /(^|[\\/])src[\\/]db[\\/]tables\.ts$/
+const HELPER_MODULE = /^(\.\/|@\/db\/)(table|wipe)$/
 const DESCRIPTOR_CONSUMERS = new Set(['select', 'selectAll', 'deleteEveryRow'])
+const NAME_HELPERS = new Set(['identifier', 'raw'])
 
 function columnMatcher(columns) {
   if (columns === EVERY_COLUMN) return () => true
@@ -16,20 +27,54 @@ function compileTable(table) {
   return {
     name: table.name,
     details: table.details,
+    definition: new RegExp(String.raw`^${name}$`, 'i'),
     updateSet: new RegExp(
-      String.raw`\bUPDATE\s+${name}(?:\s+(?:AS\s+)?(?!SET\b)[A-Za-z_]\w*)?\s+SET\b([\s\S]*?)(?=\s(?:WHERE|RETURNING|FROM)\s|;|$)`,
+      String.raw`\bUPDATE\s+(?:ONLY\s+)?${name}(?:\s+(?:AS\s+)?(?!SET\b)[A-Za-z_]\w*)?\s+SET\b([\s\S]*?)(?=\s(?:WHERE|RETURNING|FROM)\b|;|$)`,
       'gi'
     ),
-    insertInto: new RegExp(String.raw`\bINSERT\s+INTO\s+${name}[\s(]([\s\S]*)`, 'i'),
+    insertInto: new RegExp(String.raw`\bINSERT\s+INTO\s+${name}(?!\w)`, 'i'),
+    deleteFrom: new RegExp(String.raw`\bDELETE\s+FROM\s+(?:ONLY\s+)?${name}(?!\w)`, 'i'),
+    mergeInto: new RegExp(String.raw`\bMERGE\s+INTO\s+${name}(?!\w)`, 'i'),
     writesOwnedColumn: columnMatcher(table.columns),
-    insertsOwnedColumn: columnMatcher(table.insertColumns),
     ownsUnknownConflictTarget: table.columns !== EVERY_COLUMN,
   }
 }
 
+function memberName(node) {
+  if (node.type !== 'MemberExpression') return null
+  if (!node.computed && node.property.type === 'Identifier') return node.property.name
+  if (node.computed && node.property.type === 'Literal') return String(node.property.value)
+  return null
+}
+
+function calleeName(callee) {
+  return callee.type === 'Identifier' ? callee.name : memberName(callee)
+}
+
+function staticString(node) {
+  if (node.type === 'Literal' && typeof node.value === 'string') return node.value
+  if (node.type === 'TemplateLiteral' && node.expressions.length === 0) {
+    return node.quasis[0].value.cooked
+  }
+  return null
+}
+
+function inlinedName(expression) {
+  if (expression.type !== 'CallExpression' || expression.arguments.length !== 1) return null
+  if (!NAME_HELPERS.has(calleeName(expression.callee))) return null
+  return staticString(expression.arguments[0])
+}
+
+function hole(expression, index) {
+  return inlinedName(expression) ?? `${HOLE}${index}${HOLE}`
+}
+
 function templateText(node) {
   return node.quasis
-    .map((quasi, index) => `${quasi.value.cooked ?? ''}${HOLE}${index}${HOLE}`)
+    .map((quasi, index) => {
+      const expression = node.expressions[index]
+      return `${quasi.value.cooked ?? ''}${expression ? hole(expression, index) : ''}`
+    })
     .join('')
 }
 
@@ -37,22 +82,63 @@ function isConcatenation(node) {
   return node.type === 'BinaryExpression' && node.operator === '+'
 }
 
-function concatenatedText(node) {
-  if (isConcatenation(node)) return `${concatenatedText(node.left)}${concatenatedText(node.right)}`
-  return node.type === 'Literal' && typeof node.value === 'string' ? node.value : ' '
+function concatenation(node) {
+  const expressions = []
+  const pieces = []
+  function visit(piece) {
+    if (isConcatenation(piece)) {
+      visit(piece.left)
+      visit(piece.right)
+      return
+    }
+    const text = staticString(piece)
+    if (text !== null) {
+      pieces.push(text)
+      return
+    }
+    pieces.push(hole(piece, expressions.length))
+    expressions.push(piece)
+  }
+  visit(node)
+  return { text: pieces.join(''), expressions }
 }
 
-function setClauses(text, table) {
-  return [...text.matchAll(table.updateSet)].map((match) => match[1])
+function sqlLevels(text) {
+  const levels = ['']
+  const open = [0]
+  for (const [token] of text.matchAll(SQL_TOKEN)) {
+    const current = open[open.length - 1]
+    if (token === '(') {
+      const inline = ROW_CONSTRUCTOR.test(levels[current])
+      levels[current] += '('
+      if (!inline) levels.push('')
+      open.push(inline ? current : levels.length - 1)
+    } else if (token === ')') {
+      if (open.length > 1) open.pop()
+      levels[open[open.length - 1]] += ')'
+    } else if (token.startsWith(HOLE)) {
+      for (const level of new Set(open)) levels[level] += token
+    } else if (COMMENT.test(token)) {
+      levels[current] += ' '
+    } else if (QUOTED.test(token)) {
+      levels[current] += "''"
+    } else {
+      levels[current] += token
+    }
+  }
+  return levels
 }
 
-function writesLifecycle(text, tables) {
-  const target = INSERT_TARGET.exec(text)?.[1].toLowerCase()
-  const conflictClauses = [...text.matchAll(DO_UPDATE_SET)].map((match) => match[1])
+function setClauses(level, table) {
+  return [...level.matchAll(table.updateSet)].map((match) => match[1])
+}
+
+function writesLifecycle(level, tables) {
+  const target = INSERT_TARGET.exec(level)?.[1].toLowerCase()
+  const conflictClauses = [...level.matchAll(DO_UPDATE_SET)].map((match) => match[1])
   return tables.some((table) => {
-    if (setClauses(text, table).some(table.writesOwnedColumn)) return true
-    const insert = table.insertInto.exec(text)
-    if (insert && table.insertsOwnedColumn(insert[1])) return true
+    if (table.insertInto.test(level) || table.deleteFrom.test(level)) return true
+    if (setClauses(level, table).some(table.writesOwnedColumn)) return true
     const targeted =
       target === table.name || (target === undefined && table.ownsUnknownConflictTarget)
     return targeted && conflictClauses.some(table.writesOwnedColumn)
@@ -69,13 +155,17 @@ function isDetailsSet(expression, details) {
   )
 }
 
+function holes(clause) {
+  return [...clause.matchAll(HOLE_INDEX)].map((match) => Number(match[1]))
+}
+
 function columnHoles(clause) {
-  const holes = []
+  const found = []
   let depth = 0
   let columnNext = true
   for (const token of clause.matchAll(/\u0000(\d+)\u0000|\S/g)) {
     if (token[1] !== undefined) {
-      if (depth === 0 && columnNext) holes.push(Number(token[1]))
+      if (depth === 0 && columnNext) found.push(Number(token[1]))
       columnNext = false
       continue
     }
@@ -83,37 +173,15 @@ function columnHoles(clause) {
     if (token[0] === ')') depth -= 1
     columnNext = depth === 0 && token[0] === ','
   }
-  return holes
+  return found
 }
 
-function foreignSetInterpolations(node, tables) {
-  const text = templateText(node)
-  return tables
-    .filter((table) => table.details !== undefined)
-    .flatMap((table) =>
-      setClauses(text, table).flatMap((clause) =>
-        columnHoles(clause)
-          .map((index) => node.expressions[index])
-          .filter((expression) => !isDetailsSet(expression, table.details))
-      )
-    )
-}
-
-function memberName(node) {
-  if (node.type !== 'MemberExpression') return null
-  if (!node.computed && node.property.type === 'Identifier') return node.property.name
-  if (node.computed && node.property.type === 'Literal') return String(node.property.value)
+function resolve(scope, name) {
+  for (let current = scope; current; current = current.upper) {
+    const variable = current.set.get(name)
+    if (variable) return variable
+  }
   return null
-}
-
-function isReadHelperArgument(identifier) {
-  const call = identifier.parent
-  return (
-    call.type === 'CallExpression' &&
-    call.callee.type === 'Identifier' &&
-    DESCRIPTOR_CONSUMERS.has(call.callee.name) &&
-    call.arguments[0] === identifier
-  )
 }
 
 function lifecycleOwner(config) {
@@ -127,21 +195,86 @@ function lifecycleOwner(config) {
       messages: config.messages,
     },
     create(context) {
-      function checkText(node, text) {
-        if (writesLifecycle(text, tables)) context.report({ node, messageId: 'lifecycle' })
+      const { sourceCode } = context
+      const inTablesFile = TABLES_FILE.test(context.filename)
+
+      function* callsNamed(node, name) {
+        if (node.type === 'CallExpression' && calleeName(node.callee) === name) yield node
+        for (const key of sourceCode.visitorKeys[node.type] ?? []) {
+          const children = Array.isArray(node[key]) ? node[key] : [node[key]]
+          for (const child of children) if (child) yield* callsNamed(child, name)
+        }
       }
+
+      function checkStatement(node, text, expressions) {
+        const levels = sqlLevels(text)
+        if (levels.some((level) => writesLifecycle(level, tables))) {
+          context.report({ node, messageId: 'lifecycle' })
+        }
+        if (levels.some((level) => tables.some((table) => table.mergeInto.test(level)))) {
+          context.report({ node, messageId: 'merge' })
+        }
+        const foreign = new Set()
+        const raws = new Set()
+        for (const table of tables.filter((table) => table.details !== undefined)) {
+          for (const clause of levels.flatMap((level) => setClauses(level, table))) {
+            for (const index of columnHoles(clause)) {
+              if (!isDetailsSet(expressions[index], table.details)) foreign.add(expressions[index])
+            }
+            for (const index of holes(clause)) {
+              if (foreign.has(expressions[index])) continue
+              for (const call of callsNamed(expressions[index], 'raw')) raws.add(call)
+            }
+          }
+        }
+        for (const expression of foreign) {
+          context.report({ node: expression, messageId: 'interpolation' })
+        }
+        for (const call of raws) context.report({ node: call, messageId: 'raw' })
+      }
+
+      function isReadHelperArgument(identifier) {
+        const call = identifier.parent
+        if (
+          call.type !== 'CallExpression' ||
+          call.callee.type !== 'Identifier' ||
+          call.arguments[0] !== identifier
+        ) {
+          return false
+        }
+        const definition = resolve(sourceCode.getScope(call), call.callee.name)?.defs[0]
+        return (
+          definition?.type === 'ImportBinding' &&
+          definition.node.type === 'ImportSpecifier' &&
+          DESCRIPTOR_CONSUMERS.has(definition.node.imported.name) &&
+          HELPER_MODULE.test(String(definition.parent.source.value))
+        )
+      }
+
+      function checkModuleSource(node, source) {
+        if (source && TABLES_MODULE.test(String(source.value))) {
+          context.report({ node, messageId: 'module' })
+        }
+      }
+
+      function checkNamespaceReference(reference) {
+        const member = reference.identifier.parent
+        if (member.type !== 'MemberExpression' || member.object !== reference.identifier) {
+          context.report({ node: reference.identifier, messageId: 'module' })
+        } else if (memberName(member) === null) {
+          context.report({ node: member, messageId: 'module' })
+        } else if (descriptors.has(memberName(member))) {
+          context.report({ node: member, messageId: 'descriptor' })
+        }
+      }
+
       function checkImport(node) {
         if (!TABLES_MODULE.test(String(node.source.value))) return
         for (const specifier of node.specifiers) {
-          const [variable] = context.sourceCode.getDeclaredVariables(specifier)
+          const [variable] = sourceCode.getDeclaredVariables(specifier)
           const imported = specifier.type === 'ImportSpecifier' ? specifier.imported.name : null
           if (specifier.type === 'ImportNamespaceSpecifier' || imported === 'tables') {
-            for (const reference of variable.references) {
-              const member = reference.identifier.parent
-              if (member.object === reference.identifier && descriptors.has(memberName(member))) {
-                context.report({ node: member, messageId: 'descriptor' })
-              }
-            }
+            variable.references.forEach(checkNamespaceReference)
           }
           if (!descriptors.has(imported)) continue
           if (specifier.local.name !== imported) {
@@ -154,21 +287,40 @@ function lifecycleOwner(config) {
           }
         }
       }
+
+      function checkCall(node) {
+        const name = calleeName(node.callee)
+        if (name === 'require' && node.arguments[0]) checkModuleSource(node, node.arguments[0])
+        if (name !== 'defineTable' || inTablesFile || !node.arguments[0]) return
+        const table = staticString(node.arguments[0])
+        if (table !== null && tables.some((owned) => owned.definition.test(table))) {
+          context.report({ node, messageId: 'definition' })
+        }
+      }
+
       return {
         ImportDeclaration: checkImport,
+        ImportExpression(node) {
+          checkModuleSource(node, node.source)
+        },
+        ExportNamedDeclaration(node) {
+          checkModuleSource(node, node.source)
+        },
+        ExportAllDeclaration(node) {
+          checkModuleSource(node, node.source)
+        },
+        CallExpression: checkCall,
         Literal(node) {
           if (typeof node.value !== 'string' || isConcatenation(node.parent)) return
-          checkText(node, node.value)
+          checkStatement(node, node.value, [])
         },
         BinaryExpression(node) {
           if (!isConcatenation(node) || isConcatenation(node.parent)) return
-          checkText(node, concatenatedText(node))
+          const { text, expressions } = concatenation(node)
+          checkStatement(node, text, expressions)
         },
         TemplateLiteral(node) {
-          checkText(node, templateText(node))
-          for (const expression of foreignSetInterpolations(node, tables)) {
-            context.report({ node: expression, messageId: 'interpolation' })
-          }
+          checkStatement(node, templateText(node), node.expressions)
         },
       }
     },
@@ -184,22 +336,27 @@ const smsLifecycleOwner = lifecycleOwner({
       descriptor: 'smsSupportTickets',
       details: 'smsSupportTicketDetails',
       columns: ['status', 'state', 'automation_status', 'closed_at'],
-      insertColumns: EVERY_COLUMN,
     },
     {
       name: 'sms_support_jobs',
       descriptor: 'smsSupportJobs',
       columns: EVERY_COLUMN,
-      insertColumns: EVERY_COLUMN,
     },
   ],
   messages: {
     lifecycle:
-      'Only src/db/sms-support-lifecycle.ts inserts SMS support tickets, writes their status, state, automation_status and closed_at, and writes sms_support_jobs. Write other ticket columns with set(smsSupportTicketDetails, ...) and move tickets and jobs through the lifecycle.',
+      'Only src/db/sms-support-lifecycle.ts inserts SMS support tickets, writes their status, state, automation_status and closed_at, and inserts or updates sms_support_jobs. Nothing but deleteEveryRow deletes from either table. Write other ticket columns with set(smsSupportTicketDetails, ...) and move tickets and jobs through the lifecycle.',
     interpolation:
       'Inside the SET clause of an UPDATE of sms_support_tickets, interpolate only set(smsSupportTicketDetails, ...). Name every other column in the SQL text, and change status, state, automation_status or closed_at through src/db/sms-support-lifecycle.ts.',
+    raw: 'Inside the SET clause of an UPDATE of sms_support_tickets, raw() is refused in every position, the values of a set(smsSupportTicketDetails, ...) patch included, because its text can name status, state, automation_status or closed_at. Name the column in the SQL text and pass the value as a parameter.',
     descriptor:
-      'Outside src/db/sms-support-lifecycle.ts the smsSupportTickets and smsSupportJobs descriptors are only read or wiped. Pass each under its own name, only as the first argument of select, selectAll or deleteEveryRow. Write other ticket columns with set(smsSupportTicketDetails, ...) and change status or jobs through the lifecycle.',
+      'Outside src/db/sms-support-lifecycle.ts the smsSupportTickets and smsSupportJobs descriptors are only read or wiped. Pass each under its own name, only as the first argument of select, selectAll or deleteEveryRow imported from the table or wipe module. Write other ticket columns with set(smsSupportTicketDetails, ...) and change status or jobs through the lifecycle.',
+    module:
+      'The tables module is imported statically and its descriptors by name; it is not re-exported, destructured, aliased, indexed or loaded with require() or import().',
+    definition:
+      'sms_support_tickets and sms_support_jobs each have one descriptor, in src/db/tables.ts; a second defineTable of either would write around the lifecycle.',
+    merge:
+      'MERGE INTO sms_support_tickets or sms_support_jobs is refused; it can set any column. Use the lifecycle.',
   },
 })
 
