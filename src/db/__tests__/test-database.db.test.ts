@@ -31,3 +31,19 @@ it('refuses a localhost url whose host query parameter points pg at another serv
     localTestDatabaseUrl('postgresql://localhost/prod_test?host=db.example.com')
   ).toThrow('TEST_DATABASE_URL must name a localhost database ending in _test')
 })
+
+it.each([
+  'postgresql://postgres@db.example.com:5432/odn_test',
+  'postgresql://postgres@localhost:5432/odn',
+])('refuses %s', (url) => {
+  expect(() => localTestDatabaseUrl(url)).toThrow(
+    'TEST_DATABASE_URL must name a localhost database'
+  )
+})
+
+it.each([
+  'postgresql://postgres@localhost:55461/odn_p6_test',
+  'postgresql://postgres@127.0.0.1:5432/odn_test',
+])('accepts %s', (url) => {
+  expect(localTestDatabaseUrl(url)).toBe(url)
+})
