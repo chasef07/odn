@@ -65,7 +65,11 @@ import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/app
 import { changeSubmissionStatus } from '@/app/admin/_actions/change-status'
 import { denySubmission } from '@/app/admin/_actions/deny'
 import { markAsManual, maybeSubmission } from '@/app/admin/_actions/maybe'
-import { settleRefundReservation, type ActionResult } from '@/app/admin/_actions/shared'
+import {
+  settleRefundReservation,
+  type ActionResult,
+  type RefundSettlement,
+} from '@/app/admin/_actions/shared'
 import { seedSubmission } from '@/db/__tests__/seed'
 import { createVerifiedUser } from '@/db/auth'
 import { findNoteVerificationBySlug } from '@/db/note-verifications'
@@ -374,6 +378,57 @@ describe('a refund made in the Stripe dashboard', () => {
       stripeRefundId: 're_dashboard',
     })
     expect(mockSendDenialEmail).toHaveBeenCalledTimes(1)
+  })
+
+  function recordedNotice(settled: RefundSettlement): ActionResult {
+    if (settled.settled !== 'recorded') throw new Error(`settlement ${settled.settled}`)
+    expect(settled.refundId).toBe('re_dashboard')
+    return settled.notice
+  }
+
+  async function expectOneDenial(id: string, outcomes: ActionResult[]): Promise<void> {
+    expect(mockSendDenialEmail).toHaveBeenCalledExactlyOnceWith(DENIAL_EMAIL)
+    expect(outcomes).toHaveLength(2)
+    expect(outcomes).toEqual(
+      expect.arrayContaining([
+        { success: true },
+        { success: true, warning: 'Refund re_dashboard was already recorded by another run' },
+      ])
+    )
+    const row = await reload(id)
+    expect(row).toMatchObject({ status: SubmissionStatus.DENIED, stripeRefundId: 're_dashboard' })
+    expect(row.denialEmailSentAt).not.toBeNull()
+    expect(await activeNotes(id)).toBe(0)
+  }
+
+  it('sends one denial email when two settles race on one reserved row', async () => {
+    const approved = await approvedThenRefundedInStripe()
+    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
+    const refundsBefore = mockRefundsCreate.mock.calls.length
+
+    const settled = await Promise.all([
+      settleRefundReservation(approved.id, undefined),
+      settleRefundReservation(approved.id, undefined),
+    ])
+
+    await expectOneDenial(approved.id, settled.map(recordedNotice))
+    expect(mockRefundsCreate).toHaveBeenCalledTimes(refundsBefore)
+  })
+
+  it('sends one denial email when a settle races the queue deny on the row it reserved', async () => {
+    const pending = await seedPending()
+    const settling = new Promise<RefundSettlement>((resolve, reject) => {
+      mockRefundsCreate.mockImplementationOnce(async () => {
+        stripeRefunds.push(dashboardRefund(pending))
+        settleRefundReservation(pending.id, undefined).then(resolve, reject)
+        return { id: 're_dashboard', amount: 2495 }
+      })
+    })
+
+    const [denied, settled] = await Promise.all([denySubmission(pending.id, 'Legal'), settling])
+
+    await expectOneDenial(pending.id, [denied, recordedNotice(settled)])
+    expect(mockRefundsCreate).toHaveBeenCalledTimes(1)
   })
 
   it('finishes the denial itself when its own record committed but the reply was lost', async () => {
