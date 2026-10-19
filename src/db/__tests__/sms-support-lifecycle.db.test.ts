@@ -936,7 +936,7 @@ describe('startAutomation', () => {
 describe('takeOver', () => {
   const cancel = { at: AT, lastError: 'Ticket closed by admin before automation ran' }
 
-  it('moves the ticket, then fails its queued and running jobs, and leaves other tickets alone', async () => {
+  it('moves the ticket, then fails its queued and running jobs, and leaves other tickets and their committing jobs alone', async () => {
     const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
     const other = await seedTicket({ phoneE164: OTHER_PHONE })
     const queued = await seedJob(ticket.id, {
@@ -951,7 +951,7 @@ describe('takeOver', () => {
       kind: 'done',
       status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED,
     })
-    const elsewhere = await seedJob(other.id)
+    const elsewhere = await seedJob(other.id, { status: SMS_SUPPORT_JOB_STATUS.COMMITTING })
 
     const result = await takeOver('closeByAdmin', ticket.id, cancel)
 
