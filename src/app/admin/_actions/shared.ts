@@ -137,6 +137,8 @@ export async function finishRefundedDenial(
   return notifyDenial(recorded.value, reason, refund.amount)
 }
 
+const REFUND_NEVER_PAID = new Set(['failed', 'canceled'])
+
 export type RefundSettlement =
   | { settled: 'recorded'; refundId: string; notice: ActionResult }
   | { settled: 'released'; status: SubmissionStatus }
@@ -151,20 +153,27 @@ export async function settleRefundReservation(
     throw new Error(`submission ${id} holds no refund reservation (${row.stripeRefundId})`)
   }
 
-  const refunds = await stripe.refunds.list({
+  const { data: refunds } = await stripe.refunds.list({
     payment_intent: row.stripePaymentIntentId,
     limit: 100,
   })
-  const refund = refunds.data.find((candidate) => candidate.metadata?.submissionId === id)
+  const refund = refunds.find((candidate) => !REFUND_NEVER_PAID.has(candidate.status ?? ''))
   const at = new Date()
 
   if (refund) {
-    const recorded = await transition(
-      { transition: 'recordRefund', row },
-      { at, stripeRefundId: refund.id }
+    if (row.denialReason === null) {
+      throw new Error(`submission ${id} is reserved without a denial reason`)
+    }
+    const notice = await finishRefundedDenial(row, refund, row.denialReason, at)
+    if (!notice.success) throw new Error(notice.error)
+    return { settled: 'recorded', refundId: refund.id, notice }
+  }
+
+  if (refunds.length > 0) {
+    const listed = refunds.map((candidate) => `${candidate.id} ${candidate.status}`).join(', ')
+    throw new Error(
+      `Stripe lists only failed or canceled refunds for ${row.stripePaymentIntentId} (${listed}); resolve them in Stripe before releasing the reservation`
     )
-    if (!recorded.ok) throw new Error(`record refused: ${recorded.refusal.reason}`)
-    return { settled: 'recorded', refundId: refund.id, notice: { success: true } }
   }
 
   if (!releaseTo) {
