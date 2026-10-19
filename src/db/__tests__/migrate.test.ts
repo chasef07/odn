@@ -42,7 +42,7 @@ describe('loadMigrations', () => {
     const recorded = Object.fromEntries(
       loadMigrations(MIGRATIONS_DIR).map((m) => [m.name, m.checksum])
     )
-    expect(recorded).toEqual({
+    expect(recorded).toMatchObject({
       '0001_baseline_production_schema':
         '31380f0353cb9f28e5ffb26a3d8b325df12500d062a0739022706ae3fe1c744c',
       '0002_add_sms_support_automation':

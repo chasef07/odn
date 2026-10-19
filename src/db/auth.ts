@@ -42,6 +42,9 @@ export function createAuth(options: AuthOptions) {
         refreshToken: accounts.columns.refreshToken.name,
         idToken: accounts.columns.idToken.name,
         accessTokenExpiresAt: accounts.columns.expiresAt.name,
+        refreshTokenExpiresAt: accounts.columns.refreshTokenExpiresAt.name,
+        createdAt: accounts.columns.createdAt.name,
+        updatedAt: accounts.columns.updatedAt.name,
       },
     },
   })

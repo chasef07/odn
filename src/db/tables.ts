@@ -19,6 +19,7 @@ export const users = defineTable<User>('users', {
   email: col('email', 'text'),
   emailVerified: col('email_verified', 'bool'),
   name: col('name', 'text'),
+  image: nullable('image', 'text'),
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
 })
@@ -32,7 +33,11 @@ export const accounts = defineTable<Account>('accounts', {
   refreshToken: nullable('refresh_token', 'text'),
   idToken: nullable('id_token', 'text'),
   expiresAt: nullable('expires_at', 'timestamp'),
+  refreshTokenExpiresAt: nullable('refresh_token_expires_at', 'timestamp'),
+  scope: nullable('scope', 'text'),
   password: nullable('password', 'text'),
+  createdAt: col('created_at', 'timestamp'),
+  updatedAt: col('updated_at', 'timestamp'),
 })
 
 export const sessions = defineTable<Session>('sessions', {
