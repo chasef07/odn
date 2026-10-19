@@ -9,7 +9,7 @@ const {
   mockTransition,
   mockTransitionJob,
   mockPermit,
-  mockCreateRetrySupportAutomationJob,
+  mockStartAutomationRetry,
   mockCreateSupportAutomationJob,
   mockRequeueStaleSupportJobs,
   mockFindActiveSupportAutomationJob,
@@ -24,7 +24,7 @@ const {
   mockTransition: vi.fn(),
   mockTransitionJob: vi.fn(),
   mockPermit: vi.fn(),
-  mockCreateRetrySupportAutomationJob: vi.fn(),
+  mockStartAutomationRetry: vi.fn(),
   mockCreateSupportAutomationJob: vi.fn(),
   mockRequeueStaleSupportJobs: vi.fn(),
   mockFindActiveSupportAutomationJob: vi.fn(),
@@ -53,7 +53,7 @@ vi.mock('@/db/sms-support-lifecycle', async (importOriginal) => {
     transition: mockTransition,
     transitionJob: mockTransitionJob,
     permit: mockPermit,
-    createRetrySupportAutomationJob: mockCreateRetrySupportAutomationJob,
+    startAutomationRetry: mockStartAutomationRetry,
     createSupportAutomationJob: mockCreateSupportAutomationJob,
     requeueStaleSupportJobs: mockRequeueStaleSupportJobs,
   }
@@ -176,8 +176,10 @@ describe('retrySupportAutomationJob', () => {
       status: SMS_SUPPORT_JOB_STATUS.FAILED,
       payload: dobPayload,
     })
-    mockCreateRetrySupportAutomationJob.mockResolvedValue({ id: 'job_retry' })
-    mockTransition.mockResolvedValue({ ok: true, value: { id: 'ticket_123' } })
+    mockStartAutomationRetry.mockResolvedValue({
+      ok: true,
+      value: { ticket: { id: 'ticket_123' }, job: { id: 'job_retry' } },
+    })
     mockFindRunnableQueuedSupportJob.mockResolvedValue(null)
   })
 
@@ -186,15 +188,24 @@ describe('retrySupportAutomationJob', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockPermit).toHaveBeenCalledWith('ticket_123', 'retryAutomation')
-    expect(mockCreateRetrySupportAutomationJob).toHaveBeenCalledWith({
-      ticketId: 'ticket_123',
-      payload: dobPayload,
-    })
-    expect(mockTransition).toHaveBeenCalledWith('retryAutomation', 'ticket_123', {
+    expect(mockStartAutomationRetry).toHaveBeenCalledWith('ticket_123', {
       at: expect.any(Date),
       summary: 'Change birthday to 1990-01-01',
+      payload: dobPayload,
     })
     expect(mockFindRunnableQueuedSupportJob).toHaveBeenCalledWith('job_retry')
+  })
+
+  it('reports a ticket that left the failed state between the read and the retry, and runs no job', async () => {
+    mockStartAutomationRetry.mockResolvedValue({
+      ok: false,
+      refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.CLOSED },
+    })
+
+    const result = await retrySupportAutomationJob('ticket_123')
+
+    expect(result).toEqual({ success: false, error: 'Ticket is not in failed automation state' })
+    expect(mockFindRunnableQueuedSupportJob).not.toHaveBeenCalled()
   })
 
   it('does not enqueue duplicate retry jobs when one is already active', async () => {
@@ -204,8 +215,7 @@ describe('retrySupportAutomationJob', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockFindActiveSupportAutomationJobId).toHaveBeenCalledWith('ticket_123')
-    expect(mockCreateRetrySupportAutomationJob).not.toHaveBeenCalled()
-    expect(mockTransition).not.toHaveBeenCalled()
+    expect(mockStartAutomationRetry).not.toHaveBeenCalled()
   })
 
   it('does not retry an old failed job after the ticket has recovered', async () => {
@@ -220,8 +230,7 @@ describe('retrySupportAutomationJob', () => {
       success: false,
       error: 'Ticket is not in failed automation state',
     })
-    expect(mockCreateRetrySupportAutomationJob).not.toHaveBeenCalled()
-    expect(mockTransition).not.toHaveBeenCalled()
+    expect(mockStartAutomationRetry).not.toHaveBeenCalled()
   })
 
   it('does not retry a ticket whose automation did not fail', async () => {
@@ -236,7 +245,7 @@ describe('retrySupportAutomationJob', () => {
       success: false,
       error: 'Ticket is not in failed automation state',
     })
-    expect(mockCreateRetrySupportAutomationJob).not.toHaveBeenCalled()
+    expect(mockStartAutomationRetry).not.toHaveBeenCalled()
   })
 
   it('reports a missing ticket', async () => {
@@ -245,7 +254,7 @@ describe('retrySupportAutomationJob', () => {
     const result = await retrySupportAutomationJob('ticket_123')
 
     expect(result).toEqual({ success: false, error: 'Support ticket not found' })
-    expect(mockCreateRetrySupportAutomationJob).not.toHaveBeenCalled()
+    expect(mockStartAutomationRetry).not.toHaveBeenCalled()
   })
 })
 

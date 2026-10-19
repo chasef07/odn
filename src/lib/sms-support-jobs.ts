@@ -17,11 +17,11 @@ import {
   findStaleCommittingSupportJobs,
 } from '@/db/sms-support'
 import {
-  createRetrySupportAutomationJob,
   createSupportAutomationJob,
   permit,
   requeueStaleSupportJobs,
   required,
+  startAutomationRetry,
   transition,
   transitionJob,
 } from '@/db/sms-support-lifecycle'
@@ -202,19 +202,18 @@ export async function retrySupportAutomationJob(ticketId: string) {
   }
 
   const payload = latestJob.payload as JsonObject | null
-  const retried = await transition('retryAutomation', ticketId, {
+  const retried = await startAutomationRetry(ticketId, {
     at: new Date(),
     summary:
       payload && typeof payload === 'object'
         ? automationSummary(payload as unknown as SupportAutomationPayload)
         : null,
+    payload: latestJob.payload,
   })
 
   if (!retried.ok) return { success: false, error: 'Ticket is not in failed automation state' }
 
-  const job = await createRetrySupportAutomationJob({ ticketId, payload: latestJob.payload })
-
-  await processSmsSupportJobNow(job.id, { workerId: `admin-retry-${Date.now()}` })
+  await processSmsSupportJobNow(retried.value.job.id, { workerId: `admin-retry-${Date.now()}` })
 
   return { success: true }
 }

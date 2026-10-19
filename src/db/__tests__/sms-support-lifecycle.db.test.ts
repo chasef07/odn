@@ -22,11 +22,11 @@ import {
   cancelSupportJobs,
   createAdminSupportTicket,
   createInboundSupportTicket,
-  createRetrySupportAutomationJob,
   createSupportAutomationJob,
   permit,
   required,
   requeueStaleSupportJobs,
+  startAutomationRetry,
   transition,
   transitionJob,
   type JobInput,
@@ -834,19 +834,56 @@ describe('births', () => {
       await createSupportAutomationJob({ ticketId: ticket.id, payload: dobPayload })
     ).not.toBeNull()
   })
+})
 
-  it('queues a retry job with a null payload and throws while one is active', async () => {
-    const ticket = await seedTicket()
+describe('startAutomationRetry', () => {
+  const retry = { at: AT, summary: SUMMARY, payload: null }
 
-    const job = await createRetrySupportAutomationJob({ ticketId: ticket.id, payload: null })
-    expect(job).toEqual(await readJob(job.id))
-    expect(job).toMatchObject({ status: SMS_SUPPORT_JOB_STATUS.QUEUED, payload: null })
+  it('moves the ticket and queues the retry job together', async () => {
+    const ticket = await seedTicket(start('retryAutomation'))
 
-    await expect(
-      createRetrySupportAutomationJob({ ticketId: ticket.id, payload: dobPayload })
-    ).rejects.toThrow(/sms_support_jobs_active_ticket_kind_key/)
-    await expect(
-      createRetrySupportAutomationJob({ ticketId: 'missing', payload: null })
-    ).rejects.toThrow(/foreign key/)
+    const result = await startAutomationRetry(ticket.id, { ...retry, payload: dobPayload })
+
+    if (!result.ok) throw new Error(result.refusal.reason)
+    expect(result.value.ticket).toEqual({
+      ...ticket,
+      ...ticketWrites.retryAutomation,
+      updatedAt: AT,
+    })
+    expect(await readTicket(ticket.id)).toEqual(result.value.ticket)
+    expect(result.value.job).toEqual(await readJob(result.value.job.id))
+    expect(result.value.job).toMatchObject({
+      ticketId: ticket.id,
+      kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
+      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+      payload: dobPayload,
+    })
+  })
+
+  it('leaves the ticket alone when the retry job cannot be queued', async () => {
+    const ticket = await seedTicket(start('retryAutomation'))
+    const active = await seedJob(ticket.id, { status: SMS_SUPPORT_JOB_STATUS.RUNNING })
+
+    await expect(startAutomationRetry(ticket.id, retry)).rejects.toThrow(
+      /sms_support_jobs_active_ticket_kind_key/
+    )
+
+    expect(await readTicket(ticket.id)).toEqual(ticket)
+    expect(await readJob(active.id)).toEqual(active)
+    expect(await db.one(sql`SELECT ${count('n')} FROM sms_support_jobs`)).toEqual({ n: 1 })
+  })
+
+  it('queues no job when the ticket is refused or missing', async () => {
+    const closed = await seedTicket({ status: SMS_SUPPORT_STATUS.CLOSED })
+
+    expect(await startAutomationRetry(closed.id, retry)).toEqual({
+      ok: false,
+      refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.CLOSED },
+    })
+    expect(await startAutomationRetry(randomUUID(), retry)).toEqual({
+      ok: false,
+      refusal: { reason: 'missing' },
+    })
+    expect(await db.one(sql`SELECT ${count('n')} FROM sms_support_jobs`)).toEqual({ n: 0 })
   })
 })

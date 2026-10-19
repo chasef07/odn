@@ -499,20 +499,23 @@ export async function createSupportAutomationJob({
   )
 }
 
-export async function createRetrySupportAutomationJob({
-  ticketId,
-  payload,
-}: {
-  ticketId: string
-  payload: JsonValue | null
-}): Promise<SmsSupportJob> {
-  const [job] = await db.rows(
-    sql`${insert(smsSupportJobs, {
-      ticketId,
-      kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
-      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      payload,
-    })} RETURNING ${selectAll(smsSupportJobs)}`
-  )
-  return job
+export type AutomationRetry = Retry & { readonly payload: JsonValue | null }
+
+export async function startAutomationRetry(
+  ticketId: string,
+  { payload, ...input }: AutomationRetry
+): Promise<Outcome<{ ticket: SmsSupportTicket; job: SmsSupportJob }, TicketRefusal>> {
+  return db.transaction(async (tx) => {
+    const ticket = await transition('retryAutomation', ticketId, input, tx)
+    if (!ticket.ok) return ticket
+    const [job] = await tx.rows(
+      sql`${insert(smsSupportJobs, {
+        ticketId,
+        kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
+        status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+        payload,
+      })} RETURNING ${selectAll(smsSupportJobs)}`
+    )
+    return { ok: true, value: { ticket: ticket.value, job } }
+  })
 }
