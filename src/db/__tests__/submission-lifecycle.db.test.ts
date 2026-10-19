@@ -399,6 +399,41 @@ describe('the version pin', () => {
       value: { status: 'APPROVED', patientFirstName: 'Jon', updatedAt: at(2) },
     })
   })
+
+  it('records the refund although an admin edited the details while Stripe answered', async () => {
+    await seedAdmin()
+    const row = await seed(cases.deny.start)
+    const reserved = await transition(await permitted(row.id, 'deny'), denial(at(1)))
+    if (!reserved.ok) throw new Error(reserved.refusal.reason)
+    await rawUpdate(row.id, sql`patient_first_name = 'Jon', updated_at = ${at(2)}`)
+
+    expect(
+      await transition(
+        { transition: 'recordRefund', row: reserved.value },
+        { at: at(3), stripeRefundId: 're_1' }
+      )
+    ).toMatchObject({
+      ok: true,
+      value: { stripeRefundId: 're_1', refundedAt: at(3), patientFirstName: 'Jon' },
+    })
+  })
+})
+
+describe('the approval columns', () => {
+  it.each(['approve', 'reapprove'] as const)(
+    '%s writes the restriction choice the doctor made',
+    async (name) => {
+      await seedAdmin()
+      const row = await seed(cases[name].start, { approvalWithRestrictions: true })
+
+      const written = await transition(
+        { transition: name, row },
+        { ...approval(at(1)), withRestrictions: false }
+      )
+      expect(written).toMatchObject({ ok: true, value: { approvalWithRestrictions: false } })
+      expect(await reload(row.id)).toMatchObject({ approvalWithRestrictions: false })
+    }
+  )
 })
 
 describe('permit', () => {
@@ -415,6 +450,16 @@ describe('permit', () => {
       ok: true,
       value: { transition: 'approve', row: pending },
     })
+  })
+
+  it('throws when two candidates admit the same row instead of picking one', async () => {
+    await seedAdmin()
+    const pending = await seed({ status: 'PENDING_REVIEW', refund: 'none' })
+
+    await expect(permit(pending.id, 'deny', 'overrideDeny')).rejects.toThrow(
+      'deny, overrideDeny all admit PENDING_REVIEW/none'
+    )
+    expect(await reload(pending.id)).toEqual(pending)
   })
 
   it('refuses a refunded row by its refund, a wrong status by its status, and a missing row', async () => {

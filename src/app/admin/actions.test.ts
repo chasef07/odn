@@ -809,6 +809,24 @@ describe('changeSubmissionStatus - Denial SMS', () => {
   })
 })
 
+describe('changeSubmissionStatus - target status', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({ user: { id: 'doctor_123' } })
+  })
+
+  it.each(['APPROVED', 'SHIPPED'])('refuses %s before reading the row', async (target) => {
+    const result = await changeSubmissionStatus('sub_123', target as never)
+
+    expect(result).toEqual({
+      success: false,
+      error: `Cannot change submission to status: ${target}`,
+    })
+    expect(mockPermit).not.toHaveBeenCalled()
+    expect(mockTransition).not.toHaveBeenCalled()
+  })
+})
+
 describe('maybeSubmission - Maybe Review Workflow', () => {
   const mockSubmissionId = 'sub_123'
   const mockDoctorId = 'doctor_123'
