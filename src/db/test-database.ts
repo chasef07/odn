@@ -42,13 +42,15 @@ function readyOnlyAfterSync(db: PGlite): PGlite {
   })
 }
 
+const startParams = [...PGlite.defaultStartParams, '-c', 'TimeZone=UTC']
+
 async function createPGlite(database: string): Promise<PGlite> {
-  if (database === 'postgres') return PGlite.create()
+  if (database === 'postgres') return PGlite.create({ startParams })
   const template = await PGlite.create()
   await template.exec(`CREATE DATABASE "${database}"`)
   const dataDir = await template.dumpDataDir('none')
   await template.close()
-  return PGlite.create({ loadDataDir: dataDir, database })
+  return PGlite.create({ loadDataDir: dataDir, database, startParams })
 }
 
 export async function startTestDatabase({
@@ -56,7 +58,6 @@ export async function startTestDatabase({
   database = 'postgres',
 } = {}): Promise<TestDatabase> {
   const db = await createPGlite(database)
-  await db.exec("SET TimeZone TO 'UTC'")
   const server = new PGLiteSocketServer({
     db: readyOnlyAfterSync(db),
     host: '127.0.0.1',
