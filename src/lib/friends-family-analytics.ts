@@ -131,16 +131,6 @@ function approvedAt(submission: FriendsFamilySubmissionInput): Date | null {
   return submission.reviewedAt ?? submission.approvalEmailSentAt ?? submission.createdAt
 }
 
-function addFactor(
-  reasons: FriendsFamilyReason[],
-  label: string,
-  value: number,
-  tone: FriendsFamilyTone
-): number {
-  reasons.push({ label, tone })
-  return value
-}
-
 function priorityFromScore(
   score: number,
   hasRefund: boolean,
@@ -158,7 +148,7 @@ function clampScore(score: number): number {
   return Math.max(0, Math.min(100, score))
 }
 
-function buildCustomerSegment(
+function buildCustomerRow(
   customerKey: string,
   submissions: FriendsFamilySubmissionInput[],
   referenceDate: Date
@@ -223,70 +213,69 @@ function buildCustomerSegment(
       ? Math.floor((referenceDate.getTime() - lastApprovedAt.getTime()) / MS_PER_DAY)
       : null
 
-  const reasons: FriendsFamilyReason[] = []
-  let score = 0
+  const factors: (FriendsFamilyReason & { value: number })[] = []
 
   if (approvedNotes >= 2) {
-    score += addFactor(reasons, 'Repeat successful customer', 30, 'positive')
+    factors.push({ label: 'Repeat successful customer', value: 30, tone: 'positive' })
   }
   if (approvedNotes >= 3) {
-    score += addFactor(reasons, '3+ approved notes', 10, 'positive')
+    factors.push({ label: '3+ approved notes', value: 10, tone: 'positive' })
   }
 
   if (daysSinceLastApproved !== null) {
     if (daysSinceLastApproved < 14) {
-      score += addFactor(reasons, 'Too recent to discount', -20, 'warning')
+      factors.push({ label: 'Too recent to discount', value: -20, tone: 'warning' })
     } else if (daysSinceLastApproved < 30) {
-      score += addFactor(reasons, 'Recently active', 5, 'positive')
+      factors.push({ label: 'Recently active', value: 5, tone: 'positive' })
     } else if (daysSinceLastApproved <= 90) {
-      score += addFactor(reasons, 'Sweet spot recency', 25, 'positive')
+      factors.push({ label: 'Sweet spot recency', value: 25, tone: 'positive' })
     } else if (daysSinceLastApproved <= 180) {
-      score += addFactor(reasons, 'Cooling off', -5, 'warning')
+      factors.push({ label: 'Cooling off', value: -5, tone: 'warning' })
     } else {
-      score += addFactor(reasons, 'Cold lead', -20, 'warning')
+      factors.push({ label: 'Cold lead', value: -20, tone: 'warning' })
     }
   }
 
   if (approvedNotes === 0) {
-    score += addFactor(reasons, 'No approved history', -15, 'warning')
+    factors.push({ label: 'No approved history', value: -15, tone: 'warning' })
   }
 
   if (familySignal) {
-    score += addFactor(reasons, 'Family or caregiver pattern', 8, 'positive')
+    factors.push({ label: 'Family or caregiver pattern', value: 8, tone: 'positive' })
   }
 
   if (refundedNotes === 0) {
-    score += addFactor(reasons, 'No refund history', 12, 'positive')
+    factors.push({ label: 'No refund history', value: 12, tone: 'positive' })
   } else {
-    score += addFactor(reasons, 'Refund history', -45, 'negative')
+    factors.push({ label: 'Refund history', value: -45, tone: 'negative' })
   }
 
   if (deniedNotes === 0) {
-    score += addFactor(reasons, 'No denial history', 5, 'positive')
+    factors.push({ label: 'No denial history', value: 5, tone: 'positive' })
   } else {
-    score += addFactor(
-      reasons,
-      `${deniedNotes} prior ${deniedNotes === 1 ? 'denial' : 'denials'}`,
-      Math.max(-20, -8 * deniedNotes),
-      'warning'
-    )
+    factors.push({
+      label: `${deniedNotes} prior ${deniedNotes === 1 ? 'denial' : 'denials'}`,
+      value: Math.max(-20, -8 * deniedNotes),
+      tone: 'warning',
+    })
   }
 
   if (maybeNotes > 0) {
-    score += addFactor(reasons, 'Maybe review history', -5, 'warning')
+    factors.push({ label: 'Maybe review history', value: -5, tone: 'warning' })
   }
 
   if (openNotes > 0) {
-    score += addFactor(reasons, 'Open case needs resolution', -30, 'warning')
+    factors.push({ label: 'Open case needs resolution', value: -30, tone: 'warning' })
   }
 
   if (offerUsedCount > 0) {
-    score += addFactor(reasons, 'Already used doctor10', -25, 'warning')
+    factors.push({ label: 'Already used doctor10', value: -25, tone: 'warning' })
   } else if (standardPriceNotes > 0) {
-    score += addFactor(reasons, 'Paid standard price before', 8, 'positive')
+    factors.push({ label: 'Paid standard price before', value: 8, tone: 'positive' })
   }
 
-  const finalScore = clampScore(score)
+  const reasons = factors.map(({ label, tone }): FriendsFamilyReason => ({ label, tone }))
+  const finalScore = clampScore(factors.reduce((total, factor) => total + factor.value, 0))
   const priority = priorityFromScore(finalScore, refundedNotes > 0, openNotes > 0)
   const segments: FriendsFamilySegmentKey[] = []
 
@@ -396,7 +385,7 @@ export function buildFriendsFamilyAnalytics(
 
   const customers = Array.from(grouped.entries())
     .map(([customerKey, customerSubmissions]) =>
-      buildCustomerSegment(customerKey, customerSubmissions, referenceDate)
+      buildCustomerRow(customerKey, customerSubmissions, referenceDate)
     )
     .sort(byScore)
 
