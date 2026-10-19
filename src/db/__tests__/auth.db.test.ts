@@ -2,13 +2,14 @@ import bcrypt from 'bcryptjs'
 import { describe, expect, it } from 'vitest'
 import { auth } from '@/lib/auth'
 import {
+  createAuth,
   createCredentialAccount,
   createVerifiedUser,
   deleteAllAuthAccounts,
   deleteAllAuthSessions,
   deleteAllAuthUsers,
 } from '../auth'
-import { db } from '../pool'
+import { db, getPool } from '../pool'
 import { count, sql } from '../sql'
 import { select } from '../table'
 import { sessions, users } from '../tables'
@@ -24,6 +25,15 @@ async function seedDoctor(): Promise<string> {
     password: await bcrypt.hash(password, 10),
   })
   return user.id
+}
+
+async function signInCookie(withPassword: string): Promise<string> {
+  const response = await auth.api.signInEmail({
+    body: { email, password: withPassword },
+    asResponse: true,
+  })
+  expect(response.status).toBe(200)
+  return (response.headers.get('set-cookie') ?? '').split(';')[0]
 }
 
 async function sessionCount(): Promise<number> {
@@ -100,4 +110,64 @@ describe('better-auth on the pg pool', () => {
     await deleteAllAuthUsers()
     expect(await db.one(sql`SELECT ${count('n')} FROM users`)).toEqual({ n: 0 })
   })
+
+  it('changes the password, so the old one stops working and the new one signs in', async () => {
+    await seedDoctor()
+    const headers = new Headers({ cookie: await signInCookie(password) })
+    const newPassword = 'a different long passphrase'
+
+    const changed = await auth.api.changePassword({
+      body: { currentPassword: password, newPassword },
+      headers,
+      asResponse: true,
+    })
+
+    expect(changed.status).toBe(200)
+    const old = await auth.api.signInEmail({ body: { email, password }, asResponse: true })
+    expect(old.status).toBe(401)
+    await signInCookie(newPassword)
+  })
+
+  it('updates the user name and image', async () => {
+    const userId = await seedDoctor()
+    const headers = new Headers({ cookie: await signInCookie(password) })
+    const image = 'https://example.test/doctor.png'
+
+    const updated = await auth.api.updateUser({
+      body: { name: 'Dr Renamed', image },
+      headers,
+      asResponse: true,
+    })
+
+    expect(updated.status).toBe(200)
+    const row = await db.one(sql`SELECT ${select(users, ['name', 'image'])} FROM users`)
+    expect(row).toEqual({ name: 'Dr Renamed', image })
+    const session = await auth.api.getSession({ headers, query: { disableCookieCache: true } })
+    expect(session?.user).toMatchObject({ id: userId, name: 'Dr Renamed', image })
+  })
+})
+
+describe('the auth tables carry every column better-auth writes', () => {
+  const instance = createAuth({
+    secret: 'schema-check-secret-of-32-characters',
+    baseURL: 'http://localhost',
+  })
+
+  for (const model of ['user', 'session', 'account'] as const) {
+    it(model, async () => {
+      const { tables } = await instance.$context
+      const table = tables[model]
+      const { rows } = await getPool().query<{ column_name: string }>(
+        'SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
+        ['public', table.modelName]
+      )
+      const columns = rows.map((row) => row.column_name)
+      const written = [
+        'id',
+        ...Object.entries(table.fields).map(([field, attributes]) => attributes.fieldName ?? field),
+      ]
+
+      expect(written.filter((column) => !columns.includes(column))).toEqual([])
+    })
+  }
 })
