@@ -1,3 +1,13 @@
+import type {
+  SmsSupportAutomationKind,
+  SmsSupportAutomationStatus,
+  SmsSupportCategory,
+  SmsSupportJobStatus,
+  SmsSupportSource,
+  SmsSupportState,
+  SmsSupportStatus,
+} from '@/lib/sms-support-types'
+
 export const SubmissionStatus = {
   PENDING_REVIEW: 'PENDING_REVIEW',
   APPROVED: 'APPROVED',
@@ -138,12 +148,12 @@ export type SmsSupportTicket = {
   id: string
   phoneE164: string
   submissionId: string | null
-  status: string
-  category: string | null
-  state: string
-  source: string
-  automationKind: string | null
-  automationStatus: string | null
+  status: SmsSupportStatus
+  category: SmsSupportCategory | null
+  state: SmsSupportState
+  source: SmsSupportSource
+  automationKind: SmsSupportAutomationKind | null
+  automationStatus: SmsSupportAutomationStatus | null
   collectedData: JsonValue | null
   adminSummary: string | null
   failureReason: string | null
@@ -156,11 +166,22 @@ export type SmsSupportTicket = {
   updatedAt: Date
 }
 
+export const smsSupportLifecycleColumns = [
+  'status',
+  'state',
+  'automationStatus',
+  'closedAt',
+] as const
+
+export type SmsSupportLifecycleColumn = (typeof smsSupportLifecycleColumns)[number]
+
+export type SmsSupportTicketDetails = Omit<SmsSupportTicket, SmsSupportLifecycleColumn>
+
 export type SmsSupportJob = {
   id: string
   ticketId: string
   kind: string
-  status: string
+  status: SmsSupportJobStatus
   payload: JsonValue | null
   attempts: number
   lockedAt: Date | null
