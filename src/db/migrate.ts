@@ -7,8 +7,18 @@ import { closePool, getPool } from './pool'
 export const MIGRATIONS_DIR = path.join(import.meta.dirname, 'migrations')
 
 const FILE_NAME = /^(\d{4})_[a-z0-9_]+\.sql$/
-const QUOTED_OR_COMMENT_START =
-  /\$([A-Za-z_][A-Za-z0-9_]*)?\$[\s\S]*?\$\1\$|(?<![\w$])[Ee]'(?:[^'\\]|\\[\s\S]|'')*'|'(?:[^']|'')*'|--[^\n]*|\/\*/g
+const IDENTIFIER_CHAR = String.raw`\w$\u0080-\uffff`
+const QUOTED_OR_COMMENT_START = new RegExp(
+  [
+    String.raw`(?<![${IDENTIFIER_CHAR}])\$([A-Za-z_\u0080-\uffff][\w\u0080-\uffff]*)?\$[\s\S]*?\$\1\$`,
+    String.raw`(?<![${IDENTIFIER_CHAR}])[Ee]'(?:[^'\\]|\\[\s\S]|'')*'`,
+    String.raw`'(?:[^']|'')*'`,
+    String.raw`"(?:[^"]|"")*"`,
+    String.raw`--[^\n\r]*`,
+    String.raw`\/\*`,
+  ].join('|'),
+  'g'
+)
 const BLOCK_COMMENT_MARK = /\/\*|\*\//g
 const TRANSACTION_CONTROL =
   /(^|;)\s*(BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|SAVEPOINT|PREPARE\s+TRANSACTION)\b/i
@@ -75,7 +85,7 @@ function endOfBlockComment(sql: string, start: number): number {
     depth += mark[0] === '/*' ? 1 : -1
     if (depth === 0) return BLOCK_COMMENT_MARK.lastIndex
   }
-  return sql.length
+  return start + '/*'.length
 }
 
 export function loadMigrations(dir = MIGRATIONS_DIR): Migration[] {
