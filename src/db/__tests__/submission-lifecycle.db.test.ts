@@ -2,8 +2,6 @@ import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { db } from '../pool'
 import { sql } from '../sql'
-import { insert, selectAll } from '../table'
-import { submissions, users } from '../tables'
 import {
   permit,
   refundState,
@@ -16,6 +14,7 @@ import {
 } from '../submission-lifecycle'
 import { findSubmissionById } from '../submissions'
 import { SubmissionStatus, type Submission } from '../types'
+import { seedAdmins, seedSubmission } from './seed'
 
 const T0 = new Date('2026-03-05T12:00:00.000Z')
 const ADMIN = 'admin_1'
@@ -37,56 +36,28 @@ function label({ status, stripeRefundId }: Submission): string {
   return `${status}/${refundState(stripeRefundId)}`
 }
 
-async function seed(state: State, overrides: Partial<Submission> = {}): Promise<Submission> {
-  const id = randomUUID()
-  const stripeRefundId = { none: null, reserved: reservedRefundId(id), refunded: `re_${id}` }[
-    state.refund
-  ]
-  const row = await db.one(
-    sql`${insert(submissions, {
-      id,
-      status: state.status,
-      stripeRefundId,
-      refundedAt: state.refund === 'refunded' ? at(-2) : null,
-      stripePaymentIntentId: `pi_${id}`,
-      state: 'CA',
-      recipient: 'myself',
-      patientFirstName: 'John',
-      patientLastName: 'Doe',
-      patientDateOfBirth: new Date('1990-05-15T00:00:00.000Z'),
-      email: 'john@example.com',
-      phone: '(555) 123-4567',
-      smsOptIn: false,
-      notePurpose: 'work',
-      firstDayOff: new Date('2026-03-02T00:00:00.000Z'),
-      lastDayOff: new Date('2026-03-04T00:00:00.000Z'),
-      absenceReason: 'illness',
-      reviewedByAdminId: EARLIER_ADMIN,
-      reviewedAt: at(-10),
-      denialReason: 'stale reason',
-      maybeReason: 'OLD_REASON',
-      maybeInternalNote: 'keep',
-      maybeApprovedDays: 1,
-      maybeEmailSentAt: at(-3),
-      approvalEmailSentAt: at(-4),
-      denialEmailSentAt: at(-5),
-      approvalDiagnosis: 'old diagnosis',
-      approvalWithRestrictions: false,
-      createdAt: T0,
-      updatedAt: T0,
-      ...overrides,
-    })} RETURNING ${selectAll(submissions)}`
-  )
-  if (!row) throw new Error('seed failed')
-  return row
+function seed(state: State, overrides: Partial<Submission> = {}): Promise<Submission> {
+  return seedSubmission(state, {
+    refundedAt: state.refund === 'refunded' ? at(-2) : null,
+    reviewedByAdminId: EARLIER_ADMIN,
+    reviewedAt: at(-10),
+    denialReason: 'stale reason',
+    maybeReason: 'OLD_REASON',
+    maybeInternalNote: 'keep',
+    maybeApprovedDays: 1,
+    maybeEmailSentAt: at(-3),
+    approvalEmailSentAt: at(-4),
+    denialEmailSentAt: at(-5),
+    approvalDiagnosis: 'old diagnosis',
+    approvalWithRestrictions: false,
+    createdAt: T0,
+    updatedAt: T0,
+    ...overrides,
+  })
 }
 
-async function seedAdmin(): Promise<void> {
-  for (const id of [EARLIER_ADMIN, ADMIN]) {
-    await db.affected(
-      sql`${insert(users, { id, email: `${id}@example.com`, emailVerified: true, name: 'Doc' })}`
-    )
-  }
+function seedAdmin(): Promise<void> {
+  return seedAdmins(EARLIER_ADMIN, ADMIN)
 }
 
 async function reload(id: string): Promise<Submission> {
