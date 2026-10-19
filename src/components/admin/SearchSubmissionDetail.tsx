@@ -46,6 +46,7 @@ import { type MaybeSubmissionInput } from '@/app/admin/_actions/maybe'
 import { createSupportTicketFromSubmission } from '@/app/admin/support/_actions/tickets'
 import { smsStatusLabel } from '@/lib/sms-status'
 import { SubmissionStatus } from '@/db/types'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 
 interface SearchSubmissionDetailProps {
   submission: FormattedSubmission
@@ -53,7 +54,7 @@ interface SearchSubmissionDetailProps {
 
 function dayInput(value: string): Date | null {
   const day = parseDateOnly(value)
-  return day ? utcDateFromDateOnly(day) : null
+  return day && day >= DATE_LIMITS.EARLIEST_DAY ? utcDateFromDateOnly(day) : null
 }
 
 type SmsMessageForDisplay = FormattedSubmission['smsMessages'][number]
@@ -176,7 +177,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
       !savedLastDayOff ||
       (guardianDateOfBirth && !savedGuardianDateOfBirth)
     ) {
-      setError('Enter every date as a real calendar day.')
+      setError('Enter every date as a real calendar day, 1900 or later.')
       setIsLoading(false)
       return
     }
@@ -538,6 +539,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               {isEditing ? (
                 <Input
                   type="date"
+                  min={DATE_LIMITS.EARLIEST_DAY}
                   value={patientDateOfBirth}
                   onChange={(e) => setPatientDateOfBirth(e.target.value)}
                   disabled={isLoading}
@@ -586,6 +588,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 {isEditing ? (
                   <Input
                     type="date"
+                    min={DATE_LIMITS.EARLIEST_DAY}
                     value={guardianDateOfBirth}
                     onChange={(e) => setGuardianDateOfBirth(e.target.value)}
                     disabled={isLoading}
@@ -776,6 +779,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               <Label>Evaluation Date (for PDF)</Label>
               <Input
                 type="date"
+                min={DATE_LIMITS.EARLIEST_DAY}
                 value={evaluationDate}
                 onChange={(e) => setEvaluationDate(e.target.value)}
                 disabled={isLoading}
@@ -820,6 +824,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               {isEditing ? (
                 <Input
                   type="date"
+                  min={DATE_LIMITS.EARLIEST_DAY}
                   value={firstDayOff}
                   onChange={(e) => setFirstDayOff(e.target.value)}
                   disabled={isLoading}
@@ -833,6 +838,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               {isEditing ? (
                 <Input
                   type="date"
+                  min={DATE_LIMITS.EARLIEST_DAY}
                   value={lastDayOff}
                   onChange={(e) => setLastDayOff(e.target.value)}
                   disabled={isLoading}

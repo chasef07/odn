@@ -3,6 +3,7 @@ import { createNoteVerificationWithUniqueIdentifiers } from '@/db/note-verificat
 import type { NoteVerification, Submission } from '@/db/types'
 import { env } from '@/lib/env'
 import { getStateLicense } from '@/lib/state-licenses'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 import {
   dateOnlyFromUtcDate,
   formatDateOnly,
@@ -40,7 +41,9 @@ export function getDefaultIssueDate(): Date {
 export function parseIssueDateInput(evaluationDate?: string): Date {
   if (!evaluationDate) return getDefaultIssueDate()
   const day = parseDateOnly(evaluationDate)
-  if (!day) throw new Error(`Invalid evaluation date: ${evaluationDate}`)
+  if (!day || day < DATE_LIMITS.EARLIEST_DAY) {
+    throw new Error(`Invalid evaluation date: ${evaluationDate}`)
+  }
   return utcDateFromDateOnly(day)
 }
 

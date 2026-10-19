@@ -119,7 +119,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
   const computedAge = (() => {
     const dateOfBirth = parseDateOnly(`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`)
     const today = todayInViewerZone()
-    if (!dateOfBirth || dateOfBirth < DATE_LIMITS.EARLIEST_DATE_OF_BIRTH || dateOfBirth > today) {
+    if (!dateOfBirth || dateOfBirth < DATE_LIMITS.EARLIEST_DAY || dateOfBirth > today) {
       return null
     }
     return ageOn(dateOfBirth, today)

@@ -3,6 +3,7 @@
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 
 interface ApprovalDialogContentProps {
   evaluationDate: string
@@ -34,6 +35,7 @@ export function ApprovalDialogContent({
         <Input
           id="evaluation-date"
           type="date"
+          min={DATE_LIMITS.EARLIEST_DAY}
           value={evaluationDate}
           onChange={(e) => onDateChange(e.target.value)}
         />
