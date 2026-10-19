@@ -16,15 +16,31 @@ import {
 } from './shared'
 import { adminAction } from '@/lib/admin-session'
 
+const OVERRIDE_TARGETS = [
+  SubmissionStatus.DENIED,
+  SubmissionStatus.MAYBE,
+  SubmissionStatus.MANUAL,
+  SubmissionStatus.PENDING_REVIEW,
+] as const
+
+export type OverrideTarget = (typeof OVERRIDE_TARGETS)[number]
+
+function isOverrideTarget(status: string): status is OverrideTarget {
+  return (OVERRIDE_TARGETS as readonly string[]).includes(status)
+}
+
 export const changeSubmissionStatus = adminAction(
   async (
     { doctorId },
     submissionId: string,
-    newStatus: Exclude<SubmissionStatus, 'APPROVED'>,
+    newStatus: OverrideTarget,
     denialReason?: string,
     maybeInput?: MaybeSubmissionInput
   ): Promise<ActionResult> => {
     try {
+      if (!isOverrideTarget(newStatus)) {
+        return { success: false, error: `Cannot change submission to status: ${String(newStatus)}` }
+      }
       const now = new Date()
       const detailPaths = ['/admin', '/admin/search', `/admin/search/${submissionId}`]
 
