@@ -15,6 +15,7 @@ async function deleteAllUsers() {
     console.log('\n✅ All users deleted successfully!')
   } catch (error) {
     console.error('❌ Error:', error)
+    process.exitCode = 1
   } finally {
     await disconnectDatabase()
   }

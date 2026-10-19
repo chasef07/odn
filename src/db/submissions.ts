@@ -21,6 +21,7 @@ import {
   type SmsMessage,
   type Submission,
 } from './types'
+import { deleteEveryRow } from './wipe'
 
 export type MaybeReview = {
   maybeReason: string
@@ -135,11 +136,6 @@ export type SubmissionSearch =
   | { by: 'medicalRecordNumber'; medicalRecordNumber: string }
   | { by: 'phone'; term: string }
 
-export type CustomerMatch =
-  | { by: 'email'; email: string }
-  | { by: 'phone'; digits: string }
-  | { by: 'patient'; firstName: string; lastName: string; dateOfBirth: Date }
-
 export type PatientIdentity = {
   patientFirstName: string
   patientLastName: string
@@ -174,10 +170,6 @@ export type FriendsFamilyAnalyticsRow = Pick<
   | 'recipient'
   | 'email'
   | 'phone'
-  | 'notePurpose'
-  | 'firstDayOff'
-  | 'lastDayOff'
-  | 'denialReason'
   | 'maybeReason'
   | 'stripeRefundId'
   | 'refundedAt'
@@ -248,10 +240,6 @@ const friendsFamilyAnalyticsKeys = [
   'recipient',
   'email',
   'phone',
-  'notePurpose',
-  'firstDayOff',
-  'lastDayOff',
-  'denialReason',
   'maybeReason',
   'stripeRefundId',
   'refundedAt',
@@ -569,40 +557,6 @@ export async function findFriendsFamilyAnalyticsPage(
 ): Promise<FriendsFamilyAnalyticsRow[]> {
   return db.rows(
     sql`SELECT ${select(submissions, friendsFamilyAnalyticsKeys)} FROM submissions WHERE ${createdSincePageWhere(createdSince, cursor)} ORDER BY id ASC LIMIT ${take}`
-  )
-}
-
-function customerMatchWhere(match: CustomerMatch): Sql {
-  switch (match.by) {
-    case 'email':
-      return sql`lower(email) = lower(${match.email})`
-    case 'phone': {
-      const digits = match.digits
-      if (digits.length < 10) return sql`phone LIKE ${likeContains(digits)}`
-      const tenDigits = digits.slice(0, 10)
-      const area = tenDigits.slice(0, 3)
-      const exchange = tenDigits.slice(3, 6)
-      const line = tenDigits.slice(6, 10)
-      return and(
-        sql`phone LIKE ${likeContains(area)}`,
-        sql`phone LIKE ${likeContains(exchange)}`,
-        sql`phone LIKE ${likeContains(line)}`
-      )
-    }
-    case 'patient':
-      return patientIdentityWhere({
-        patientFirstName: match.firstName,
-        patientLastName: match.lastName,
-        patientDateOfBirth: match.dateOfBirth,
-      })
-  }
-}
-
-export async function findFriendsFamilyCustomerSubmissions(
-  match: CustomerMatch
-): Promise<FriendsFamilyAnalyticsRow[]> {
-  return db.rows(
-    sql`SELECT ${select(submissions, friendsFamilyAnalyticsKeys)} FROM submissions WHERE ${customerMatchWhere(match)} ORDER BY created_at DESC`
   )
 }
 
@@ -1003,7 +957,7 @@ export async function deleteSubmissionById(id: string): Promise<void> {
 }
 
 export async function deleteAllSubmissions(): Promise<number> {
-  return db.affected(sql`DELETE FROM submissions`)
+  return deleteEveryRow(submissions)
 }
 
 export type SmsSupportAutomationSubmissionUpdate = {
