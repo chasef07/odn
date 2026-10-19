@@ -2,20 +2,31 @@
 
 import { sendSupportSms } from '@/lib/sms-support-sms'
 import { retrySupportAutomationJob } from '@/lib/sms-support-jobs'
-import { findCommittingSupportJob } from '@/db/sms-support'
-import { cancelSupportJobs, transition, type TicketRefusal } from '@/db/sms-support-lifecycle'
+import {
+  takeOver,
+  transition,
+  type TakeOver,
+  type TakeOverRefusal,
+} from '@/db/sms-support-lifecycle'
 import { revalidateSupportPaths } from './shared'
 import { adminAction } from '@/lib/admin-session'
 
 type Failed = { success: false; error: string }
 
-function refused(refusal: TicketRefusal): Failed {
-  return {
-    success: false,
-    error:
-      refusal.reason === 'missing'
-        ? 'Support ticket not found'
-        : 'Support ticket was already updated. Please refresh and try again.',
+function refused(refusal: TakeOverRefusal): Failed {
+  switch (refusal.reason) {
+    case 'missing':
+      return { success: false, error: 'Support ticket not found' }
+    case 'committing':
+      return {
+        success: false,
+        error: 'Automation is finalizing the updated note. Refresh in a moment before taking over.',
+      }
+    default:
+      return {
+        success: false,
+        error: 'Support ticket was already updated. Please refresh and try again.',
+      }
   }
 }
 
@@ -26,16 +37,10 @@ export const sendSupportTicketReply = adminAction(
       if (!message) return { success: false, error: 'Message is required' }
       if (message.length > 1000) return { success: false, error: 'Message is too long' }
 
-      const now = new Date()
-
-      const cancelResult = await cancelCancellableSupportJobs({
-        ticketId,
-        now,
+      const replied = await takeOver('adminReplied', ticketId, {
+        at: new Date(),
         lastError: 'Ticket replied to by admin before automation completed',
       })
-      if (!cancelResult.success) return cancelResult
-
-      const replied = await transition('adminReplied', ticketId, { at: now })
       if (!replied.ok) return refused(replied.refusal)
       const ticket = replied.value
 
@@ -68,7 +73,11 @@ export const sendSupportTicketReply = adminAction(
 
 export const closeSupportTicket = adminAction(async (_admin, ticketId: string) => {
   try {
-    return await takeOver(ticketId, 'closeByAdmin', 'Ticket closed by admin before automation ran')
+    return await takeOverTicket(
+      ticketId,
+      'closeByAdmin',
+      'Ticket closed by admin before automation ran'
+    )
   } catch (error) {
     console.error('Failed to close support ticket:', error)
     return { success: false, error: 'Failed to close support ticket' }
@@ -77,7 +86,7 @@ export const closeSupportTicket = adminAction(async (_admin, ticketId: string) =
 
 export const markSupportTicketNeedsCsr = adminAction(async (_admin, ticketId: string) => {
   try {
-    return await takeOver(
+    return await takeOverTicket(
       ticketId,
       'returnToCsr',
       'Ticket escalated to admin before automation ran'
@@ -101,41 +110,14 @@ export const retrySupportTicketAutomation = adminAction(async (_admin, ticketId:
   }
 })
 
-async function takeOver(
+async function takeOverTicket(
   ticketId: string,
-  name: 'closeByAdmin' | 'returnToCsr',
+  name: Exclude<TakeOver, 'adminReplied'>,
   lastError: string
 ): Promise<{ success: true } | Failed> {
-  const now = new Date()
-  const cancelResult = await cancelCancellableSupportJobs({ ticketId, now, lastError })
-  if (!cancelResult.success) return cancelResult
-
-  const moved = await transition(name, ticketId, { at: now })
+  const moved = await takeOver(name, ticketId, { at: new Date(), lastError })
   if (!moved.ok) return refused(moved.refusal)
 
   revalidateSupportPaths(ticketId, moved.value.submissionId)
-  return { success: true }
-}
-
-async function cancelCancellableSupportJobs({
-  ticketId,
-  now,
-  lastError,
-}: {
-  ticketId: string
-  now: Date
-  lastError: string
-}): Promise<{ success: true } | Failed> {
-  await cancelSupportJobs(ticketId, { at: now, lastError })
-
-  const finalizingJob = await findCommittingSupportJob(ticketId)
-
-  if (finalizingJob) {
-    return {
-      success: false,
-      error: 'Automation is finalizing the updated note. Refresh in a moment before taking over.',
-    }
-  }
-
   return { success: true }
 }

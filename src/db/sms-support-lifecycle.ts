@@ -21,11 +21,18 @@ import type { JsonObject, JsonValue, SmsSupportJob, SmsSupportTicket } from './t
 
 const EVERY_TICKET_STATUS: readonly SmsSupportStatus[] = Object.values(SMS_SUPPORT_STATUS)
 
-const CONVERSING = [
+export const CONVERSING = [
   SMS_SUPPORT_STATUS.OPEN,
   SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
   SMS_SUPPORT_STATUS.NEEDS_CSR,
 ] as const
+
+export type Conversing = (typeof CONVERSING)[number]
+export type ConversingTicket = SmsSupportTicket & { readonly status: Conversing }
+
+export function isConversing(ticket: SmsSupportTicket): ticket is ConversingTicket {
+  return (CONVERSING as readonly SmsSupportStatus[]).includes(ticket.status)
+}
 
 export const ACTIVE_AUTOMATION_STATUSES = [
   SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
@@ -35,25 +42,29 @@ export const ACTIVE_AUTOMATION_STATUSES = [
 const EVERY_JOB_STATUS: readonly SmsSupportJobStatus[] = Object.values(SMS_SUPPORT_JOB_STATUS)
 
 type Stamped = { readonly at: Date }
+type Pinned = { readonly from: Conversing }
 
-export type Prompt = Stamped & {
-  readonly state: SmsSupportState
-  readonly category?: SmsSupportCategory | null
-  readonly collectedData?: JsonObject
-  readonly submissionId?: string
-  readonly failureReason?: null
-}
-export type Escalation = Stamped & {
-  readonly category: SmsSupportCategory | null
-  readonly adminSummary: string
-  readonly collectedData: JsonObject
-}
-export type AutomationRequest = Stamped & {
-  readonly category: SmsSupportCategory
-  readonly automationKind: SmsSupportAutomationKind
-  readonly adminSummary: string
-  readonly collectedData: JsonObject
-}
+export type Prompt = Stamped &
+  Pinned & {
+    readonly state: SmsSupportState
+    readonly category?: SmsSupportCategory | null
+    readonly collectedData?: JsonObject
+    readonly submissionId?: string
+    readonly failureReason?: null
+  }
+export type Escalation = Stamped &
+  Pinned & {
+    readonly category: SmsSupportCategory | null
+    readonly adminSummary: string
+    readonly collectedData: JsonObject
+  }
+export type AutomationRequest = Stamped &
+  Pinned & {
+    readonly category: SmsSupportCategory
+    readonly automationKind: SmsSupportAutomationKind
+    readonly adminSummary: string
+    readonly collectedData: JsonObject
+  }
 export type Failure = Stamped & { readonly failureReason: string }
 export type Summary = Stamped & { readonly adminSummary: string }
 export type Retry = Stamped & { readonly summary: string | null }
@@ -87,13 +98,12 @@ function prompted(input: Prompt): Patch<TicketWritten> {
   }
 }
 
-function closedByCustomer(input: Stamped): Patch<TicketWritten> {
+function closedByCustomer(_input: Stamped & Pinned): Patch<TicketWritten> {
   return {
     status: SMS_SUPPORT_STATUS.CLOSED,
     state: SMS_SUPPORT_STATE.CLOSED,
     category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
     adminSummary: 'Customer found the note after checking spam/junk.',
-    closedAt: input.at,
   }
 }
 
@@ -126,7 +136,6 @@ function replyFailure(input: Failure): Patch<TicketWritten> {
     state: SMS_SUPPORT_STATE.CSR_REVIEW,
     failureReason: input.failureReason,
     adminSummary: 'Support SMS failed to send. Admin should contact the customer manually.',
-    closedAt: null,
   }
 }
 
@@ -148,11 +157,10 @@ function adminReplyFailure(input: Failure): Patch<TicketWritten> {
   }
 }
 
-function closedByAdmin(input: Stamped): Patch<TicketWritten> {
+function closedByAdmin(_input: Stamped): Patch<TicketWritten> {
   return {
     status: SMS_SUPPORT_STATUS.CLOSED,
     state: SMS_SUPPORT_STATE.CLOSED,
-    closedAt: input.at,
   }
 }
 
@@ -160,7 +168,6 @@ function returnedToCsr(_input: Stamped): Patch<TicketWritten> {
   return {
     status: SMS_SUPPORT_STATUS.NEEDS_CSR,
     state: SMS_SUPPORT_STATE.CSR_REVIEW,
-    closedAt: null,
   }
 }
 
@@ -201,7 +208,6 @@ function automationSuccess(input: Summary): Patch<TicketWritten> {
     automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.SUCCEEDED,
     adminSummary: input.adminSummary,
     failureReason: null,
-    closedAt: input.at,
   }
 }
 
@@ -324,7 +330,7 @@ function refuse<R>(refusal: R): { ok: false; refusal: R } {
   return { ok: false, refusal }
 }
 
-function describeRefusal(refusal: TicketRefusal | JobRefusal): string {
+export function describeRefusal(refusal: TicketRefusal | JobRefusal): string {
   switch (refusal.reason) {
     case 'missing':
       return 'the row was not found'
@@ -346,9 +352,12 @@ type Guarded = Pick<SmsSupportTicket, 'status' | 'automationStatus'>
 
 function ticketMismatch(
   rule: Pick<Rule<SmsSupportStatus, Stamped, TicketWritten>, 'from' | 'automation'>,
-  row: Guarded
+  row: Guarded,
+  pin?: Conversing
 ): Exclude<TicketRefusal, { reason: 'missing' | 'stale' }> | null {
-  if (!rule.from.includes(row.status)) return { reason: 'status', status: row.status }
+  if (!rule.from.includes(row.status) || (pin !== undefined && row.status !== pin)) {
+    return { reason: 'status', status: row.status }
+  }
   if (
     rule.automation &&
     (row.automationStatus === null || !rule.automation.includes(row.automationStatus))
@@ -358,11 +367,28 @@ function ticketMismatch(
   return null
 }
 
-function admitting(rule: { from: readonly string[]; automation?: readonly string[] }): Sql {
+function admitting(
+  rule: { from: readonly string[]; automation?: readonly string[] },
+  pin?: Conversing
+): Sql {
   return and(
     sql`status = ANY(${array(rule.from)})`,
+    pin !== undefined && sql`status = ${pin}`,
     rule.automation && sql`automation_status = ANY(${array(rule.automation)})`
   )
+}
+
+function pinOf(input: Stamped): Conversing | undefined {
+  return (input as Partial<Pinned>).from
+}
+
+function stamped(write: Patch<TicketWritten>, at: Date): Patch<SmsSupportTicket> {
+  if (write.status === undefined) return { ...write, updatedAt: at }
+  return {
+    ...write,
+    closedAt: write.status === SMS_SUPPORT_STATUS.CLOSED ? at : null,
+    updatedAt: at,
+  }
 }
 
 async function readTicket(ticketId: string, on: Db): Promise<SmsSupportTicket | null> {
@@ -388,15 +414,16 @@ export async function transition<K extends TicketTransition>(
   on: Db = db
 ): Promise<Outcome<SmsSupportTicket, TicketRefusal>> {
   const rule = ticketRules[name]
+  const pin = pinOf(input)
   const row = await on.one(
-    sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, { ...rule.write(input), updatedAt: input.at })} WHERE ${and(sql`id = ${ticketId}`, admitting(rule))} RETURNING ${selectAll(smsSupportTickets)}`
+    sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, stamped(rule.write(input), input.at))} WHERE ${and(sql`id = ${ticketId}`, admitting(rule, pin))} RETURNING ${selectAll(smsSupportTickets)}`
   )
   if (row) return { ok: true, value: row }
   const live = await on.one(
     sql`SELECT ${select(smsSupportTickets, ['status', 'automationStatus'])} FROM sms_support_tickets WHERE id = ${ticketId}`
   )
   if (!live) return refuse({ reason: 'missing' })
-  return refuse(ticketMismatch(rule, live) ?? { reason: 'stale' })
+  return refuse(ticketMismatch(rule, live, pin) ?? { reason: 'stale' })
 }
 
 export async function transitionJob<K extends JobTransition>(
@@ -421,10 +448,11 @@ export async function transitionJob<K extends JobTransition>(
 async function transitionJobs<K extends JobTransition>(
   name: K,
   scope: Sql,
-  input: JobInputs[K]
+  input: JobInputs[K],
+  on: Db = db
 ): Promise<number> {
   const rule = jobRules[name]
-  return db.affected(
+  return on.affected(
     sql`UPDATE sms_support_jobs SET ${set(smsSupportJobs, { ...rule.write(input), updatedAt: input.at })} WHERE ${and(scope, admitting(rule))}`
   )
 }
@@ -435,6 +463,45 @@ export function cancelSupportJobs(ticketId: string, input: JobFailure): Promise<
 
 export function requeueStaleSupportJobs(staleBefore: Date, input: Stamped): Promise<number> {
   return transitionJobs('requeueStale', sql`locked_at < ${staleBefore}`, input)
+}
+
+class Rollback extends Error {
+  constructor(readonly refusal: unknown) {
+    super('rolled back')
+  }
+}
+
+async function atomically<V, R>(work: (tx: Db) => Promise<Outcome<V, R>>): Promise<Outcome<V, R>> {
+  try {
+    return await db.transaction(async (tx) => {
+      const outcome = await work(tx)
+      if (!outcome.ok) throw new Rollback(outcome.refusal)
+      return outcome
+    })
+  } catch (error) {
+    if (error instanceof Rollback) return refuse(error.refusal as R)
+    throw error
+  }
+}
+
+export type TakeOver = 'adminReplied' | 'closeByAdmin' | 'returnToCsr'
+export type TakeOverRefusal = TicketRefusal | { readonly reason: 'committing' }
+
+export function takeOver(
+  name: TakeOver,
+  ticketId: string,
+  input: JobFailure
+): Promise<Outcome<SmsSupportTicket, TakeOverRefusal>> {
+  return atomically<SmsSupportTicket, TakeOverRefusal>(async (tx) => {
+    const ticket = await transition(name, ticketId, { at: input.at }, tx)
+    if (!ticket.ok) return ticket
+    const committing = await tx.one(
+      sql`SELECT ${select(smsSupportJobs, ['id'])} FROM sms_support_jobs WHERE ticket_id = ${ticketId} AND status = ${SMS_SUPPORT_JOB_STATUS.COMMITTING} LIMIT 1`
+    )
+    if (committing) return refuse({ reason: 'committing' })
+    await transitionJobs('cancel', sql`ticket_id = ${ticketId}`, input, tx)
+    return ticket
+  })
 }
 
 export async function createInboundSupportTicket({
@@ -482,30 +549,38 @@ export async function createAdminSupportTicket({
   return ticket
 }
 
-export async function createSupportAutomationJob({
-  ticketId,
-  payload,
-}: {
-  ticketId: string
-  payload: JsonObject
-}): Promise<SmsSupportJob | null> {
-  return db.one(
-    sql`${insert(smsSupportJobs, {
-      ticketId,
-      kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
-      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      payload,
-    })} ON CONFLICT DO NOTHING RETURNING ${selectAll(smsSupportJobs)}`
-  )
+type Started = { ticket: SmsSupportTicket; job: SmsSupportJob }
+
+export type AutomationStart = AutomationRequest & { readonly payload: JsonObject }
+export type AutomationStartRefusal = TicketRefusal | { readonly reason: 'job' }
+
+export function startAutomation(
+  ticketId: string,
+  { payload, ...input }: AutomationStart
+): Promise<Outcome<Started, AutomationStartRefusal>> {
+  return atomically<Started, AutomationStartRefusal>(async (tx) => {
+    const ticket = await transition('queueAutomation', ticketId, input, tx)
+    if (!ticket.ok) return ticket
+    const job = await tx.one(
+      sql`${insert(smsSupportJobs, {
+        ticketId,
+        kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
+        status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+        payload,
+      })} ON CONFLICT DO NOTHING RETURNING ${selectAll(smsSupportJobs)}`
+    )
+    if (!job) return refuse({ reason: 'job' })
+    return { ok: true, value: { ticket: ticket.value, job } }
+  })
 }
 
 export type AutomationRetry = Retry & { readonly payload: JsonValue | null }
 
-export async function startAutomationRetry(
+export function startAutomationRetry(
   ticketId: string,
   { payload, ...input }: AutomationRetry
-): Promise<Outcome<{ ticket: SmsSupportTicket; job: SmsSupportJob }, TicketRefusal>> {
-  return db.transaction(async (tx) => {
+): Promise<Outcome<Started, TicketRefusal>> {
+  return atomically<Started, TicketRefusal>(async (tx) => {
     const ticket = await transition('retryAutomation', ticketId, input, tx)
     if (!ticket.ok) return ticket
     const [job] = await tx.rows(

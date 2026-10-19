@@ -7,10 +7,14 @@ import {
 import {
   cancelSupportJobs,
   createInboundSupportTicket,
+  describeRefusal,
+  isConversing,
   required,
+  startAutomation,
   transition,
+  type ConversingTicket,
   type TicketInput,
-  type TicketTransition,
+  type TicketRefusal,
 } from '@/db/sms-support-lifecycle'
 import {
   findApprovedSubmissionBirthDateForSupport,
@@ -53,11 +57,7 @@ import {
 import { sendSupportSms } from '@/lib/sms-support-sms'
 import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
 import { automationPayloadForCollectedData, automationSummary } from '@/lib/sms-support-automation'
-import {
-  enqueueSupportAutomationJob,
-  processSmsSupportJobNow,
-  SupportAutomationPayloadConflictError,
-} from '@/lib/sms-support-jobs'
+import { processSmsSupportJobNow } from '@/lib/sms-support-jobs'
 import {
   SMS_SUPPORT_CATEGORY,
   SMS_SUPPORT_STATE,
@@ -68,6 +68,17 @@ import {
 } from '@/lib/sms-support-types'
 
 type SupportReplySmsType = 'SUPPORT_REPLY' | 'SUPPORT_AUTOMATION_UPDATE' | 'SUPPORT_CSR_ALERT'
+
+type ConversationStep = 'prompt' | 'closeFound' | 'escalate'
+
+const CONVERSATION_ATTEMPTS = 3
+
+export class TicketMoved extends Error {
+  constructor(step: string, ticketId: string, refusal: TicketRefusal) {
+    super(`${step} of support ticket ${ticketId} was refused: ${describeRefusal(refusal)}`)
+    this.name = 'TicketMoved'
+  }
+}
 
 export async function handleInboundSupportSms({
   fromPhone,
@@ -84,6 +95,22 @@ export async function handleInboundSupportSms({
   const trimmedBody = body.trim()
   if (!phoneE164 || !trimmedBody) return
 
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await converse(phoneE164, trimmedBody, providerMessageId, receivedAt)
+      return
+    } catch (error) {
+      if (!(error instanceof TicketMoved) || attempt === CONVERSATION_ATTEMPTS) throw error
+    }
+  }
+}
+
+async function converse(
+  phoneE164: string,
+  trimmedBody: string,
+  providerMessageId: string | undefined,
+  receivedAt: Date
+): Promise<void> {
   let ticket = await findActiveSupportTicketForPhone(phoneE164)
   if (!ticket) {
     const matchedSubmission = await findSafeSubmissionForPhone(phoneE164)
@@ -114,6 +141,9 @@ export async function handleInboundSupportSms({
     await reply(ticket, automationStillRunningSms(), 'SUPPORT_AUTOMATION_UPDATE')
     return
   }
+  if (!isConversing(ticket)) {
+    throw new TicketMoved('conversation', ticket.id, { reason: 'status', status: ticket.status })
+  }
 
   if (isHelpRequest(trimmedBody)) {
     if (ticket.status === SMS_SUPPORT_STATUS.NEEDS_CSR) {
@@ -140,7 +170,7 @@ export async function handleInboundSupportSms({
 }
 
 async function routeByState(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   body: string,
   providerMessageId?: string
 ): Promise<void> {
@@ -203,7 +233,7 @@ async function routeByState(
   }
 }
 
-async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function routeIntroMenu(ticket: ConversingTicket, body: string): Promise<void> {
   if (isChangeNoteMenuRequest(body)) {
     await updateTicketAndReply(
       ticket,
@@ -329,7 +359,7 @@ async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<v
   )
 }
 
-async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function routeChangeNoteMenu(ticket: ConversingTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized.includes('ISSUE') || normalized.includes('EVALUATION')) {
@@ -445,7 +475,7 @@ async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Prom
   await reply(ticket, changeNoteMenuSms())
 }
 
-async function routeOtherMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function routeOtherMenu(ticket: ConversingTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized.includes('FORM')) {
@@ -484,7 +514,7 @@ async function routeOtherMenu(ticket: SmsSupportTicket, body: string): Promise<v
 }
 
 async function startAutomationCategory(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   category: SmsSupportCategory
 ): Promise<void> {
   const collectState = stateForAutomationCategory(category)
@@ -541,7 +571,7 @@ async function startAutomationCategory(
 }
 
 async function handleSubmissionReference(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   body: string,
   providerMessageId?: string
 ): Promise<void> {
@@ -583,7 +613,7 @@ async function handleSubmissionReference(
   )
 }
 
-async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectDob(ticket: ConversingTicket, body: string): Promise<void> {
   const dateOfBirth = parseUsDate(body)
   const today = todayUTC()
   if (!dateOfBirth || dateOfBirth < DATE_LIMITS.EARLIEST_DAY || dateOfBirth > today) {
@@ -618,7 +648,7 @@ async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void>
   })
 }
 
-async function collectPurpose(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectPurpose(ticket: ConversingTicket, body: string): Promise<void> {
   if (isLegalPurposeReply(body)) {
     await moveToCsr(ticket, {
       category: SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE,
@@ -641,7 +671,7 @@ async function collectPurpose(ticket: SmsSupportTicket, body: string): Promise<v
 }
 
 async function collectDiagnosisSymptomsConfirmation(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   body: string
 ): Promise<void> {
   if (!isConfirmReply(body)) {
@@ -656,7 +686,7 @@ async function collectDiagnosisSymptomsConfirmation(
   })
 }
 
-async function collectNameCorrection(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectNameCorrection(ticket: ConversingTicket, body: string): Promise<void> {
   const correctedName = body.trim().slice(0, 200)
   if (!correctedName) {
     await reply(ticket, nameCorrectionPromptSms())
@@ -673,7 +703,7 @@ async function collectNameCorrection(ticket: SmsSupportTicket, body: string): Pr
 }
 
 async function collectRestrictionsConfirmation(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   body: string
 ): Promise<void> {
   if (!isConfirmReply(body)) {
@@ -688,7 +718,7 @@ async function collectRestrictionsConfirmation(
   })
 }
 
-async function collectMissingNoteSpamCheck(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectMissingNoteSpamCheck(ticket: ConversingTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized === 'YES' || normalized.includes('FOUND')) {
@@ -713,7 +743,7 @@ async function collectMissingNoteSpamCheck(ticket: SmsSupportTicket, body: strin
   await reply(ticket, noteNotReceivedSms())
 }
 
-async function collectMissingNoteEmail(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectMissingNoteEmail(ticket: ConversingTicket, body: string): Promise<void> {
   const email = body.trim()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     await reply(ticket, 'Please reply with a valid email address.')
@@ -729,7 +759,7 @@ async function collectMissingNoteEmail(ticket: SmsSupportTicket, body: string): 
   })
 }
 
-async function collectRefundReason(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectRefundReason(ticket: ConversingTicket, body: string): Promise<void> {
   await moveToCsr(ticket, {
     category: SMS_SUPPORT_CATEGORY.REFUND,
     summary: `Refund request: ${body.trim().slice(0, 500)}`,
@@ -739,7 +769,7 @@ async function collectRefundReason(ticket: SmsSupportTicket, body: string): Prom
   })
 }
 
-async function collectOtherMessage(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectOtherMessage(ticket: ConversingTicket, body: string): Promise<void> {
   await moveToCsr(ticket, {
     category: ticket.category || SMS_SUPPORT_CATEGORY.OTHER,
     summary: `Customer message: ${body.trim().slice(0, 500)}`,
@@ -750,7 +780,7 @@ async function collectOtherMessage(ticket: SmsSupportTicket, body: string): Prom
 }
 
 async function queueAutomation(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   {
     category,
     data,
@@ -769,36 +799,30 @@ async function queueAutomation(
   }
 
   const payload = automationPayloadForCollectedData({ category, ...data })
-  let job: Awaited<ReturnType<typeof enqueueSupportAutomationJob>>
-  try {
-    job = await enqueueSupportAutomationJob({ ticketId: ticket.id, payload })
-  } catch (error) {
-    if (error instanceof SupportAutomationPayloadConflictError) {
+  const started = await startAutomation(ticket.id, {
+    at: new Date(),
+    from: ticket.status,
+    category,
+    automationKind: payload.kind,
+    adminSummary: automationSummary(payload),
+    collectedData: data,
+    payload,
+  })
+  if (!started.ok) {
+    if (started.refusal.reason === 'job') {
       await reply(ticket, automationStillRunningSms(), 'SUPPORT_AUTOMATION_UPDATE')
       return
     }
-    throw error
+    throw new TicketMoved('queueAutomation', ticket.id, started.refusal)
   }
 
-  await updateTicketAndReply(
-    ticket,
-    'queueAutomation',
-    {
-      at: new Date(),
-      category,
-      automationKind: payload.kind,
-      adminSummary: automationSummary(payload),
-      collectedData: data,
-    },
-    automationQueuedSms(),
-    'SUPPORT_AUTOMATION_UPDATE'
-  )
+  await reply(started.value.ticket, automationQueuedSms(), 'SUPPORT_AUTOMATION_UPDATE')
 
-  await processSmsSupportJobNow(job.id, { workerId: `sms-inbound-${Date.now()}` })
+  await processSmsSupportJobNow(started.value.job.id, { workerId: `sms-inbound-${Date.now()}` })
 }
 
 async function moveToCsr(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   {
     category,
     summary,
@@ -1024,21 +1048,23 @@ function ticketCollectedData(ticket: SmsSupportTicket): SmsSupportCollectedData 
   return ticket.collectedData as SmsSupportCollectedData
 }
 
-async function move<K extends TicketTransition>(
-  ticket: Pick<SmsSupportTicket, 'id'>,
+async function move<K extends ConversationStep>(
+  ticket: ConversingTicket,
   name: K,
-  input: TicketInput<K>
+  input: Omit<TicketInput<K>, 'from'>
 ): Promise<SmsSupportTicket> {
-  return required(
-    await transition(name, ticket.id, input),
-    `${name} of support ticket ${ticket.id}`
-  )
+  const moved = await transition(name, ticket.id, {
+    ...input,
+    from: ticket.status,
+  } as TicketInput<K>)
+  if (moved.ok) return moved.value
+  throw new TicketMoved(name, ticket.id, moved.refusal)
 }
 
-async function updateTicketAndReply<K extends TicketTransition>(
-  ticket: SmsSupportTicket,
+async function updateTicketAndReply<K extends ConversationStep>(
+  ticket: ConversingTicket,
   name: K,
-  input: TicketInput<K>,
+  input: Omit<TicketInput<K>, 'from'>,
   body: string,
   type: SupportReplySmsType = 'SUPPORT_REPLY'
 ): Promise<void> {
@@ -1076,7 +1102,10 @@ async function reply(
       lastError: 'Support SMS failed before automation completed',
     })
 
-    const failedTicket = await move(ticket, 'replyFailed', { at: new Date(), failureReason })
+    const failedTicket = required(
+      await transition('replyFailed', ticket.id, { at: new Date(), failureReason }),
+      `replyFailed of support ticket ${ticket.id}`
+    )
 
     if (alertOnFailure) {
       await alertSupportTicketNeedsCsr({

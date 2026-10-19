@@ -10,9 +10,7 @@ const {
   mockTransitionJob,
   mockPermit,
   mockStartAutomationRetry,
-  mockCreateSupportAutomationJob,
   mockRequeueStaleSupportJobs,
-  mockFindActiveSupportAutomationJob,
   mockFindActiveSupportAutomationJobId,
   mockFindLatestSupportAutomationJob,
   mockFindRunnableQueuedSupportJob,
@@ -25,9 +23,7 @@ const {
   mockTransitionJob: vi.fn(),
   mockPermit: vi.fn(),
   mockStartAutomationRetry: vi.fn(),
-  mockCreateSupportAutomationJob: vi.fn(),
   mockRequeueStaleSupportJobs: vi.fn(),
-  mockFindActiveSupportAutomationJob: vi.fn(),
   mockFindActiveSupportAutomationJobId: vi.fn(),
   mockFindLatestSupportAutomationJob: vi.fn(),
   mockFindRunnableQueuedSupportJob: vi.fn(),
@@ -38,7 +34,6 @@ const {
 }))
 
 vi.mock('@/db/sms-support', () => ({
-  findActiveSupportAutomationJob: mockFindActiveSupportAutomationJob,
   findActiveSupportAutomationJobId: mockFindActiveSupportAutomationJobId,
   findLatestSupportAutomationJob: mockFindLatestSupportAutomationJob,
   findRunnableQueuedSupportJob: mockFindRunnableQueuedSupportJob,
@@ -54,7 +49,6 @@ vi.mock('@/db/sms-support-lifecycle', async (importOriginal) => {
     transitionJob: mockTransitionJob,
     permit: mockPermit,
     startAutomationRetry: mockStartAutomationRetry,
-    createSupportAutomationJob: mockCreateSupportAutomationJob,
     requeueStaleSupportJobs: mockRequeueStaleSupportJobs,
   }
 })
@@ -72,11 +66,9 @@ vi.mock('@/lib/sms-support-alerts', () => ({
 }))
 
 import {
-  enqueueSupportAutomationJob,
   processSmsSupportJobNow,
   processQueuedSmsSupportJobs,
   retrySupportAutomationJob,
-  SupportAutomationPayloadConflictError,
 } from '../sms-support-jobs'
 import {
   SupportAutomationManualReviewError,
@@ -95,67 +87,6 @@ const escalatedTicket = {
   category: 'CHANGE_DOB',
   submissionId: 'sub_123',
 }
-
-describe('enqueueSupportAutomationJob', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('creates the active job directly instead of relying on a pre-read', async () => {
-    mockCreateSupportAutomationJob.mockResolvedValue({ id: 'job_new' })
-
-    const result = await enqueueSupportAutomationJob({
-      ticketId: 'ticket_123',
-      payload: dobPayload,
-    })
-
-    expect(result).toEqual({ id: 'job_new' })
-    expect(mockFindActiveSupportAutomationJob).not.toHaveBeenCalled()
-    expect(mockCreateSupportAutomationJob).toHaveBeenCalledWith({
-      ticketId: 'ticket_123',
-      payload: dobPayload,
-    })
-  })
-
-  it('returns the existing active job after a unique-index race', async () => {
-    mockCreateSupportAutomationJob.mockResolvedValue(null)
-    mockFindActiveSupportAutomationJob.mockResolvedValue({
-      id: 'job_active',
-      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      payload: dobPayload,
-    })
-
-    const result = await enqueueSupportAutomationJob({
-      ticketId: 'ticket_123',
-      payload: dobPayload,
-    })
-
-    expect(result).toEqual(
-      expect.objectContaining({ id: 'job_active', status: SMS_SUPPORT_JOB_STATUS.QUEUED })
-    )
-    expect(mockFindActiveSupportAutomationJob).toHaveBeenCalledWith('ticket_123')
-  })
-
-  it('rejects a unique-index race when the active job payload is different', async () => {
-    mockCreateSupportAutomationJob.mockResolvedValue(null)
-    mockFindActiveSupportAutomationJob.mockResolvedValue({
-      id: 'job_active',
-      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      payload: dobPayload,
-    })
-
-    await expect(
-      enqueueSupportAutomationJob({
-        ticketId: 'ticket_123',
-        payload: {
-          kind: 'UPDATE_PURPOSE_REISSUE_NOTE',
-          category: 'CHANGE_PURPOSE',
-          updates: { notePurpose: 'school', otherNotePurpose: null },
-        },
-      })
-    ).rejects.toBeInstanceOf(SupportAutomationPayloadConflictError)
-  })
-})
 
 describe('retrySupportAutomationJob', () => {
   beforeEach(() => {

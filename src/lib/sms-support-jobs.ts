@@ -1,6 +1,5 @@
 import {
   automationSummary,
-  parseAutomationPayload,
   runSupportTicketAutomation,
   SupportAutomationCancelledError,
   SupportAutomationManualReviewError,
@@ -9,7 +8,6 @@ import {
 import { SMS_SUPPORT_JOB_STATUS } from '@/lib/sms-support-types'
 import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
 import {
-  findActiveSupportAutomationJob,
   findActiveSupportAutomationJobId,
   findLatestSupportAutomationJob,
   findRunnableQueuedSupportJob,
@@ -17,7 +15,6 @@ import {
   findStaleCommittingSupportJobs,
 } from '@/db/sms-support'
 import {
-  createSupportAutomationJob,
   permit,
   requeueStaleSupportJobs,
   required,
@@ -25,42 +22,11 @@ import {
   transition,
   transitionJob,
 } from '@/db/sms-support-lifecycle'
-import type { JsonObject, JsonValue, SmsSupportTicket } from '@/db/types'
+import type { JsonObject, SmsSupportTicket } from '@/db/types'
 
 const STALE_RUNNING_JOB_MS = 15 * 60 * 1000
 const STALE_COMMITTING_MESSAGE =
   'Support automation stalled while finalizing the updated note. Admin must verify whether the note/email was issued before retrying manually.'
-
-export class SupportAutomationPayloadConflictError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'SupportAutomationPayloadConflictError'
-  }
-}
-
-export async function enqueueSupportAutomationJob({
-  ticketId,
-  payload,
-}: {
-  ticketId: string
-  payload: SupportAutomationPayload
-}) {
-  const createdJob = await createSupportAutomationJob({
-    ticketId,
-    payload,
-  })
-  if (createdJob) return createdJob
-
-  const existingJob = await findActiveSupportAutomationJob(ticketId)
-
-  if (!existingJob) throw new Error('Active support automation job already exists')
-  if (!automationPayloadsMatch(existingJob.payload, payload)) {
-    throw new SupportAutomationPayloadConflictError(
-      'A different support automation job is already active for this ticket'
-    )
-  }
-  return existingJob
-}
 
 type JobProcessingResult = { processed: number; succeeded: number; failed: number }
 type QueuedSupportJob = { id: string; ticketId: string }
@@ -240,26 +206,4 @@ async function failJobAndEscalateToCsr({
     submissionId: ticket.submissionId,
     summary,
   })
-}
-
-function automationPayloadsMatch(
-  existingPayload: JsonValue | null,
-  nextPayload: SupportAutomationPayload
-): boolean {
-  const existing = parseAutomationPayload(existingPayload)
-  if (!existing) return false
-
-  return (
-    existing.kind === nextPayload.kind &&
-    existing.category === nextPayload.category &&
-    updateValue(existing.updates.patientDateOfBirth) ===
-      updateValue(nextPayload.updates.patientDateOfBirth) &&
-    updateValue(existing.updates.notePurpose) === updateValue(nextPayload.updates.notePurpose) &&
-    updateValue(existing.updates.otherNotePurpose) ===
-      updateValue(nextPayload.updates.otherNotePurpose)
-  )
-}
-
-function updateValue(value: string | null | undefined): string | null {
-  return value ?? null
 }

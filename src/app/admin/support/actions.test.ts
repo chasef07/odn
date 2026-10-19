@@ -8,8 +8,7 @@ const {
   mockAssignSupportTicketSubmission,
   mockCreateAdminSupportTicket,
   mockTransition,
-  mockCancelSupportJobs,
-  mockFindCommittingSupportJob,
+  mockTakeOver,
   mockSendSupportSms,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
@@ -19,8 +18,7 @@ const {
   mockAssignSupportTicketSubmission: vi.fn(),
   mockCreateAdminSupportTicket: vi.fn(),
   mockTransition: vi.fn(),
-  mockCancelSupportJobs: vi.fn(),
-  mockFindCommittingSupportJob: vi.fn(),
+  mockTakeOver: vi.fn(),
   mockSendSupportSms: vi.fn(),
 }))
 
@@ -52,13 +50,12 @@ vi.mock('@/db/sms-support', () => ({
   findClosedSupportTicketsForQueue: vi.fn(),
   findSupportTicketDetail: vi.fn(),
   findSupportTicketsWithStatus: vi.fn(),
-  findCommittingSupportJob: mockFindCommittingSupportJob,
 }))
 
 vi.mock('@/db/sms-support-lifecycle', () => ({
   createAdminSupportTicket: mockCreateAdminSupportTicket,
   transition: mockTransition,
-  cancelSupportJobs: mockCancelSupportJobs,
+  takeOver: mockTakeOver,
 }))
 
 vi.mock('@/lib/sms-support-sms', () => ({
@@ -100,8 +97,7 @@ describe('createSupportTicketFromSubmission', () => {
     mockCreateAdminSupportTicket.mockResolvedValue(ticketRow)
     mockAssignSupportTicketSubmission.mockResolvedValue(undefined)
     mockTransition.mockResolvedValue({ ok: true, value: ticketRow })
-    mockFindCommittingSupportJob.mockResolvedValue(null)
-    mockCancelSupportJobs.mockResolvedValue(0)
+    mockTakeOver.mockResolvedValue({ ok: true, value: ticketRow })
     mockSendSupportSms.mockResolvedValue({ success: true })
   })
 
@@ -148,37 +144,29 @@ describe('createSupportTicketFromSubmission', () => {
     expect(mockCreateAdminSupportTicket).not.toHaveBeenCalled()
   })
 
-  it('cancels queued automation jobs when admin marks a ticket for review', async () => {
+  it('takes the ticket over for admin review, cancelling its jobs with the reason', async () => {
     const result = await markSupportTicketNeedsCsr('ticket_123')
 
     expect(result).toEqual({ success: true })
-    expect(mockTransition).toHaveBeenCalledWith('returnToCsr', 'ticket_123', {
+    expect(mockTakeOver).toHaveBeenCalledWith('returnToCsr', 'ticket_123', {
       at: expect.any(Date),
-    })
-    expect(mockCancelSupportJobs).toHaveBeenCalledWith('ticket_123', {
       lastError: 'Ticket escalated to admin before automation ran',
-      at: expect.any(Date),
     })
-    expect(mockCancelSupportJobs.mock.invocationCallOrder[0]).toBeLessThan(
-      mockTransition.mock.invocationCallOrder[0]
-    )
+    expect(mockTransition).not.toHaveBeenCalled()
   })
 
-  it('cancels queued automation jobs when admin closes a ticket', async () => {
+  it('closes the ticket, cancelling its jobs with the reason', async () => {
     const result = await closeSupportTicket('ticket_123')
 
     expect(result).toEqual({ success: true })
-    expect(mockTransition).toHaveBeenCalledWith('closeByAdmin', 'ticket_123', {
+    expect(mockTakeOver).toHaveBeenCalledWith('closeByAdmin', 'ticket_123', {
       at: expect.any(Date),
-    })
-    expect(mockCancelSupportJobs).toHaveBeenCalledWith('ticket_123', {
       lastError: 'Ticket closed by admin before automation ran',
-      at: expect.any(Date),
     })
   })
 
   it('reports a missing ticket when admin marks it for review', async () => {
-    mockTransition.mockResolvedValue({ ok: false, refusal: { reason: 'missing' } })
+    mockTakeOver.mockResolvedValue({ ok: false, refusal: { reason: 'missing' } })
 
     const result = await markSupportTicketNeedsCsr('ticket_123')
 
@@ -186,7 +174,7 @@ describe('createSupportTicketFromSubmission', () => {
   })
 
   it('asks admin to refresh when the ticket changed before it could be closed', async () => {
-    mockTransition.mockResolvedValue({ ok: false, refusal: { reason: 'stale' } })
+    mockTakeOver.mockResolvedValue({ ok: false, refusal: { reason: 'stale' } })
 
     const result = await closeSupportTicket('ticket_123')
 
@@ -196,7 +184,18 @@ describe('createSupportTicketFromSubmission', () => {
     })
   })
 
-  it('cancels queued automation jobs and clears prior alert state when admin replies by SMS', async () => {
+  it('does not close a ticket while an automation job is finalizing the reissue', async () => {
+    mockTakeOver.mockResolvedValue({ ok: false, refusal: { reason: 'committing' } })
+
+    const result = await closeSupportTicket('ticket_123')
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Automation is finalizing the updated note. Refresh in a moment before taking over.',
+    })
+  })
+
+  it('takes the ticket over before sending the admin reply by SMS', async () => {
     const result = await sendSupportTicketReply('ticket_123', 'We will handle this manually.')
 
     expect(result).toEqual({ success: true })
@@ -207,24 +206,19 @@ describe('createSupportTicketFromSubmission', () => {
       type: 'SUPPORT_REPLY',
       body: 'We will handle this manually.',
     })
-    expect(mockTransition).toHaveBeenCalledTimes(1)
-    expect(mockTransition).toHaveBeenCalledWith('adminReplied', 'ticket_123', {
+    expect(mockTakeOver).toHaveBeenCalledTimes(1)
+    expect(mockTakeOver).toHaveBeenCalledWith('adminReplied', 'ticket_123', {
       at: expect.any(Date),
-    })
-    expect(mockCancelSupportJobs).toHaveBeenCalledWith('ticket_123', {
       lastError: 'Ticket replied to by admin before automation completed',
-      at: expect.any(Date),
     })
-    expect(mockCancelSupportJobs.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(mockTakeOver.mock.invocationCallOrder[0]).toBeLessThan(
       mockSendSupportSms.mock.invocationCallOrder[0]
     )
-    expect(mockTransition.mock.invocationCallOrder[0]).toBeLessThan(
-      mockSendSupportSms.mock.invocationCallOrder[0]
-    )
+    expect(mockTransition).not.toHaveBeenCalled()
   })
 
-  it('sends the reply to the contact on the ticket row the transition returned', async () => {
-    mockTransition.mockResolvedValue({
+  it('sends the reply to the contact on the ticket row the take-over returned', async () => {
+    mockTakeOver.mockResolvedValue({
       ok: true,
       value: { id: 'ticket_123', phoneE164: '+15559876543', submissionId: null },
     })
@@ -250,7 +244,7 @@ describe('createSupportTicketFromSubmission', () => {
   })
 
   it('does not send an admin reply for a missing ticket', async () => {
-    mockTransition.mockResolvedValue({ ok: false, refusal: { reason: 'missing' } })
+    mockTakeOver.mockResolvedValue({ ok: false, refusal: { reason: 'missing' } })
 
     const result = await sendSupportTicketReply('ticket_123', 'We will handle this manually.')
 
@@ -259,7 +253,7 @@ describe('createSupportTicketFromSubmission', () => {
   })
 
   it('does not let admin reply while an automation job is finalizing the reissue', async () => {
-    mockFindCommittingSupportJob.mockResolvedValue({ id: 'job_finalizing' })
+    mockTakeOver.mockResolvedValue({ ok: false, refusal: { reason: 'committing' } })
 
     const result = await sendSupportTicketReply('ticket_123', 'We will handle this manually.')
 

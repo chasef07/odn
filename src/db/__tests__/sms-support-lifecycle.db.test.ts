@@ -22,13 +22,15 @@ import {
   cancelSupportJobs,
   createAdminSupportTicket,
   createInboundSupportTicket,
-  createSupportAutomationJob,
   permit,
   required,
   requeueStaleSupportJobs,
+  startAutomation,
   startAutomationRetry,
+  takeOver,
   transition,
   transitionJob,
+  type Conversing,
   type JobInput,
   type JobTransition,
   type TicketInput,
@@ -147,14 +149,16 @@ async function readJob(id: string): Promise<SmsSupportJob | null> {
 const ticketInputs: { [K in TicketTransition]: TicketInput<K> } = {
   prompt: {
     at: AT,
+    from: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
     state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
     category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
     collectedData: { pendingCategory: 'CHANGE_DOB' },
     failureReason: null,
   },
-  closeFound: { at: AT },
+  closeFound: { at: AT, from: SMS_SUPPORT_STATUS.WAITING_CUSTOMER },
   queueAutomation: {
     at: AT,
+    from: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
     category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
     automationKind: SMS_SUPPORT_AUTOMATION_KIND.UPDATE_DOB_REISSUE_NOTE,
     adminSummary: SUMMARY,
@@ -162,6 +166,7 @@ const ticketInputs: { [K in TicketTransition]: TicketInput<K> } = {
   },
   escalate: {
     at: AT,
+    from: SMS_SUPPORT_STATUS.OPEN,
     category: SMS_SUPPORT_CATEGORY.NAME_CORRECTION,
     adminSummary: 'Name spelling correction requested: Ada',
     collectedData: { freeformMessage: 'Ada' },
@@ -193,6 +198,7 @@ const ticketWrites: { [K in TicketTransition]: Partial<SmsSupportTicket> } = {
     category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
     collectedData: { pendingCategory: 'CHANGE_DOB' },
     failureReason: null,
+    closedAt: null,
   },
   closeFound: {
     status: SMS_SUPPORT_STATUS.CLOSED,
@@ -210,12 +216,14 @@ const ticketWrites: { [K in TicketTransition]: Partial<SmsSupportTicket> } = {
     adminSummary: SUMMARY,
     failureReason: null,
     collectedData: { patientDateOfBirth: '1990-01-01' },
+    closedAt: null,
   },
   escalate: {
     ...csrReview,
     category: SMS_SUPPORT_CATEGORY.NAME_CORRECTION,
     adminSummary: 'Name spelling correction requested: Ada',
     collectedData: { freeformMessage: 'Ada' },
+    closedAt: null,
   },
   replyFailed: {
     ...csrReview,
@@ -228,11 +236,13 @@ const ticketWrites: { [K in TicketTransition]: Partial<SmsSupportTicket> } = {
     state: SMS_SUPPORT_STATE.CSR_REVIEW,
     adminSummary: 'Admin replied by SMS.',
     csrAlertedAt: null,
+    closedAt: null,
   },
   adminReplyFailed: {
     ...csrReview,
     adminSummary: 'Admin reply failed to send by SMS.',
     failureReason: 'Admin SMS reply failed: timeout',
+    closedAt: null,
   },
   closeByAdmin: {
     status: SMS_SUPPORT_STATUS.CLOSED,
@@ -246,11 +256,13 @@ const ticketWrites: { [K in TicketTransition]: Partial<SmsSupportTicket> } = {
     adminSummary: `Retry started: ${SUMMARY}`,
     failureReason: null,
     retryCount: 4,
+    closedAt: null,
   },
   automationFailed: {
     ...csrReview,
     automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED,
     failureReason: 'Resend timeout',
+    closedAt: null,
   },
   claimAutomation: { automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING, failureReason: null },
   commitAutomation: { failureReason: null },
@@ -267,22 +279,24 @@ const ticketWrites: { [K in TicketTransition]: Partial<SmsSupportTicket> } = {
 type Admission = {
   statuses: readonly SmsSupportStatus[]
   automation?: readonly (SmsSupportAutomationStatus | null)[]
+  pin?: Conversing
 }
 
-const conversing: Admission = {
+const conversing = (pin: Conversing): Admission => ({
   statuses: [
     SMS_SUPPORT_STATUS.OPEN,
     SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
     SMS_SUPPORT_STATUS.NEEDS_CSR,
   ],
-}
+  pin,
+})
 const everyStatus: Admission = { statuses: ticketStatuses }
 
 const ticketAdmission: { [K in TicketTransition]: Admission } = {
-  prompt: conversing,
-  closeFound: conversing,
-  queueAutomation: conversing,
-  escalate: conversing,
+  prompt: conversing(SMS_SUPPORT_STATUS.WAITING_CUSTOMER),
+  closeFound: conversing(SMS_SUPPORT_STATUS.WAITING_CUSTOMER),
+  queueAutomation: conversing(SMS_SUPPORT_STATUS.WAITING_CUSTOMER),
+  escalate: conversing(SMS_SUPPORT_STATUS.OPEN),
   replyFailed: everyStatus,
   adminReplied: everyStatus,
   adminReplyFailed: everyStatus,
@@ -304,9 +318,10 @@ const ticketAdmission: { [K in TicketTransition]: Admission } = {
   automationSucceeded: { statuses: [SMS_SUPPORT_STATUS.RUNNING_AUTOMATION] },
 }
 
-function admits(admission: Admission, state: State): boolean {
+function admits(admission: Admission, state: State, { pinned = true } = {}): boolean {
   return (
     admission.statuses.includes(state.status) &&
+    (!pinned || admission.pin === undefined || admission.pin === state.status) &&
     (admission.automation === undefined || admission.automation.includes(state.automationStatus))
   )
 }
@@ -321,7 +336,10 @@ function start(name: TicketTransition): State {
     SMS_SUPPORT_AUTOMATION_STATUS.SUCCEEDED,
   ]
   return {
-    status: admission.statuses.find((status) => status !== written.status) ?? admission.statuses[0],
+    status:
+      admission.pin ??
+      admission.statuses.find((status) => status !== written.status) ??
+      admission.statuses[0],
     automationStatus:
       automation.find((status) => status !== written.automationStatus) ?? automation[0],
   }
@@ -329,7 +347,7 @@ function start(name: TicketTransition): State {
 
 describe('every ticket transition', () => {
   it.each(ticketTransitions)(
-    '%s admits exactly its states, refuses the rest unchanged, and permit agrees with the write',
+    '%s admits exactly its states, refuses the rest unchanged, and permit agrees with the unpinned write',
     async (name) => {
       const rows: SmsSupportTicket[] = []
       for (const state of everyState) rows.push(await seedTicket(state))
@@ -338,12 +356,13 @@ describe('every ticket transition', () => {
       for (const row of rows) {
         const early = await permit(row.id, name)
         const written = await transition(name, row.id, ticketInputs[name])
-        expect(early.ok).toBe(written.ok)
+        expect(early.ok).toBe(admits(ticketAdmission[name], row, { pinned: false }))
         if (written.ok) {
           passed.push(label(row))
         } else {
           expect(['status', 'automation']).toContain(written.refusal.reason)
-          expect(written.refusal).toEqual(early.ok ? null : early.refusal)
+          if (!early.ok) expect(written.refusal).toEqual(early.refusal)
+          else expect(written.refusal).toEqual({ reason: 'status', status: row.status })
           expect(await readTicket(row.id)).toEqual(row)
         }
       }
@@ -394,6 +413,10 @@ describe('every ticket transition', () => {
       ok: false,
       refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.CLOSED },
     })
+    expect(await transition('prompt', unset.id, ticketInputs.prompt)).toEqual({
+      ok: false,
+      refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.NEEDS_CSR },
+    })
     expect(await transition('claimAutomation', running.id, { at: AT })).toEqual({
       ok: false,
       refusal: { reason: 'automation', automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED },
@@ -415,12 +438,13 @@ describe('prompt', () => {
 
     const result = await transition('prompt', row.id, {
       at: AT,
+      from: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
       state: SMS_SUPPORT_STATE.OTHER_MENU,
     })
 
     expect(result).toEqual({
       ok: true,
-      value: { ...row, state: SMS_SUPPORT_STATE.OTHER_MENU, updatedAt: AT },
+      value: { ...row, state: SMS_SUPPORT_STATE.OTHER_MENU, closedAt: null, updatedAt: AT },
     })
   })
 
@@ -430,6 +454,7 @@ describe('prompt', () => {
 
     const result = await transition('prompt', row.id, {
       at: AT,
+      from: SMS_SUPPORT_STATUS.OPEN,
       state: SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT,
       category: null,
       submissionId: submission.id,
@@ -445,9 +470,48 @@ describe('prompt', () => {
         category: null,
         submissionId: submission.id,
         collectedData: {},
+        closedAt: null,
         updatedAt: AT,
       },
     })
+  })
+})
+
+describe('conversation steps pinned to the status they read', () => {
+  it('refuse once another text moved the ticket, and admit from the live status', async () => {
+    const row = await seedTicket({ status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER, closedAt: null })
+    const read = SMS_SUPPORT_STATUS.WAITING_CUSTOMER
+
+    const escalated = await transition('escalate', row.id, { ...ticketInputs.escalate, from: read })
+    expect(escalated).toMatchObject({ ok: true, value: { status: SMS_SUPPORT_STATUS.NEEDS_CSR } })
+
+    const stale = await transition('prompt', row.id, { ...ticketInputs.prompt, from: read })
+    expect(stale).toEqual({
+      ok: false,
+      refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.NEEDS_CSR },
+    })
+    expect(await readTicket(row.id)).toEqual(escalated.ok ? escalated.value : null)
+
+    const live = await transition('prompt', row.id, {
+      ...ticketInputs.prompt,
+      from: SMS_SUPPORT_STATUS.NEEDS_CSR,
+    })
+    expect(live).toMatchObject({ ok: true, value: { status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER } })
+  })
+
+  it('let every text pinned to the same status through', async () => {
+    const row = await seedTicket({ status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER })
+
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        transition('prompt', row.id, {
+          ...ticketInputs.prompt,
+          state: index % 2 ? SMS_SUPPORT_STATE.OTHER_MENU : SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
+        })
+      )
+    )
+
+    expect(results.filter((result) => result.ok)).toHaveLength(20)
   })
 })
 
@@ -808,13 +872,25 @@ describe('births', () => {
       closedAt: null,
     })
   })
+})
 
-  it('queues one automation job per ticket and returns null while one is active', async () => {
-    const ticket = await seedTicket()
+describe('startAutomation', () => {
+  const request = { ...ticketInputs.queueAutomation, payload: dobPayload }
 
-    const job = (await createSupportAutomationJob({ ticketId: ticket.id, payload: dobPayload }))!
-    expect(job).toEqual(await readJob(job.id))
-    expect(job).toMatchObject({
+  it('moves the ticket and queues its job together', async () => {
+    const ticket = await seedTicket(start('queueAutomation'))
+
+    const result = await startAutomation(ticket.id, request)
+
+    if (!result.ok) throw new Error(result.refusal.reason)
+    expect(result.value.ticket).toEqual({
+      ...ticket,
+      ...ticketWrites.queueAutomation,
+      updatedAt: AT,
+    })
+    expect(await readTicket(ticket.id)).toEqual(result.value.ticket)
+    expect(result.value.job).toEqual(await readJob(result.value.job.id))
+    expect(result.value.job).toMatchObject({
       ticketId: ticket.id,
       kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
       status: SMS_SUPPORT_JOB_STATUS.QUEUED,
@@ -823,16 +899,110 @@ describe('births', () => {
       lockedAt: null,
       runAfter: expect.any(Date),
     })
+  })
 
-    expect(
-      await createSupportAutomationJob({ ticketId: ticket.id, payload: dobPayload })
-    ).toBeNull()
+  it('queues no job when the ticket left the status the text read', async () => {
+    const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.NEEDS_CSR })
+
+    expect(await startAutomation(ticket.id, request)).toEqual({
+      ok: false,
+      refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.NEEDS_CSR },
+    })
+    expect(await startAutomation(randomUUID(), request)).toEqual({
+      ok: false,
+      refusal: { reason: 'missing' },
+    })
+    expect(await readTicket(ticket.id)).toEqual(ticket)
+    expect(await db.one(sql`SELECT ${count('n')} FROM sms_support_jobs`)).toEqual({ n: 0 })
+  })
+
+  it('rolls the ticket back when a job is already active', async () => {
+    const ticket = await seedTicket(start('queueAutomation'))
+    const active = await seedJob(ticket.id, { status: SMS_SUPPORT_JOB_STATUS.RUNNING })
+
+    expect(await startAutomation(ticket.id, request)).toEqual({
+      ok: false,
+      refusal: { reason: 'job' },
+    })
+    expect(await readTicket(ticket.id)).toEqual(ticket)
+    expect(await readJob(active.id)).toEqual(active)
     expect(await db.one(sql`SELECT ${count('n')} FROM sms_support_jobs`)).toEqual({ n: 1 })
 
-    expect(await transitionJob('fail', job.id, jobInputs.fail)).toMatchObject({ ok: true })
-    expect(
-      await createSupportAutomationJob({ ticketId: ticket.id, payload: dobPayload })
-    ).not.toBeNull()
+    expect(await transitionJob('fail', active.id, jobInputs.fail)).toMatchObject({ ok: true })
+    expect(await startAutomation(ticket.id, request)).toMatchObject({ ok: true })
+  })
+})
+
+describe('takeOver', () => {
+  const cancel = { at: AT, lastError: 'Ticket closed by admin before automation ran' }
+
+  it('moves the ticket, then fails its queued and running jobs, and leaves other tickets alone', async () => {
+    const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
+    const other = await seedTicket({ phoneE164: OTHER_PHONE })
+    const queued = await seedJob(ticket.id, {
+      kind: 'queued',
+      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+    })
+    const running = await seedJob(ticket.id, {
+      kind: 'running',
+      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
+    })
+    const done = await seedJob(ticket.id, {
+      kind: 'done',
+      status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED,
+    })
+    const elsewhere = await seedJob(other.id)
+
+    const result = await takeOver('closeByAdmin', ticket.id, cancel)
+
+    expect(result).toEqual({
+      ok: true,
+      value: { ...ticket, ...ticketWrites.closeByAdmin, updatedAt: AT },
+    })
+    expect(await readTicket(ticket.id)).toEqual(result.ok ? result.value : null)
+    for (const job of [queued, running]) {
+      expect(await readJob(job.id)).toEqual({
+        ...job,
+        ...failedWrite,
+        lastError: cancel.lastError,
+        updatedAt: AT,
+      })
+    }
+    expect(await readJob(done.id)).toEqual(done)
+    expect(await readJob(elsewhere.id)).toEqual(elsewhere)
+    expect(await readTicket(other.id)).toEqual(other)
+  })
+
+  it('refuses and rolls back while a job is committing', async () => {
+    const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
+    const committing = await seedJob(ticket.id, {
+      kind: 'committing',
+      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+    })
+    const queued = await seedJob(ticket.id, {
+      kind: 'queued',
+      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+    })
+
+    for (const name of ['closeByAdmin', 'returnToCsr', 'adminReplied'] as const) {
+      expect(await takeOver(name, ticket.id, cancel)).toEqual({
+        ok: false,
+        refusal: { reason: 'committing' },
+      })
+    }
+    expect(await readTicket(ticket.id)).toEqual(ticket)
+    expect(await readJob(committing.id)).toEqual(committing)
+    expect(await readJob(queued.id)).toEqual(queued)
+  })
+
+  it('reports a missing ticket and cancels nothing', async () => {
+    const job = await seedJob((await seedTicket()).id)
+
+    expect(await takeOver('returnToCsr', randomUUID(), cancel)).toEqual({
+      ok: false,
+      refusal: { reason: 'missing' },
+    })
+    expect(await readJob(job.id)).toEqual(job)
   })
 })
 
