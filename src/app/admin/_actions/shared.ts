@@ -91,7 +91,7 @@ export async function denyAndRefund(
     )
   } catch (stripeError) {
     logger.error('Stripe refund failed:', stripeError)
-    const failure = `Failed to process refund: ${errorMessage(stripeError)}`
+    const failure = `Failed to process refund: ${errorMessage(stripeError).replace(/\.$/, '')}`
     if (!refundCertainlyFailed(stripeError)) {
       return {
         success: false,
