@@ -1,18 +1,26 @@
 import { col, defineTable, jsonCol, nullable, nullableJson, uuid } from './table'
-import type {
-  Account,
-  NoteVerification,
-  ResendWebhookEvent,
-  Session,
-  SmsMessage,
-  SmsPhoneState,
-  SmsSupportJob,
-  SmsSupportTicket,
-  Submission,
-  TelnyxWebhookEvent,
-  TemporarySubmission,
-  User,
+import {
+  lifecycleColumns,
+  type Account,
+  type NoteVerification,
+  type ResendWebhookEvent,
+  type Session,
+  type SmsMessage,
+  type SmsPhoneState,
+  type SmsSupportJob,
+  type SmsSupportTicket,
+  type Submission,
+  type SubmissionDetails,
+  type TelnyxWebhookEvent,
+  type TemporarySubmission,
+  type User,
 } from './types'
+
+function without<T extends object, K extends keyof T>(object: T, keys: readonly K[]): Omit<T, K> {
+  const rest = { ...object }
+  for (const key of keys) delete rest[key]
+  return rest
+}
 
 export const users = defineTable<User>('users', {
   id: uuid('id'),
@@ -107,6 +115,11 @@ export const submissions = defineTable<Submission>('submissions', {
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
 })
+
+export const submissionDetails = defineTable<SubmissionDetails>(
+  submissions.name,
+  without(submissions.columns, lifecycleColumns)
+)
 
 export const smsPhoneStates = defineTable<SmsPhoneState>('sms_phone_states', {
   phoneE164: col('phone_e164', 'text'),

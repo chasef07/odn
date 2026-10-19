@@ -76,6 +76,12 @@ export type Submission = {
   updatedAt: Date
 }
 
+export const lifecycleColumns = ['status', 'stripeRefundId', 'refundedAt'] as const
+
+export type LifecycleColumn = (typeof lifecycleColumns)[number]
+
+export type SubmissionDetails = Omit<Submission, LifecycleColumn>
+
 export type NoteVerification = {
   id: string
   submissionId: string
