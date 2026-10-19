@@ -12,6 +12,7 @@ import type {
   TelnyxWebhookEvent,
   TemporarySubmission,
   User,
+  Verification,
 } from './types'
 
 export const users = defineTable<User>('users', {
@@ -47,6 +48,15 @@ export const sessions = defineTable<Session>('sessions', {
   expiresAt: col('expires_at', 'timestamp'),
   ipAddress: nullable('ip_address', 'text'),
   userAgent: nullable('user_agent', 'text'),
+  createdAt: col('created_at', 'timestamp'),
+  updatedAt: col('updated_at', 'timestamp'),
+})
+
+export const verifications = defineTable<Verification>('verifications', {
+  id: uuid('id'),
+  identifier: col('identifier', 'text'),
+  value: col('value', 'text'),
+  expiresAt: col('expires_at', 'timestamp'),
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
 })
@@ -221,6 +231,7 @@ export const tables = {
   users,
   accounts,
   sessions,
+  verifications,
   temporarySubmissions,
   submissions,
   smsPhoneStates,
