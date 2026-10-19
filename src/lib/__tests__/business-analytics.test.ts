@@ -59,6 +59,7 @@ describe('business analytics', () => {
     expect(analytics.summary.netRevenueCents).toBe(2495)
     expect(analytics.summary.refundRate).toBe(0.5)
     expect(analytics.summary.netRevenueDeltaPct).toBe(0)
+    expect(analytics.trend.at(-1)?.label).toBe('Jun 1')
   })
 
   it('keeps geography and age bands all-time even when the default range is 30 days', () => {
@@ -134,7 +135,9 @@ describe('business analytics', () => {
     expect(analytics.summary.netRevenueDeltaPct).toBeNull()
     expect(analytics.trend).toHaveLength(8)
     expect(analytics.trend[0].key).toBe('2025-11')
+    expect(analytics.trend[0].label).toBe('Nov 25')
     expect(analytics.trend.at(-1)?.key).toBe('2026-06')
+    expect(analytics.trend.at(-1)?.label).toBe('Jun 26')
     expect(analytics.trend.at(-1)?.notes).toBe(1)
   })
 
