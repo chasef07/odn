@@ -41,7 +41,7 @@ const pathPattern = new RegExp(
 )
 const repoPathStart = new RegExp(`^(?:${topDirs.map(escape).join('|')})/`)
 const fileExtension = /\.[a-z]+$/
-const fileNamePattern = /`([\w.-]+\.(?:ts|tsx|mjs|js|json|ya?ml|prisma|md|sql|toml))`/g
+const fileNamePattern = /`([\w.-]+\.(?:ts|tsx|mjs|js|json|ya?ml|md|sql|toml))`/g
 
 function lineProblems(line) {
   const problems = []

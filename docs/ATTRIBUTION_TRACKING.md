@@ -67,7 +67,7 @@ Migrations are applied separately from Vercel builds. Apply
 new columns:
 
 ```
-npx prisma migrate deploy
+npm run db:migrate
 ```
 
 The migration only adds nullable columns and an index, so it is safe to run while

@@ -17,13 +17,8 @@ const TABLE_MODULES = {
 
 const MODULE_LIST = [...new Set(Object.values(TABLE_MODULES))].join(', ')
 
-const CLIENT_FILES = new Set(['src/db/client', 'src/db/pool', 'src/lib/prisma'])
-const INTERNAL_FILES = new Set([
-  'src/db/sql',
-  'src/db/table',
-  'src/db/tables',
-  'src/lib/prisma-errors',
-])
+const CLIENT_FILES = new Set(['src/db/pool'])
+const INTERNAL_FILES = new Set(['src/db/sql', 'src/db/table', 'src/db/tables'])
 const TEST_DATABASE = 'src/db/test-database'
 
 function repoPath(context, source) {
@@ -40,7 +35,6 @@ function repoPath(context, source) {
 }
 
 function classify(context, source) {
-  if (source === '@prisma/client' || source.startsWith('@prisma/client/')) return 'prismaClient'
   if (source === 'pg' || source.startsWith('pg/')) return 'pg'
   const file = repoPath(context, source)
   if (!file) return null
@@ -50,13 +44,22 @@ function classify(context, source) {
   return null
 }
 
-function stringArgument(node) {
-  const [first] = node.arguments
-  if (first?.type === 'Literal' && typeof first.value === 'string') return first.value
-  if (first?.type === 'TemplateLiteral' && first.expressions.length === 0) {
-    return first.quasis[0].value.cooked
+function literalString(node) {
+  if (node?.type === 'Literal' && typeof node.value === 'string') return node.value
+  if (node?.type === 'TemplateLiteral' && node.expressions.length === 0) {
+    return node.quasis[0].value.cooked
   }
   return null
+}
+
+function stringArgument(node) {
+  return literalString(node.arguments[0])
+}
+
+function templatePrefix(node) {
+  if (node?.type !== 'TemplateLiteral' || node.expressions.length === 0) return null
+  const prefix = node.quasis[0].value.cooked ?? ''
+  return /^(@\/db\/|pg\/)/.test(prefix) ? `${prefix}pool` : null
 }
 
 function isModuleCall(node) {
@@ -78,7 +81,6 @@ const dbBoundary = {
     docs: { description: 'Only src/db talks to the database' },
     schema: [],
     messages: {
-      prismaClient: `Import domain types and status constants from '@/db/types', not {{source}}. Queries live in a named function in the src/db module for their table (${MODULE_LIST}).`,
       pg: `Only src/db talks to Postgres. Add a named query function to the src/db module for the table (${MODULE_LIST}).`,
       dbClient: `{{source}} is the database client, and only src/db may use it. Call a named function from the src/db module for the table (${MODULE_LIST}). Tests mock that module's functions.`,
       dbInternal:
@@ -107,9 +109,8 @@ const dbBoundary = {
         }
       },
       ImportExpression(node) {
-        if (node.source.type === 'Literal' && typeof node.source.value === 'string') {
-          check(node, node.source.value)
-        }
+        const source = literalString(node.source) ?? templatePrefix(node.source)
+        if (source) check(node, source)
       },
       ExportNamedDeclaration(node) {
         if (node.source) check(node, node.source.value)

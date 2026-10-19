@@ -1,9 +1,49 @@
-import { prismaAdapter } from 'better-auth/adapters/prisma'
-import prisma from './client'
+import { betterAuth, type BetterAuthOptions } from 'better-auth'
+import { db, getPool } from './pool'
+import { sql } from './sql'
+import { insert, select } from './table'
+import { accounts, sessions, users } from './tables'
 
-export function authDatabaseAdapter(): ReturnType<typeof prismaAdapter> {
-  return prismaAdapter(prisma, {
-    provider: 'postgresql',
+type AuthOptions = Omit<BetterAuthOptions, 'database' | 'user' | 'account' | 'session'> & {
+  session?: Omit<NonNullable<BetterAuthOptions['session']>, 'modelName' | 'fields'>
+}
+
+export function createAuth(options: AuthOptions) {
+  return betterAuth({
+    ...options,
+    database: getPool(),
+    user: {
+      modelName: users.name,
+      fields: {
+        emailVerified: users.columns.emailVerified.name,
+        createdAt: users.columns.createdAt.name,
+        updatedAt: users.columns.updatedAt.name,
+      },
+    },
+    session: {
+      ...options.session,
+      modelName: sessions.name,
+      fields: {
+        userId: sessions.columns.userId.name,
+        expiresAt: sessions.columns.expiresAt.name,
+        ipAddress: sessions.columns.ipAddress.name,
+        userAgent: sessions.columns.userAgent.name,
+        createdAt: sessions.columns.createdAt.name,
+        updatedAt: sessions.columns.updatedAt.name,
+      },
+    },
+    account: {
+      modelName: accounts.name,
+      fields: {
+        userId: accounts.columns.userId.name,
+        accountId: accounts.columns.accountId.name,
+        providerId: accounts.columns.providerId.name,
+        accessToken: accounts.columns.accessToken.name,
+        refreshToken: accounts.columns.refreshToken.name,
+        idToken: accounts.columns.idToken.name,
+        accessTokenExpiresAt: accounts.columns.expiresAt.name,
+      },
+    },
   })
 }
 
@@ -14,13 +54,11 @@ export async function createVerifiedUser({
   email: string
   name: string
 }): Promise<{ id: string }> {
-  return prisma.user.create({
-    data: {
-      email,
-      name,
-      emailVerified: true,
-    },
-  })
+  const row = await db.one(
+    sql`${insert(users, { email, name, emailVerified: true })} RETURNING ${select(users, ['id'])}`
+  )
+  if (!row) throw new Error('user insert returned no row')
+  return row
 }
 
 export async function createCredentialAccount({
@@ -32,24 +70,19 @@ export async function createCredentialAccount({
   accountId: string
   password: string
 }): Promise<void> {
-  await prisma.account.create({
-    data: {
-      userId,
-      accountId,
-      providerId: 'credential',
-      password,
-    },
-  })
+  await db.affected(
+    sql`${insert(accounts, { userId, accountId, providerId: 'credential', password })}`
+  )
 }
 
 export async function deleteAllAuthSessions(): Promise<void> {
-  await prisma.session.deleteMany({})
+  await db.affected(sql`DELETE FROM sessions`)
 }
 
 export async function deleteAllAuthAccounts(): Promise<void> {
-  await prisma.account.deleteMany({})
+  await db.affected(sql`DELETE FROM accounts`)
 }
 
 export async function deleteAllAuthUsers(): Promise<void> {
-  await prisma.user.deleteMany({})
+  await db.affected(sql`DELETE FROM users`)
 }

@@ -1,23 +1,31 @@
-name: Production Prisma Migrations
+name: Production migrations
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: Type DEPLOY to run production migrations
+        description: Type DEPLOY to run against production
         required: true
         type: string
+      action:
+        description: migrate applies pending files; adopt-prisma copies the Prisma history once, before the first migrate
+        required: true
+        default: migrate
+        type: choice
+        options:
+          - migrate
+          - adopt-prisma
 
 permissions:
   contents: read
 
 concurrency:
-  group: production-prisma-migrations
+  group: production-migrations
   cancel-in-progress: false
 
 jobs:
   migrate:
-    name: Prisma migrate deploy
+    name: ${{ inputs.action }}
     if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'DEPLOY' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -34,15 +42,10 @@ jobs:
 
       - run: npm ci
 
-      - name: Validate Prisma schema
-        run: npx prisma validate
+      - name: Adopt the Prisma migration history
+        if: ${{ inputs.action == 'adopt-prisma' }}
+        run: npx tsx scripts/adopt-prisma-migrations.ts
 
-      - name: Check migration status before deploy
-        continue-on-error: true
-        run: npx prisma migrate status
-
-      - name: Deploy pending migrations
-        run: npx prisma migrate deploy
-
-      - name: Check migration status after deploy
-        run: npx prisma migrate status
+      - name: Apply pending migrations
+        if: ${{ inputs.action == 'migrate' }}
+        run: npm run db:migrate
