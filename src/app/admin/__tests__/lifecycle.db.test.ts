@@ -6,6 +6,7 @@ const {
   mockRefundsList,
   mockSendApprovalEmail,
   mockSendDenialEmail,
+  mockSendSms,
   mockGenerateDoctorNotePDF,
   betweenReadAndWrite,
 } = vi.hoisted(() => ({
@@ -14,6 +15,7 @@ const {
   mockRefundsList: vi.fn(),
   mockSendApprovalEmail: vi.fn(),
   mockSendDenialEmail: vi.fn(),
+  mockSendSms: vi.fn(),
   mockGenerateDoctorNotePDF: vi.fn(async () => Buffer.from('pdf')),
   betweenReadAndWrite: { run: null as null | (() => Promise<void>) },
 }))
@@ -26,6 +28,7 @@ vi.mock('@/lib/email', () => ({
   sendDenialEmail: mockSendDenialEmail,
   sendMaybeEmail: vi.fn(),
 }))
+vi.mock('@/lib/telnyx', () => ({ sendTransactionalSmsForSubmission: mockSendSms }))
 vi.mock('@/lib/stripe', () => ({
   stripe: { refunds: { create: mockRefundsCreate, list: mockRefundsList } },
 }))
@@ -52,7 +55,7 @@ import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/app
 import { changeSubmissionStatus } from '@/app/admin/_actions/change-status'
 import { denySubmission } from '@/app/admin/_actions/deny'
 import { markAsManual, maybeSubmission } from '@/app/admin/_actions/maybe'
-import { settleRefundReservation } from '@/app/admin/_actions/shared'
+import { settleRefundReservation, type ActionResult } from '@/app/admin/_actions/shared'
 import { seedSubmission } from '@/db/__tests__/seed'
 import { createVerifiedUser } from '@/db/auth'
 import { findNoteVerificationBySlug } from '@/db/note-verifications'
@@ -136,11 +139,17 @@ describe('a refunded customer must never be approved', () => {
     const moved = await changeSubmissionStatus(refunded.id, SubmissionStatus.MAYBE, undefined, {
       reason: 'OTHER_REVIEW',
     })
-    expect(moved.success).toBe(false)
+    expect(moved).toEqual({
+      success: false,
+      error: 'Refund already processed for this submission',
+    })
     expect(await reload(refunded.id)).toEqual(refunded)
 
     const approved = await approveSubmission(refunded.id)
-    expect(approved.success).toBe(false)
+    expect(approved).toEqual({
+      success: false,
+      error: 'Cannot approve submission with status: DENIED',
+    })
     expect(mockSendApprovalEmail).not.toHaveBeenCalled()
     expect(await reload(refunded.id)).toEqual(refunded)
   })
@@ -149,7 +158,10 @@ describe('a refunded customer must never be approved', () => {
     const refunded = await seedRefundedDenied()
 
     const moved = await changeSubmissionStatus(refunded.id, SubmissionStatus.MANUAL)
-    expect(moved.success).toBe(false)
+    expect(moved).toEqual({
+      success: false,
+      error: 'Refund already processed for this submission',
+    })
     expect(await reload(refunded.id)).toEqual(refunded)
 
     const approved = await approveSubmission(refunded.id)
@@ -164,7 +176,7 @@ describe('a failed refund restores the prior status', () => {
     const pending = await seedPending()
     const maybe = await maybeSubmission(pending.id, {
       reason: 'OTHER_REVIEW',
-      internalNote: 'check the dates',
+      internalNote: '  check the dates  ',
     })
     expect(maybe.success).toBe(true)
     const before = await reload(pending.id)
@@ -426,31 +438,181 @@ describe('marking manual', () => {
 })
 
 describe('a row that moves between the read and the write', () => {
-  it('the queue deny of a MANUAL row refuses after another admin approved it, and keeps the approval', async () => {
-    const manual = await seedSubmission({ status: SubmissionStatus.MANUAL, refund: 'none' })
+  const legal = (id: string) => denySubmission(id, 'Legal')
+  const approve = (id: string) => approveSubmission(id)
+  const overrideDeny = (id: string) => changeSubmissionStatus(id, SubmissionStatus.DENIED, 'Legal')
+  const races: {
+    name: string
+    start: Parameters<typeof seedSubmission>[0]
+    act: (id: string) => Promise<ActionResult>
+    competitor: (id: string) => Promise<ActionResult>
+    after: SubmissionStatus
+    refunds: number
+  }[] = [
+    {
+      name: 'the queue deny of a MANUAL row, after another admin approved it',
+      start: { status: SubmissionStatus.MANUAL, refund: 'none' },
+      act: legal,
+      competitor: approve,
+      after: SubmissionStatus.APPROVED,
+      refunds: 0,
+    },
+    {
+      name: 'the manual approval, after another admin denied it',
+      start: { status: SubmissionStatus.MANUAL, refund: 'none' },
+      act: approve,
+      competitor: legal,
+      after: SubmissionStatus.DENIED,
+      refunds: 0,
+    },
+    {
+      name: 'the queue deny with a refund, after another admin approved it',
+      start: { status: SubmissionStatus.PENDING_REVIEW, refund: 'none' },
+      act: legal,
+      competitor: approve,
+      after: SubmissionStatus.APPROVED,
+      refunds: 0,
+    },
+    {
+      name: 'the detail-page deny of a refunded APPROVED row, after another admin denied it',
+      start: { status: SubmissionStatus.APPROVED, refund: 'refunded' },
+      act: overrideDeny,
+      competitor: overrideDeny,
+      after: SubmissionStatus.DENIED,
+      refunds: 0,
+    },
+    {
+      name: 'the detail-page manual, after another admin approved it',
+      start: { status: SubmissionStatus.PENDING_REVIEW, refund: 'none' },
+      act: (id) => changeSubmissionStatus(id, SubmissionStatus.MANUAL),
+      competitor: approve,
+      after: SubmissionStatus.APPROVED,
+      refunds: 0,
+    },
+    {
+      name: 'the reopen of a MAYBE row, after another admin marked it manual',
+      start: { status: SubmissionStatus.MAYBE, refund: 'none' },
+      act: (id) => changeSubmissionStatus(id, SubmissionStatus.PENDING_REVIEW),
+      competitor: markAsManual,
+      after: SubmissionStatus.MANUAL,
+      refunds: 0,
+    },
+    {
+      name: 'the queue manual of a MAYBE row, after another admin approved it',
+      start: { status: SubmissionStatus.MAYBE, refund: 'none' },
+      act: markAsManual,
+      competitor: approve,
+      after: SubmissionStatus.APPROVED,
+      refunds: 0,
+    },
+    {
+      name: 'the queue maybe, after another admin approved it',
+      start: { status: SubmissionStatus.PENDING_REVIEW, refund: 'none' },
+      act: (id) => maybeSubmission(id, { reason: 'OTHER_REVIEW' }),
+      competitor: approve,
+      after: SubmissionStatus.APPROVED,
+      refunds: 0,
+    },
+    {
+      name: 'the re-approval, after another admin denied and refunded it',
+      start: { status: SubmissionStatus.APPROVED, refund: 'none' },
+      act: reApproveSubmission,
+      competitor: overrideDeny,
+      after: SubmissionStatus.DENIED,
+      refunds: 1,
+    },
+  ]
+
+  it.each(races)('$name refuses as stale and keeps the other write', async (race) => {
+    const row = await seedSubmission(race.start, { paymentAmount: 2495 })
+    mockRefundsCreate.mockResolvedValue({ id: 're_race', amount: 2495 })
     betweenReadAndWrite.run = async () => {
-      expect(await approveSubmission(manual.id)).toEqual({ success: true })
+      expect(await race.competitor(row.id)).toMatchObject({ success: true })
     }
 
-    expect(await denySubmission(manual.id, 'Legal')).toEqual({ success: false, error: STALE })
-    expect(await reload(manual.id)).toMatchObject({
-      status: SubmissionStatus.APPROVED,
-      denialReason: null,
+    expect(await race.act(row.id)).toEqual({ success: false, error: STALE })
+    expect(betweenReadAndWrite.run).toBeNull()
+    expect(await reload(row.id)).toMatchObject({ status: race.after })
+    expect(mockRefundsCreate).toHaveBeenCalledTimes(race.refunds)
+  })
+})
+
+describe('the queue deny', () => {
+  it('emails the address the row has after the refund is recorded, not the one read before Stripe', async () => {
+    const pending = await seedPending()
+    mockRefundsCreate.mockImplementationOnce(async () => {
+      await updateSubmissionDetails(pending.id, { email: 'moved@example.com' }, new Date())
+      return { id: 're_moved', amount: 2495 }
     })
-    expect(mockSendDenialEmail).not.toHaveBeenCalled()
+
+    expect(await denySubmission(pending.id, 'Legal')).toEqual({ success: true })
+    expect(await reload(pending.id)).toMatchObject({
+      status: SubmissionStatus.DENIED,
+      stripeRefundId: 're_moved',
+      email: 'moved@example.com',
+    })
+    expect(mockSendDenialEmail).toHaveBeenCalledExactlyOnceWith({
+      ...DENIAL_EMAIL,
+      to: 'moved@example.com',
+    })
   })
 
-  it('the manual approval refuses after another admin denied it, and keeps the denial', async () => {
+  it('of a MANUAL row attempts no refund and sends no email', async () => {
     const manual = await seedSubmission({ status: SubmissionStatus.MANUAL, refund: 'none' })
-    betweenReadAndWrite.run = async () => {
-      expect(await denySubmission(manual.id, 'Legal')).toEqual({ success: true })
-    }
 
-    expect(await approveSubmission(manual.id)).toEqual({ success: false, error: STALE })
+    expect(await denySubmission(manual.id, 'Legal')).toEqual({ success: true })
     expect(await reload(manual.id)).toMatchObject({
       status: SubmissionStatus.DENIED,
       denialReason: 'Legal',
+      stripeRefundId: null,
+      denialEmailSentAt: null,
     })
+    expect(mockRefundsCreate).not.toHaveBeenCalled()
+    expect(mockSendDenialEmail).not.toHaveBeenCalled()
+  })
+})
+
+describe('the detail-page override', () => {
+  it.each([
+    [SubmissionStatus.MAYBE, { reason: 'OTHER_REVIEW' }],
+    [SubmissionStatus.MANUAL, undefined],
+    [SubmissionStatus.PENDING_REVIEW, undefined],
+  ])('moving an approved row to %s revokes its note', async (target, input) => {
+    const pending = await seedPending()
+    expect(await approveSubmission(pending.id)).toEqual({ success: true })
+
+    expect(await changeSubmissionStatus(pending.id, target, undefined, input)).toEqual({
+      success: true,
+    })
+    expect(await reload(pending.id)).toMatchObject({ status: target })
+    expect(await activeNotes(pending.id)).toBe(0)
+  })
+
+  it('keeps the note when the move to MAYBE is refused for its reason', async () => {
+    const pending = await seedPending()
+    expect(await approveSubmission(pending.id)).toEqual({ success: true })
+
+    expect(
+      await changeSubmissionStatus(pending.id, SubmissionStatus.MAYBE, undefined, {
+        reason: 'BOGUS',
+      })
+    ).toEqual({ success: false, error: 'Invalid maybe reason' })
+    expect(await reload(pending.id)).toMatchObject({ status: SubmissionStatus.APPROVED })
+    expect(await activeNotes(pending.id)).toBe(1)
+  })
+
+  it('requires a denial reason and refuses to reopen a row still in review, each with its own message', async () => {
+    const pending = await seedPending()
+
+    expect(await changeSubmissionStatus(pending.id, SubmissionStatus.DENIED)).toEqual({
+      success: false,
+      error: 'Denial reason is required',
+    })
+    expect(await changeSubmissionStatus(pending.id, SubmissionStatus.PENDING_REVIEW)).toEqual({
+      success: false,
+      error: 'Cannot change submission with status: PENDING_REVIEW',
+    })
+    expect(await reload(pending.id)).toEqual(pending)
   })
 })
 
@@ -477,6 +639,39 @@ describe('the approval', () => {
     expect(mockSendApprovalEmail).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ to: 'moved@example.com' })
     )
+    expect(mockSendSms).toHaveBeenCalledExactlyOnceWith({
+      submission: expect.objectContaining({ email: 'moved@example.com' }),
+      type: 'APPROVAL_SENT',
+      body: expect.any(String),
+    })
+  })
+
+  it('leaves the row pending with no active note when the PDF fails', async () => {
+    const pending = await seedPending()
+    mockGenerateDoctorNotePDF.mockRejectedValueOnce(new Error('renderer down'))
+
+    expect(await approveSubmission(pending.id)).toEqual({
+      success: false,
+      error: 'Failed to generate PDF: renderer down',
+    })
+    expect(await reload(pending.id)).toEqual(pending)
+    expect(await activeNotes(pending.id)).toBe(0)
+    expect(mockSendApprovalEmail).not.toHaveBeenCalled()
+  })
+
+  it('re-approval refuses a row still in review with its own verb, and reports its own email failure', async () => {
+    const pending = await seedPending()
+    expect(await reApproveSubmission(pending.id)).toEqual({
+      success: false,
+      error: 'Cannot re-approve submission with status: PENDING_REVIEW',
+    })
+
+    expect(await approveSubmission(pending.id)).toEqual({ success: true })
+    mockSendApprovalEmail.mockRejectedValueOnce(new Error('resend down'))
+    expect(await reApproveSubmission(pending.id)).toEqual({
+      success: true,
+      warning: 'Re-approval processed, but email notification failed to send',
+    })
   })
 
   it('re-approval revokes the earlier note and leaves the new one active', async () => {

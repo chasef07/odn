@@ -19,6 +19,7 @@ const {
   mockNormalizeMedicalRecordNumber,
   mockRevokeNoteVerificationForSubmission,
   mockGetSession,
+  mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRefundsCreate: vi.fn(),
   mockPermit: vi.fn(),
@@ -42,6 +43,7 @@ const {
   ),
   mockRevokeNoteVerificationForSubmission: vi.fn(),
   mockGetSession: vi.fn(),
+  mockRevalidatePath: vi.fn(),
 }))
 
 vi.mock('stripe', () => {
@@ -105,7 +107,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('next/cache', () => ({
-  revalidatePath: vi.fn(),
+  revalidatePath: mockRevalidatePath,
 }))
 
 vi.mock('next/headers', () => ({
@@ -114,7 +116,7 @@ vi.mock('next/headers', () => ({
 
 import { changeSubmissionStatus } from '@/app/admin/_actions/change-status'
 import { denySubmission } from '@/app/admin/_actions/deny'
-import { maybeSubmission } from '@/app/admin/_actions/maybe'
+import { markAsManual, maybeSubmission } from '@/app/admin/_actions/maybe'
 import { searchSubmissions } from '@/app/admin/_actions/search'
 import { updateSubmission, updateReviewClassification } from '@/app/admin/_actions/edits'
 import { getDashboardStats } from '@/app/admin/_actions/queues'
@@ -550,6 +552,7 @@ describe('denySubmission - Denial Automation', () => {
       expectNoTransition('recordRefund')
 
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
     it('releases the reservation when the payment intent does not exist', async () => {
@@ -600,6 +603,23 @@ describe('denySubmission - Denial Automation', () => {
         success: false,
         error:
           'Failed to process refund: Insufficient funds. The refund reservation could not be released.',
+      })
+      expect(mockSendDenialEmail).not.toHaveBeenCalled()
+    })
+
+    it('reports a refund whose record step threw, without emailing', async () => {
+      permits('deny', mockSubmission)
+      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
+      mockTransition.mockImplementation(async (step: { transition: string; row: object }) => {
+        if (step.transition === 'recordRefund') throw new Error('connection reset')
+        return { ok: true, value: step.row }
+      })
+
+      const result = await denySubmission(mockSubmissionId, 'Legal')
+
+      expect(result).toEqual({
+        success: false,
+        error: `Refund ${mockRefundId} was issued but could not be recorded.`,
       })
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
     })
@@ -1073,4 +1093,107 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
     expect(mockSendMaybeEmail).not.toHaveBeenCalled()
     expect(mockRecordMaybeEmailSent).not.toHaveBeenCalled()
   })
+})
+
+describe('revalidation', () => {
+  const row = {
+    id: 'sub_123',
+    stripePaymentIntentId: 'pi_test_123',
+    stripeRefundId: null,
+    email: 'patient@example.com',
+    phone: '(555) 123-4567',
+    smsOptIn: false,
+    smsPhoneE164: null,
+    patientFirstName: 'John',
+    patientLastName: 'Doe',
+    paymentAmount: 2495,
+    status: SubmissionStatus.PENDING_REVIEW,
+  }
+  const QUEUES = ['/admin', '/admin/review', '/admin/maybe']
+  const DETAIL = ['/admin', '/admin/search', '/admin/search/sub_123']
+  const paths = () => mockRevalidatePath.mock.calls.map(([path]) => path)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({ user: { id: 'doctor_123' } })
+    transitionsSucceed()
+    mockRefundsCreate.mockResolvedValue({ id: 're_test_123', amount: 2495 })
+    mockSendDenialEmail.mockResolvedValue({ success: true })
+    mockSendMaybeEmail.mockResolvedValue({ success: true })
+    mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
+  })
+
+  it.each([
+    [
+      'queue deny with refund',
+      'deny',
+      row,
+      () => denySubmission('sub_123', 'Legal'),
+      [...QUEUES, '/admin/denied'],
+    ],
+    [
+      'queue deny of a MANUAL row',
+      'denyManual',
+      { ...row, status: SubmissionStatus.MANUAL },
+      () => denySubmission('sub_123', 'Legal'),
+      [...QUEUES, '/admin/denied'],
+    ],
+    [
+      'detail-page deny',
+      'overrideDeny',
+      { ...row, status: SubmissionStatus.APPROVED },
+      () => changeSubmissionStatus('sub_123', SubmissionStatus.DENIED, 'Legal'),
+      [...DETAIL, '/admin/denied'],
+    ],
+    [
+      'detail-page maybe',
+      'overrideMaybe',
+      { ...row, status: SubmissionStatus.APPROVED },
+      () =>
+        changeSubmissionStatus('sub_123', SubmissionStatus.MAYBE, undefined, {
+          reason: 'OTHER_REVIEW',
+        }),
+      [...DETAIL, '/admin/maybe'],
+    ],
+    [
+      'detail-page manual',
+      'overrideManual',
+      row,
+      () => changeSubmissionStatus('sub_123', SubmissionStatus.MANUAL),
+      [...DETAIL, '/admin/maybe'],
+    ],
+    [
+      'reopen',
+      'reopen',
+      { ...row, status: SubmissionStatus.MAYBE },
+      () => changeSubmissionStatus('sub_123', SubmissionStatus.PENDING_REVIEW),
+      [...DETAIL, '/admin/review'],
+    ],
+    [
+      'queue maybe',
+      'maybe',
+      row,
+      () => maybeSubmission('sub_123', { reason: 'OTHER_REVIEW' }),
+      QUEUES,
+    ],
+    [
+      'queue manual',
+      'markManual',
+      { ...row, status: SubmissionStatus.MAYBE },
+      () => markAsManual('sub_123'),
+      QUEUES,
+    ],
+  ] as const)(
+    '%s refreshes its pages on success and nothing when refused',
+    async (_name, transition, read, act, expected) => {
+      permits(transition, read)
+      expect(await act()).toMatchObject({ success: true })
+      expect(paths()).toEqual(expected)
+
+      mockRevalidatePath.mockClear()
+      refuses({ reason: 'missing' })
+      expect(await act()).toMatchObject({ success: false })
+      expect(paths()).toEqual([])
+    }
+  )
 })

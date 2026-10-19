@@ -20,6 +20,7 @@ const {
   mockRevokeOtherNoteVerificationsForSubmission,
   mockRevokeNoteVerificationForSubmission,
   mockGetSession,
+  mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockPermit: vi.fn(),
   mockTransition: vi.fn(),
@@ -44,6 +45,7 @@ const {
   mockRevokeOtherNoteVerificationsForSubmission: vi.fn(),
   mockRevokeNoteVerificationForSubmission: vi.fn(),
   mockGetSession: vi.fn(),
+  mockRevalidatePath: vi.fn(),
 }))
 
 vi.mock('@/db/submission-lifecycle', () => ({
@@ -98,8 +100,11 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('next/cache', () => ({
-  revalidatePath: vi.fn(),
+  revalidatePath: mockRevalidatePath,
 }))
+
+const revalidated = () => mockRevalidatePath.mock.calls.map(([path]) => path)
+const QUEUE_PATHS = ['/admin', '/admin/review', '/admin/maybe']
 
 vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
@@ -242,6 +247,7 @@ describe('approveSubmission - Approval Automation', () => {
       })
       expect(mockRecordApprovalEmailSent).toHaveBeenCalledTimes(1)
       expect(mockRecordApprovalEmailSent).toHaveBeenCalledWith(mockSubmissionId, expect.any(Date))
+      expect(revalidated()).toEqual(QUEUE_PATHS)
     })
 
     it('sends approval SMS after the approval email succeeds', async () => {
@@ -341,6 +347,7 @@ describe('approveSubmission - Approval Automation', () => {
       expect(mockSendApprovalEmail).not.toHaveBeenCalled()
       expect(mockTransition).toHaveBeenCalledTimes(1)
       expectTransition('approveManual', { adminId: mockDoctorId, at: expect.any(Date) })
+      expect(revalidated()).toEqual(QUEUE_PATHS)
     })
   })
 
@@ -411,6 +418,7 @@ describe('approveSubmission - Approval Automation', () => {
         success: false,
         error: 'Failed to generate PDF: Missing signature image',
       })
+      expect(revalidated()).toEqual([])
 
       expectNoSubmissionUpdates()
 
@@ -497,6 +505,7 @@ describe('approveSubmission - Approval Automation', () => {
       expect(mockGenerateDoctorNotePDF).not.toHaveBeenCalled()
       expectNoSubmissionUpdates()
       expect(mockSendApprovalEmail).not.toHaveBeenCalled()
+      expect(revalidated()).toEqual([])
     })
 
     it('should fail if submission already approved', async () => {
@@ -728,6 +737,12 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
     })
     expect(mockRecordApprovalEmailSent).toHaveBeenCalledTimes(1)
     expect(mockRecordApprovalEmailSent).toHaveBeenCalledWith(mockSubmissionId, expect.any(Date))
+    expect(revalidated()).toEqual([
+      '/admin',
+      '/admin/search',
+      '/admin/search/sub_123',
+      '/admin/approved',
+    ])
   })
 
   it('sends approval SMS after the re-approval email succeeds', async () => {
