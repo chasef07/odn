@@ -91,6 +91,9 @@ describe('loadMigrations', () => {
       "CREATE TABLE t (id int);\nPREPARE TRANSACTION 'deploy';",
       '-- the runner wraps this file\nCOMMIT;',
       '/* the runner wraps this file */ ROLLBACK;',
+      'CREATE TABLE a (id int);\n/* x /* y */ */ COMMIT;\nCREATE TABLE b (id int);\nSELECT 1/0;',
+      '/* a /* b /* c */ */ */ BEGIN;',
+      "/* it's /* nested */ still */ COMMIT;",
     ]
     for (const sql of refused) {
       expect(
@@ -113,8 +116,11 @@ describe('loadMigrations', () => {
       '0007_g.sql': "INSERT INTO t VALUES ('it''s; COMMIT;')",
       '0008_h.sql': 'SELECT 1;\nBEGINNING',
       '0009_i.sql': 'COMMITTED;',
+      '0010_j.sql': 'CREATE TABLE t (id int); /* outer /* inner */ COMMIT; */',
+      '0011_k.sql': "INSERT INTO t VALUES ('/*'); /**/ SELECT 1;",
+      '0012_l.sql': 'SELECT 2 */* x */ 3;',
     }
-    expect(loadMigrations(dirWith(accepted))).toHaveLength(9)
+    expect(loadMigrations(dirWith(accepted))).toHaveLength(12)
   })
 
   it("reads backslash escapes only inside E'' strings", () => {
