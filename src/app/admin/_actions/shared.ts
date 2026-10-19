@@ -11,10 +11,11 @@ import {
   maybeReasonRequiresApprovedDays,
   type MaybeApprovedDays,
 } from '@/lib/maybe-reasons'
-import { recordDenialEmailSent, recordMaybeEmailSent } from '@/db/submissions'
+import { findSubmissionById, recordDenialEmailSent, recordMaybeEmailSent } from '@/db/submissions'
 import { revokeNoteVerificationForSubmission } from '@/db/note-verifications'
 import {
   permit,
+  refundState,
   transition,
   type Denial,
   type Permit,
@@ -111,9 +112,18 @@ export async function denyAndRefund(
     return { success: false, error: failure }
   }
 
+  return finishRefundedDenial(reserved.value, refund, denial.reason, denial.at)
+}
+
+export async function finishRefundedDenial(
+  reserved: Submission,
+  refund: Pick<Stripe.Refund, 'id' | 'amount'>,
+  reason: string,
+  at: Date
+): Promise<ActionResult> {
   const recorded = await transition(
-    { transition: 'recordRefund', row: reserved.value },
-    { at: new Date(), stripeRefundId: refund.id }
+    { transition: 'recordRefund', row: reserved },
+    { at, stripeRefundId: refund.id }
   ).catch((recordError: unknown) => {
     logger.error(`Stripe refund ${refund.id} could not be recorded:`, recordError)
     return null
@@ -123,8 +133,63 @@ export async function denyAndRefund(
     return { success: false, error: `Refund ${refund.id} was issued but could not be recorded.` }
   }
 
-  await revokeNoteVerificationForSubmission(prior.id, denial.at)
-  return notifyDenial(recorded.value, denial.reason, refund.amount)
+  await revokeNoteVerificationForSubmission(reserved.id, at)
+  return notifyDenial(recorded.value, reason, refund.amount)
+}
+
+export type RefundSettlement =
+  | { settled: 'recorded'; refundId: string; notice: ActionResult }
+  | { settled: 'released'; status: SubmissionStatus }
+
+export async function settleRefundReservation(
+  id: string,
+  releaseTo: string | undefined
+): Promise<RefundSettlement> {
+  const row = await findSubmissionById(id)
+  if (!row) throw new Error(`submission ${id} not found`)
+  if (refundState(row.stripeRefundId) !== 'reserved') {
+    throw new Error(`submission ${id} holds no refund reservation (${row.stripeRefundId})`)
+  }
+
+  const refunds = await stripe.refunds.list({
+    payment_intent: row.stripePaymentIntentId,
+    limit: 100,
+  })
+  const refund = refunds.data.find((candidate) => candidate.metadata?.submissionId === id)
+  const at = new Date()
+
+  if (refund) {
+    const recorded = await transition(
+      { transition: 'recordRefund', row },
+      { at, stripeRefundId: refund.id }
+    )
+    if (!recorded.ok) throw new Error(`record refused: ${recorded.refusal.reason}`)
+    return { settled: 'recorded', refundId: refund.id, notice: { success: true } }
+  }
+
+  if (!releaseTo) {
+    throw new Error(
+      `Stripe holds no refund for ${row.stripePaymentIntentId}; rerun with --release-to <${Object.values(SubmissionStatus).join('|')}> to release the reservation`
+    )
+  }
+  const status = Object.values(SubmissionStatus).find((candidate) => candidate === releaseTo)
+  if (!status) throw new Error(`${releaseTo} is not a submission status`)
+  const released = await transition(
+    { transition: 'releaseRefund', row },
+    {
+      at,
+      prior: {
+        ...row,
+        status,
+        stripeRefundId: null,
+        denialReason: null,
+        reviewedByAdminId: null,
+        reviewedAt: null,
+      },
+    }
+  )
+  if (!released.ok) throw new Error(`release refused: ${released.refusal.reason}`)
+  return { settled: 'released', status }
 }
 
 function refundCertainlyFailed(error: unknown): boolean {
