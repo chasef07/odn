@@ -6,7 +6,6 @@ type LogSeverity = 'WARNING' | 'ERROR'
 
 export const logger = {
   debug: (...args: LogArgs) => {
-    // eslint-disable-next-line no-console
     if (isDevelopment()) console.debug(...args)
   },
   info: (...args: LogArgs) => {

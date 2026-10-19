@@ -154,6 +154,13 @@ function submissionCustomerName(submission: FriendsFamilySubmissionInput): strin
   return [submission.patientFirstName, submission.patientLastName].filter(Boolean).join(' ')
 }
 
+function newestFirst(a: string | null, b: string | null): number {
+  if (a === b) return 0
+  if (a === null) return 1
+  if (b === null) return -1
+  return a < b ? 1 : -1
+}
+
 function approvedAt(submission: FriendsFamilySubmissionInput): Date | null {
   if (
     submission.status !== SubmissionStatus.APPROVED ||
@@ -422,20 +429,12 @@ export function buildFriendsFamilyAnalytics(
     }
   }
 
-  const byScore = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
-    if (b.score !== a.score) return b.score - a.score
-    const aApproved = a.lastApprovedAt ? new Date(a.lastApprovedAt).getTime() : 0
-    const bApproved = b.lastApprovedAt ? new Date(b.lastApprovedAt).getTime() : 0
-    if (bApproved !== aApproved) return bApproved - aApproved
-    return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
-  }
+  const byRecency = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) =>
+    newestFirst(a.lastApprovedAt, b.lastApprovedAt) ||
+    newestFirst(a.lastSubmittedAt, b.lastSubmittedAt)
 
-  const byRecency = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
-    const aApproved = a.lastApprovedAt ? new Date(a.lastApprovedAt).getTime() : 0
-    const bApproved = b.lastApprovedAt ? new Date(b.lastApprovedAt).getTime() : 0
-    if (bApproved !== aApproved) return bApproved - aApproved
-    return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
-  }
+  const byScore = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) =>
+    b.score - a.score || byRecency(a, b)
 
   const byNotes = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
     if (b.approvedNotes !== a.approvedNotes) return b.approvedNotes - a.approvedNotes

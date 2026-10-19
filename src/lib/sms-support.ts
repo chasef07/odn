@@ -601,7 +601,7 @@ async function handleSubmissionReference(
 async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void> {
   const dateOfBirth = parseUsDate(body)
   const today = todayUTC()
-  if (!dateOfBirth || dateOfBirth < DATE_LIMITS.EARLIEST_DATE_OF_BIRTH || dateOfBirth > today) {
+  if (!dateOfBirth || dateOfBirth < DATE_LIMITS.EARLIEST_DAY || dateOfBirth > today) {
     await reply(ticket, invalidDateSms())
     return
   }
