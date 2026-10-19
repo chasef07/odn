@@ -19,7 +19,12 @@ const LOCAL_GETTERS = new Set(['getFullYear', 'getMonth', 'getDate', 'getDay', '
 
 const DATE_STATICS = new Set(['UTC', 'parse'])
 
-const LOCALE_FORMATTERS = new Set(['toLocaleDateString', 'toLocaleTimeString'])
+const LOCALE_FORMATTERS = new Set([
+  'toLocaleDateString',
+  'toLocaleTimeString',
+  'toDateString',
+  'toTimeString',
+])
 
 const DATE_OPTION_KEYS = new Set([
   'year',
@@ -36,6 +41,10 @@ const DATE_OPTION_KEYS = new Set([
 
 const ISO_SLICERS = new Set(['slice', 'split', 'substring'])
 
+const ISO_SERIALIZERS = new Set(['toISOString', 'toJSON'])
+
+const TIME_READERS = new Set(['getTime', 'valueOf'])
+
 const TIME_SUFFIX = /^T\d{2}:\d{2}/
 
 function propertyName(member) {
@@ -49,6 +58,23 @@ function isNewDate(node) {
     node.type === 'NewExpression' &&
     node.callee.type === 'Identifier' &&
     node.callee.name === 'Date'
+  )
+}
+
+function isDateFns(source) {
+  return source === 'date-fns' || source === 'date-fns-tz' || source.startsWith('date-fns/')
+}
+
+function parsesOneValue(node) {
+  return isNewDate(node) && node.arguments.length === 1
+}
+
+function isIntlDateTimeFormat(node) {
+  return (
+    node.type === 'MemberExpression' &&
+    node.object.type === 'Identifier' &&
+    node.object.name === 'Intl' &&
+    propertyName(node) === 'DateTimeFormat'
   )
 }
 
@@ -93,8 +119,14 @@ const noAdhocDates = {
         "`.{{name}}()` mutates a Date in the runtime's zone or by hand. Use addDays(), todayET(), todayUTC() or businessDayStart() from '@/lib/dates'.",
       locale:
         "`.{{name}}()` formats in the runtime's zone. Use formatDateOnly() or formatDateOnlyRange() for a calendar day and formatInstantET() for an instant, from '@/lib/dates'.",
+      bareLocaleString:
+        "`.toLocaleString()` with no locale formats in the runtime's zone and locale. Use formatDateOnly() or formatInstantET() from '@/lib/dates' for a date, or name the locale for a number, as in toLocaleString('en-US').",
+      intlFormat:
+        "Don't build an Intl.DateTimeFormat. Use formatDateOnly() or formatDateOnlyRange() for a calendar day, formatInstantET() for an instant, or todayInViewerZone() for the viewer's day, from '@/lib/dates'.",
+      parse:
+        "`{{form}}` parses a string the way Date.parse() does. Use parseInstant() for an ISO timestamp or parseDateOnly() for a yyyy-MM-dd day from '@/lib/dates', or call getTime() on the Date you already hold.",
       isoSlice:
-        "`toISOString().{{name}}()` is the UTC day, not the ET business day. Use todayET(), todayUTC() or dateOnlyFromUtcDate() from '@/lib/dates'.",
+        "`{{serializer}}().{{name}}()` is the UTC day, not the ET business day. Use todayET(), todayUTC() or dateOnlyFromUtcDate() from '@/lib/dates'.",
       dateFns:
         "Import date helpers from '@/lib/dates', not '{{source}}'. It owns the zone rules: DateOnly for calendar days, Instant for moments, ET for business time.",
     },
@@ -104,14 +136,28 @@ const noAdhocDates = {
       if (TIME_SUFFIX.test(text)) context.report({ node, messageId: 'timeSuffix' })
     }
 
+    function checkSource(node) {
+      const source = node.source?.type === 'Literal' ? node.source.value : null
+      if (typeof source === 'string' && isDateFns(source)) {
+        context.report({ node, messageId: 'dateFns', data: { source } })
+      }
+    }
+
     return {
-      ImportDeclaration(node) {
-        const source = node.source.value
-        if (source === 'date-fns' || source === 'date-fns-tz' || source.startsWith('date-fns/')) {
-          context.report({ node, messageId: 'dateFns', data: { source } })
+      ImportDeclaration: checkSource,
+      ImportExpression: checkSource,
+      ExportNamedDeclaration: checkSource,
+      ExportAllDeclaration: checkSource,
+      UnaryExpression(node) {
+        if (node.operator === '+' && parsesOneValue(node.argument)) {
+          context.report({ node, messageId: 'parse', data: { form: '+new Date(value)' } })
         }
       },
       NewExpression(node) {
+        if (isIntlDateTimeFormat(node.callee)) {
+          context.report({ node, messageId: 'intlFormat' })
+          return
+        }
         if (!isNewDate(node)) return
         if (node.arguments.length >= 2) {
           context.report({ node, messageId: 'parts' })
@@ -134,7 +180,21 @@ const noAdhocDates = {
       },
       CallExpression(node) {
         const callee = node.callee
-        if (callee.type !== 'MemberExpression') return
+        if (isIntlDateTimeFormat(callee)) {
+          context.report({ node, messageId: 'intlFormat' })
+          return
+        }
+        if (callee.type !== 'MemberExpression') {
+          if (
+            callee.type === 'Identifier' &&
+            callee.name === 'Number' &&
+            node.arguments.length === 1 &&
+            parsesOneValue(node.arguments[0])
+          ) {
+            context.report({ node, messageId: 'parse', data: { form: 'Number(new Date(value))' } })
+          }
+          return
+        }
         const name = propertyName(callee)
         if (!name) return
         if (callee.object.type === 'Identifier' && callee.object.name === 'Date') {
@@ -149,6 +209,14 @@ const noAdhocDates = {
           context.report({ node, messageId: 'setter', data: { name } })
           return
         }
+        if (TIME_READERS.has(name) && parsesOneValue(callee.object)) {
+          context.report({ node, messageId: 'parse', data: { form: `new Date(value).${name}()` } })
+          return
+        }
+        if (name === 'toLocaleString' && node.arguments.length === 0) {
+          context.report({ node, messageId: 'bareLocaleString' })
+          return
+        }
         if (
           LOCALE_FORMATTERS.has(name) ||
           (name === 'toLocaleString' &&
@@ -161,9 +229,10 @@ const noAdhocDates = {
           ISO_SLICERS.has(name) &&
           callee.object.type === 'CallExpression' &&
           callee.object.callee.type === 'MemberExpression' &&
-          propertyName(callee.object.callee) === 'toISOString'
+          ISO_SERIALIZERS.has(propertyName(callee.object.callee))
         ) {
-          context.report({ node, messageId: 'isoSlice', data: { name } })
+          const serializer = propertyName(callee.object.callee)
+          context.report({ node, messageId: 'isoSlice', data: { serializer, name } })
         }
       },
     }

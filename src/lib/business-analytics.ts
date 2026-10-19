@@ -1,6 +1,6 @@
 import { SubmissionStatus } from '@/db/types'
 import { getCustomerKey, isOpenStatus, MS_PER_DAY, toIsoDate } from '@/lib/analytics-shared'
-import { dateOnlyFromUtcDate } from '@/lib/dates'
+import { dateOnlyFromUtcDate, formatDateOnly } from '@/lib/dates'
 import { normalizeOfferCode } from '@/lib/offer-codes'
 import { ATTRIBUTION_CHANNEL_LABELS, type AttributionChannel } from '@/lib/attribution'
 
@@ -169,18 +169,6 @@ type PeriodMetrics = {
 
 const MAX_STATE_ROWS = 10
 
-const dayLabelFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  timeZone: 'UTC',
-})
-
-const monthLabelFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  year: '2-digit',
-  timeZone: 'UTC',
-})
-
 function quarterLabel(date: Date): string {
   return `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${String(date.getUTCFullYear()).slice(2)}`
 }
@@ -271,9 +259,9 @@ function bucketKey(date: Date, granularity: TrendGranularity): string {
 function bucketLabel(date: Date, granularity: TrendGranularity): string {
   switch (granularity) {
     case 'day':
-      return dayLabelFormatter.format(date)
+      return formatDateOnly(dateOnlyFromUtcDate(date), 'monthDay')
     case 'month':
-      return monthLabelFormatter.format(date)
+      return formatDateOnly(dateOnlyFromUtcDate(date), 'monthYear')
     case 'quarter':
       return quarterLabel(date)
     case 'year':
