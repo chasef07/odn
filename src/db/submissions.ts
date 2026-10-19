@@ -21,6 +21,7 @@ import {
   type SmsMessage,
   type Submission,
 } from './types'
+import { deleteEveryRow } from './wipe'
 
 export type MaybeReview = {
   maybeReason: string
@@ -956,7 +957,7 @@ export async function deleteSubmissionById(id: string): Promise<void> {
 }
 
 export async function deleteAllSubmissions(): Promise<number> {
-  return db.affected(sql`DELETE FROM submissions`)
+  return deleteEveryRow(submissions)
 }
 
 export type SmsSupportAutomationSubmissionUpdate = {
