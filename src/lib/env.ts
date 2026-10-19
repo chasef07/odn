@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { parseEnvVar } from '@/lib/public-env'
+import { parseEnvVar } from './public-env'
 
 const nonEmpty = z.string().trim().min(1)
 const priceId = nonEmpty.startsWith('price_', 'must start with "price_"')

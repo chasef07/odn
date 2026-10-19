@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SubmissionStatus } from '@/db/types'
 import {
-  buildFriendsFamilyCustomerDetail,
   buildFriendsFamilyAnalytics,
   type FriendsFamilySubmissionInput,
 } from '@/lib/friends-family-analytics'
@@ -28,10 +27,6 @@ function submission(
     recipient: overrides.recipient ?? 'myself',
     email: overrides.email ?? 'jane@example.com',
     phone: overrides.phone ?? '(555) 111-2222',
-    notePurpose: overrides.notePurpose ?? 'work',
-    firstDayOff: overrides.firstDayOff ?? createdAt,
-    lastDayOff: overrides.lastDayOff ?? createdAt,
-    denialReason: overrides.denialReason ?? null,
     maybeReason: overrides.maybeReason ?? null,
     stripeRefundId: overrides.stripeRefundId ?? null,
     refundedAt: overrides.refundedAt ?? null,
@@ -41,6 +36,12 @@ function submission(
     reviewedAt: overrides.reviewedAt ?? createdAt,
     approvalEmailSentAt: overrides.approvalEmailSentAt ?? createdAt,
   }
+}
+
+function customerByEmail(submissions: FriendsFamilySubmissionInput[], email: string) {
+  return buildFriendsFamilyAnalytics(submissions, referenceDate, {
+    segment: 'all_customers',
+  }).customers.find((customer) => customer.email === email)
 }
 
 describe('friends-family analytics segmentation', () => {
@@ -74,22 +75,46 @@ describe('friends-family analytics segmentation', () => {
       'refunded@example.com',
     ])
 
-    const customer = buildFriendsFamilyCustomerDetail(
-      submissions.filter((row) => row.email === 'jane@example.com'),
-      'email:jane@example.com',
-      referenceDate
-    )
+    const customer = customerByEmail(submissions, 'jane@example.com')
     expect(customer?.offerUsedCount).toBe(2)
-    expect(customer?.scoreFactors).toContainEqual({ label: 'Already used doctor10', value: -25 })
+    expect(customer?.reasons).toContainEqual({ label: 'Already used doctor10', tone: 'warning' })
 
-    const legacy = buildFriendsFamilyCustomerDetail(
-      submissions.filter((row) => row.email === 'legacy@example.com'),
-      'email:legacy@example.com',
-      referenceDate
-    )
+    const legacy = customerByEmail(submissions, 'legacy@example.com')
     expect(legacy?.offerUsedCount).toBe(0)
     expect(legacy?.standardPriceNotes).toBe(0)
     expect(legacy?.segments).not.toContain('offer_used')
+  })
+
+  it('adds up the score from each factor and clamps it to 0..100', () => {
+    const recent = customerByEmail([submission()], 'jane@example.com')
+    expect(recent?.score).toBe(5)
+    expect(recent?.reasons.map((reason) => reason.label)).toEqual([
+      'Too recent to discount',
+      'No refund history',
+      'No denial history',
+      'Paid standard price before',
+    ])
+
+    const repeat = customerByEmail(
+      [
+        submission({ id: 'approved', createdAt: daysAgo(45), reviewedAt: daysAgo(45) }),
+        submission({ id: 'approved-2', createdAt: daysAgo(70), reviewedAt: daysAgo(70) }),
+        submission({
+          id: 'denied',
+          status: SubmissionStatus.DENIED,
+          createdAt: daysAgo(80),
+          reviewedAt: daysAgo(79),
+        }),
+      ],
+      'jane@example.com'
+    )
+    expect(repeat?.score).toBe(67)
+
+    const refunded = customerByEmail(
+      [submission({ stripeRefundId: 're_1', refundedAt: daysAgo(9), createdAt: daysAgo(200) })],
+      'jane@example.com'
+    )
+    expect(refunded?.score).toBe(0)
   })
 
   it('ranks lapsed repeat full-price customers as the best targets', () => {
@@ -139,7 +164,6 @@ describe('friends-family analytics segmentation', () => {
           status: SubmissionStatus.DENIED,
           createdAt: daysAgo(80),
           reviewedAt: daysAgo(79),
-          denialReason: 'Other',
         }),
       ],
       referenceDate
@@ -170,7 +194,7 @@ describe('friends-family analytics segmentation', () => {
       referenceDate
     )
 
-    const customer = buildFriendsFamilyCustomerDetail(
+    const customer = customerByEmail(
       [
         submission({ id: 'approved', createdAt: daysAgo(12), reviewedAt: daysAgo(12) }),
         submission({
@@ -182,8 +206,7 @@ describe('friends-family analytics segmentation', () => {
           refundedAt: daysAgo(19),
         }),
       ],
-      'email:jane@example.com',
-      referenceDate
+      'jane@example.com'
     )
 
     expect(customer?.priority).toBe('REFUND_HISTORY')
@@ -193,7 +216,7 @@ describe('friends-family analytics segmentation', () => {
   })
 
   it('places open maybe cases on hold', () => {
-    const customer = buildFriendsFamilyCustomerDetail(
+    const customer = customerByEmail(
       [
         submission({ id: 'approved', createdAt: daysAgo(40), reviewedAt: daysAgo(40) }),
         submission({
@@ -204,8 +227,7 @@ describe('friends-family analytics segmentation', () => {
           maybeReason: 'OTHER_REVIEW',
         }),
       ],
-      'email:jane@example.com',
-      referenceDate
+      'jane@example.com'
     )
 
     expect(customer?.priority).toBe('HOLD')
@@ -253,7 +275,7 @@ describe('friends-family analytics segmentation', () => {
     expect(customer.segments).toContain('family_signal')
   })
 
-  it('returns limited segment rows without timelines or score factors', () => {
+  it('returns at most the limit of rows for a segment', () => {
     const submissions = Array.from({ length: 60 }, (_, index) => [
       submission({
         id: `sub-${index}-recent`,
@@ -276,8 +298,6 @@ describe('friends-family analytics segmentation', () => {
 
     expect(analytics.segmentTotal).toBe(60)
     expect(analytics.customers).toHaveLength(10)
-    expect('timeline' in analytics.customers[0]).toBe(false)
-    expect('scoreFactors' in analytics.customers[0]).toBe(false)
   })
 
   it('segments customers who never requested a refund and ranks them by note volume', () => {

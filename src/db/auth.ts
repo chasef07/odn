@@ -3,6 +3,7 @@ import { db, getPool } from './pool'
 import { sql } from './sql'
 import { insert, select } from './table'
 import { accounts, sessions, users, verifications } from './tables'
+import { deleteEveryRow } from './wipe'
 
 type AuthOptions = Omit<
   BetterAuthOptions,
@@ -90,13 +91,13 @@ export async function createCredentialAccount({
 }
 
 export async function deleteAllAuthSessions(): Promise<void> {
-  await db.affected(sql`DELETE FROM sessions`)
+  await deleteEveryRow(sessions)
 }
 
 export async function deleteAllAuthAccounts(): Promise<void> {
-  await db.affected(sql`DELETE FROM accounts`)
+  await deleteEveryRow(accounts)
 }
 
 export async function deleteAllAuthUsers(): Promise<void> {
-  await db.affected(sql`DELETE FROM users`)
+  await deleteEveryRow(users)
 }

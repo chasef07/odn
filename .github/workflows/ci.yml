@@ -31,6 +31,13 @@ jobs:
       - run: npm ci
       - name: npm run check
         run: npm run check
+        env:
+          RESEND_FROM_EMAIL: shell-leak@example.test
+          NEXT_PUBLIC_SITE_URL: https://shell-leak.example.test
+          TELNYX_SMS_ENABLED: 'true'
+          INTAKE_VALIDATION_ENFORCED: 'true'
+          NODE_ENV: production
+          PGSSLMODE: require
 
   time-zones:
     name: Tests (${{ matrix.tz }})
