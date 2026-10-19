@@ -147,10 +147,13 @@ CREATE TRIGGER refuse_ledger BEFORE INSERT ON schema_migrations FOR EACH ROW EXE
 
     const result = await migrate(pool, migrations)
 
-    expect(result.applied).toHaveLength(7)
+    expect(result.applied).toEqual(migrations.map((m) => m.name))
     expect(await tableExists('submissions')).toBe(true)
     expect(await tableExists('sms_support_jobs')).toBe(true)
-    expect(await migrate(pool, migrations)).toEqual({ applied: [], alreadyApplied: 7 })
+    expect(await migrate(pool, migrations)).toEqual({
+      applied: [],
+      alreadyApplied: migrations.length,
+    })
   })
 })
 
@@ -277,9 +280,9 @@ describe('adoptPrismaHistory', () => {
     )
   })
 
-  it('adopts the real seven files from the real Prisma history names', async () => {
+  it('adopts the real seven Prisma-era files, then migrate applies the files after them', async () => {
     const migrations = loadMigrations()
-    await applyLikePrisma(migrations, [
+    await applyLikePrisma(migrations.slice(0, 7), [
       '20260617000000_baseline_production_schema',
       '20260629000000_add_sms_support_automation',
       '20260629010000_add_telnyx_event_status',
@@ -290,7 +293,10 @@ describe('adoptPrismaHistory', () => {
     ])
 
     expect((await adoptPrismaHistory(pool, migrations)).adopted).toHaveLength(7)
-    expect(await migrate(pool, migrations)).toEqual({ applied: [], alreadyApplied: 7 })
+    expect(await migrate(pool, migrations)).toEqual({
+      applied: migrations.slice(7).map((m) => m.name),
+      alreadyApplied: 7,
+    })
   })
 
   it('refuses to migrate once a Prisma migration landed after the cutover', async () => {

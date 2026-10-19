@@ -12,6 +12,7 @@ import type {
   TelnyxWebhookEvent,
   TemporarySubmission,
   User,
+  Verification,
 } from './types'
 
 export const users = defineTable<User>('users', {
@@ -19,6 +20,7 @@ export const users = defineTable<User>('users', {
   email: col('email', 'text'),
   emailVerified: col('email_verified', 'bool'),
   name: col('name', 'text'),
+  image: nullable('image', 'text'),
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
 })
@@ -32,7 +34,11 @@ export const accounts = defineTable<Account>('accounts', {
   refreshToken: nullable('refresh_token', 'text'),
   idToken: nullable('id_token', 'text'),
   expiresAt: nullable('expires_at', 'timestamp'),
+  refreshTokenExpiresAt: nullable('refresh_token_expires_at', 'timestamp'),
+  scope: nullable('scope', 'text'),
   password: nullable('password', 'text'),
+  createdAt: col('created_at', 'timestamp'),
+  updatedAt: col('updated_at', 'timestamp'),
 })
 
 export const sessions = defineTable<Session>('sessions', {
@@ -42,6 +48,15 @@ export const sessions = defineTable<Session>('sessions', {
   expiresAt: col('expires_at', 'timestamp'),
   ipAddress: nullable('ip_address', 'text'),
   userAgent: nullable('user_agent', 'text'),
+  createdAt: col('created_at', 'timestamp'),
+  updatedAt: col('updated_at', 'timestamp'),
+})
+
+export const verifications = defineTable<Verification>('verifications', {
+  id: uuid('id'),
+  identifier: col('identifier', 'text'),
+  value: col('value', 'text'),
+  expiresAt: col('expires_at', 'timestamp'),
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
 })
@@ -216,6 +231,7 @@ export const tables = {
   users,
   accounts,
   sessions,
+  verifications,
   temporarySubmissions,
   submissions,
   smsPhoneStates,
