@@ -44,7 +44,7 @@ const dateOfBirthField = z
       return
     }
 
-    if (parsed < DATE_LIMITS.EARLIEST_DATE_OF_BIRTH) {
+    if (parsed < DATE_LIMITS.EARLIEST_DAY) {
       ctx.addIssue({
         code: 'custom',
         message: 'Please enter a valid date of birth',

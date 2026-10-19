@@ -21,6 +21,7 @@ import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-con
 import { updateSubmission } from '@/app/admin/_actions/edits'
 import { approveSubmission } from '@/app/admin/_actions/approve'
 import { type FormattedSubmission } from '@/app/admin/_actions/search'
+import { DATE_LIMITS } from '@/lib/validation-constants'
 
 interface SubmissionEditFormProps {
   submission: FormattedSubmission
@@ -28,7 +29,7 @@ interface SubmissionEditFormProps {
 
 function dayInput(value: string): Date | null {
   const day = parseDateOnly(value)
-  return day ? utcDateFromDateOnly(day) : null
+  return day && day >= DATE_LIMITS.EARLIEST_DAY ? utcDateFromDateOnly(day) : null
 }
 
 export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
@@ -122,7 +123,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
       !savedLastDayOff ||
       (guardianDateOfBirth && !savedGuardianDateOfBirth)
     ) {
-      setError('Enter every date as a real calendar day.')
+      setError('Enter every date as a real calendar day, 1900 or later.')
       setIsLoading(false)
       return
     }
@@ -228,6 +229,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                   <Input
                     id="patientDateOfBirth"
                     type="date"
+                    min={DATE_LIMITS.EARLIEST_DAY}
                     value={patientDateOfBirth}
                     onChange={(e) => setPatientDateOfBirth(e.target.value)}
                     disabled={isLoading}
@@ -275,6 +277,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                     <Input
                       id="guardianDateOfBirth"
                       type="date"
+                      min={DATE_LIMITS.EARLIEST_DAY}
                       value={guardianDateOfBirth}
                       onChange={(e) => setGuardianDateOfBirth(e.target.value)}
                       disabled={isLoading}
@@ -365,6 +368,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                   <Input
                     id="evaluationDate"
                     type="date"
+                    min={DATE_LIMITS.EARLIEST_DAY}
                     value={evaluationDate}
                     onChange={(e) => setEvaluationDate(e.target.value)}
                     disabled={isLoading}
@@ -412,6 +416,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                   <Input
                     id="firstDayOff"
                     type="date"
+                    min={DATE_LIMITS.EARLIEST_DAY}
                     value={firstDayOff}
                     onChange={(e) => setFirstDayOff(e.target.value)}
                     disabled={isLoading}
@@ -422,6 +427,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                   <Input
                     id="lastDayOff"
                     type="date"
+                    min={DATE_LIMITS.EARLIEST_DAY}
                     value={lastDayOff}
                     onChange={(e) => setLastDayOff(e.target.value)}
                     disabled={isLoading}
