@@ -1,12 +1,9 @@
-import { betterAuth } from 'better-auth'
 import bcrypt from 'bcryptjs'
 import { env } from '@/lib/env'
-import { authDatabaseAdapter } from '@/db/auth'
+import { createAuth } from '@/db/auth'
 
-function createAuth() {
-  return betterAuth({
-    database: authDatabaseAdapter(),
-
+function configureAuth() {
+  return createAuth({
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
@@ -38,10 +35,10 @@ function createAuth() {
   })
 }
 
-let authInstance: ReturnType<typeof createAuth> | null = null
+let authInstance: ReturnType<typeof configureAuth> | null = null
 
 function getAuth() {
-  authInstance ??= createAuth()
+  authInstance ??= configureAuth()
   return authInstance
 }
 

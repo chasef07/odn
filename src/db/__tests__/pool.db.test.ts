@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { getPool } from '../pool'
-
 const WITH_MILLIS = new Date('2026-03-05T23:30:15.123Z')
 const UTC_MIDNIGHT = new Date('2026-03-05T00:00:00.000Z')
 
@@ -16,7 +15,7 @@ async function insertSubmission(): Promise<string> {
   return id
 }
 
-describe('the pool keeps Prisma semantics for dates, counts and JSON', () => {
+describe('the pool returns UTC dates, number counts and parsed JSON', () => {
   it('runs these tests in a non-UTC zone so UTC mistakes show', () => {
     expect(WITH_MILLIS.getTimezoneOffset()).not.toBe(0)
   })

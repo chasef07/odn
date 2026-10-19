@@ -1,4 +1,7 @@
+import { config } from 'dotenv'
 import { adoptPrismaMigrations, MigrationError } from '@/db/migrate'
+
+config({ path: ['.env.local', '.env'], quiet: true })
 
 async function main() {
   try {

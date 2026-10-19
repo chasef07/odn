@@ -15,7 +15,6 @@ yarn.lock
 coverage
 .vitest
 
-prisma/migrations
 src/db/migrations
 
 .env
