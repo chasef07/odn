@@ -6,31 +6,26 @@ import {
   SupportAutomationManualReviewError,
   type SupportAutomationPayload,
 } from '@/lib/sms-support-automation'
-import {
-  SMS_SUPPORT_AUTOMATION_STATUS,
-  SMS_SUPPORT_JOB_STATUS,
-  SMS_SUPPORT_STATUS,
-} from '@/lib/sms-support-types'
+import { SMS_SUPPORT_JOB_STATUS } from '@/lib/sms-support-types'
 import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
 import {
-  claimQueuedSupportJob,
-  completeSupportJob,
-  createRetrySupportAutomationJob,
-  createSupportAutomationJob,
-  escalateSupportTicketAfterAutomationFailure,
-  failStaleCommittingSupportJob,
-  failSupportJob,
   findActiveSupportAutomationJob,
   findActiveSupportAutomationJobId,
   findLatestSupportAutomationJob,
   findRunnableQueuedSupportJob,
   findRunnableQueuedSupportJobs,
   findStaleCommittingSupportJobs,
-  findSupportTicketForAutomationRetry,
-  requeueStaleRunningSupportJobs,
-  startSupportAutomationRetry,
 } from '@/db/sms-support'
-import type { JsonObject, JsonValue } from '@/db/types'
+import {
+  createRetrySupportAutomationJob,
+  createSupportAutomationJob,
+  permit,
+  requeueStaleSupportJobs,
+  required,
+  transition,
+  transitionJob,
+} from '@/db/sms-support-lifecycle'
+import type { JsonObject, JsonValue, SmsSupportTicket } from '@/db/types'
 
 const STALE_RUNNING_JOB_MS = 15 * 60 * 1000
 const STALE_COMMITTING_MESSAGE =
@@ -88,9 +83,10 @@ export async function processQueuedSmsSupportJobs({
   limit?: number
   workerId?: string
 } = {}): Promise<{ processed: number; succeeded: number; failed: number }> {
-  const staleBefore = new Date(Date.now() - STALE_RUNNING_JOB_MS)
+  const now = new Date()
+  const staleBefore = new Date(now.getTime() - STALE_RUNNING_JOB_MS)
 
-  await requeueStaleRunningSupportJobs(staleBefore)
+  await requeueStaleSupportJobs(staleBefore, { at: now })
 
   let processed = 0
   let succeeded = 0
@@ -99,20 +95,17 @@ export async function processQueuedSmsSupportJobs({
   const staleCommittingJobs = await findStaleCommittingSupportJobs(staleBefore, limit)
 
   for (const job of staleCommittingJobs) {
-    const claimed = await failStaleCommittingSupportJob(job.id, {
-      staleBefore,
+    const claimed = await transitionJob('failStale', job.id, {
+      at: new Date(),
       lastError: STALE_COMMITTING_MESSAGE,
     })
 
-    if (claimed !== 1) continue
+    if (!claimed.ok) continue
 
     processed += 1
     failed += 1
 
-    const ticket = await escalateSupportTicketAfterAutomationFailure(
-      job.ticketId,
-      STALE_COMMITTING_MESSAGE
-    )
+    const ticket = await escalateTicket(job.ticketId, STALE_COMMITTING_MESSAGE)
 
     await alertSupportTicketNeedsCsr({
       ticketId: ticket.id,
@@ -139,13 +132,16 @@ async function processQueuedSupportJob(
   job: QueuedSupportJob,
   workerId: string
 ): Promise<JobProcessingResult> {
-  const claimed = await claimQueuedSupportJob(job.id, workerId)
+  const claimed = await transitionJob('claim', job.id, { at: new Date(), workerId })
 
-  if (claimed !== 1) return { processed: 0, succeeded: 0, failed: 0 }
+  if (!claimed.ok) return { processed: 0, succeeded: 0, failed: 0 }
 
   try {
     await runSupportTicketAutomation(job.id)
-    await completeSupportJob(job.id)
+    required(
+      await transitionJob('complete', job.id, { at: new Date() }),
+      `complete of support job ${job.id}`
+    )
     return { processed: 1, succeeded: 1, failed: 0 }
   } catch (error) {
     await handleSupportJobFailure(job, error)
@@ -153,11 +149,25 @@ async function processQueuedSupportJob(
   }
 }
 
+async function failJob(jobId: string, lastError: string): Promise<void> {
+  required(
+    await transitionJob('fail', jobId, { at: new Date(), lastError }),
+    `fail of support job ${jobId}`
+  )
+}
+
+async function escalateTicket(ticketId: string, failureReason: string): Promise<SmsSupportTicket> {
+  return required(
+    await transition('automationFailed', ticketId, { at: new Date(), failureReason }),
+    `automationFailed of support ticket ${ticketId}`
+  )
+}
+
 async function handleSupportJobFailure(job: QueuedSupportJob, error: unknown): Promise<void> {
   const message = error instanceof Error ? error.message : 'Unknown support job error'
 
   if (error instanceof SupportAutomationCancelledError) {
-    await failSupportJob(job.id, message)
+    await failJob(job.id, message)
     return
   }
 
@@ -173,14 +183,12 @@ async function handleSupportJobFailure(job: QueuedSupportJob, error: unknown): P
 }
 
 export async function retrySupportAutomationJob(ticketId: string) {
-  const ticket = await findSupportTicketForAutomationRetry(ticketId)
+  const permitted = await permit(ticketId, 'retryAutomation')
 
-  if (!ticket) return { success: false, error: 'Support ticket not found' }
-  if (
-    ticket.status !== SMS_SUPPORT_STATUS.NEEDS_CSR ||
-    ticket.automationStatus !== SMS_SUPPORT_AUTOMATION_STATUS.FAILED
-  ) {
-    return { success: false, error: 'Ticket is not in failed automation state' }
+  if (!permitted.ok) {
+    return permitted.refusal.reason === 'missing'
+      ? { success: false, error: 'Support ticket not found' }
+      : { success: false, error: 'Ticket is not in failed automation state' }
   }
 
   const activeJob = await findActiveSupportAutomationJobId(ticketId)
@@ -193,15 +201,18 @@ export async function retrySupportAutomationJob(ticketId: string) {
     return { success: false, error: 'No failed automation job to retry' }
   }
 
-  const job = await createRetrySupportAutomationJob({ ticketId, payload: latestJob.payload })
-
   const payload = latestJob.payload as JsonObject | null
-  await startSupportAutomationRetry(
-    ticketId,
-    payload && typeof payload === 'object'
-      ? automationSummary(payload as unknown as SupportAutomationPayload)
-      : null
-  )
+  const retried = await transition('retryAutomation', ticketId, {
+    at: new Date(),
+    summary:
+      payload && typeof payload === 'object'
+        ? automationSummary(payload as unknown as SupportAutomationPayload)
+        : null,
+  })
+
+  if (!retried.ok) return { success: false, error: 'Ticket is not in failed automation state' }
+
+  const job = await createRetrySupportAutomationJob({ ticketId, payload: latestJob.payload })
 
   await processSmsSupportJobNow(job.id, { workerId: `admin-retry-${Date.now()}` })
 
@@ -219,9 +230,9 @@ async function failJobAndEscalateToCsr({
   message: string
   summary: string
 }) {
-  await failSupportJob(jobId, message)
+  await failJob(jobId, message)
 
-  const ticket = await escalateSupportTicketAfterAutomationFailure(ticketId, message)
+  const ticket = await escalateTicket(ticketId, message)
 
   await alertSupportTicketNeedsCsr({
     ticketId: ticket.id,

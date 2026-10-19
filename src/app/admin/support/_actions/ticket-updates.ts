@@ -2,17 +2,22 @@
 
 import { sendSupportSms } from '@/lib/sms-support-sms'
 import { retrySupportAutomationJob } from '@/lib/sms-support-jobs'
-import {
-  closeSupportTicketByAdmin,
-  failQueuedOrRunningSupportJobs,
-  findCommittingSupportJob,
-  findSupportTicketContact,
-  markSupportTicketAdminReplied,
-  markSupportTicketAdminReplyFailed,
-  returnSupportTicketToCsrReview,
-} from '@/db/sms-support'
+import { findCommittingSupportJob } from '@/db/sms-support'
+import { cancelSupportJobs, transition, type TicketRefusal } from '@/db/sms-support-lifecycle'
 import { revalidateSupportPaths } from './shared'
 import { adminAction } from '@/lib/admin-session'
+
+type Failed = { success: false; error: string }
+
+function refused(refusal: TicketRefusal): Failed {
+  return {
+    success: false,
+    error:
+      refusal.reason === 'missing'
+        ? 'Support ticket not found'
+        : 'Support ticket was already updated. Please refresh and try again.',
+  }
+}
 
 export const sendSupportTicketReply = adminAction(
   async (_admin, ticketId: string, body: string) => {
@@ -20,10 +25,6 @@ export const sendSupportTicketReply = adminAction(
       const message = body.trim()
       if (!message) return { success: false, error: 'Message is required' }
       if (message.length > 1000) return { success: false, error: 'Message is too long' }
-
-      const ticket = await findSupportTicketContact(ticketId)
-
-      if (!ticket) return { success: false, error: 'Support ticket not found' }
 
       const now = new Date()
 
@@ -34,7 +35,9 @@ export const sendSupportTicketReply = adminAction(
       })
       if (!cancelResult.success) return cancelResult
 
-      await markSupportTicketAdminReplied(ticketId)
+      const replied = await transition('adminReplied', ticketId, { at: now })
+      if (!replied.ok) return refused(replied.refusal)
+      const ticket = replied.value
 
       const result = await sendSupportSms({
         ticketId: ticket.id,
@@ -46,7 +49,10 @@ export const sendSupportTicketReply = adminAction(
 
       if (!result.success) {
         const errorMessage = result.error || 'Failed to send SMS'
-        await markSupportTicketAdminReplyFailed(ticketId, `Admin SMS reply failed: ${errorMessage}`)
+        await transition('adminReplyFailed', ticketId, {
+          at: new Date(),
+          failureReason: `Admin SMS reply failed: ${errorMessage}`,
+        })
         revalidateSupportPaths(ticketId, ticket.submissionId)
         return { success: false, error: errorMessage }
       }
@@ -62,18 +68,7 @@ export const sendSupportTicketReply = adminAction(
 
 export const closeSupportTicket = adminAction(async (_admin, ticketId: string) => {
   try {
-    const now = new Date()
-    const cancelResult = await cancelCancellableSupportJobs({
-      ticketId,
-      now,
-      lastError: 'Ticket closed by admin before automation ran',
-    })
-    if (!cancelResult.success) return cancelResult
-
-    const ticket = await closeSupportTicketByAdmin(ticketId, now)
-
-    revalidateSupportPaths(ticketId, ticket.submissionId)
-    return { success: true }
+    return await takeOver(ticketId, 'closeByAdmin', 'Ticket closed by admin before automation ran')
   } catch (error) {
     console.error('Failed to close support ticket:', error)
     return { success: false, error: 'Failed to close support ticket' }
@@ -82,17 +77,11 @@ export const closeSupportTicket = adminAction(async (_admin, ticketId: string) =
 
 export const markSupportTicketNeedsCsr = adminAction(async (_admin, ticketId: string) => {
   try {
-    const cancelResult = await cancelCancellableSupportJobs({
+    return await takeOver(
       ticketId,
-      now: new Date(),
-      lastError: 'Ticket escalated to admin before automation ran',
-    })
-    if (!cancelResult.success) return cancelResult
-
-    const ticket = await returnSupportTicketToCsrReview(ticketId)
-
-    revalidateSupportPaths(ticketId, ticket.submissionId)
-    return { success: true }
+      'returnToCsr',
+      'Ticket escalated to admin before automation ran'
+    )
   } catch (error) {
     console.error('Failed to mark support ticket for admin review:', error)
     return { success: false, error: 'Failed to mark support ticket for admin review' }
@@ -112,6 +101,22 @@ export const retrySupportTicketAutomation = adminAction(async (_admin, ticketId:
   }
 })
 
+async function takeOver(
+  ticketId: string,
+  name: 'closeByAdmin' | 'returnToCsr',
+  lastError: string
+): Promise<{ success: true } | Failed> {
+  const now = new Date()
+  const cancelResult = await cancelCancellableSupportJobs({ ticketId, now, lastError })
+  if (!cancelResult.success) return cancelResult
+
+  const moved = await transition(name, ticketId, { at: now })
+  if (!moved.ok) return refused(moved.refusal)
+
+  revalidateSupportPaths(ticketId, moved.value.submissionId)
+  return { success: true }
+}
+
 async function cancelCancellableSupportJobs({
   ticketId,
   now,
@@ -120,8 +125,8 @@ async function cancelCancellableSupportJobs({
   ticketId: string
   now: Date
   lastError: string
-}): Promise<{ success: true } | { success: false; error: string }> {
-  await failQueuedOrRunningSupportJobs(ticketId, { lastError, completedAt: now })
+}): Promise<{ success: true } | Failed> {
+  await cancelSupportJobs(ticketId, { at: now, lastError })
 
   const finalizingJob = await findCommittingSupportJob(ticketId)
 

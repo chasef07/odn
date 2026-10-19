@@ -10,10 +10,8 @@ const {
   mockFindActiveSupportTicketForPhone,
   mockCreateInboundSupportTicket,
   mockRecordSupportTicketInbound,
-  mockUpdateSupportTicketConversation,
-  mockEscalateSupportTicketToCsr,
-  mockMarkSupportTicketReplyFailed,
-  mockFailQueuedOrRunningSupportJobs,
+  mockTransition,
+  mockCancelSupportJobs,
   mockLinkSmsMessageToSupportTicket,
   mockFindSmsSupportSubmissionCandidatesForPhone,
   mockFindApprovedSubmissionIdForSupportTicket,
@@ -28,10 +26,8 @@ const {
   mockFindActiveSupportTicketForPhone: vi.fn(),
   mockCreateInboundSupportTicket: vi.fn(),
   mockRecordSupportTicketInbound: vi.fn(),
-  mockUpdateSupportTicketConversation: vi.fn(),
-  mockEscalateSupportTicketToCsr: vi.fn(),
-  mockMarkSupportTicketReplyFailed: vi.fn(),
-  mockFailQueuedOrRunningSupportJobs: vi.fn(),
+  mockTransition: vi.fn(),
+  mockCancelSupportJobs: vi.fn(),
   mockLinkSmsMessageToSupportTicket: vi.fn(),
   mockFindSmsSupportSubmissionCandidatesForPhone: vi.fn(),
   mockFindApprovedSubmissionIdForSupportTicket: vi.fn(),
@@ -46,14 +42,19 @@ const {
 
 vi.mock('@/db/sms-support', () => ({
   findActiveSupportTicketForPhone: mockFindActiveSupportTicketForPhone,
-  createInboundSupportTicket: mockCreateInboundSupportTicket,
   recordSupportTicketInbound: mockRecordSupportTicketInbound,
-  updateSupportTicketConversation: mockUpdateSupportTicketConversation,
-  escalateSupportTicketToCsr: mockEscalateSupportTicketToCsr,
-  markSupportTicketReplyFailed: mockMarkSupportTicketReplyFailed,
-  failQueuedOrRunningSupportJobs: mockFailQueuedOrRunningSupportJobs,
   linkSmsMessageToSupportTicket: mockLinkSmsMessageToSupportTicket,
 }))
+
+vi.mock('@/db/sms-support-lifecycle', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/db/sms-support-lifecycle')>()
+  return {
+    required: actual.required,
+    transition: mockTransition,
+    cancelSupportJobs: mockCancelSupportJobs,
+    createInboundSupportTicket: mockCreateInboundSupportTicket,
+  }
+})
 
 vi.mock('@/db/submissions', () => ({
   findSmsSupportSubmissionCandidatesForPhone: mockFindSmsSupportSubmissionCandidatesForPhone,
@@ -105,6 +106,10 @@ function supportTicket(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function moved(ticket: ReturnType<typeof supportTicket>) {
+  return { ok: true, value: ticket }
+}
+
 describe('handleInboundSupportSms', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -114,6 +119,8 @@ describe('handleInboundSupportSms', () => {
     mockFindSmsSupportSubmissionCandidatesForPhone.mockResolvedValue([])
     mockFindLatestApprovedSubmissionIdsForSupportPhone.mockResolvedValue([])
     mockFindApprovedSupportSubmissionIdsByReference.mockResolvedValue([])
+    mockTransition.mockResolvedValue(moved(supportTicket()))
+    mockCancelSupportJobs.mockResolvedValue(0)
   })
 
   it('keeps raw freeform SMS in the ticket but sends a sanitized admin alert summary', async () => {
@@ -128,7 +135,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockEscalateSupportTicketToCsr.mockResolvedValueOnce(csrTicket)
+    mockTransition.mockResolvedValueOnce(moved(csrTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -136,9 +143,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockEscalateSupportTicketToCsr).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'escalate',
       'ticket_123',
       expect.objectContaining({
+        at: expect.any(Date),
         adminSummary: 'Customer message: My SSN is 123-45-6789 and diagnosis is flu',
         collectedData: expect.objectContaining({
           freeformMessage: 'My SSN is 123-45-6789 and diagnosis is flu',
@@ -168,7 +177,7 @@ describe('handleInboundSupportSms', () => {
       { id: 'sub_123', status: 'PENDING_REVIEW', smsMessages: [] },
     ])
     mockCreateInboundSupportTicket.mockResolvedValue(createdTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValue(waitingTicket)
+    mockTransition.mockResolvedValue(moved(waitingTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -195,7 +204,7 @@ describe('handleInboundSupportSms', () => {
       { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
     ])
     mockCreateInboundSupportTicket.mockResolvedValue(createdTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValue(waitingTicket)
+    mockTransition.mockResolvedValue(moved(waitingTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -230,7 +239,7 @@ describe('handleInboundSupportSms', () => {
       { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
     ])
     mockRecordSupportTicketInbound.mockResolvedValueOnce(linkedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(linkedTicket)
+    mockTransition.mockResolvedValueOnce(moved(linkedTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -302,7 +311,7 @@ describe('handleInboundSupportSms', () => {
       { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
     ])
     mockCreateInboundSupportTicket.mockResolvedValue(createdTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValue(waitingTicket)
+    mockTransition.mockResolvedValue(moved(waitingTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -336,7 +345,7 @@ describe('handleInboundSupportSms', () => {
       { id: 'sub_denied', status: 'DENIED', smsMessages: [] },
     ])
     mockCreateInboundSupportTicket.mockResolvedValue(createdTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValue(waitingTicket)
+    mockTransition.mockResolvedValue(moved(waitingTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -374,7 +383,7 @@ describe('handleInboundSupportSms', () => {
       { id: 'sub_other', status: 'APPROVED', smsMessages: [] },
     ])
     mockCreateInboundSupportTicket.mockResolvedValue(createdTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValue(waitingTicket)
+    mockTransition.mockResolvedValue(moved(waitingTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -409,7 +418,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(spamCheckTicket)
+    mockTransition.mockResolvedValueOnce(moved(spamCheckTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -417,10 +426,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockUpdateSupportTicketConversation).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'prompt',
       'ticket_123',
       expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: expect.any(Date),
         state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK,
         category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
       })
@@ -452,7 +462,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(closedTicket)
+    mockTransition.mockResolvedValueOnce(moved(closedTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -460,16 +470,9 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockUpdateSupportTicketConversation).toHaveBeenLastCalledWith(
-      'ticket_123',
-      expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.CLOSED,
-        state: SMS_SUPPORT_STATE.CLOSED,
-        category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
-        adminSummary: 'Customer found the note after checking spam/junk.',
-        closedAt: expect.any(Date),
-      })
-    )
+    expect(mockTransition).toHaveBeenLastCalledWith('closeFound', 'ticket_123', {
+      at: expect.any(Date),
+    })
     expect(mockSendSupportSms).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
@@ -495,7 +498,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(collectEmailTicket)
+    mockTransition.mockResolvedValueOnce(moved(collectEmailTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -503,10 +506,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockUpdateSupportTicketConversation).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'prompt',
       'ticket_123',
       expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: expect.any(Date),
         state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_COLLECT_EMAIL,
         category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
       })
@@ -537,7 +541,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockEscalateSupportTicketToCsr.mockResolvedValueOnce(csrTicket)
+    mockTransition.mockResolvedValueOnce(moved(csrTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -545,9 +549,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockEscalateSupportTicketToCsr).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'escalate',
       'ticket_123',
       expect.objectContaining({
+        at: expect.any(Date),
         category: SMS_SUPPORT_CATEGORY.RETURN_DATE,
         adminSummary: 'Customer asked a return-date question by SMS.',
       })
@@ -572,7 +578,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockEscalateSupportTicketToCsr.mockResolvedValueOnce(csrTicket)
+    mockTransition.mockResolvedValueOnce(moved(csrTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -580,9 +586,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockEscalateSupportTicketToCsr).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'escalate',
       'ticket_123',
       expect.objectContaining({
+        at: expect.any(Date),
         category: SMS_SUPPORT_CATEGORY.RETURN_DATE,
       })
     )
@@ -610,7 +618,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(changeMenuTicket)
+    mockTransition.mockResolvedValueOnce(moved(changeMenuTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -618,10 +626,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockUpdateSupportTicketConversation).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'prompt',
       'ticket_123',
       expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: expect.any(Date),
         state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
         category: null,
       })
@@ -651,7 +660,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(otherMenuTicket)
+    mockTransition.mockResolvedValueOnce(moved(otherMenuTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -659,10 +668,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockUpdateSupportTicketConversation).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'prompt',
       'ticket_123',
       expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: expect.any(Date),
         state: SMS_SUPPORT_STATE.OTHER_MENU,
         category: SMS_SUPPORT_CATEGORY.OTHER,
       })
@@ -693,7 +703,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockEscalateSupportTicketToCsr.mockResolvedValueOnce(csrTicket)
+    mockTransition.mockResolvedValueOnce(moved(csrTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -703,9 +713,11 @@ describe('handleInboundSupportSms', () => {
 
     expect(mockEnqueueSupportAutomationJob).not.toHaveBeenCalled()
     expect(mockProcessSmsSupportJobNow).not.toHaveBeenCalled()
-    expect(mockEscalateSupportTicketToCsr).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'escalate',
       'ticket_123',
       expect.objectContaining({
+        at: expect.any(Date),
         category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
         adminSummary: 'Customer asked to change first/last day off by SMS.',
       })
@@ -738,7 +750,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockEscalateSupportTicketToCsr.mockResolvedValueOnce(csrTicket)
+    mockTransition.mockResolvedValueOnce(moved(csrTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -746,9 +758,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockEscalateSupportTicketToCsr).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'escalate',
       'ticket_123',
       expect.objectContaining({
+        at: expect.any(Date),
         category: SMS_SUPPORT_CATEGORY.CHANGE_DATES,
       })
     )
@@ -777,9 +791,7 @@ describe('handleInboundSupportSms', () => {
     })
 
     expect(mockRecordSupportTicketInbound).toHaveBeenCalledTimes(1)
-    expect(mockUpdateSupportTicketConversation).not.toHaveBeenCalled()
-    expect(mockEscalateSupportTicketToCsr).not.toHaveBeenCalled()
-    expect(mockMarkSupportTicketReplyFailed).not.toHaveBeenCalled()
+    expect(mockTransition).not.toHaveBeenCalled()
     expect(mockRecordSupportTicketInbound).toHaveBeenCalledWith('ticket_123', {
       matchedSubmissionId: undefined,
       lastInboundAt: new Date('2026-06-29T12:05:00Z'),
@@ -809,12 +821,14 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(
-      supportTicket({
-        submissionId: 'abc12345-submission',
-        state: SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT,
-        category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
-      })
+    mockTransition.mockResolvedValueOnce(
+      moved(
+        supportTicket({
+          submissionId: 'abc12345-submission',
+          state: SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT,
+          category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
+        })
+      )
     )
     mockFindSmsSupportSubmissionCandidatesForPhone.mockResolvedValueOnce([
       { id: 'abc12345-submission', status: 'APPROVED', smsMessages: [] },
@@ -835,9 +849,11 @@ describe('handleInboundSupportSms', () => {
       idPrefix: 'abc12345',
       medicalRecordNumber: 'ABC12345',
     })
-    expect(mockUpdateSupportTicketConversation).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'prompt',
       'ticket_123',
       expect.objectContaining({
+        at: expect.any(Date),
         submissionId: 'abc12345-submission',
         state: SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT,
         category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
@@ -882,9 +898,7 @@ describe('handleInboundSupportSms', () => {
     expect(mockFindLatestApprovedSubmissionIdsForSupportPhone).not.toHaveBeenCalled()
     expect(mockFindApprovedSupportSubmissionIdsByReference).not.toHaveBeenCalled()
     expect(mockRecordSupportTicketInbound).toHaveBeenCalledTimes(1)
-    expect(mockUpdateSupportTicketConversation).not.toHaveBeenCalled()
-    expect(mockEscalateSupportTicketToCsr).not.toHaveBeenCalled()
-    expect(mockMarkSupportTicketReplyFailed).not.toHaveBeenCalled()
+    expect(mockTransition).not.toHaveBeenCalled()
     expect(mockSendSupportSms).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
@@ -940,7 +954,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockEscalateSupportTicketToCsr.mockResolvedValueOnce(csrTicket)
+    mockTransition.mockResolvedValueOnce(moved(csrTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -948,9 +962,11 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockEscalateSupportTicketToCsr).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'escalate',
       'ticket_123',
       expect.objectContaining({
+        at: expect.any(Date),
         category: SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE,
         adminSummary: 'Customer asked to change note purpose to a legal matter by SMS.',
       })
@@ -981,7 +997,7 @@ describe('handleInboundSupportSms', () => {
 
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(queuedTicket)
+    mockTransition.mockResolvedValueOnce(moved(queuedTicket))
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
@@ -1004,11 +1020,11 @@ describe('handleInboundSupportSms', () => {
         workerId: expect.stringMatching(/^sms-inbound-/),
       })
     )
-    expect(mockUpdateSupportTicketConversation).toHaveBeenLastCalledWith(
+    expect(mockTransition).toHaveBeenLastCalledWith(
+      'queueAutomation',
       'ticket_123',
       expect.objectContaining({
-        status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-        state: SMS_SUPPORT_STATE.CSR_REVIEW,
+        at: expect.any(Date),
         category: SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE,
         collectedData: {
           notePurpose: 'both',
@@ -1044,8 +1060,8 @@ describe('handleInboundSupportSms', () => {
     mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
     mockFindApprovedSubmissionIdForSupportTicket.mockResolvedValue({ id: 'sub_123' })
     mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
-    mockUpdateSupportTicketConversation.mockResolvedValueOnce(collectTicket)
-    mockMarkSupportTicketReplyFailed.mockResolvedValueOnce(failedTicket)
+    mockTransition.mockResolvedValueOnce(moved(collectTicket))
+    mockTransition.mockResolvedValueOnce(moved(failedTicket))
     mockSendSupportSms.mockResolvedValue({ success: false, error: 'Telnyx timeout' })
 
     await handleInboundSupportSms({
@@ -1054,19 +1070,45 @@ describe('handleInboundSupportSms', () => {
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockMarkSupportTicketReplyFailed).toHaveBeenLastCalledWith(
-      'ticket_123',
-      'Support SMS send failed: Telnyx timeout'
-    )
+    expect(mockTransition).toHaveBeenLastCalledWith('replyFailed', 'ticket_123', {
+      at: expect.any(Date),
+      failureReason: 'Support SMS send failed: Telnyx timeout',
+    })
     expect(mockAlertSupportTicketNeedsCsr).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
         summary: 'Support SMS failed to send. Customer may not have received the latest prompt.',
       })
     )
-    expect(mockFailQueuedOrRunningSupportJobs).toHaveBeenCalledWith('ticket_123', {
+    expect(mockCancelSupportJobs).toHaveBeenCalledWith('ticket_123', {
       lastError: 'Support SMS failed before automation completed',
-      completedAt: expect.any(Date),
+      at: expect.any(Date),
     })
+  })
+
+  it('fails loudly without replying when the ticket left the conversation before the prompt was saved', async () => {
+    const activeTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.INTRO_MENU,
+      category: null,
+    })
+
+    mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
+    mockRecordSupportTicketInbound.mockResolvedValueOnce(activeTicket)
+    mockTransition.mockResolvedValue({
+      ok: false,
+      refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.CLOSED },
+    })
+
+    await expect(
+      handleInboundSupportSms({
+        fromPhone: '+15551234567',
+        body: '2 change note',
+        receivedAt: new Date('2026-06-29T12:05:00Z'),
+      })
+    ).rejects.toThrow('prompt of support ticket ticket_123 was refused: the status is CLOSED')
+
+    expect(mockTransition).toHaveBeenCalledTimes(1)
+    expect(mockSendSupportSms).not.toHaveBeenCalled()
+    expect(mockCancelSupportJobs).not.toHaveBeenCalled()
   })
 })
