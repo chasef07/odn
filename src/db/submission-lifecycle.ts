@@ -258,6 +258,10 @@ const entries = {
   },
 } as const
 
+export const RELEASE_TARGETS: readonly SubmissionStatus[] = [
+  ...new Set([...entries.deny.from, ...entries.overrideDeny.from]),
+]
+
 export type Transition = keyof typeof entries
 export type Settlement = 'recordRefund' | 'releaseRefund'
 export type Decision = Exclude<Transition, Settlement>
