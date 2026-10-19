@@ -36,10 +36,6 @@ export type FriendsFamilySubmissionInput = {
   recipient: string
   email: string
   phone: string
-  notePurpose: string
-  firstDayOff: Date
-  lastDayOff: Date
-  denialReason: string | null
   maybeReason: string | null
   stripeRefundId: string | null
   refundedAt: Date | null
@@ -55,27 +51,7 @@ export type FriendsFamilyReason = {
   tone: FriendsFamilyTone
 }
 
-export type FriendsFamilyScoreFactor = {
-  label: string
-  value: number
-}
-
-export type FriendsFamilyTimelineEntry = {
-  id: string
-  status: SubmissionStatus
-  notePurpose: string
-  submittedAt: string
-  reviewedAt: string | null
-  firstDayOff: string
-  lastDayOff: string
-  denialReason: string | null
-  maybeReason: string | null
-  refunded: boolean
-  offerCode: string | null
-  paymentAmount: number | null
-}
-
-export type FriendsFamilyCustomerSegment = {
+export type FriendsFamilyCustomerRow = {
   customerKey: string
   displayName: string
   email: string
@@ -84,7 +60,6 @@ export type FriendsFamilyCustomerSegment = {
   priority: FriendsFamilyPriority
   segments: FriendsFamilySegmentKey[]
   reasons: FriendsFamilyReason[]
-  scoreFactors: FriendsFamilyScoreFactor[]
   lastSubmittedAt: string
   lastApprovedAt: string | null
   firstSubmittedAt: string
@@ -103,13 +78,7 @@ export type FriendsFamilyCustomerSegment = {
   netRevenueCents: number
   uniquePatients: number
   familySignal: boolean
-  timeline: FriendsFamilyTimelineEntry[]
 }
-
-export type FriendsFamilyCustomerRow = Omit<
-  FriendsFamilyCustomerSegment,
-  'scoreFactors' | 'timeline'
->
 
 export type FriendsFamilyAnalyticsSummary = {
   totalCustomers: number
@@ -142,10 +111,6 @@ export type FriendsFamilyAnalyticsOptions = {
   limit?: number
 }
 
-export function getFriendsFamilyCustomerKey(submission: FriendsFamilySubmissionInput): string {
-  return getCustomerKey(submission)
-}
-
 function submissionCustomerName(submission: FriendsFamilySubmissionInput): string {
   if (submission.guardianFirstName || submission.guardianLastName) {
     return [submission.guardianFirstName, submission.guardianLastName].filter(Boolean).join(' ')
@@ -167,13 +132,11 @@ function approvedAt(submission: FriendsFamilySubmissionInput): Date | null {
 }
 
 function addFactor(
-  factors: FriendsFamilyScoreFactor[],
   reasons: FriendsFamilyReason[],
   label: string,
   value: number,
   tone: FriendsFamilyTone
 ): number {
-  factors.push({ label, value })
   reasons.push({ label, tone })
   return value
 }
@@ -199,7 +162,7 @@ function buildCustomerSegment(
   customerKey: string,
   submissions: FriendsFamilySubmissionInput[],
   referenceDate: Date
-): FriendsFamilyCustomerSegment {
+): FriendsFamilyCustomerRow {
   const sorted = [...submissions].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   const latest = sorted[0]
   const thirtyDaysAgo = new Date(referenceDate.getTime() - 30 * MS_PER_DAY)
@@ -261,49 +224,47 @@ function buildCustomerSegment(
       : null
 
   const reasons: FriendsFamilyReason[] = []
-  const scoreFactors: FriendsFamilyScoreFactor[] = []
   let score = 0
 
   if (approvedNotes >= 2) {
-    score += addFactor(scoreFactors, reasons, 'Repeat successful customer', 30, 'positive')
+    score += addFactor(reasons, 'Repeat successful customer', 30, 'positive')
   }
   if (approvedNotes >= 3) {
-    score += addFactor(scoreFactors, reasons, '3+ approved notes', 10, 'positive')
+    score += addFactor(reasons, '3+ approved notes', 10, 'positive')
   }
 
   if (daysSinceLastApproved !== null) {
     if (daysSinceLastApproved < 14) {
-      score += addFactor(scoreFactors, reasons, 'Too recent to discount', -20, 'warning')
+      score += addFactor(reasons, 'Too recent to discount', -20, 'warning')
     } else if (daysSinceLastApproved < 30) {
-      score += addFactor(scoreFactors, reasons, 'Recently active', 5, 'positive')
+      score += addFactor(reasons, 'Recently active', 5, 'positive')
     } else if (daysSinceLastApproved <= 90) {
-      score += addFactor(scoreFactors, reasons, 'Sweet spot recency', 25, 'positive')
+      score += addFactor(reasons, 'Sweet spot recency', 25, 'positive')
     } else if (daysSinceLastApproved <= 180) {
-      score += addFactor(scoreFactors, reasons, 'Cooling off', -5, 'warning')
+      score += addFactor(reasons, 'Cooling off', -5, 'warning')
     } else {
-      score += addFactor(scoreFactors, reasons, 'Cold lead', -20, 'warning')
+      score += addFactor(reasons, 'Cold lead', -20, 'warning')
     }
   }
 
   if (approvedNotes === 0) {
-    score += addFactor(scoreFactors, reasons, 'No approved history', -15, 'warning')
+    score += addFactor(reasons, 'No approved history', -15, 'warning')
   }
 
   if (familySignal) {
-    score += addFactor(scoreFactors, reasons, 'Family or caregiver pattern', 8, 'positive')
+    score += addFactor(reasons, 'Family or caregiver pattern', 8, 'positive')
   }
 
   if (refundedNotes === 0) {
-    score += addFactor(scoreFactors, reasons, 'No refund history', 12, 'positive')
+    score += addFactor(reasons, 'No refund history', 12, 'positive')
   } else {
-    score += addFactor(scoreFactors, reasons, 'Refund history', -45, 'negative')
+    score += addFactor(reasons, 'Refund history', -45, 'negative')
   }
 
   if (deniedNotes === 0) {
-    score += addFactor(scoreFactors, reasons, 'No denial history', 5, 'positive')
+    score += addFactor(reasons, 'No denial history', 5, 'positive')
   } else {
     score += addFactor(
-      scoreFactors,
       reasons,
       `${deniedNotes} prior ${deniedNotes === 1 ? 'denial' : 'denials'}`,
       Math.max(-20, -8 * deniedNotes),
@@ -312,17 +273,17 @@ function buildCustomerSegment(
   }
 
   if (maybeNotes > 0) {
-    score += addFactor(scoreFactors, reasons, 'Maybe review history', -5, 'warning')
+    score += addFactor(reasons, 'Maybe review history', -5, 'warning')
   }
 
   if (openNotes > 0) {
-    score += addFactor(scoreFactors, reasons, 'Open case needs resolution', -30, 'warning')
+    score += addFactor(reasons, 'Open case needs resolution', -30, 'warning')
   }
 
   if (offerUsedCount > 0) {
-    score += addFactor(scoreFactors, reasons, 'Already used doctor10', -25, 'warning')
+    score += addFactor(reasons, 'Already used doctor10', -25, 'warning')
   } else if (standardPriceNotes > 0) {
-    score += addFactor(scoreFactors, reasons, 'Paid standard price before', 8, 'positive')
+    score += addFactor(reasons, 'Paid standard price before', 8, 'positive')
   }
 
   const finalScore = clampScore(score)
@@ -357,7 +318,6 @@ function buildCustomerSegment(
     priority,
     segments,
     reasons,
-    scoreFactors,
     lastSubmittedAt: toIsoDate(latest.createdAt),
     lastApprovedAt: lastApprovedAt ? toIsoDate(lastApprovedAt) : null,
     firstSubmittedAt: toIsoDate(sorted[sorted.length - 1].createdAt),
@@ -376,20 +336,6 @@ function buildCustomerSegment(
     netRevenueCents,
     uniquePatients,
     familySignal,
-    timeline: sorted.map((submission) => ({
-      id: submission.id,
-      status: submission.status,
-      notePurpose: submission.notePurpose,
-      submittedAt: toIsoDate(submission.createdAt),
-      reviewedAt: submission.reviewedAt ? toIsoDate(submission.reviewedAt) : null,
-      firstDayOff: dateOnlyFromUtcDate(submission.firstDayOff),
-      lastDayOff: dateOnlyFromUtcDate(submission.lastDayOff),
-      denialReason: submission.denialReason,
-      maybeReason: submission.maybeReason,
-      refunded: Boolean(submission.refundedAt) || Boolean(submission.stripeRefundId),
-      offerCode: normalizeOfferCode(submission.offerCode),
-      paymentAmount: submission.paymentAmount,
-    })),
   }
 }
 
@@ -413,7 +359,7 @@ export function buildFriendsFamilyAnalytics(
   }
 
   for (const submission of submissions) {
-    const customerKey = getFriendsFamilyCustomerKey(submission)
+    const customerKey = getCustomerKey(submission)
     const existing = grouped.get(customerKey)
     if (existing) {
       existing.push(submission)
@@ -422,7 +368,7 @@ export function buildFriendsFamilyAnalytics(
     }
   }
 
-  const byScore = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
+  const byScore = (a: FriendsFamilyCustomerRow, b: FriendsFamilyCustomerRow) => {
     if (b.score !== a.score) return b.score - a.score
     const aApproved = a.lastApprovedAt ? new Date(a.lastApprovedAt).getTime() : 0
     const bApproved = b.lastApprovedAt ? new Date(b.lastApprovedAt).getTime() : 0
@@ -430,14 +376,14 @@ export function buildFriendsFamilyAnalytics(
     return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
   }
 
-  const byRecency = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
+  const byRecency = (a: FriendsFamilyCustomerRow, b: FriendsFamilyCustomerRow) => {
     const aApproved = a.lastApprovedAt ? new Date(a.lastApprovedAt).getTime() : 0
     const bApproved = b.lastApprovedAt ? new Date(b.lastApprovedAt).getTime() : 0
     if (bApproved !== aApproved) return bApproved - aApproved
     return new Date(b.lastSubmittedAt).getTime() - new Date(a.lastSubmittedAt).getTime()
   }
 
-  const byNotes = (a: FriendsFamilyCustomerSegment, b: FriendsFamilyCustomerSegment) => {
+  const byNotes = (a: FriendsFamilyCustomerRow, b: FriendsFamilyCustomerRow) => {
     if (b.approvedNotes !== a.approvedNotes) return b.approvedNotes - a.approvedNotes
     return byRecency(a, b)
   }
@@ -489,24 +435,6 @@ export function buildFriendsFamilyAnalytics(
     activeSegment,
     segmentTotal: activeCustomers.length,
     limit,
-    customers: activeCustomers
-      .slice(0, limit)
-      .map(({ scoreFactors, timeline, ...customer }) => customer),
+    customers: activeCustomers.slice(0, limit),
   }
-}
-
-export function buildFriendsFamilyCustomerDetail(
-  submissions: FriendsFamilySubmissionInput[],
-  customerKey: string,
-  referenceDate = new Date()
-): FriendsFamilyCustomerSegment | null {
-  const matchingSubmissions = submissions.filter(
-    (submission) => getFriendsFamilyCustomerKey(submission) === customerKey
-  )
-
-  if (matchingSubmissions.length === 0) {
-    return null
-  }
-
-  return buildCustomerSegment(customerKey, matchingSubmissions, referenceDate)
 }

@@ -1,22 +1,13 @@
 'use server'
 
-import {
-  findBusinessAnalyticsPage,
-  findFriendsFamilyAnalyticsPage,
-  findFriendsFamilyCustomerSubmissions,
-  type CustomerMatch,
-} from '@/db/submissions'
+import { findBusinessAnalyticsPage, findFriendsFamilyAnalyticsPage } from '@/db/submissions'
 import type { SubmissionStatus } from '@/db/types'
-import { parseDateOnly, utcDateFromDateOnly } from '@/lib/dates'
 import { logger } from '@/lib/logger'
-import { toNationalDigits } from '@/lib/phone-utils'
 import {
-  buildFriendsFamilyCustomerDetail,
   buildFriendsFamilyAnalytics,
   type FriendsFamilyAnalytics,
   type FriendsFamilyAnalyticsOptions,
   type FriendsFamilyCustomerRow,
-  type FriendsFamilyCustomerSegment,
   type FriendsFamilySegmentFilter,
   type FriendsFamilySubmissionInput,
 } from '@/lib/friends-family-analytics'
@@ -121,74 +112,6 @@ export const exportFriendsFamilyCustomers = adminAction(
     } catch (error) {
       logger.error('Error exporting friends and family customers:', error)
       return { success: false, error: 'Failed to export customer list' }
-    }
-  }
-)
-
-function getFriendsFamilyCustomerMatch(customerKey: string): CustomerMatch | null {
-  const separatorIndex = customerKey.indexOf(':')
-  if (separatorIndex <= 0) {
-    return null
-  }
-
-  const keyType = customerKey.slice(0, separatorIndex)
-  const keyValue = customerKey.slice(separatorIndex + 1)
-
-  if (keyType === 'email') {
-    const email = keyValue.trim().toLowerCase()
-    return email ? { by: 'email', email } : null
-  }
-
-  if (keyType === 'phone') {
-    const digits = toNationalDigits(keyValue)
-    if (!digits) {
-      return null
-    }
-
-    return { by: 'phone', digits }
-  }
-
-  if (keyType === 'patient') {
-    const [firstName, lastName, dateOfBirth, ...extraParts] = keyValue.split(':')
-    if (!firstName || !lastName || !dateOfBirth || extraParts.length > 0) {
-      return null
-    }
-
-    const day = parseDateOnly(dateOfBirth)
-    if (!day) return null
-
-    return { by: 'patient', firstName, lastName, dateOfBirth: utcDateFromDateOnly(day) }
-  }
-
-  return null
-}
-
-export const getFriendsFamilyCustomerDetail = adminAction(
-  async (
-    _admin,
-    customerKey: string
-  ): Promise<{
-    success: boolean
-    data?: FriendsFamilyCustomerSegment
-    error?: string
-  }> => {
-    try {
-      const match = getFriendsFamilyCustomerMatch(customerKey)
-      if (!match) {
-        return { success: false, error: 'Customer not found' }
-      }
-
-      const submissions = await findFriendsFamilyCustomerSubmissions(match)
-
-      const customer = buildFriendsFamilyCustomerDetail(submissions, customerKey)
-      if (!customer) {
-        return { success: false, error: 'Customer not found' }
-      }
-
-      return { success: true, data: customer }
-    } catch (error) {
-      logger.error('Error fetching friends and family customer detail:', error)
-      return { success: false, error: 'Failed to fetch customer detail' }
     }
   }
 )

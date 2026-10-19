@@ -55,7 +55,6 @@ import {
   findBusinessAnalyticsPage,
   findDueFollowUpEmails,
   findFriendsFamilyAnalyticsPage,
-  findFriendsFamilyCustomerSubmissions,
   findLatestApprovedSubmissionIdsForSupportPhone,
   findLatestSubmission,
   findLatestSubmissionIdForInboundSmsPhone,
@@ -618,7 +617,7 @@ describe('analytics pages', () => {
     const page2 = await findFriendsFamilyAnalyticsPage(T0, 2, b.id)
     expect(ids(page1)).toEqual([a.id, b.id])
     expect(ids(page2)).toEqual([c.id, atCutoff.id])
-    expect(Object.keys(page1[0])).toHaveLength(22)
+    expect(Object.keys(page1[0])).toHaveLength(18)
 
     const business = await findBusinessAnalyticsPage(T0, 10, a.id)
     expect(ids(business)).toEqual([b.id, c.id, atCutoff.id])
@@ -639,38 +638,6 @@ describe('analytics pages', () => {
       refundedAt: null,
       createdAt: at(1),
     })
-  })
-
-  it('matches customers by email, phone digits or patient identity, newest first', async () => {
-    const byEmailOld = await seed({ email: 'buyer@example.com', createdAt: at(1) })
-    const byEmailNew = await seed({ email: 'Buyer@example.com', createdAt: at(2) })
-    const formatted = await seed({ phone: '(555) 123-4567', patientLastName: 'A' })
-    const dotted = await seed({ phone: '555.123.4567', patientLastName: 'B' })
-    const spaced = await seed({ phone: '+1 555 123 4567', patientLastName: 'C' })
-    const other = await seed({ phone: '(555) 123-9999', patientLastName: 'D' })
-    await seed({ phone: '(999) 123-4567', patientLastName: 'E' })
-    await seed({ phone: '(555) 999-4567', patientLastName: 'F' })
-    const patient = await seed({ patientFirstName: 'JOHN', patientLastName: 'DOE', phone: '000' })
-
-    expect(
-      ids(await findFriendsFamilyCustomerSubmissions({ by: 'email', email: 'BUYER@example.com' }))
-    ).toEqual([byEmailNew.id, byEmailOld.id])
-    expect(
-      ids(await findFriendsFamilyCustomerSubmissions({ by: 'phone', digits: '5551234567' })).sort()
-    ).toEqual([byEmailNew.id, byEmailOld.id, formatted.id, dotted.id, spaced.id].sort())
-    expect(
-      ids(await findFriendsFamilyCustomerSubmissions({ by: 'phone', digits: '9999' }))
-    ).toEqual([other.id])
-    expect(
-      ids(
-        await findFriendsFamilyCustomerSubmissions({
-          by: 'patient',
-          firstName: 'john',
-          lastName: 'doe',
-          dateOfBirth: DOB,
-        })
-      ).sort()
-    ).toEqual([byEmailNew.id, byEmailOld.id, patient.id].sort())
   })
 })
 
