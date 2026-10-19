@@ -85,6 +85,38 @@ describe('friends-family analytics segmentation', () => {
     expect(legacy?.segments).not.toContain('offer_used')
   })
 
+  it('adds up the score from each factor and clamps it to 0..100', () => {
+    const recent = customerByEmail([submission()], 'jane@example.com')
+    expect(recent?.score).toBe(5)
+    expect(recent?.reasons.map((reason) => reason.label)).toEqual([
+      'Too recent to discount',
+      'No refund history',
+      'No denial history',
+      'Paid standard price before',
+    ])
+
+    const repeat = customerByEmail(
+      [
+        submission({ id: 'approved', createdAt: daysAgo(45), reviewedAt: daysAgo(45) }),
+        submission({ id: 'approved-2', createdAt: daysAgo(70), reviewedAt: daysAgo(70) }),
+        submission({
+          id: 'denied',
+          status: SubmissionStatus.DENIED,
+          createdAt: daysAgo(80),
+          reviewedAt: daysAgo(79),
+        }),
+      ],
+      'jane@example.com'
+    )
+    expect(repeat?.score).toBe(67)
+
+    const refunded = customerByEmail(
+      [submission({ stripeRefundId: 're_1', refundedAt: daysAgo(9), createdAt: daysAgo(200) })],
+      'jane@example.com'
+    )
+    expect(refunded?.score).toBe(0)
+  })
+
   it('ranks lapsed repeat full-price customers as the best targets', () => {
     const analytics = buildFriendsFamilyAnalytics(
       [
