@@ -303,16 +303,19 @@ describe('a refund made in the Stripe dashboard', () => {
     expect(await activeNotes(approved.id)).toBe(0)
   })
 
-  it('refuses to release while Stripe lists only failed or canceled refunds', async () => {
+  it('refuses to release while Stripe lists only failed, canceled or unreadable refunds', async () => {
     const approved = await approvedThenRefundedInStripe()
     await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
     const reserved = await reload(approved.id)
     mockRefundsList.mockResolvedValue({
-      data: [{ ...dashboardRefund, id: 're_failed', status: 'failed' }],
+      data: [
+        { ...dashboardRefund, id: 're_failed', status: 'failed' },
+        { ...dashboardRefund, id: 're_odd', status: null },
+      ],
     })
 
     await expect(settleRefundReservation(approved.id, SubmissionStatus.MAYBE)).rejects.toThrow(
-      'only failed or canceled refunds'
+      'no settled refund for pi_'
     )
     expect(await reload(approved.id)).toEqual(reserved)
     expect(mockSendDenialEmail).not.toHaveBeenCalled()

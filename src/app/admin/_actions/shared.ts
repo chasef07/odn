@@ -137,7 +137,7 @@ export async function finishRefundedDenial(
   return notifyDenial(recorded.value, reason, refund.amount)
 }
 
-const REFUND_NEVER_PAID = new Set(['failed', 'canceled'])
+const REFUND_SETTLED = new Set(['pending', 'requires_action', 'succeeded'])
 
 export type RefundSettlement =
   | { settled: 'recorded'; refundId: string; notice: ActionResult }
@@ -157,7 +157,9 @@ export async function settleRefundReservation(
     payment_intent: row.stripePaymentIntentId,
     limit: 100,
   })
-  const refund = refunds.find((candidate) => !REFUND_NEVER_PAID.has(candidate.status ?? ''))
+  const refund = refunds.find(
+    (candidate) => candidate.status !== null && REFUND_SETTLED.has(candidate.status)
+  )
   const at = new Date()
 
   if (refund) {
@@ -172,7 +174,7 @@ export async function settleRefundReservation(
   if (refunds.length > 0) {
     const listed = refunds.map((candidate) => `${candidate.id} ${candidate.status}`).join(', ')
     throw new Error(
-      `Stripe lists only failed or canceled refunds for ${row.stripePaymentIntentId} (${listed}); resolve them in Stripe before releasing the reservation`
+      `Stripe lists no settled refund for ${row.stripePaymentIntentId}, only ${listed}; resolve them in Stripe before releasing the reservation`
     )
   }
 
