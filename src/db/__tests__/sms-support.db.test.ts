@@ -460,7 +460,7 @@ describe('ticket creation and lookup', () => {
 describe('ticket conversation lifecycle', () => {
   it('stamps an inbound, linking the matched submission or keeping the current one', async () => {
     const submission = await seedSubmission()
-    const ticket = await seedTicket({ failureReason: 'kept' })
+    const ticket = await seedTicket({ failureReason: 'kept', updatedAt: T0 })
     const other = await seedTicket({ phoneE164: OTHER_PHONE })
 
     const linked = await recordSupportTicketInbound(ticket.id, {
