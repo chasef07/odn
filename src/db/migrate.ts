@@ -211,6 +211,7 @@ function rollbackBeforeRethrow(client: PoolClient): Promise<void> {
 async function applyMigration(client: PoolClient, migration: Migration): Promise<void> {
   try {
     await inTransaction(client, async () => {
+      await client.query('RESET ALL')
       await client.query(migration.sql)
       await client.query('INSERT INTO schema_migrations (name, checksum) VALUES ($1, $2)', [
         migration.name,

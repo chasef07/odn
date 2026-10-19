@@ -43,8 +43,9 @@ function readyOnlyAfterSync(db: PGlite): PGlite {
 }
 
 export async function startTestDatabase({ migrated = true } = {}): Promise<TestDatabase> {
-  const db = await PGlite.create()
-  await db.exec("SET TimeZone TO 'UTC'")
+  const db = await PGlite.create({
+    startParams: [...PGlite.defaultStartParams, '-c', 'TimeZone=UTC'],
+  })
   const server = new PGLiteSocketServer({
     db: readyOnlyAfterSync(db),
     host: '127.0.0.1',
