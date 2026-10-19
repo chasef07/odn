@@ -284,6 +284,12 @@ describe('local/sms-lifecycle-owner', () => {
       violations('const table = tables.smsSupportTickets', "import { tables } from '@/db/tables'\n")
     ).toEqual(['descriptor'])
     expect(
+      violations("const table = x['smsSupportJobs']", "import * as x from './tables'\n")
+    ).toEqual(['descriptor'])
+    expect(violations("const table = x['smsMessages']", "import * as x from './tables'\n")).toEqual(
+      []
+    )
+    expect(
       violations(
         'const details = x.smsSupportTicketDetails\nconst other = tables.smsMessages',
         "import * as x from './tables'\nimport { tables } from '@/db/tables'\n"
@@ -308,6 +314,18 @@ describe('local/sms-lifecycle-owner', () => {
       violations(
         'const rows = insert(smsSupportTickets, row)',
         "import { insert } from './table'\nimport { smsSupportTickets } from '@/db/tables.ts'\n"
+      )
+    ).toEqual(['descriptor'])
+    expect(
+      violations(
+        'const rows = insert(smsSupportJobs, row)',
+        "import { insert } from './table'\nimport { smsSupportJobs } from './tables.mjs'\n"
+      )
+    ).toEqual(['descriptor'])
+    expect(
+      violations(
+        'const rows = insert(smsSupportJobs, row)',
+        "import { insert } from './table'\nimport { smsSupportJobs } from '../db/tables.cjs'\n"
       )
     ).toEqual(['descriptor'])
     expect(violations('const { smsSupportJobs } = t', "import * as t from './tables'\n")).toEqual([
@@ -347,6 +365,80 @@ describe('local/sms-lifecycle-owner', () => {
         'src/db/tables.ts'
       )
     ).toEqual([])
+  })
+
+  it('reads the table name with a spaced schema dot, ONLY, a star and a quoted alias', () => {
+    expectEach({
+      'db.affected(sql`UPDATE public . sms_support_tickets SET status = ${s} WHERE id = ${id}`)': [
+        'lifecycle',
+      ],
+      'db.affected(sql`UPDATE "public" . "sms_support_jobs" SET locked_at = now() WHERE id = ${id}`)':
+        ['lifecycle'],
+      'db.affected(sql`INSERT INTO public . sms_support_jobs (id) SELECT id FROM sms_support_tickets WHERE id = ${id}`)':
+        ['lifecycle'],
+      'db.affected(sql`DELETE FROM ONLY public . sms_support_tickets WHERE id = ${id}`)': [
+        'lifecycle',
+      ],
+      'db.affected(sql`UPDATE sms_support_tickets * SET status = ${s} WHERE id = ${id}`)': [
+        'lifecycle',
+      ],
+      'db.affected(sql`UPDATE ONLY sms_support_jobs * SET locked_at = now() WHERE id = ${id}`)': [
+        'lifecycle',
+      ],
+      'db.affected(sql`UPDATE sms_support_tickets AS "t" SET status = ${s} WHERE "t".id = ${id}`)':
+        ['lifecycle'],
+      'db.affected(sql`UPDATE sms_support_jobs AS "j" SET attempts = 0 WHERE "j".id = ${id}`)': [
+        'lifecycle',
+      ],
+      'db.affected(sql`UPDATE sms_support_tickets "t--" SET state = ${s} WHERE id = ${id}`)': [
+        'lifecycle',
+      ],
+      'db.affected(sql`UPDATE sms_support_tickets AS "it\'s" SET closed_at = now() WHERE id = ${id}`)':
+        ['lifecycle'],
+      'db.affected(sql`UPDATE sms_support_tickets "t" SET "last_outbound_at" = now() WHERE "t".id = ${id}`)':
+        [],
+      'db.affected(sql`UPDATE public . sms_messages SET status = ${s} WHERE id = ${id}`)': [],
+    })
+  })
+
+  it('ends a ticket SET clause at a top-level WHERE, RETURNING, semicolon, the end, or a FROM that does not follow IS DISTINCT', () => {
+    expectEach({
+      'db.affected(sql`UPDATE sms_support_tickets SET admin_summary = ${a} IS DISTINCT FROM ${b}, status = ${s} WHERE id = ${id}`)':
+        ['lifecycle'],
+      'db.affected(sql`UPDATE sms_support_tickets SET admin_summary = ${a} IS NOT DISTINCT FROM ${b}, state = ${s} WHERE id = ${id}`)':
+        ['lifecycle'],
+      'db.affected(sql`UPDATE sms_support_tickets SET admin_summary = ${a} is  distinct\n  from ${b}, closed_at = now()`)':
+        ['lifecycle'],
+      'db.affected(sql`UPDATE sms_support_tickets t SET admin_summary = m.body FROM sms_messages m WHERE m.status = ${s} AND t.id = ${id}`)':
+        [],
+      'db.affected(sql`UPDATE sms_support_tickets SET last_outbound_at = now() RETURNING status, state`)':
+        [],
+      'db.affected(sql`UPDATE sms_support_tickets SET retry_count = 0; SELECT status FROM sms_support_tickets`)':
+        [],
+    })
+  })
+
+  it('keeps a row-constructor target in the SET clause after SET or a comma', () => {
+    expectEach({
+      'db.affected(sql`UPDATE sms_support_tickets SET admin_summary = ${a}, (status, state) = (${s}, ${t}) WHERE id = ${id}`)':
+        ['lifecycle'],
+      'db.affected(sql`UPDATE sms_support_tickets SET retry_count = 0,(automation_status) = ROW(${s}) WHERE id = ${id}`)':
+        ['lifecycle'],
+      'db.affected(sql`UPDATE sms_support_tickets SET admin_summary = ${a}, (retry_count, last_outbound_at) = (${n}, now()) WHERE id = ${id}`)':
+        [],
+    })
+  })
+
+  it('flags TRUNCATE of either table', () => {
+    expectEach({
+      'db.affected(sql`TRUNCATE sms_support_jobs`)': ['lifecycle'],
+      'db.affected(sql`truncate table only public.sms_support_tickets restart identity cascade`)': [
+        'lifecycle',
+      ],
+      'db.affected(sql`TRUNCATE sms_messages, "sms_support_jobs"`)': ['lifecycle'],
+      'db.affected(sql`TRUNCATE sms_messages; SELECT id FROM sms_support_jobs`)': [],
+      'db.affected(sql`TRUNCATE sms_support_jobs_archive`)': [],
+    })
   })
 
   it('leaves UI copy and other tables alone', () => {
@@ -479,6 +571,85 @@ describe('verifier bypasses', () => {
   for (const [name, [source, expected]] of Object.entries(BYPASSES)) {
     it(name, () => {
       expect(violations(source, BYPASS_IMPORTS, `src/db/zz-${name}.ts`)).toEqual(expected)
+    })
+  }
+})
+
+const ROUND_1_BYPASSES: Record<string, [string, string[]]> = {
+  'N01-quoted-alias': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets AS \"t\" SET status = 'CLOSED' WHERE \"t\".id = ${id}`)\n",
+    ['lifecycle'],
+  ],
+  'N02-quoted-alias-dashdash': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets \"t--\" SET status = 'CLOSED' WHERE id = ${id}`)\n",
+    ['lifecycle'],
+  ],
+  'N03-quoted-alias-apostrophe': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets AS \"t'\" SET status = 'CLOSED' WHERE id = ${id}`)\n",
+    ['lifecycle'],
+  ],
+  'N04-spaced-schema-dot-update': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE public . sms_support_tickets SET status = 'CLOSED' WHERE id = ${id}`)\n",
+    ['lifecycle'],
+  ],
+  'N05-spaced-schema-dot-insert-select': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`INSERT INTO public . sms_support_jobs (ticket_id, kind, status, payload) SELECT id, 'RUN_SUPPORT_AUTOMATION', 'QUEUED', '{}'::jsonb FROM sms_support_tickets WHERE id = ${id}`)\n",
+    ['lifecycle'],
+  ],
+  'N06-star-suffix': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets * SET status = 'CLOSED' WHERE id = ${id}`)\n",
+    ['lifecycle'],
+  ],
+  'N07-row-constructor-after-scalar': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets SET admin_summary = 'x', (status, state) = ('CLOSED', 'CLOSED') WHERE id = ${id}`)\n",
+    ['lifecycle'],
+  ],
+  'N08-local-set-shadow': [
+    "import { db } from './pool'\nimport { raw, sql } from './sql'\nimport { smsSupportTicketDetails } from './tables'\nfunction set(_table: unknown, _patch: unknown) { return raw(\"status = 'CLOSED'\") }\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets SET ${set(smsSupportTicketDetails, { adminSummary: 'x' })} WHERE id = ${id}`)\n",
+    [],
+  ],
+  'N09-estring-escaped-quote': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets SET admin_summary = E'where\\\\'s', status = 'CLOSED' WHERE id = ${id}`)\n",
+    [],
+  ],
+  'N10-unicode-escape-column': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets SET U&\"stat\\\\0075s\" = 'CLOSED' WHERE id = ${id}`)\n",
+    [],
+  ],
+  'N11-unicode-escape-table': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE U&\"sms\\\\005Fsupport_tickets\" SET status = 'CLOSED' WHERE id = ${id}`)\n",
+    [],
+  ],
+  'N12-is-distinct-from': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE sms_support_tickets SET admin_summary = 'x' IS DISTINCT FROM 'y', status = 'CLOSED' WHERE id = ${id}`)\n",
+    ['lifecycle'],
+  ],
+  'N13-dynamic-import-variable': [
+    "import { db } from './pool'\nimport { insert } from './table'\nconst tablesModule = './tables'\nexport const f = async (ticketId: string) => {\n  const { smsSupportJobs } = await import(tablesModule)\n  return db.affected(insert(smsSupportJobs, { ticketId, kind: 'RUN_SUPPORT_AUTOMATION', status: 'QUEUED', payload: {} } as never))\n}\n",
+    [],
+  ],
+  'N14-do-block': [
+    "import { db } from './pool'\nimport { raw, sql } from './sql'\nexport const f = (id: string) => db.affected(sql`DO $$ BEGIN UPDATE sms_support_tickets SET status = 'CLOSED' WHERE id = ${raw(`'${id}'`)}; END $$`)\n",
+    [],
+  ],
+  'N15-view-multistatement': [
+    "import { getPool } from './pool'\nexport const f = async (id: string) => { await getPool().query(`CREATE OR REPLACE VIEW zz_tickets AS SELECT * FROM sms_support_tickets; UPDATE zz_tickets SET status = 'CLOSED' WHERE id = '${id}'`) }\n",
+    [],
+  ],
+  'N16-truncate': [
+    "import { db } from './pool'\nimport { sql } from './sql'\nexport const f = (_id: string) => db.affected(sql`TRUNCATE sms_support_jobs`)\n",
+    ['lifecycle'],
+  ],
+  'N17-identifier-concat': [
+    "import { db } from './pool'\nimport { identifier, sql } from './sql'\nexport const f = (id: string) => db.affected(sql`UPDATE ${identifier('sms_' + 'support_tickets')} SET status = 'CLOSED' WHERE id = ${id}`)\n",
+    [],
+  ],
+}
+
+describe('verifier round 1 bypasses, as whole files', () => {
+  for (const [name, [source, expected]] of Object.entries(ROUND_1_BYPASSES)) {
+    it(name, () => {
+      expect(violations(source, '', `src/db/zz-${name}.ts`)).toEqual(expected)
     })
   }
 })

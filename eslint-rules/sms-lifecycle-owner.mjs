@@ -2,13 +2,13 @@ const HOLE = '\u0000'
 const HOLE_INDEX = /\u0000(\d+)\u0000/g
 const EVERY_COLUMN = '*'
 const SQL_TOKEN = new RegExp(
-  String.raw`\u0000\d+\u0000|--[^\n]*|/\*[\s\S]*?(?:\*/|$)|'(?:[^']|'')*(?:'|$)|\$([A-Za-z_]\w*)?\$[\s\S]*?(?:\$\1\$|$)|[()]|[^\u0000'$()/-]+|[\s\S]`,
+  String.raw`\u0000\d+\u0000|--[^\n]*|/\*[\s\S]*?(?:\*/|$)|'(?:[^']|'')*(?:'|$)|"(?:[^"\u0000]|"")*(?:"|$)|\$([A-Za-z_]\w*)?\$[\s\S]*?(?:\$\1\$|$)|[()]|[^\u0000'"$()/-]+|[\s\S]`,
   'g'
 )
 const QUOTED = /^(?:'|\$\w*\$)/
 const COMMENT = /^(?:--|\/\*)/
-const ROW_CONSTRUCTOR = /\bSET\s*$/i
-const INSERT_TARGET = /\bINSERT\s+INTO\s+(?:"?public"?\.)?"?(\w+)"?/i
+const ROW_CONSTRUCTOR = /(?:\bSET|,)\s*$/i
+const INSERT_TARGET = /\bINSERT\s+INTO\s+(?:"?public"?\s*\.\s*)?"?(\w+)"?/i
 const DO_UPDATE_SET = /\bDO\s+UPDATE\s+SET\b([\s\S]*?)(?=\s(?:WHERE|RETURNING)\b|;|$)/gi
 const TABLES_MODULE = /(^|\/)tables(\.[cm]?js|\.ts)?$/
 const TABLES_FILE = /(^|[\\/])src[\\/]db[\\/]tables\.ts$/
@@ -23,16 +23,17 @@ function columnMatcher(columns) {
 }
 
 function compileTable(table) {
-  const name = String.raw`(?:"?public"?\.)?"?${table.name}"?`
+  const name = String.raw`(?:"?public"?\s*\.\s*)?"?${table.name}"?`
   return {
     name: table.name,
     details: table.details,
     definition: new RegExp(String.raw`^${name}$`, 'i'),
     updateSet: new RegExp(
-      String.raw`\bUPDATE\s+(?:ONLY\s+)?${name}(?:\s+(?:AS\s+)?(?!SET\b)[A-Za-z_]\w*)?\s+SET\b([\s\S]*?)(?=\s(?:WHERE|RETURNING|FROM)\b|;|$)`,
+      String.raw`\bUPDATE\s+(?:ONLY\s+)?${name}(?:\s*\*)?(?:\s+(?:AS\s+)?(?!SET\b)(?:[A-Za-z_]\w*|"[^"]*"))?\s+SET\b([\s\S]*?)(?=\s(?:WHERE|RETURNING)\b|\s(?<!\bIS\s+(?:NOT\s+)?DISTINCT\s+)FROM\b|;|$)`,
       'gi'
     ),
     insertInto: new RegExp(String.raw`\bINSERT\s+INTO\s+${name}(?!\w)`, 'i'),
+    truncate: new RegExp(String.raw`\bTRUNCATE\b[^;]*?\b${table.name}\b`, 'i'),
     deleteFrom: new RegExp(String.raw`\bDELETE\s+FROM\s+(?:ONLY\s+)?${name}(?!\w)`, 'i'),
     mergeInto: new RegExp(String.raw`\bMERGE\s+INTO\s+${name}(?!\w)`, 'i'),
     writesOwnedColumn: columnMatcher(table.columns),
@@ -137,7 +138,9 @@ function writesLifecycle(level, tables) {
   const target = INSERT_TARGET.exec(level)?.[1].toLowerCase()
   const conflictClauses = [...level.matchAll(DO_UPDATE_SET)].map((match) => match[1])
   return tables.some((table) => {
-    if (table.insertInto.test(level) || table.deleteFrom.test(level)) return true
+    if ([table.insertInto, table.deleteFrom, table.truncate].some((write) => write.test(level))) {
+      return true
+    }
     if (setClauses(level, table).some(table.writesOwnedColumn)) return true
     const targeted =
       target === table.name || (target === undefined && table.ownsUnknownConflictTarget)
@@ -329,7 +332,7 @@ function lifecycleOwner(config) {
 
 const smsLifecycleOwner = lifecycleOwner({
   description:
-    'Only src/db/sms-support-lifecycle.ts inserts SMS support tickets, writes their status columns, and writes support jobs',
+    'Flags SQL text outside src/db/sms-support-lifecycle.ts that inserts SMS support tickets, writes their status columns, or writes support jobs',
   tables: [
     {
       name: 'sms_support_tickets',
@@ -345,7 +348,7 @@ const smsLifecycleOwner = lifecycleOwner({
   ],
   messages: {
     lifecycle:
-      'Only src/db/sms-support-lifecycle.ts inserts SMS support tickets, writes their status, state, automation_status and closed_at, and inserts or updates sms_support_jobs. Nothing but deleteEveryRow deletes from either table. Write other ticket columns with set(smsSupportTicketDetails, ...) and move tickets and jobs through the lifecycle.',
+      'Only src/db/sms-support-lifecycle.ts inserts SMS support tickets, writes their status, state, automation_status and closed_at, and inserts or updates sms_support_jobs. Delete or truncate either table only through deleteEveryRow. Write other ticket columns with set(smsSupportTicketDetails, ...) and move tickets and jobs through the lifecycle.',
     interpolation:
       'Inside the SET clause of an UPDATE of sms_support_tickets, interpolate only set(smsSupportTicketDetails, ...). Name every other column in the SQL text, and change status, state, automation_status or closed_at through src/db/sms-support-lifecycle.ts.',
     raw: 'Inside the SET clause of an UPDATE of sms_support_tickets, raw() is refused in every position, the values of a set(smsSupportTicketDetails, ...) patch included, because its text can name status, state, automation_status or closed_at. Name the column in the SQL text and pass the value as a parameter.',
