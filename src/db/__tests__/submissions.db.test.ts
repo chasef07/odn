@@ -18,29 +18,15 @@ import {
 } from '../tables'
 import {
   acknowledgeFollowUpEmailSent,
-  approveManualSubmission,
-  approveReviewableSubmission,
   commitSupportAutomationSubmissionUpdate,
   deleteAllSubmissions,
   deleteSubmissionById,
-  denyManualSubmission,
   insertSubmission,
-  markMaybeSubmissionManual,
-  markPendingSubmissionMaybe,
-  markSubmissionDenied,
-  markSubmissionDeniedAndRefunded,
-  markSubmissionManual,
-  markSubmissionMaybe,
-  markSubmissionRefundReserved,
-  reapproveSubmission,
   recordApprovalEmailSent,
   recordDenialEmailSent,
   recordMaybeEmailSent,
-  recordSubmissionRefund,
   releaseFollowUpEmailClaimAt,
-  releaseSubmissionRefundReservation,
   removeSubmissionGuardian,
-  returnSubmissionToReview,
   updatePendingSubmissionClassification,
   updateSubmissionDetails,
   countSmsOptedInSubmissionsForPhone,
@@ -66,13 +52,11 @@ import {
   findSmsSupportSubmissionCandidatesForPhone,
   findSubmissionById,
   findSubmissionForAdminDetail,
-  findSubmissionForDenial,
   findSubmissionForSupportTicket,
   findSubmissionGuardianDetails,
   findSubmissionIdForPaymentIntent,
   findSubmissionIdsByStatus,
   findSubmissionSmsContact,
-  findSubmissionStatus,
   findSubmissionsApprovedSince,
   findSubmissionsDeniedSince,
   findSubmissionsPendingReview,
@@ -223,19 +207,6 @@ describe('submission lookups', () => {
       guardianLastName: 'Doe',
     })
 
-    expect(await findSubmissionStatus(seeded.id)).toEqual({ status: 'PENDING_REVIEW' })
-    expect(await findSubmissionForDenial(seeded.id)).toEqual({
-      id: seeded.id,
-      stripePaymentIntentId: seeded.stripePaymentIntentId,
-      stripeRefundId: 're_1',
-      email: 'john@example.com',
-      phone: '(555) 123-4567',
-      smsOptIn: true,
-      smsPhoneE164: '+15551234567',
-      patientFirstName: 'John',
-      patientLastName: 'Doe',
-      status: 'PENDING_REVIEW',
-    })
     expect(await findSubmissionGuardianDetails(seeded.id)).toEqual({
       id: seeded.id,
       patientDateOfBirth: DOB,
@@ -260,7 +231,6 @@ describe('submission lookups', () => {
       id: seeded.id,
     })
     expect(await findSubmissionIdForPaymentIntent('pi_missing')).toBeNull()
-    expect(await findSubmissionStatus('missing')).toBeNull()
   })
 
   it('admin detail carries the newest active verification and every SMS newest first', async () => {
@@ -951,290 +921,38 @@ describe('sms support lookups', () => {
   })
 })
 
-const REVIEWED_AT = new Date('2026-06-01T12:00:00.000Z')
-
 async function reload(id: string): Promise<Submission> {
   const row = await findSubmissionById(id)
   if (!row) throw new Error(`submission ${id} missing`)
   return row
 }
 
-describe('maybe writes', () => {
-  const review = {
-    maybeReason: 'DATES_EXCEED_ALLOWED_RANGE',
-    maybeInternalNote: 'Review date range',
-    maybeApprovedDays: 3,
-    reviewedByAdminId: 'admin_1',
-    reviewedAt: REVIEWED_AT,
-  }
+describe('email stamps', () => {
+  it('stamp only the requested row with the given time, and throw for a missing row', async () => {
+    const row = await seed()
+    const neighbour = await seed()
 
-  it('moves a pending submission to maybe with the review stamps, and refuses other states', async () => {
-    await seedAdmin()
-    const pending = await seed({ maybeEmailSentAt: at(0) })
-    const otherPending = await seed()
-    const approved = await seed({ status: SubmissionStatus.APPROVED })
+    await recordMaybeEmailSent(row.id, at(1))
+    await recordApprovalEmailSent(row.id, at(2))
+    await recordDenialEmailSent(row.id, at(3))
 
-    expect(await markPendingSubmissionMaybe(pending.id, review)).toBe(1)
-    expect(await markPendingSubmissionMaybe(approved.id, review)).toBe(0)
-    expect(await reload(otherPending.id)).toEqual(otherPending)
-
-    expect(await reload(pending.id)).toEqual({
-      ...pending,
-      status: 'MAYBE',
-      maybeReason: 'DATES_EXCEED_ALLOWED_RANGE',
-      maybeInternalNote: 'Review date range',
-      maybeApprovedDays: 3,
-      maybeEmailSentAt: null,
-      reviewedByAdminId: 'admin_1',
-      reviewedAt: REVIEWED_AT,
-      updatedAt: REVIEWED_AT,
-    })
-    expect(await reload(approved.id)).toEqual(approved)
-  })
-
-  it('moves any submission to maybe without a guard and stamps the maybe email', async () => {
-    await seedAdmin()
-    const approved = await seed({ status: SubmissionStatus.APPROVED })
-
-    await markSubmissionMaybe(approved.id, {
-      ...review,
-      maybeReason: 'OTHER_REVIEW',
-      maybeApprovedDays: null,
-    })
-    await recordMaybeEmailSent(approved.id, at(1))
-
-    const row = await reload(approved.id)
-    expect(row).toMatchObject({
-      status: 'MAYBE',
-      maybeReason: 'OTHER_REVIEW',
-      maybeApprovedDays: null,
+    const stamped = await reload(row.id)
+    expect(stamped).toEqual({
+      ...row,
       maybeEmailSentAt: at(1),
-      reviewedAt: REVIEWED_AT,
+      approvalEmailSentAt: at(2),
+      denialEmailSentAt: at(3),
+      updatedAt: stamped.updatedAt,
     })
-    expect(row.updatedAt.getTime()).toBeGreaterThan(REVIEWED_AT.getTime())
-    await expect(markSubmissionMaybe('missing', review)).rejects.toThrow('not found')
-  })
-})
-
-describe('approval writes', () => {
-  const approval = {
-    reviewedByAdminId: 'admin_1',
-    reviewedAt: REVIEWED_AT,
-    approvalDiagnosis: 'flu',
-    approvalWithRestrictions: true,
-  }
-
-  it('approves pending or maybe submissions, clearing a stale denial reason, and refuses the rest', async () => {
-    await seedAdmin()
-    const pending = await seed({ denialReason: 'stale' })
-    const otherPending = await seed()
-    const maybe = await seed({ status: SubmissionStatus.MAYBE })
-    const manual = await seed({ status: SubmissionStatus.MANUAL })
-    const denied = await seed({ status: SubmissionStatus.DENIED })
-    const approved = await seed({ status: SubmissionStatus.APPROVED })
-
-    expect(await approveReviewableSubmission(pending.id, approval)).toBe(1)
-    expect(await reload(otherPending.id)).toEqual(otherPending)
-    expect(await approveReviewableSubmission(maybe.id, approval)).toBe(1)
-    expect(await approveReviewableSubmission(manual.id, approval)).toBe(0)
-    expect(await approveReviewableSubmission(denied.id, approval)).toBe(0)
-    expect(await approveReviewableSubmission(approved.id, approval)).toBe(0)
-    expect(await reload(manual.id)).toEqual(manual)
-
-    const row = await reload(pending.id)
-    expect(row).toMatchObject({
-      status: 'APPROVED',
-      reviewedByAdminId: 'admin_1',
-      reviewedAt: REVIEWED_AT,
-      denialReason: null,
-      approvalDiagnosis: 'flu',
-      approvalWithRestrictions: true,
-    })
-    expect(row.updatedAt.getTime()).toBeGreaterThan(pending.updatedAt.getTime())
-    expect(await reload(denied.id)).toEqual(denied)
-  })
-
-  it('re-approves only the version that was read and stamps updated_at with the review time', async () => {
-    await seedAdmin()
-    const approved = await seed({ status: SubmissionStatus.APPROVED, updatedAt: at(0) })
-    const editedAfterRead = await seed({ status: SubmissionStatus.APPROVED, updatedAt: at(1) })
-    const pending = await seed({ updatedAt: at(0) })
-
-    expect(await reapproveSubmission(approved.id, at(1), approval)).toBe(0)
-    expect(await reapproveSubmission(editedAfterRead.id, at(0), approval)).toBe(0)
-    expect(await reapproveSubmission(pending.id, at(0), approval)).toBe(0)
-    expect(await reload(editedAfterRead.id)).toEqual(editedAfterRead)
-    expect(await reapproveSubmission(approved.id, at(0), approval)).toBe(1)
-
-    expect(await reload(approved.id)).toMatchObject({
-      status: 'APPROVED',
-      approvalDiagnosis: 'flu',
-      approvalWithRestrictions: true,
-      reviewedAt: REVIEWED_AT,
-      updatedAt: REVIEWED_AT,
-    })
-    expect(await reload(pending.id)).toEqual(pending)
-  })
-
-  it('approves a manual submission clearing approval fields, and records the approval email', async () => {
-    await seedAdmin()
-    const manual = await seed({
-      status: SubmissionStatus.MANUAL,
-      denialReason: 'x',
-      approvalEmailSentAt: at(0),
-      approvalDiagnosis: 'd',
-      approvalWithRestrictions: true,
-    })
-
-    await approveManualSubmission(manual.id, {
-      reviewedByAdminId: 'admin_1',
-      reviewedAt: REVIEWED_AT,
-    })
-
-    expect(await reload(manual.id)).toMatchObject({
-      status: 'APPROVED',
-      reviewedByAdminId: 'admin_1',
-      reviewedAt: REVIEWED_AT,
-      denialReason: null,
-      approvalEmailSentAt: null,
-      approvalDiagnosis: null,
-      approvalWithRestrictions: null,
-    })
-
-    await recordApprovalEmailSent(manual.id, at(2))
-    expect((await reload(manual.id)).approvalEmailSentAt).toEqual(at(2))
-  })
-})
-
-describe('denial and refund writes', () => {
-  const denial = { denialReason: 'Legal', reviewedByAdminId: 'admin_1', reviewedAt: REVIEWED_AT }
-
-  it('reserves the refund only while reviewable and unrefunded, then releases it', async () => {
-    await seedAdmin()
-    const pending = await seed()
-    const maybe = await seed({ status: SubmissionStatus.MAYBE })
-    const refunded = await seed({ stripeRefundId: 're_done' })
-    const denied = await seed({ status: SubmissionStatus.DENIED })
-    const manual = await seed({ status: SubmissionStatus.MANUAL })
-
-    expect(await markSubmissionRefundReserved(pending.id, denial)).toBe(1)
-    expect(await markSubmissionRefundReserved(maybe.id, denial)).toBe(1)
-    expect(await markSubmissionRefundReserved(refunded.id, denial)).toBe(0)
-    expect(await markSubmissionRefundReserved(denied.id, denial)).toBe(0)
-    expect(await markSubmissionRefundReserved(manual.id, denial)).toBe(0)
-    expect(await reload(manual.id)).toEqual(manual)
-    expect(await markSubmissionRefundReserved(pending.id, denial)).toBe(0)
-
-    expect(await reload(pending.id)).toMatchObject({
-      status: 'DENIED',
-      denialReason: 'Legal',
-      reviewedByAdminId: 'admin_1',
-      reviewedAt: REVIEWED_AT,
-      stripeRefundId: `pending_${pending.id}`,
-      refundedAt: REVIEWED_AT,
-    })
-
-    await releaseSubmissionRefundReservation(pending.id)
-    expect(await reload(pending.id)).toMatchObject({
-      status: 'PENDING_REVIEW',
-      stripeRefundId: null,
-      reviewedByAdminId: null,
-      reviewedAt: null,
-      refundedAt: null,
-      denialReason: null,
-    })
-
-    await recordSubmissionRefund(maybe.id, 're_real')
-    expect((await reload(maybe.id)).stripeRefundId).toBe('re_real')
-  })
-
-  it('denies with and without a refund, records the denial email, and denies a manual submission', async () => {
-    await seedAdmin()
-    const plain = await seed()
-    const withRefund = await seed()
-    const manual = await seed({ status: SubmissionStatus.MANUAL, denialEmailSentAt: at(0) })
-
-    await markSubmissionDenied(plain.id, { ...denial, updatedAt: at(1) })
-    expect((await reload(plain.id)).updatedAt).toEqual(at(1))
-    await recordDenialEmailSent(plain.id, at(2))
-    await markSubmissionDeniedAndRefunded(withRefund.id, {
-      ...denial,
-      updatedAt: at(1),
-      stripeRefundId: 're_1',
-      refundedAt: at(1),
-    })
-    await denyManualSubmission(manual.id, denial)
-
-    expect(await reload(plain.id)).toMatchObject({
-      status: 'DENIED',
-      denialReason: 'Legal',
-      reviewedByAdminId: 'admin_1',
-      reviewedAt: REVIEWED_AT,
-      denialEmailSentAt: at(2),
-    })
-    expect(await reload(withRefund.id)).toMatchObject({
-      status: 'DENIED',
-      stripeRefundId: 're_1',
-      refundedAt: at(1),
-      updatedAt: at(1),
-    })
-    expect(await reload(manual.id)).toMatchObject({
-      status: 'DENIED',
-      denialReason: 'Legal',
-      denialEmailSentAt: null,
-    })
-  })
-})
-
-describe('status writers', () => {
-  it('write only their own columns when the argument carries extra fields', async () => {
-    await seedAdmin()
-    const review = {
-      reviewedByAdminId: 'admin_1',
-      reviewedAt: REVIEWED_AT,
-      maybeInternalNote: 'leak',
-    }
-    const denial = { ...review, denialReason: 'Legal' }
-    const details = { patientFirstName: 'Ann', maybeInternalNote: 'leak' }
-    const classification = {
-      notePurpose: 'school',
-      otherNotePurpose: null,
-      absenceReason: 'flu',
-      otherAbsenceReason: null,
-      maybeInternalNote: 'leak',
-    }
-    const writers = [
-      (id: string) => markMaybeSubmissionManual(id, review),
-      (id: string) => markSubmissionManual(id, { ...review, updatedAt: at(1) }),
-      (id: string) => approveManualSubmission(id, review),
-      (id: string) => markSubmissionDenied(id, { ...denial, updatedAt: at(1) }),
-      (id: string) =>
-        markSubmissionDeniedAndRefunded(id, {
-          ...denial,
-          updatedAt: at(1),
-          stripeRefundId: 're_1',
-          refundedAt: at(1),
-        }),
-      (id: string) => denyManualSubmission(id, denial),
-      (id: string) => markSubmissionRefundReserved(id, denial),
-      (id: string) => updateSubmissionDetails(id, details, at(1)),
-      (id: string) => updatePendingSubmissionClassification(id, classification, at(1)),
-    ]
-
-    for (const write of writers) {
-      const row = await seed({ maybeInternalNote: 'keep' })
-      await write(row.id)
-      expect((await reload(row.id)).maybeInternalNote).toBe('keep')
-    }
+    expect(stamped.updatedAt.getTime()).toBeGreaterThan(row.updatedAt.getTime())
+    expect(await reload(neighbour.id)).toEqual(neighbour)
+    await expect(recordMaybeEmailSent('missing', at(1))).rejects.toThrow('not found')
   })
 })
 
 describe('status and detail edits', () => {
-  it('moves to manual, back to review, and drops the guardian with the given timestamp', async () => {
-    await seedAdmin()
-    const review = { reviewedByAdminId: 'admin_1', reviewedAt: REVIEWED_AT }
-    const maybe = await seed({ status: SubmissionStatus.MAYBE })
-    const pending = await seed()
+  it('drops the guardian with the given timestamp and leaves other rows alone', async () => {
+    const other = await seed({ recipient: 'someone_else', guardianFirstName: 'Ann' })
     const guarded = await seed({
       recipient: 'someone_else',
       guardianFirstName: 'Jane',
@@ -1242,33 +960,17 @@ describe('status and detail edits', () => {
       guardianDateOfBirth: new Date('1960-01-01T00:00:00.000Z'),
     })
 
-    await markMaybeSubmissionManual(maybe.id, review)
-    await markSubmissionManual(pending.id, { ...review, updatedAt: at(1) })
     await removeSubmissionGuardian(guarded.id, at(2))
 
-    const fromMaybe = await reload(maybe.id)
-    expect(fromMaybe).toMatchObject({ status: 'MANUAL', ...review })
-    expect(fromMaybe.updatedAt.getTime()).toBeGreaterThan(maybe.updatedAt.getTime())
-    expect(await reload(pending.id)).toMatchObject({
-      status: 'MANUAL',
-      ...review,
-      updatedAt: at(1),
-    })
-    expect(await reload(guarded.id)).toMatchObject({
+    expect(await reload(guarded.id)).toEqual({
+      ...guarded,
       recipient: 'myself',
       guardianFirstName: null,
       guardianLastName: null,
       guardianDateOfBirth: null,
       updatedAt: at(2),
     })
-
-    await returnSubmissionToReview(pending.id, at(3))
-    expect(await reload(pending.id)).toMatchObject({
-      status: 'PENDING_REVIEW',
-      reviewedByAdminId: null,
-      reviewedAt: null,
-      updatedAt: at(3),
-    })
+    expect(await reload(other.id)).toEqual(other)
   })
 
   it('writes every edited detail column including dates and JSON symptoms, and classifies only pending rows', async () => {

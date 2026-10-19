@@ -294,6 +294,32 @@ function statement(masked, depth, range, emit, singleRow) {
   }
 }
 
+function patchAliases(source) {
+  const aliases = new Map(
+    [
+      ...source.matchAll(/^(?:export )?type (\w+)(?:<[^>]*>)?\s*=\s*([^\n]*(?:\n[ \t]+[^\n]*)*)/gm),
+    ].map(([, name, body]) => [name, body])
+  )
+  const patchLike = new Set()
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const [name, body] of aliases) {
+      if (patchLike.has(name)) continue
+      const mentions = [...body.matchAll(/\b(\w+)</g)].map(([, generic]) => generic)
+      if (
+        mentions.some(
+          (generic) => generic === 'Patch' || generic === 'Pick' || patchLike.has(generic)
+        )
+      ) {
+        patchLike.add(name)
+        grew = true
+      }
+    }
+  }
+  return [...patchLike]
+}
+
 function patchObjects(source) {
   const objects = new Set()
   const argument = (open, index) => {
@@ -303,7 +329,9 @@ function patchObjects(source) {
     if (source[from] === '{') objects.add(from)
   }
   for (const call of source.matchAll(/(?<![\w.])set\(/g)) argument(call.index + call[0].length, 1)
-  for (const match of source.matchAll(/: Patch<[^>]+>\s*(=|\{)/g)) {
+  const shapes = ['Patch<[^>]+>', ...patchAliases(source).map((alias) => `\\b${alias}\\b`)]
+  const annotation = new RegExp(`: (?:${shapes.join('|')})\\s*(=|\\{)`, 'g')
+  for (const match of source.matchAll(annotation)) {
     const at = match.index + match[0].length - 1
     if (match[1] === '=') {
       objects.add(trim(source, [at + 1, source.length])[0])

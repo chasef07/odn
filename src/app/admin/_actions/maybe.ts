@@ -1,11 +1,9 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
-import { findSubmissionStatus, markMaybeSubmissionManual } from '@/db/submissions'
-import { SubmissionStatus } from '@/db/types'
+import { permit, transition } from '@/db/submission-lifecycle'
 import { logger } from '@/lib/logger'
 import { type MaybeApprovedDays, type MaybeReason } from '@/lib/maybe-reasons'
-import { moveSubmissionToMaybe } from './shared'
+import { QUEUE_PATHS, moveSubmissionToMaybe, refused, revalidate } from './shared'
 import { adminAction } from '@/lib/admin-session'
 
 export type MaybeSubmissionInput = {
@@ -18,10 +16,11 @@ export const maybeSubmission = adminAction(
   async ({ doctorId }, submissionId: string, input: MaybeSubmissionInput) => {
     try {
       return await moveSubmissionToMaybe({
+        transition: 'maybe',
         submissionId,
         doctorId,
         input,
-        revalidatePaths: ['/admin', '/admin/review', '/admin/maybe'],
+        revalidatePaths: QUEUE_PATHS,
       })
     } catch (error) {
       logger.error('Error marking submission as maybe:', error)
@@ -32,27 +31,13 @@ export const maybeSubmission = adminAction(
 
 export const markAsManual = adminAction(async ({ doctorId }, submissionId: string) => {
   try {
-    const submission = await findSubmissionStatus(submissionId)
+    const allowed = await permit(submissionId, 'markManual')
+    if (!allowed.ok) return refused('change', allowed.refusal)
 
-    if (!submission) {
-      return { success: false, error: 'Submission not found' }
-    }
+    const marked = await transition(allowed.value, { adminId: doctorId, at: new Date() })
+    if (!marked.ok) return refused('change', marked.refusal)
 
-    if (submission.status !== SubmissionStatus.MAYBE) {
-      return {
-        success: false,
-        error: `Can only mark MAYBE submissions as manual, current status: ${submission.status}`,
-      }
-    }
-
-    await markMaybeSubmissionManual(submissionId, {
-      reviewedByAdminId: doctorId,
-      reviewedAt: new Date(),
-    })
-
-    revalidatePath('/admin')
-    revalidatePath('/admin/review')
-    revalidatePath('/admin/maybe')
+    revalidate(QUEUE_PATHS)
 
     return { success: true }
   } catch (error) {

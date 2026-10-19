@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { resetTestEnv } from './vitest.test-env'
 
-const DB_TESTS = 'src/db/**/*.db.test.ts'
+const DB_TESTS = 'src/**/*.db.test.ts'
 
 resetTestEnv()
 
