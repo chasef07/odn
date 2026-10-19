@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import {
   adoptPrismaHistory,
@@ -108,6 +111,25 @@ CREATE TRIGGER refuse_ledger BEFORE INSERT ON schema_migrations FOR EACH ROW EXE
     expect(await refusal(() => migrate(pool, [refusesItsLedgerRow]))).toBe('apply_failed')
     expect(await tableExists('things')).toBe(false)
     expect(await ledger()).toEqual([])
+  })
+
+  it('starts each file from a reset session, so a setting an earlier file changed cannot hide a COMMIT', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'odn-migrations-'))
+    writeFileSync(path.join(dir, '0001_flip_strings.sql'), 'SET standard_conforming_strings = off')
+    writeFileSync(
+      path.join(dir, '0002_hidden_commit.sql'),
+      String.raw`CREATE TABLE hidden_commit (id int);
+SELECT '\', '; COMMIT; SELECT 'x';
+SELECT 1/0;`
+    )
+    const migrations = loadMigrations(dir)
+    rmSync(dir, { recursive: true })
+
+    expect(await refusal(() => migrate(pool, migrations))).toBe('apply_failed')
+    expect(await tableExists('hidden_commit')).toBe(false)
+    expect(await ledger()).toEqual([
+      { name: '0001_flip_strings', checksum: migrations[0].checksum },
+    ])
   })
 
   it('holds the advisory lock with no lock_timeout while a file runs', async () => {
