@@ -59,7 +59,7 @@ flowchart TB
 
     subgraph db["src/db boundary"]
       direction LR
-      modules["Table modules<br/>submissions.ts<br/>submission-lifecycle.ts<br/>temporary-submissions.ts<br/>note-verifications.ts<br/>sms-support.ts<br/>webhook-events.ts<br/>wipe.ts"]
+      modules["Table modules<br/>submissions.ts<br/>submission-lifecycle.ts<br/>temporary-submissions.ts<br/>note-verifications.ts<br/>sms-support.ts<br/>sms-support-lifecycle.ts<br/>webhook-events.ts<br/>wipe.ts"]
       kernel["SQL kernel<br/>sql.ts, table.ts, tables.ts"]
       authdb["src/db/auth.ts<br/>better-auth tables"]
       migrate["src/db/migrate.ts<br/>runs src/db/migrations"]
@@ -107,6 +107,7 @@ These are the boundaries an engineer has to respect.
 - **Config.** `src/lib/env.ts` parses every server variable with zod, and `src/lib/public-env.ts` parses the `NEXT_PUBLIC_*` ones. `src/instrumentation.ts` runs the check at startup, so the server exits and names each missing or invalid variable.
 - **SDK clients.** Stripe, Resend, and better-auth each have one owner module in `src/lib`, which builds the client the first time a function needs it. Telnyx is called over HTTP from `src/lib/telnyx.ts`.
 - **Database.** `src/db` is the only code that talks to Postgres. Callers import named functions from table modules such as `src/db/submissions.ts`, and types from `src/db/types.ts`. Nothing outside `src/db` imports `pg` or the SQL kernel. `src/db/pool.ts` holds one pool of five connections and sends each query as one statement.
+- **Status changes.** Two modules in `src/db` own the status columns. `src/db/submission-lifecycle.ts` owns a submission's status and its refund columns. `src/db/sms-support-lifecycle.ts` creates SMS support tickets and their jobs, and it owns a ticket's status, state, and automation status and every change to a job. Each module names its steps and the statuses that each step starts from. It runs a step as one `UPDATE` that matches only a row in one of those statuses, and it returns a typed refusal when the row has moved. The lint rules `local/lifecycle-owner` and `local/sms-lifecycle-owner` flag SQL outside these modules that writes those columns, in the forms that `AGENTS.md` lists.
 - **Migrations.** Schema changes are numbered SQL files in `src/db/migrations`. `npm run db:migrate` applies each pending file in its own transaction and stores its sha256, so it refuses a file that changed after it was applied.
 
 ## Submission lifecycle
@@ -131,7 +132,7 @@ stateDiagram-v2
 
 Approving a `PENDING_REVIEW` or `MAYBE` submission issues the PDF and emails it. Approving a `MANUAL` submission records the decision only, with no PDF and no email. `denySubmission` on a `MANUAL` submission sends no email and issues no refund, but it revokes the note. `reApproveSubmission` issues a new PDF and revokes the old one.
 
-Denying a `PENDING_REVIEW` or `MAYBE` submission refunds the payment in three steps. The action reserves the refund on the row, calls Stripe, and then records the refund id. If Stripe refused the refund for certain, the action releases the reservation and the submission goes back to its earlier status. If the outcome is unknown, the submission stays `DENIED` with the refund pending. A submission that an earlier denial refunded is not refunded again.
+Denying a `PENDING_REVIEW` or `MAYBE` submission refunds the payment in three steps. The action reserves the refund on the row, calls Stripe, and then records the refund id. If Stripe refused the refund for certain, the action releases the reservation and the submission goes back to its earlier status. If the outcome is unknown, the submission stays `DENIED` with the refund pending. To settle it, run `npx tsx scripts/settle-refund-reservation.ts <submission id>`. The script records the refund that Stripe holds, or, with `--release-to <status>`, releases the reservation when Stripe holds no refund. If the script and a denial both reach the same refund, only the run that records it sends the denial email. The other run returns the warning "already recorded by another run". A submission that an earlier denial refunded is not refunded again.
 
 From a submission's page under `/admin/search`, `changeSubmissionStatus` can also override the status. A `DENIED` submission whose payment was refunded or is being refunded cannot move out of `DENIED`. Only a denial that issued no refund, such as a `MANUAL` one, can.
 
@@ -141,6 +142,31 @@ From a submission's page under `/admin/search`, `changeSubmissionStatus` can als
 | `MAYBE`          | `PENDING_REVIEW`, `MANUAL`, `APPROVED`, `DENIED` with no refund | Revokes the note. From `PENDING_REVIEW`, a reason that sends email also emails and texts the patient.              |
 | `MANUAL`         | `PENDING_REVIEW`, `MAYBE`, `APPROVED`, `DENIED` with no refund  | Revokes the note.                                                                                                  |
 | `PENDING_REVIEW` | `MAYBE`, `MANUAL`, `APPROVED`, `DENIED` with no refund          | Clears the reviewer and revokes the note.                                                                          |
+
+## SMS support tickets
+
+A patient who texts the support number gets a support ticket. The app answers from a menu of support topics. It can fix some problems on its own, and it hands the rest to a person at `/admin/support`. A ticket has one of five statuses from `SMS_SUPPORT_STATUS` in `src/lib/sms-support-types.ts`. The diagram shows the usual path through the steps in `src/db/sms-support-lifecycle.ts`. Some steps also start from statuses that the diagram leaves out, and the list after the diagram names them.
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> OPEN: patient texts in
+  [*] --> NEEDS_CSR: doctor creates a ticket
+  OPEN --> WAITING_CUSTOMER: prompt
+  WAITING_CUSTOMER --> CLOSED: closeFound
+  WAITING_CUSTOMER --> NEEDS_CSR: escalate
+  WAITING_CUSTOMER --> RUNNING_AUTOMATION: queueAutomation
+  RUNNING_AUTOMATION --> CLOSED: automationSucceeded
+  RUNNING_AUTOMATION --> NEEDS_CSR: automationFailed
+  NEEDS_CSR --> RUNNING_AUTOMATION: retryAutomation
+  NEEDS_CSR --> OPEN: adminReplied
+  NEEDS_CSR --> CLOSED: closeByAdmin
+```
+
+- **Conversation steps.** `prompt`, `closeFound`, `escalate`, and `queueAutomation` each start from `OPEN`, `WAITING_CUSTOMER`, or `NEEDS_CSR`. Each step also pins the status that the inbound text read. If another text moved the ticket first, the module refuses the step, and the app handles the losing text again from the new status, up to three attempts in all.
+- **Automation.** `queueAutomation` runs when a patient asks to change the date of birth or the purpose on an approved note. `startAutomation` runs that step and creates a job in `sms_support_jobs` in one transaction, and the app runs the job in the same request. The job moves from `QUEUED` to `RUNNING` to `COMMITTING`, and then to `SUCCEEDED` or `FAILED`. A job that succeeds updates the submission and emails the patient a new PDF, and `automationSucceeded` closes the ticket. A doctor can retry a failed automation with `retryAutomation`.
+- **Doctor steps.** `adminReplied` moves a ticket to `OPEN`, `closeByAdmin` closes it, and `returnToCsr` moves it to `NEEDS_CSR`. These three steps start from any status. They cancel the ticket's queued and running jobs. The module refuses them while a job is in `COMMITTING`, because that job has already changed the submission.
+- **Failures.** A support reply that fails to send (`replyFailed`), a doctor's reply that fails to send (`adminReplyFailed`), and a failed automation (`automationFailed`) move the ticket to `NEEDS_CSR` from any status.
 
 ## How a request flows
 
