@@ -61,6 +61,15 @@ export function defineTable<D>(name: string, columns: Columns<D>): Table<D> {
   return { name, columns, keys: Object.keys(columns) as (keyof D & string)[] }
 }
 
+export function without<T extends object, K extends keyof T>(
+  object: T,
+  keys: readonly K[]
+): Omit<T, K> {
+  const rest = { ...object }
+  for (const key of keys) delete rest[key]
+  return rest
+}
+
 type Prefixed<T, P extends string> = {
   [K in keyof T as `${P}${Capitalize<K & string>}`]: T[K]
 }
@@ -83,8 +92,16 @@ export function select<D, K extends keyof D & string, P extends string = ''>(
   return new Sql([list.join(', ')], [])
 }
 
-export function selectAll<D>(table: Table<D>, options?: { alias?: string }): Sql<D> {
-  return select(table, table.keys, options) as Sql<D>
+export function selectAll<D>(table: Table<D>, options?: { alias?: string }): Sql<D>
+export function selectAll<D, P extends string>(
+  table: Table<D>,
+  options: { alias?: string; prefix: P }
+): Sql<Prefixed<D, P>>
+export function selectAll<D>(
+  table: Table<D>,
+  options: { alias?: string; prefix?: string } = {}
+): Sql<unknown> {
+  return select(table, table.keys, options)
 }
 
 export type Patch<D> = { [K in keyof D]?: D[K] | Sql<unknown> }

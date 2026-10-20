@@ -1,18 +1,20 @@
-import { col, defineTable, jsonCol, nullable, nullableJson, uuid } from './table'
-import type {
-  Account,
-  NoteVerification,
-  ResendWebhookEvent,
-  Session,
-  SmsMessage,
-  SmsPhoneState,
-  SmsSupportJob,
-  SmsSupportTicket,
-  Submission,
-  TelnyxWebhookEvent,
-  TemporarySubmission,
-  User,
-  Verification,
+import { col, defineTable, jsonCol, nullable, nullableJson, uuid, without } from './table'
+import {
+  smsSupportLifecycleColumns,
+  type Account,
+  type NoteVerification,
+  type ResendWebhookEvent,
+  type Session,
+  type SmsMessage,
+  type SmsPhoneState,
+  type SmsSupportJob,
+  type SmsSupportTicket,
+  type SmsSupportTicketDetails,
+  type Submission,
+  type TelnyxWebhookEvent,
+  type TemporarySubmission,
+  type User,
+  type Verification,
 } from './types'
 
 export const users = defineTable<User>('users', {
@@ -173,6 +175,11 @@ export const smsSupportTickets = defineTable<SmsSupportTicket>('sms_support_tick
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
 })
+
+export const smsSupportTicketDetails = defineTable<SmsSupportTicketDetails>(
+  smsSupportTickets.name,
+  without(smsSupportTickets.columns, smsSupportLifecycleColumns)
+)
 
 export const smsSupportJobs = defineTable<SmsSupportJob>('sms_support_jobs', {
   id: uuid('id'),
