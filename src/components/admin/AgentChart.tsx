@@ -22,6 +22,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { formatSeriesValue } from '@/lib/agent/chart-format'
 import type { ChartResult } from '@/lib/agent/tools'
 
 const PALETTE_SIZE = 5
@@ -30,26 +31,51 @@ function color(index: number): string {
   return `var(--chart-${(index % PALETTE_SIZE) + 1})`
 }
 
+function tooltipValue(chart: ChartResult) {
+  return (value: number, dataKey: string) => {
+    const series = chart.series.find((entry) => entry.column === dataKey) ?? chart.series[0]
+    return formatSeriesValue(series.format, value, 'exact')
+  }
+}
+
 function cartesian(chart: ChartResult) {
+  const axisFormat = chart.series[0].format
   const axes = [
     <CartesianGrid key="grid" vertical={false} />,
     <XAxis key="x" dataKey={chart.x} tickLine={false} axisLine={false} tickMargin={8} />,
-    <YAxis key="y" tickLine={false} axisLine={false} width={48} />,
-    <ChartTooltip key="tooltip" content={<ChartTooltipContent />} />,
+    <YAxis
+      key="y"
+      tickLine={false}
+      axisLine={false}
+      width={56}
+      tickFormatter={(value: number) => formatSeriesValue(axisFormat, value, 'axis')}
+    />,
+    <ChartTooltip
+      key="tooltip"
+      content={<ChartTooltipContent formatValue={tooltipValue(chart)} />}
+    />,
   ]
-  if (chart.y.length > 1) {
+  if (chart.series.length > 1) {
     axes.push(<ChartLegend key="legend" content={<ChartLegendContent />} />)
   }
   return axes
 }
 
 function Plot({ chart }: { chart: ChartResult }) {
-  const { kind, rows, x, y } = chart
+  const { kind, rows, x, series } = chart
   if (kind === 'pie') {
+    const [slice] = series
     return (
       <PieChart>
-        <ChartTooltip content={<ChartTooltipContent nameKey={x} />} />
-        <Pie data={rows} dataKey={y[0]} nameKey={x} label>
+        <ChartTooltip
+          content={<ChartTooltipContent nameKey={x} formatValue={tooltipValue(chart)} />}
+        />
+        <Pie
+          data={rows}
+          dataKey={slice.column}
+          nameKey={x}
+          label={({ value }: { value: number }) => formatSeriesValue(slice.format, value, 'exact')}
+        >
           {rows.map((row, index) => (
             <Cell key={String(row[x])} fill={color(index)} />
           ))}
@@ -61,10 +87,10 @@ function Plot({ chart }: { chart: ChartResult }) {
     return (
       <LineChart data={rows}>
         {cartesian(chart)}
-        {y.map((key, index) => (
+        {series.map((entry, index) => (
           <Line
-            key={key}
-            dataKey={key}
+            key={entry.column}
+            dataKey={entry.column}
             type="monotone"
             stroke={color(index)}
             strokeWidth={2}
@@ -78,10 +104,10 @@ function Plot({ chart }: { chart: ChartResult }) {
     return (
       <AreaChart data={rows}>
         {cartesian(chart)}
-        {y.map((key, index) => (
+        {series.map((entry, index) => (
           <Area
-            key={key}
-            dataKey={key}
+            key={entry.column}
+            dataKey={entry.column}
             type="monotone"
             stroke={color(index)}
             fill={color(index)}
@@ -94,8 +120,8 @@ function Plot({ chart }: { chart: ChartResult }) {
   return (
     <BarChart data={rows}>
       {cartesian(chart)}
-      {y.map((key, index) => (
-        <Bar key={key} dataKey={key} fill={color(index)} radius={4} />
+      {series.map((entry, index) => (
+        <Bar key={entry.column} dataKey={entry.column} fill={color(index)} radius={4} />
       ))}
     </BarChart>
   )
@@ -103,7 +129,7 @@ function Plot({ chart }: { chart: ChartResult }) {
 
 export function AgentChart({ chart }: { chart: ChartResult }) {
   const config: ChartConfig = Object.fromEntries(
-    chart.y.map((key, index) => [key, { label: key, color: color(index) }])
+    chart.series.map((entry, index) => [entry.column, { label: entry.label, color: color(index) }])
   )
   return (
     <figure className="space-y-2">
