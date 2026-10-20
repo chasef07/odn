@@ -58,6 +58,42 @@ jobs:
       - name: vitest run
         run: npx vitest run
 
+  postgres:
+    name: DB tests on Postgres (${{ matrix.server-tz }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        server-tz: [UTC, Asia/Tokyo]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: odn_test
+          TZ: ${{ matrix.server-tz }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/odn_test
+      SERVER_TZ: ${{ matrix.server-tz }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Server default time zone is ${{ matrix.server-tz }}
+        run: test "$(psql "$TEST_DATABASE_URL" -Atc 'SHOW TimeZone')" = "$SERVER_TZ"
+      - name: npm run test:db
+        run: npm run test:db
+
   db-mutant-modules:
     name: DB mutant modules
     runs-on: ubuntu-latest
