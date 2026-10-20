@@ -1,5 +1,5 @@
 import type pg from 'pg'
-import { dateOnlyFromUtcDate } from '@/lib/dates'
+import { dateOnlyFromUtcDate, type DateOnly } from '@/lib/dates'
 import { env } from '@/lib/env'
 import { createPool, run } from './pool'
 import { raw, sql, type Sql } from './sql'
@@ -117,4 +117,50 @@ export async function describeAnalyticsSchema(): Promise<AnalyticsView[]> {
     })
   }
   return views
+}
+
+export type CustomerTotals = {
+  totalNotes: number
+  uniqueCustomers: number
+  repeatCustomers: number
+}
+
+export async function customerTotals(): Promise<CustomerTotals> {
+  const result = await asReader(
+    sql`SELECT count(*) AS total_notes, count(*) FILTER (WHERE customer_note_number = 1) AS unique_customers, count(*) FILTER (WHERE customer_note_number = 2) AS repeat_customers FROM analytics.submissions`
+  )
+  const [row] = result.rows
+  return {
+    totalNotes: row.total_notes,
+    uniqueCustomers: row.unique_customers,
+    repeatCustomers: row.repeat_customers,
+  }
+}
+
+export type SplitPeriod = 'day' | 'month'
+
+const SPLIT_PERIODS: Record<SplitPeriod, { buckets: number; label: string }> = {
+  day: { buckets: 30, label: 'Mon FMDD' },
+  month: { buckets: 12, label: 'Mon YYYY' },
+}
+
+export type NotesSplit = {
+  start: DateOnly
+  label: string
+  newNotes: number
+  returningNotes: number
+}
+
+export async function notesSplit(period: SplitPeriod, today: DateOnly): Promise<NotesSplit[]> {
+  const { buckets, label } = SPLIT_PERIODS[period]
+  const step = `1 ${period}`
+  const result = await asReader(
+    sql`SELECT p.start::date AS start, to_char(p.start, ${label}) AS label, count(s.id) FILTER (WHERE NOT s.is_returning) AS new_notes, count(s.id) FILTER (WHERE s.is_returning) AS returning_notes FROM generate_series(date_trunc(${period}, ${today}::timestamp) - ${buckets - 1}::int * ${step}::interval, date_trunc(${period}, ${today}::timestamp), ${step}::interval) AS p(start) LEFT JOIN analytics.submissions s ON date_trunc(${period}, s.created_day_et::timestamp) = p.start GROUP BY p.start ORDER BY p.start`
+  )
+  return result.rows.map((row) => ({
+    start: dateOnlyFromUtcDate(row.start),
+    label: row.label,
+    newNotes: row.new_notes,
+    returningNotes: row.returning_notes,
+  }))
 }

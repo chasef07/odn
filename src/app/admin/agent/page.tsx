@@ -1,13 +1,28 @@
 import Link from 'next/link'
+import { customerTotals, isAnalyticsConfigured, notesSplit } from '@/db/analytics-query'
 import { AgentChat } from '@/components/admin/AgentChat'
 import { LogoutButton } from '@/components/admin/LogoutButton'
+import { RepeatCustomerPanel } from '@/components/admin/RepeatCustomerPanel'
 import { requireAdminSession } from '@/lib/admin-session'
 import { isAgentConfigured } from '@/lib/agent/model'
+import { todayET } from '@/lib/dates'
+
+async function repeatCustomerData() {
+  if (!isAnalyticsConfigured()) return null
+  const today = todayET()
+  const [totals, day, month] = await Promise.all([
+    customerTotals(),
+    notesSplit('day', today),
+    notesSplit('month', today),
+  ])
+  return { totals, splits: { day, month } }
+}
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminAgentPage() {
   const admin = await requireAdminSession()
+  const repeatCustomers = await repeatCustomerData()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -45,6 +60,7 @@ export default async function AdminAgentPage() {
           </Link>
         </div>
 
+        {repeatCustomers && <RepeatCustomerPanel {...repeatCustomers} />}
         <AgentChat configured={isAgentConfigured()} />
       </main>
     </div>

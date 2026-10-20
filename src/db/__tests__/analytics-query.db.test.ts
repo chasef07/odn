@@ -1,8 +1,11 @@
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest'
+import { parseDateOnly, type DateOnly } from '@/lib/dates'
 import {
   closeAnalyticsPool,
+  customerTotals,
   describeAnalyticsSchema,
   isAnalyticsConfigured,
+  notesSplit,
   runAnalyticsQuery,
 } from '../analytics-query'
 import { countSubmissions } from '../submissions'
@@ -165,6 +168,8 @@ describe('describeAnalyticsSchema', () => {
       'utm_medium',
       'utm_campaign',
       'customer_id',
+      'customer_note_number',
+      'is_returning',
     ])
     expect(submissions?.columns.find((column) => column.name === 'payment_amount_cents')).toEqual({
       name: 'payment_amount_cents',
@@ -202,6 +207,107 @@ describe('describeAnalyticsSchema', () => {
     ]) {
       expect(names).not.toContain(identifier)
     }
+  })
+})
+
+const TODAY = parseDateOnly('2026-03-10') as DateOnly
+
+async function note(email: string, paidAt: string) {
+  await seedSubmission(
+    { status: SubmissionStatus.APPROVED, refund: 'none' },
+    { email, createdAt: new Date(paidAt) }
+  )
+}
+
+describe('customerTotals', () => {
+  it('counts all notes, customers by email and customers with a second note', async () => {
+    await note('pat@example.com', '2026-01-05T15:00:00.000Z')
+    await note(' PAT@example.com ', '2026-02-05T15:00:00.000Z')
+    await note('sam@example.com', '2026-01-06T15:00:00.000Z')
+    await note('kim@example.com', '2026-01-08T15:00:00.000Z')
+    await note('lee@example.com', '2026-01-07T15:00:00.000Z')
+    await note('lee@example.com', '2026-02-07T15:00:00.000Z')
+    await note('lee@example.com', '2026-03-07T15:00:00.000Z')
+
+    expect(await customerTotals()).toEqual({
+      totalNotes: 7,
+      uniqueCustomers: 4,
+      repeatCustomers: 2,
+    })
+  })
+
+  it('returns zeros with no notes', async () => {
+    expect(await customerTotals()).toEqual({
+      totalNotes: 0,
+      uniqueCustomers: 0,
+      repeatCustomers: 0,
+    })
+  })
+})
+
+describe('notesSplit', () => {
+  it('splits each of the last 30 business days into first notes and returning notes', async () => {
+    await note('sam@example.com', '2026-02-08T15:00:00.000Z')
+    await note('pat@example.com', '2026-02-09T15:00:00.000Z')
+    await note('sam@example.com', '2026-03-10T15:00:00.000Z')
+    await note('pat@example.com', '2026-03-10T16:00:00.000Z')
+    await note('lee@example.com', '2026-03-11T03:00:00.000Z')
+    await note('kim@example.com', '2026-03-11T15:00:00.000Z')
+
+    const days = await notesSplit('day', TODAY)
+
+    expect(days).toHaveLength(30)
+    expect(days[0]).toEqual({ start: '2026-02-09', label: 'Feb 9', newNotes: 1, returningNotes: 0 })
+    expect(days[1]).toEqual({
+      start: '2026-02-10',
+      label: 'Feb 10',
+      newNotes: 0,
+      returningNotes: 0,
+    })
+    expect(days.at(-1)).toEqual({
+      start: '2026-03-10',
+      label: 'Mar 10',
+      newNotes: 1,
+      returningNotes: 2,
+    })
+    expect(days.slice(1, -1).every((day) => day.newNotes + day.returningNotes === 0)).toBe(true)
+  })
+
+  it('splits each of the last 12 months into first notes and returning notes', async () => {
+    await note('sam@example.com', '2025-03-31T15:00:00.000Z')
+    await note('sam@example.com', '2025-04-01T15:00:00.000Z')
+    await note('pat@example.com', '2025-04-02T15:00:00.000Z')
+    await note('pat@example.com', '2026-03-02T15:00:00.000Z')
+    await note('lee@example.com', '2026-03-03T15:00:00.000Z')
+
+    const months = await notesSplit('month', TODAY)
+
+    expect(months.map((month) => month.label)).toEqual([
+      'Apr 2025',
+      'May 2025',
+      'Jun 2025',
+      'Jul 2025',
+      'Aug 2025',
+      'Sep 2025',
+      'Oct 2025',
+      'Nov 2025',
+      'Dec 2025',
+      'Jan 2026',
+      'Feb 2026',
+      'Mar 2026',
+    ])
+    expect(months[0]).toEqual({
+      start: '2025-04-01',
+      label: 'Apr 2025',
+      newNotes: 1,
+      returningNotes: 1,
+    })
+    expect(months.at(-1)).toEqual({
+      start: '2026-03-01',
+      label: 'Mar 2026',
+      newNotes: 1,
+      returningNotes: 1,
+    })
   })
 })
 
