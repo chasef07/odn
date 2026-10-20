@@ -418,7 +418,7 @@ describe('local/sms-lifecycle-owner', () => {
     })
   })
 
-  it('keeps a row-constructor target in the SET clause after SET or a comma', () => {
+  it('keeps a row constructor target in the SET clause after SET or a comma', () => {
     expectEach({
       'db.affected(sql`UPDATE sms_support_tickets SET admin_summary = ${a}, (status, state) = (${s}, ${t}) WHERE id = ${id}`)':
         ['lifecycle'],
