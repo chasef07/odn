@@ -212,6 +212,7 @@ async function applyMigration(client: PoolClient, migration: Migration): Promise
   try {
     await inTransaction(client, async () => {
       await client.query('RESET ALL')
+      await client.query('SET LOCAL standard_conforming_strings = on')
       await client.query(migration.sql)
       await client.query('INSERT INTO schema_migrations (name, checksum) VALUES ($1, $2)', [
         migration.name,
