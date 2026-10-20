@@ -487,22 +487,6 @@ export async function findRunnableQueuedSupportJob(
   )
 }
 
-export async function findRunnableQueuedSupportJobs(limit: number): Promise<SmsSupportJob[]> {
-  return db.rows(
-    sql`SELECT ${selectAll(smsSupportJobs, { alias: 'j' })} FROM sms_support_jobs j JOIN sms_support_tickets t ON t.id = j.ticket_id WHERE ${runnableJob()} ORDER BY j.created_at ASC LIMIT ${limit}`
-  )
-}
-
-export async function findStaleCommittingSupportJobs(
-  staleBefore: Date,
-  limit: number
-): Promise<SmsSupportJobWithTicket[]> {
-  const rows = await db.rows(
-    sql`SELECT ${jobWithTicket} WHERE j.status = ${SMS_SUPPORT_JOB_STATUS.COMMITTING} AND j.locked_at < ${staleBefore} LIMIT ${limit}`
-  )
-  return rows.map((row) => nest(row, 'ticket'))
-}
-
 export async function findCommittingSupportJob(
   ticketId: string
 ): Promise<Pick<SmsSupportJob, 'id'> | null> {

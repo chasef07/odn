@@ -283,24 +283,12 @@ function failed(input: JobFailure): Patch<JobWritten> {
   }
 }
 
-function requeued(input: Stamped): Patch<JobWritten> {
-  return {
-    status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-    lockedAt: null,
-    lockedBy: null,
-    lastError: 'Recovered stale running job lock',
-    runAfter: input.at,
-  }
-}
-
 const jobs = {
   claim: { from: [SMS_SUPPORT_JOB_STATUS.QUEUED], write: claimed },
   commit: { from: [SMS_SUPPORT_JOB_STATUS.RUNNING], write: committed },
   complete: { from: EVERY_JOB_STATUS, write: completed },
   fail: { from: EVERY_JOB_STATUS, write: failed },
-  failStale: { from: [SMS_SUPPORT_JOB_STATUS.COMMITTING], write: failed },
   cancel: { from: [SMS_SUPPORT_JOB_STATUS.QUEUED, SMS_SUPPORT_JOB_STATUS.RUNNING], write: failed },
-  requeueStale: { from: [SMS_SUPPORT_JOB_STATUS.RUNNING], write: requeued },
 } as const
 
 export type JobTransition = keyof typeof jobs
@@ -459,10 +447,6 @@ async function transitionJobs<K extends JobTransition>(
 
 export function cancelSupportJobs(ticketId: string, input: JobFailure): Promise<number> {
   return transitionJobs('cancel', sql`ticket_id = ${ticketId}`, input)
-}
-
-export function requeueStaleSupportJobs(staleBefore: Date, input: Stamped): Promise<number> {
-  return transitionJobs('requeueStale', sql`locked_at < ${staleBefore}`, input)
 }
 
 class Rollback extends Error {
