@@ -462,6 +462,7 @@ describe('patient history', () => {
         'createdAt',
         'reviewedAt',
         'denialReason',
+        'denialNote',
       ].sort()
     )
   })
@@ -1220,12 +1221,12 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
     const submission = await seed({
       status: SubmissionStatus.APPROVED,
       updatedAt: submissionUpdatedAt,
-      denialReason: 'x',
+      denialReason: 'Legal',
     })
     const otherSubmission = await seed({
       status: SubmissionStatus.APPROVED,
       updatedAt: submissionUpdatedAt,
-      denialReason: 'x',
+      denialReason: 'Legal',
     })
 
     expect(await commit(ticketId, jobId, submission.id)).toBe('updated')

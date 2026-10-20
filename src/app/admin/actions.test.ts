@@ -393,7 +393,7 @@ describe('denySubmission - Denial Automation', () => {
       })
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({ success: true })
 
@@ -407,6 +407,7 @@ describe('denySubmission - Denial Automation', () => {
         adminId: mockDoctorId,
         at: expect.any(Date),
         reason: 'Legal',
+        note: null,
       })
 
       expect(mockRefundsCreate).toHaveBeenCalledWith(
@@ -455,7 +456,7 @@ describe('denySubmission - Denial Automation', () => {
       })
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      const result = await denySubmission(mockSubmissionId, '7+ days')
+      const result = await denySubmission(mockSubmissionId, { reason: '7+ days', note: null })
 
       expect(result).toEqual({ success: true })
       expect(mockSendDenialEmail).toHaveBeenCalledWith(
@@ -473,7 +474,7 @@ describe('denySubmission - Denial Automation', () => {
       })
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      const result = await denySubmission(mockSubmissionId, 'Other')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Other', note: null })
 
       expect(result).toEqual({ success: true })
       expect(mockSendDenialEmail).toHaveBeenCalledWith(
@@ -491,7 +492,10 @@ describe('denySubmission - Denial Automation', () => {
       })
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      const result = await denySubmission(mockSubmissionId, 'Refund (Denial)')
+      const result = await denySubmission(mockSubmissionId, {
+        reason: 'Refund (Denial)',
+        note: null,
+      })
 
       expect(result).toEqual({ success: true })
       expectTransition('deny', expect.objectContaining({ reason: 'Refund (Denial)' }))
@@ -520,7 +524,7 @@ describe('denySubmission - Denial Automation', () => {
         paymentAmount: 2495,
       })
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({ success: true })
       expect(mockPermit).toHaveBeenCalledWith(
@@ -533,6 +537,7 @@ describe('denySubmission - Denial Automation', () => {
         adminId: mockDoctorId,
         at: expect.any(Date),
         reason: 'Legal',
+        note: null,
       })
       expect(mockRefundsCreate).not.toHaveBeenCalled()
       expect(mockSendDenialEmail).toHaveBeenCalledWith(
@@ -553,7 +558,7 @@ describe('denySubmission - Denial Automation', () => {
       permits('deny', mockSubmission)
       mockRefundsCreate.mockRejectedValue(stripeError('StripeCardError', 'Insufficient funds'))
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -573,7 +578,7 @@ describe('denySubmission - Denial Automation', () => {
         stripeError('StripeInvalidRequestError', 'No such payment_intent')
       )
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -588,7 +593,7 @@ describe('denySubmission - Denial Automation', () => {
       permits('deny', mockSubmission)
       mockRefundsCreate.mockRejectedValue(new Error('socket hang up'))
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -609,7 +614,7 @@ describe('denySubmission - Denial Automation', () => {
           : { ok: true, value: step.row }
       )
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -627,7 +632,7 @@ describe('denySubmission - Denial Automation', () => {
         return { ok: true, value: step.row }
       })
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -645,7 +650,7 @@ describe('denySubmission - Denial Automation', () => {
           : { ok: true, value: step.row }
       )
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -690,7 +695,9 @@ describe('denySubmission - Denial Automation', () => {
       const record = stubRecordRefund('refused')
       mockFindSubmissionById.mockImplementationOnce(async () => rowRecorded(record.at))
 
-      expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual(ANOTHER_RUN)
+      expect(await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })).toEqual(
+        ANOTHER_RUN
+      )
       expect(mockFindSubmissionById).toHaveBeenCalledExactlyOnceWith(mockSubmissionId)
       expect(mockRevokeNoteVerificationForSubmission).not.toHaveBeenCalled()
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
@@ -702,7 +709,9 @@ describe('denySubmission - Denial Automation', () => {
       const record = stubRecordRefund('throws')
       mockFindSubmissionById.mockImplementationOnce(async () => rowRecorded(record.at))
 
-      expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual({ success: true })
+      expect(await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })).toEqual({
+        success: true,
+      })
       expect(mockRevokeNoteVerificationForSubmission).toHaveBeenCalledWith(
         mockSubmissionId,
         record.at
@@ -718,7 +727,9 @@ describe('denySubmission - Denial Automation', () => {
       stubRecordRefund('throws')
       mockFindSubmissionById.mockResolvedValueOnce(rowRecorded(new Date('2026-03-05T12:00:00Z')))
 
-      expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual(ANOTHER_RUN)
+      expect(await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })).toEqual(
+        ANOTHER_RUN
+      )
       expect(mockRevokeNoteVerificationForSubmission).not.toHaveBeenCalled()
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
     })
@@ -733,7 +744,7 @@ describe('denySubmission - Denial Automation', () => {
       )
       mockFindSubmissionById.mockRejectedValueOnce(new Error('connection lost'))
 
-      expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual({
+      expect(await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })).toEqual({
         success: false,
         error: `Refund ${mockRefundId} was issued but could not be recorded.`,
       })
@@ -750,7 +761,7 @@ describe('denySubmission - Denial Automation', () => {
       })
       mockSendDenialEmail.mockRejectedValue(new Error('Email service unavailable'))
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: true,
@@ -772,7 +783,7 @@ describe('denySubmission - Denial Automation', () => {
     it('should fail if submission not found', async () => {
       refuses({ reason: 'missing' })
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -783,7 +794,7 @@ describe('denySubmission - Denial Automation', () => {
     it('should fail if submission already denied', async () => {
       refuses({ reason: 'status', status: SubmissionStatus.DENIED })
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -794,7 +805,7 @@ describe('denySubmission - Denial Automation', () => {
     it('should fail if submission already approved', async () => {
       refuses({ reason: 'status', status: SubmissionStatus.APPROVED })
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -805,7 +816,7 @@ describe('denySubmission - Denial Automation', () => {
     it('should fail if refund already processed (idempotency check)', async () => {
       refuses({ reason: 'refund', refund: 'refunded' })
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
+      const result = await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(result).toEqual({
         success: false,
@@ -816,11 +827,68 @@ describe('denySubmission - Denial Automation', () => {
     it('redirects to the admin login without a session', async () => {
       mockGetSession.mockResolvedValue(null)
 
-      await expect(denySubmission(mockSubmissionId, 'Legal')).rejects.toMatchObject({
+      await expect(
+        denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
+      ).rejects.toMatchObject({
         digest: expect.stringContaining(';/admin/login;'),
       })
       expect(mockPermit).not.toHaveBeenCalled()
       expect(mockRefundsCreate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Denial reason parsing', () => {
+    it.each([
+      ['no reason', undefined, 'Denial reason is required'],
+      ['an empty reason', { reason: '' }, 'Denial reason is required'],
+      ['a reason outside the choices', { reason: 'Legal matter' }, 'Invalid denial reason'],
+      ['the retired Refund reason', { reason: 'Refund' }, 'Invalid denial reason'],
+      ['a bare string', 'Legal', 'Denial reason is required'],
+      [
+        'a note on a reason other than Other',
+        { reason: 'Legal', note: 'court' },
+        'Only an Other denial takes a note',
+      ],
+      ['a note that is not text', { reason: 'Other', note: 7 }, 'Invalid denial note'],
+    ])('refuses %s before reading the submission', async (_, input, error) => {
+      const result = await denySubmission(mockSubmissionId, input as never)
+
+      expect(result).toEqual({ success: false, error })
+      expect(mockPermit).not.toHaveBeenCalled()
+      expect(mockTransition).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      [
+        { reason: 'Other', note: '  no answer  ' },
+        { reason: 'Other', note: 'no answer' },
+      ],
+      [
+        { reason: 'Other', note: '   ' },
+        { reason: 'Other', note: null },
+      ],
+      [{ reason: 'Other' }, { reason: 'Other', note: null }],
+      [
+        { reason: 'Under 18', note: null },
+        { reason: 'Under 18', note: null },
+      ],
+    ])('denies %o as %o', async (input, choice) => {
+      permits('deny', mockSubmission)
+      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
+      mockSendDenialEmail.mockResolvedValue({ success: true })
+
+      expect(await denySubmission(mockSubmissionId, input as never)).toEqual({ success: true })
+      expectTransition('deny', { adminId: mockDoctorId, at: expect.any(Date), ...choice })
+    })
+
+    it('refuses an override denial with a reason outside the choices', async () => {
+      expect(
+        await changeSubmissionStatus(mockSubmissionId, SubmissionStatus.DENIED, {
+          reason: 'no answer',
+          note: null,
+        } as never)
+      ).toEqual({ success: false, error: 'Invalid denial reason' })
+      expect(mockPermit).not.toHaveBeenCalled()
     })
   })
 
@@ -833,7 +901,7 @@ describe('denySubmission - Denial Automation', () => {
       })
       mockSendDenialEmail.mockResolvedValue({ success: true })
 
-      await denySubmission(mockSubmissionId, 'Legal')
+      await denySubmission(mockSubmissionId, { reason: 'Legal', note: null })
 
       expect(mockSendDenialEmail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -882,7 +950,10 @@ describe('changeSubmissionStatus - Denial SMS', () => {
       amount: 2495,
     })
 
-    const result = await changeSubmissionStatus(mockSubmissionId, SubmissionStatus.DENIED, 'Legal')
+    const result = await changeSubmissionStatus(mockSubmissionId, SubmissionStatus.DENIED, {
+      reason: 'Legal',
+      note: null,
+    })
 
     expect(result).toEqual({ success: true, warning: undefined })
     expect(mockSendDenialEmail).toHaveBeenCalledWith({
@@ -905,7 +976,10 @@ describe('changeSubmissionStatus - Denial SMS', () => {
   it('sends denial SMS after already-refunded denial email succeeds', async () => {
     permits('overrideDenyRefunded', { ...mockSubmission, stripeRefundId: 're_existing_refund' })
 
-    const result = await changeSubmissionStatus(mockSubmissionId, SubmissionStatus.DENIED, 'Legal')
+    const result = await changeSubmissionStatus(mockSubmissionId, SubmissionStatus.DENIED, {
+      reason: 'Legal',
+      note: null,
+    })
 
     expect(result).toEqual({ success: true })
     expect(mockRefundsCreate).not.toHaveBeenCalled()
@@ -1225,21 +1299,22 @@ describe('revalidation', () => {
       'queue deny with refund',
       'deny',
       row,
-      () => denySubmission('sub_123', 'Legal'),
+      () => denySubmission('sub_123', { reason: 'Legal', note: null }),
       [...QUEUES, '/admin/denied'],
     ],
     [
       'queue deny of a MANUAL row',
       'denyManual',
       { ...row, status: SubmissionStatus.MANUAL },
-      () => denySubmission('sub_123', 'Legal'),
+      () => denySubmission('sub_123', { reason: 'Legal', note: null }),
       [...QUEUES, '/admin/denied'],
     ],
     [
       'detail-page deny',
       'overrideDeny',
       { ...row, status: SubmissionStatus.APPROVED },
-      () => changeSubmissionStatus('sub_123', SubmissionStatus.DENIED, 'Legal'),
+      () =>
+        changeSubmissionStatus('sub_123', SubmissionStatus.DENIED, { reason: 'Legal', note: null }),
       [...DETAIL, '/admin/denied'],
     ],
     [

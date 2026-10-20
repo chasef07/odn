@@ -179,6 +179,64 @@ SELECT 1/0;`
   })
 })
 
+describe('0009_constrain_denial_reason', () => {
+  const SUBMISSION_COLUMNS = `id, stripe_payment_intent_id, status, state, recipient, patient_first_name,
+    patient_last_name, patient_date_of_birth, email, phone, note_purpose, first_day_off,
+    last_day_off, absence_reason, updated_at, denial_reason`
+
+  async function seedLegacy(id: string, status: string, reason: string | null): Promise<void> {
+    await pool.query(
+      `INSERT INTO submissions (${SUBMISSION_COLUMNS}) VALUES ($1, $1, $2, 'CA', 'myself', 'J', 'D',
+        '1990-01-01', 'j@example.com', '5551234567', 'work', '2026-01-01', '2026-01-02',
+        'illness', now(), $3)`,
+      [id, status, reason]
+    )
+  }
+
+  async function denials(): Promise<[string, string | null, string | null][]> {
+    const { rows } = await pool.query(
+      'SELECT id, denial_reason, denial_note FROM submissions ORDER BY id'
+    )
+    return rows.map((row) => [row.id, row.denial_reason, row.denial_note])
+  }
+
+  it('keeps every stored reason, moves free text into the note under Other, and then refuses anything else', async () => {
+    const migrations = loadMigrations()
+    const index = migrations.findIndex((m) => m.name === '0009_constrain_denial_reason')
+    await migrate(pool, migrations.slice(0, index))
+    await seedLegacy('a', 'DENIED', 'Legal')
+    await seedLegacy('b', 'DENIED', 'Refund')
+    await seedLegacy('c', 'DENIED', 'accommodations')
+    await seedLegacy('d', 'DENIED', 'no answer ')
+    await seedLegacy('e', 'DENIED', 'Other')
+    await seedLegacy('f', 'APPROVED', '7+ days')
+    await seedLegacy('g', 'PENDING_REVIEW', null)
+
+    expect((await migrate(pool, migrations)).applied).toEqual(
+      migrations.slice(index).map((m) => m.name)
+    )
+
+    expect(await denials()).toEqual([
+      ['a', 'Legal', null],
+      ['b', 'Refund', null],
+      ['c', 'Other', 'accommodations'],
+      ['d', 'Other', 'no answer '],
+      ['e', 'Other', null],
+      ['f', '7+ days', null],
+      ['g', null, null],
+    ])
+    await expect(
+      pool.query("UPDATE submissions SET denial_reason = 'Legal matter' WHERE id = 'a'")
+    ).rejects.toThrow('submissions_denial_reason_check')
+    await expect(
+      pool.query("UPDATE submissions SET denial_note = 'court' WHERE id = 'a'")
+    ).rejects.toThrow('submissions_denial_note_check')
+    await expect(
+      pool.query("UPDATE submissions SET denial_reason = NULL WHERE id = 'c'")
+    ).rejects.toThrow('submissions_denial_note_check')
+  })
+})
+
 const PRISMA_LEDGER = `CREATE TABLE _prisma_migrations (
   id varchar(36) PRIMARY KEY,
   checksum varchar(64) NOT NULL,

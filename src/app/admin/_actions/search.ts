@@ -7,7 +7,7 @@ import {
   searchSubmissionsPage,
   type SubmissionSearch,
 } from '@/db/submissions'
-import type { NoteVerification, Submission, SubmissionStatus } from '@/db/types'
+import type { DenialReason, NoteVerification, Submission, SubmissionStatus } from '@/db/types'
 import { logger } from '@/lib/logger'
 import { dateOnlyFromUtcDate, parseDateOnly, utcDateFromDateOnly, type DateOnly } from '@/lib/dates'
 import { formatPhoneNumber } from '@/lib/phone-utils'
@@ -38,7 +38,8 @@ export type PatientHistoryEntry = {
   lastDayOff: DateOnly
   createdAt: Date
   reviewedAt: Date | null
-  denialReason: string | null
+  denialReason: DenialReason | null
+  denialNote: string | null
 }
 
 export const getPatientHistory = adminAction(
@@ -73,6 +74,7 @@ export const getPatientHistory = adminAction(
         createdAt: sub.createdAt,
         reviewedAt: sub.reviewedAt,
         denialReason: sub.denialReason,
+        denialNote: sub.denialNote,
       }))
 
       return { success: true, data: formatted }

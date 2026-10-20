@@ -160,7 +160,7 @@ async function activeNotes(id: string): Promise<number> {
 async function seedRefundedDenied(): Promise<Submission> {
   const pending = await seedPending()
   mockRefundsCreate.mockResolvedValueOnce({ id: 're_done', amount: 2495 })
-  const denied = await denySubmission(pending.id, 'Legal')
+  const denied = await denySubmission(pending.id, { reason: 'Legal', note: null })
   expect(denied).toEqual({ success: true })
   const row = await reload(pending.id)
   expect(row).toMatchObject({ status: SubmissionStatus.DENIED, stripeRefundId: 're_done' })
@@ -223,7 +223,7 @@ describe('a failed refund restores the prior status', () => {
     })
 
     mockRefundsCreate.mockRejectedValueOnce(stripeError('StripeCardError', 'card declined'))
-    const denied = await denySubmission(pending.id, 'Legal')
+    const denied = await denySubmission(pending.id, { reason: 'Legal', note: null })
     expect(denied.success).toBe(false)
     expect(denied.error).toContain('card declined')
 
@@ -236,7 +236,7 @@ describe('a failed refund restores the prior status', () => {
     const pending = await seedPending()
     mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
 
-    const denied = await denySubmission(pending.id, 'Legal')
+    const denied = await denySubmission(pending.id, { reason: 'Legal', note: null })
     expect(denied.success).toBe(false)
     expect(denied.error).toContain('refund outcome is unknown')
 
@@ -253,7 +253,9 @@ describe('a failed refund restores the prior status', () => {
         reason: 'OTHER_REVIEW',
       })
     ).toMatchObject({ success: false })
-    expect(await denySubmission(pending.id, 'Legal')).toMatchObject({ success: false })
+    expect(await denySubmission(pending.id, { reason: 'Legal', note: null })).toMatchObject({
+      success: false,
+    })
     expect(mockSendApprovalEmail).not.toHaveBeenCalled()
     expect(await reload(pending.id)).toEqual(reserved)
   })
@@ -290,7 +292,10 @@ describe('a refund made in the Stripe dashboard', () => {
   it('leaves the detail-page deny reserved when Stripe answers charge_already_refunded', async () => {
     const approved = await approvedThenRefundedInStripe()
 
-    const denied = await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
+    const denied = await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, {
+      reason: 'Legal',
+      note: null,
+    })
     expect(denied).toEqual({
       success: false,
       error: expect.stringContaining('refund outcome is unknown'),
@@ -309,7 +314,10 @@ describe('a refund made in the Stripe dashboard', () => {
     'records a %s dashboard refund even when asked to release, revokes the note and sends the denial email',
     async (status) => {
       const approved = await approvedThenRefundedInStripe(status)
-      await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
+      await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, {
+        reason: 'Legal',
+        note: null,
+      })
 
       const settled = await settleRefundReservation(approved.id, SubmissionStatus.MAYBE)
       expect(settled).toEqual({
@@ -335,7 +343,7 @@ describe('a refund made in the Stripe dashboard', () => {
   it('records nothing and releases nothing while another customer holds the only refund', async () => {
     const pending = await seedPending()
     mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
-    await denySubmission(pending.id, 'Legal')
+    await denySubmission(pending.id, { reason: 'Legal', note: null })
     const reserved = await reload(pending.id)
     const other = await seedPending()
     stripeRefunds.push(dashboardRefund(other))
@@ -360,7 +368,10 @@ describe('a refund made in the Stripe dashboard', () => {
 
   it('reports a refund another run recorded first as recorded, without a second email', async () => {
     const approved = await approvedThenRefundedInStripe()
-    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
+    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, {
+      reason: 'Legal',
+      note: null,
+    })
     mockRefundsList.mockImplementationOnce(async (params) => {
       expect(await settleRefundReservation(approved.id, undefined)).toMatchObject({
         settled: 'recorded',
@@ -403,7 +414,10 @@ describe('a refund made in the Stripe dashboard', () => {
 
   it('sends one denial email when two settles race on one reserved row', async () => {
     const approved = await approvedThenRefundedInStripe()
-    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
+    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, {
+      reason: 'Legal',
+      note: null,
+    })
     const refundsBefore = mockRefundsCreate.mock.calls.length
 
     const settled = await Promise.all([
@@ -425,7 +439,10 @@ describe('a refund made in the Stripe dashboard', () => {
       })
     })
 
-    const [denied, settled] = await Promise.all([denySubmission(pending.id, 'Legal'), settling])
+    const [denied, settled] = await Promise.all([
+      denySubmission(pending.id, { reason: 'Legal', note: null }),
+      settling,
+    ])
 
     await expectOneDenial(pending.id, [denied, recordedNotice(settled)])
     expect(mockRefundsCreate).toHaveBeenCalledTimes(1)
@@ -438,7 +455,12 @@ describe('a refund made in the Stripe dashboard', () => {
     mockRefundsCreate.mockResolvedValueOnce({ id: 're_lost_reply', amount: 2495 })
     afterWrite.throwOnce = 'recordRefund'
 
-    expect(await changeSubmissionStatus(pending.id, SubmissionStatus.DENIED, 'Legal')).toEqual({
+    expect(
+      await changeSubmissionStatus(pending.id, SubmissionStatus.DENIED, {
+        reason: 'Legal',
+        note: null,
+      })
+    ).toEqual({
       success: true,
     })
     const row = await reload(pending.id)
@@ -451,7 +473,7 @@ describe('a refund made in the Stripe dashboard', () => {
   it('fails instead of reporting a record when a concurrent settlement released the row first', async () => {
     const pending = await seedPending()
     mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
-    await denySubmission(pending.id, 'Legal')
+    await denySubmission(pending.id, { reason: 'Legal', note: null })
     mockRefundsList.mockImplementationOnce(async (params) => {
       expect(await settleRefundReservation(pending.id, SubmissionStatus.MAYBE)).toEqual({
         settled: 'released',
@@ -474,7 +496,7 @@ describe('a refund made in the Stripe dashboard', () => {
   it('fails instead of reporting a release when a concurrent settlement released the row first', async () => {
     const pending = await seedPending()
     mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
-    await denySubmission(pending.id, 'Legal')
+    await denySubmission(pending.id, { reason: 'Legal', note: null })
     mockRefundsList.mockImplementationOnce(async (params) => {
       expect(await settleRefundReservation(pending.id, SubmissionStatus.PENDING_REVIEW)).toEqual({
         settled: 'released',
@@ -494,7 +516,10 @@ describe('a refund made in the Stripe dashboard', () => {
 
   it('reports a denial email that failed during settlement and still records the refund and revokes the note', async () => {
     const approved = await approvedThenRefundedInStripe()
-    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
+    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, {
+      reason: 'Legal',
+      note: null,
+    })
     mockSendDenialEmail.mockRejectedValueOnce(new Error('resend down'))
 
     const settled = await settleRefundReservation(approved.id, undefined)
@@ -513,7 +538,10 @@ describe('a refund made in the Stripe dashboard', () => {
 
   it('refuses to release while Stripe lists only failed, canceled or unreadable refunds', async () => {
     const approved = await approvedThenRefundedInStripe()
-    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, 'Legal')
+    await changeSubmissionStatus(approved.id, SubmissionStatus.DENIED, {
+      reason: 'Legal',
+      note: null,
+    })
     const reserved = await reload(approved.id)
     stripeRefunds.splice(
       0,
@@ -534,7 +562,7 @@ describe('a refund made in the Stripe dashboard', () => {
     async (target) => {
       const pending = await seedPending()
       mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
-      await denySubmission(pending.id, 'Legal')
+      await denySubmission(pending.id, { reason: 'Legal', note: null })
       const reserved = await reload(pending.id)
       expect(reserved.stripeRefundId).toBe(`pending_${pending.id}`)
 
@@ -565,7 +593,7 @@ describe('a refund made in the Stripe dashboard', () => {
     async (target) => {
       const pending = await seedPending()
       mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
-      await denySubmission(pending.id, 'Legal')
+      await denySubmission(pending.id, { reason: 'Legal', note: null })
       const reserved = await reload(pending.id)
 
       await expect(settleRefundReservation(pending.id, target)).rejects.toThrow(
@@ -586,7 +614,12 @@ describe('the detail-page deny', () => {
     await createNoteVerification(legacy, new Date('2026-03-05T00:00:00.000Z'))
     expect(await activeNotes(legacy.id)).toBe(1)
 
-    expect(await changeSubmissionStatus(legacy.id, SubmissionStatus.DENIED, 'Legal')).toEqual({
+    expect(
+      await changeSubmissionStatus(legacy.id, SubmissionStatus.DENIED, {
+        reason: 'Legal',
+        note: null,
+      })
+    ).toEqual({
       success: true,
     })
     expect(mockRefundsCreate).not.toHaveBeenCalled()
@@ -606,7 +639,12 @@ describe('the detail-page deny', () => {
     expect(await approveSubmission(pending.id)).toEqual({ success: true })
     mockRefundsCreate.mockResolvedValueOnce({ id: 're_override', amount: 2495 })
 
-    expect(await changeSubmissionStatus(pending.id, SubmissionStatus.DENIED, 'Legal')).toEqual({
+    expect(
+      await changeSubmissionStatus(pending.id, SubmissionStatus.DENIED, {
+        reason: 'Legal',
+        note: null,
+      })
+    ).toEqual({
       success: true,
     })
     expect(mockRefundsCreate).toHaveBeenCalledExactlyOnceWith(
@@ -640,7 +678,9 @@ describe('the detail-page deny', () => {
       success: false,
       error: 'Cannot change submission to status: SHIPPED',
     })
-    expect(await changeSubmissionStatus(pending.id, ['DENIED'] as never, 'Legal')).toEqual({
+    expect(
+      await changeSubmissionStatus(pending.id, ['DENIED'] as never, { reason: 'Legal', note: null })
+    ).toEqual({
       success: false,
       error: 'Cannot change submission to status: ["DENIED"]',
     })
@@ -675,9 +715,10 @@ describe('marking manual', () => {
 })
 
 describe('a row that moves between the read and the write', () => {
-  const legal = (id: string) => denySubmission(id, 'Legal')
+  const legal = (id: string) => denySubmission(id, { reason: 'Legal', note: null })
   const approve = (id: string) => approveSubmission(id)
-  const overrideDeny = (id: string) => changeSubmissionStatus(id, SubmissionStatus.DENIED, 'Legal')
+  const overrideDeny = (id: string) =>
+    changeSubmissionStatus(id, SubmissionStatus.DENIED, { reason: 'Legal', note: null })
   const races: {
     name: string
     start: Parameters<typeof seedSubmission>[0]
@@ -782,7 +823,9 @@ describe('the queue deny', () => {
       return { id: 're_moved', amount: 2495 }
     })
 
-    expect(await denySubmission(pending.id, 'Legal')).toEqual({ success: true })
+    expect(await denySubmission(pending.id, { reason: 'Legal', note: null })).toEqual({
+      success: true,
+    })
     expect(await reload(pending.id)).toMatchObject({
       status: SubmissionStatus.DENIED,
       stripeRefundId: 're_moved',
@@ -797,7 +840,9 @@ describe('the queue deny', () => {
   it('of a MANUAL row attempts no refund and sends no email', async () => {
     const manual = await seedSubmission({ status: SubmissionStatus.MANUAL, refund: 'none' })
 
-    expect(await denySubmission(manual.id, 'Legal')).toEqual({ success: true })
+    expect(await denySubmission(manual.id, { reason: 'Legal', note: null })).toEqual({
+      success: true,
+    })
     expect(await reload(manual.id)).toMatchObject({
       status: SubmissionStatus.DENIED,
       denialReason: 'Legal',

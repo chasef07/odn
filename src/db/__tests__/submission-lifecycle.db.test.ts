@@ -14,7 +14,7 @@ import {
   type Transition,
 } from '../submission-lifecycle'
 import { findSubmissionById } from '../submissions'
-import { SubmissionStatus, type Submission } from '../types'
+import { SubmissionStatus, type DenialChoice, type Submission } from '../types'
 import { seedAdmins, seedSubmission } from './seed'
 
 const T0 = new Date('2026-03-05T12:00:00.000Z')
@@ -42,7 +42,8 @@ function seed(state: State, overrides: Partial<Submission> = {}): Promise<Submis
     refundedAt: state.refund === 'refunded' ? at(-2) : null,
     reviewedByAdminId: EARLIER_ADMIN,
     reviewedAt: at(-10),
-    denialReason: 'stale reason',
+    denialReason: 'Other',
+    denialNote: 'stale note',
     maybeReason: 'OLD_REASON',
     maybeInternalNote: 'keep',
     maybeApprovedDays: 1,
@@ -81,7 +82,7 @@ const stray = { maybeInternalNote: 'leak', stripeRefundId: 're_leak', status: 'A
 
 const review = (when: Date) => ({ ...stray, adminId: ADMIN, at: when })
 const approval = (when: Date) => ({ ...review(when), diagnosis: 'flu', withRestrictions: true })
-const denial = (when: Date) => ({ ...review(when), reason: 'Legal' })
+const denial = (when: Date) => ({ ...review(when), reason: 'Legal' as const, note: null })
 const maybeReview = (when: Date) => ({
   ...review(when),
   reason: 'OTHER_REVIEW',
@@ -104,13 +105,15 @@ const approvalWrite = (_: Submission, when: Date) => ({
   status: SubmissionStatus.APPROVED,
   ...reviewed(when),
   denialReason: null,
+  denialNote: null,
   approvalDiagnosis: 'flu',
   approvalWithRestrictions: true,
 })
 const reservationWrite = (row: Submission, when: Date) => ({
   status: SubmissionStatus.DENIED,
   ...reviewed(when),
-  denialReason: 'Legal',
+  denialReason: 'Legal' as const,
+  denialNote: null,
   stripeRefundId: reservedRefundId(row.id),
 })
 const maybeWrite = (_: Submission, when: Date) => ({
@@ -139,6 +142,7 @@ const cases: { [K in Transition]: Case<K> } = {
       status: SubmissionStatus.APPROVED,
       ...reviewed(when),
       denialReason: null,
+      denialNote: null,
       approvalEmailSentAt: null,
       approvalDiagnosis: null,
       approvalWithRestrictions: null,
@@ -161,6 +165,7 @@ const cases: { [K in Transition]: Case<K> } = {
       status: SubmissionStatus.DENIED,
       ...reviewed(when),
       denialReason: 'Legal',
+      denialNote: null,
       denialEmailSentAt: null,
     }),
   },
@@ -171,6 +176,7 @@ const cases: { [K in Transition]: Case<K> } = {
       status: SubmissionStatus.DENIED,
       ...reviewed(when),
       denialReason: 'Legal',
+      denialNote: null,
     }),
   },
   overrideDeny: {
@@ -185,6 +191,7 @@ const cases: { [K in Transition]: Case<K> } = {
       status: SubmissionStatus.DENIED,
       ...reviewed(when),
       denialReason: 'Legal',
+      denialNote: null,
     }),
   },
   maybe: {
@@ -228,6 +235,7 @@ const cases: { [K in Transition]: Case<K> } = {
       status: SubmissionStatus.MAYBE,
       stripeRefundId: null,
       denialReason: row.denialReason,
+      denialNote: row.denialNote,
       reviewedByAdminId: row.reviewedByAdminId,
       reviewedAt: row.reviewedAt,
       refundedAt: row.refundedAt,
@@ -524,7 +532,7 @@ describe('refund settlement', () => {
     await seedAdmin()
     const prior = await seed(
       { status: 'MAYBE', refund: 'none' },
-      { maybeReason: 'OTHER_REVIEW', denialReason: null }
+      { maybeReason: 'OTHER_REVIEW', denialReason: null, denialNote: null }
     )
     const reserved = await transition(await permitted(prior.id, 'deny'), denial(at(1)))
     if (!reserved.ok) throw new Error(reserved.refusal.reason)
@@ -532,6 +540,7 @@ describe('refund settlement', () => {
       ...prior,
       status: 'DENIED',
       denialReason: 'Legal',
+      denialNote: null,
       reviewedByAdminId: ADMIN,
       reviewedAt: at(1),
       stripeRefundId: reservedRefundId(prior.id),
@@ -596,5 +605,64 @@ describe('refund settlement', () => {
       )
     ).rejects.toThrow('is not a Stripe refund id')
     expect(await reload(reserved.id)).toEqual(reserved)
+  })
+})
+
+describe('the denial reason', () => {
+  const denials = [
+    'deny',
+    'denyManual',
+    'denyRefunded',
+    'overrideDeny',
+    'overrideDenyRefunded',
+  ] as const
+
+  it.each(denials)('%s writes an Other denial with its note over a legacy reason', async (name) => {
+    await seedAdmin()
+    const row = await seed(cases[name].start, { denialReason: 'Refund', denialNote: null })
+
+    const written = await transition(
+      { transition: name, row },
+      { adminId: ADMIN, at: at(1), reason: 'Other', note: 'no answer' }
+    )
+
+    expect(written).toMatchObject({
+      ok: true,
+      value: { denialReason: 'Other', denialNote: 'no answer' },
+    })
+    expect(await reload(row.id)).toMatchObject({ denialReason: 'Other', denialNote: 'no answer' })
+  })
+
+  it('releases a reservation back to a legacy reason with no note', async () => {
+    await seedAdmin()
+    const prior = await seed(
+      { status: 'PENDING_REVIEW', refund: 'none' },
+      { denialReason: 'Refund', denialNote: null }
+    )
+    const reserved = await transition(await permitted(prior.id, 'deny'), {
+      adminId: ADMIN,
+      at: at(1),
+      reason: 'Other',
+      note: 'no answer',
+    })
+    if (!reserved.ok) throw new Error(reserved.refusal.reason)
+
+    await transition({ transition: 'releaseRefund', row: reserved.value }, { at: at(2), prior })
+
+    expect(await reload(prior.id)).toEqual({ ...prior, updatedAt: at(2) })
+  })
+
+  it.each([
+    ['a reason outside the stored set', { reason: 'Legal matter', note: null }],
+    ['a note on a reason other than Other', { reason: 'Legal', note: 'court date' }],
+  ])('refuses %s and writes nothing', async (_, choice) => {
+    await seedAdmin()
+    const row = await seed({ status: 'PENDING_REVIEW', refund: 'none' })
+    const step = await permitted(row.id, 'deny')
+
+    await expect(
+      transition(step, { adminId: ADMIN, at: at(1), ...(choice as DenialChoice) })
+    ).rejects.toThrow(/violates check constraint "submissions_denial_(reason|note)_check"/)
+    expect(await reload(row.id)).toEqual(row)
   })
 })

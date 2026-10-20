@@ -113,6 +113,7 @@ export const submissions = defineTable<Submission>('submissions', {
   reviewedAt: nullable('reviewed_at', 'timestamp'),
   reviewedByAdminId: nullable('reviewed_by_admin_id', 'text'),
   denialReason: nullable('denial_reason', 'text'),
+  denialNote: nullable('denial_note', 'text'),
   maybeReason: nullable('maybe_reason', 'text'),
   maybeInternalNote: nullable('maybe_internal_note', 'text'),
   maybeApprovedDays: nullable('maybe_approved_days', 'int'),

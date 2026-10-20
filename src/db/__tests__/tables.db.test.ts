@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { getPool } from '../pool'
 import type { Column } from '../table'
 import { tables } from '../tables'
-import { NoteVerificationStatus, SubmissionStatus } from '../types'
+import { DENIAL_REASONS, NoteVerificationStatus, SubmissionStatus } from '../types'
 
 type ColumnRow = {
   column_name: string
@@ -63,6 +63,17 @@ describe('every table descriptor matches the migrated schema', () => {
         `${table_name}.${column_name} is ${udt_name}`
       ).toEqual(LABELS_OF_ENUM[udt_name])
     }
+  })
+
+  it('the denial_reason check admits exactly the denial reasons src/db/types.ts exports', async () => {
+    const { rows } = await getPool().query<{ definition: string }>(
+      "SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = 'submissions_denial_reason_check'"
+    )
+    const literals = [...rows[0].definition.matchAll(/'((?:[^']|'')*)'::text/g)].map(
+      ([, literal]) => literal.replaceAll("''", "'")
+    )
+
+    expect(literals.sort()).toEqual([...DENIAL_REASONS].sort())
   })
 
   for (const table of Object.values(tables)) {

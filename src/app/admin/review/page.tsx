@@ -18,11 +18,10 @@ import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
-import { type DenialReason } from '@/lib/admin-utils'
 import { dateOnlyFromUtcDate, inclusiveDayCount, todayET } from '@/lib/dates'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import { ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
-import type { Submission } from '@/db/types'
+import type { DenialReasonChoice, Submission } from '@/db/types'
 import { getSubmissionsForReview, getMonthlyLimitData } from '@/app/admin/_actions/queues'
 import { approveSubmission } from '@/app/admin/_actions/approve'
 import { denySubmission } from '@/app/admin/_actions/deny'
@@ -257,12 +256,12 @@ export default function AdminReviewPage() {
     setShowDenialDialog(true)
   }
 
-  const handleDenyConfirm = async (reason: DenialReason) => {
+  const handleDenyConfirm = async (reason: DenialReasonChoice) => {
     if (!currentSubmission || isReviewActionDisabled) return
 
     setIsTransitioning(true)
 
-    const result = await denySubmission(currentSubmission.id, reason)
+    const result = await denySubmission(currentSubmission.id, { reason, note: null })
 
     if (result.success) {
       setReviewWarning(result.warning ?? null)

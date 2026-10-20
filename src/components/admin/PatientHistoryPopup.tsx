@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { getPatientHistory, type PatientHistoryEntry } from '@/app/admin/_actions/search'
-import { NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
+import { formatDenialReason, NOTE_PURPOSE_LABELS } from '@/lib/admin-utils'
 import { formatDateOnlyRange, formatInstantET, instantOf, type DateOnly } from '@/lib/dates'
 
 interface PatientHistoryPopupProps {
@@ -120,7 +120,9 @@ export function PatientHistoryPopup({
                   {entry.denialReason && (
                     <div>
                       <span className="text-gray-400">Denial reason: </span>
-                      <span className="text-red-600">{entry.denialReason}</span>
+                      <span className="text-red-600">
+                        {formatDenialReason(entry.denialReason, entry.denialNote)}
+                      </span>
                     </div>
                   )}
                 </div>

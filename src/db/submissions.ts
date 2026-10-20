@@ -11,6 +11,7 @@ import {
 import {
   NoteVerificationStatus,
   SubmissionStatus,
+  type DenialReason,
   type JsonValue,
   type NoteVerification,
   type SmsMessage,
@@ -127,7 +128,7 @@ export type SubmissionSummary = Pick<
 >
 
 export type PatientHistorySubmission = SubmissionSummary &
-  Pick<Submission, 'reviewedAt' | 'denialReason'>
+  Pick<Submission, 'reviewedAt' | 'denialReason' | 'denialNote'>
 
 export type FriendsFamilyAnalyticsRow = Pick<
   Submission,
@@ -438,7 +439,7 @@ export async function findPatientHistory({
     )
   )
   return db.rows(
-    sql`SELECT ${select(submissions, [...summaryKeys, 'reviewedAt', 'denialReason'])} FROM submissions WHERE ${where} ORDER BY created_at DESC LIMIT 20`
+    sql`SELECT ${select(submissions, [...summaryKeys, 'reviewedAt', 'denialReason', 'denialNote'])} FROM submissions WHERE ${where} ORDER BY created_at DESC LIMIT 20`
   )
 }
 
@@ -594,7 +595,7 @@ export type SubmissionInsert = {
   utmCampaign?: string | null
   attribution?: JsonValue
   status?: SubmissionStatus
-  denialReason?: string | null
+  denialReason?: DenialReason | null
   maybeReason?: string | null
   maybeInternalNote?: string | null
   maybeEmailSentAt?: Date | null
