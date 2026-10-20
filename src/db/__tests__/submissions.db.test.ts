@@ -1147,6 +1147,7 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
   const submissionUpdatedAt = new Date('2026-06-20T00:00:00.000Z')
   const updateData = {
     denialReason: null,
+    denialNote: null,
     reviewedAt: committedAt,
     updatedAt: committedAt,
     notePurpose: 'school',
@@ -1221,7 +1222,8 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
     const submission = await seed({
       status: SubmissionStatus.APPROVED,
       updatedAt: submissionUpdatedAt,
-      denialReason: 'Legal',
+      denialReason: 'Other',
+      denialNote: 'no answer',
     })
     const otherSubmission = await seed({
       status: SubmissionStatus.APPROVED,
@@ -1241,6 +1243,7 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
     expect(await reload(submission.id)).toEqual({
       ...submission,
       denialReason: null,
+      denialNote: null,
       reviewedAt: committedAt,
       updatedAt: committedAt,
       notePurpose: 'school',

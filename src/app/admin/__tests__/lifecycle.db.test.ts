@@ -562,9 +562,13 @@ describe('a refund made in the Stripe dashboard', () => {
     async (target) => {
       const pending = await seedPending()
       mockRefundsCreate.mockRejectedValueOnce(new Error('socket hang up'))
-      await denySubmission(pending.id, { reason: 'Legal', note: null })
+      await denySubmission(pending.id, { reason: 'Other', note: 'no answer' })
       const reserved = await reload(pending.id)
-      expect(reserved.stripeRefundId).toBe(`pending_${pending.id}`)
+      expect(reserved).toMatchObject({
+        stripeRefundId: `pending_${pending.id}`,
+        denialReason: 'Other',
+        denialNote: 'no answer',
+      })
 
       await expect(settleRefundReservation(pending.id, undefined)).rejects.toThrow(
         `rerun with --release-to <${RELEASE_TARGETS.join('|')}> to release the reservation`
@@ -580,6 +584,7 @@ describe('a refund made in the Stripe dashboard', () => {
         status: target,
         stripeRefundId: null,
         denialReason: null,
+        denialNote: null,
         reviewedByAdminId: null,
         reviewedAt: null,
         updatedAt: expect.any(Date),

@@ -127,6 +127,7 @@ async function regenerateApprovedSubmission({
     ...updateDataForPdf(updates),
     status: SubmissionStatus.APPROVED,
     denialReason: null,
+    denialNote: null,
     reviewedAt: now,
     updatedAt: now,
   }
@@ -240,6 +241,7 @@ function buildSubmissionUpdateData(
 ): SmsSupportAutomationSubmissionUpdate {
   const data: SmsSupportAutomationSubmissionUpdate = {
     denialReason: null,
+    denialNote: null,
     reviewedAt: now,
     updatedAt: now,
   }

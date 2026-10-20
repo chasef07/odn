@@ -340,6 +340,7 @@ describe('runSupportTicketAutomation', () => {
       committedAt: expect.any(Date),
       updateData: {
         denialReason: null,
+        denialNote: null,
         reviewedAt: expect.any(Date),
         updatedAt: expect.any(Date),
         notePurpose: 'school',

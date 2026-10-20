@@ -752,6 +752,7 @@ export async function deleteAllSubmissions(): Promise<number> {
 
 export type SmsSupportAutomationSubmissionUpdate = {
   denialReason: null
+  denialNote: null
   reviewedAt: Date
   updatedAt: Date
   patientDateOfBirth?: Date
