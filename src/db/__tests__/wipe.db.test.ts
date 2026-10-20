@@ -1,5 +1,6 @@
+import pg from 'pg'
 import { afterEach, describe, expect, inject, it, vi } from 'vitest'
-import { deleteAllAuthSessions } from '../auth'
+import { deleteAllAuthAccounts, deleteAllAuthSessions, deleteAllAuthUsers } from '../auth'
 import { countSubmissions, deleteAllSubmissions, insertSubmission } from '../submissions'
 import { closePool } from '../pool'
 import { startTestDatabase } from '../test-database'
@@ -91,12 +92,16 @@ describe('the delete-every-row functions', () => {
 
     await deleteAllSubmissions()
     await deleteAllAuthSessions()
+    await deleteAllAuthAccounts()
+    await deleteAllAuthUsers()
 
-    const { hostname, pathname } = new URL(inject('testDatabaseUrl'))
-    const target = `in database "${pathname.slice(1)}" on host "${hostname}" port `
+    const { database, host } = new pg.Client({ connectionString: inject('testDatabaseUrl') })
+    const target = `in database "${database}" on host "${host}" port `
     expect(info.mock.calls.map(([line]) => line)).toEqual([
       expect.stringContaining(`Deleting every row of submissions ${target}`),
       expect.stringContaining(`Deleting every row of sessions ${target}`),
+      expect.stringContaining(`Deleting every row of accounts ${target}`),
+      expect.stringContaining(`Deleting every row of users ${target}`),
     ])
   })
 })
