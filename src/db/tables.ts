@@ -1,7 +1,8 @@
-import { col, defineTable, jsonCol, nullable, nullableJson, uuid } from './table'
+import { col, defineTable, jsonCol, nullable, nullableJson, uuid, without } from './table'
 import {
   lifecycleColumns,
   refundColumns,
+  smsSupportLifecycleColumns,
   type Account,
   type NoteVerification,
   type ResendWebhookEvent,
@@ -10,6 +11,7 @@ import {
   type SmsPhoneState,
   type SmsSupportJob,
   type SmsSupportTicket,
+  type SmsSupportTicketDetails,
   type Submission,
   type SubmissionBirth,
   type SubmissionDetails,
@@ -18,12 +20,6 @@ import {
   type User,
   type Verification,
 } from './types'
-
-function without<T extends object, K extends keyof T>(object: T, keys: readonly K[]): Omit<T, K> {
-  const rest = { ...object }
-  for (const key of keys) delete rest[key]
-  return rest
-}
 
 export const users = defineTable<User>('users', {
   id: uuid('id'),
@@ -193,6 +189,11 @@ export const smsSupportTickets = defineTable<SmsSupportTicket>('sms_support_tick
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
 })
+
+export const smsSupportTicketDetails = defineTable<SmsSupportTicketDetails>(
+  smsSupportTickets.name,
+  without(smsSupportTickets.columns, smsSupportLifecycleColumns)
+)
 
 export const smsSupportJobs = defineTable<SmsSupportJob>('sms_support_jobs', {
   id: uuid('id'),

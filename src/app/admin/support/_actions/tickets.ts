@@ -2,9 +2,9 @@
 
 import { SMS_SUPPORT_STATUS } from '@/lib/sms-support-types'
 import { findSubmissionForSupportTicket } from '@/db/submissions'
+import { createAdminSupportTicket } from '@/db/sms-support-lifecycle'
 import {
   assignSupportTicketSubmission,
-  createAdminSupportTicket,
   findActiveSupportTicketsForQueue,
   findActiveSupportTicketSummaryForPhone,
   findClosedSupportTicketsForQueue,

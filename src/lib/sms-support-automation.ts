@@ -1,12 +1,7 @@
 import { sendApprovalEmail } from '@/lib/email'
 import { SubmissionStatus, type JsonValue, type Submission } from '@/db/types'
-import {
-  ACTIVE_AUTOMATION_STATUSES,
-  claimSupportTicketAutomationRun,
-  closeSupportTicketAfterAutomation,
-  findSupportJobStatus,
-  findSupportJobWithTicket,
-} from '@/db/sms-support'
+import { findSupportJobStatus, findSupportJobWithTicket } from '@/db/sms-support'
+import { transition } from '@/db/sms-support-lifecycle'
 import {
   commitSupportAutomationSubmissionUpdate,
   findSubmissionById,
@@ -31,7 +26,6 @@ import {
   SMS_SUPPORT_AUTOMATION_KIND,
   SMS_SUPPORT_CATEGORY,
   SMS_SUPPORT_JOB_STATUS,
-  SMS_SUPPORT_STATUS,
   type SmsSupportAutomationKind,
   type SmsSupportCategory,
 } from '@/lib/sms-support-types'
@@ -73,21 +67,15 @@ export async function runSupportTicketAutomation(jobId: string): Promise<void> {
   const job = await findSupportJobWithTicket(jobId)
 
   if (!job) throw new Error('Support job not found')
-  if (
-    job.ticket.status !== SMS_SUPPORT_STATUS.RUNNING_AUTOMATION ||
-    !ACTIVE_AUTOMATION_STATUSES.some((status) => status === job.ticket.automationStatus)
-  ) {
+
+  const claimed = await transition('claimAutomation', job.ticketId, { at: new Date() })
+  if (!claimed.ok) {
     throw new SupportAutomationCancelledError('Ticket left automation state before job ran')
   }
   if (!job.ticket.submissionId) throw new Error('Support ticket has no linked submission')
 
   const payload = parseAutomationPayload(job.payload)
   if (!payload) throw new Error('Support job has an invalid automation payload')
-
-  const claimedTicket = await claimSupportTicketAutomationRun(job.ticketId)
-  if (claimedTicket !== 1) {
-    throw new SupportAutomationCancelledError('Ticket left automation state before job ran')
-  }
 
   await assertSupportJobStillRunning(jobId)
 
@@ -100,10 +88,16 @@ export async function runSupportTicketAutomation(jobId: string): Promise<void> {
     updates: payload.updates,
   })
 
-  await closeSupportTicketAfterAutomation(
-    job.ticketId,
-    `Automated ${payload.category} update completed and emailed.`
-  )
+  const closed = await transition('automationSucceeded', job.ticketId, {
+    at: new Date(),
+    adminSummary: `Automated ${payload.category} update completed and emailed.`,
+  })
+  if (!closed.ok) {
+    console.warn('Support ticket was not closed after automation:', {
+      ticketId: job.ticketId,
+      refusal: closed.refusal,
+    })
+  }
 }
 
 async function regenerateApprovedSubmission({

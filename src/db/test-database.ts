@@ -53,9 +53,22 @@ function readyOnlyAfterSync(db: PGlite): PGlite {
   })
 }
 
-export async function startTestDatabase({ migrated = true } = {}): Promise<TestDatabase> {
-  const db = await PGlite.create()
-  await db.exec("SET TimeZone TO 'UTC'")
+const startParams = [...PGlite.defaultStartParams, '-c', 'TimeZone=UTC']
+
+async function createPGlite(database: string): Promise<PGlite> {
+  if (database === 'postgres') return PGlite.create({ startParams })
+  const template = await PGlite.create()
+  await template.exec(`CREATE DATABASE "${database}"`)
+  const dataDir = await template.dumpDataDir('none')
+  await template.close()
+  return PGlite.create({ loadDataDir: dataDir, database, startParams })
+}
+
+export async function startTestDatabase({
+  migrated = true,
+  database = 'postgres',
+} = {}): Promise<TestDatabase> {
+  const db = await createPGlite(database)
   const server = new PGLiteSocketServer({
     db: readyOnlyAfterSync(db),
     host: '127.0.0.1',
@@ -63,7 +76,7 @@ export async function startTestDatabase({ migrated = true } = {}): Promise<TestD
     maxConnections: 32,
   })
   await server.start()
-  const url = `postgresql://postgres@${server.getServerConn()}/postgres`
+  const url = `postgresql://postgres@${server.getServerConn()}/${database}`
   if (migrated) {
     const pool = createPool(url)
     await migrate(pool, loadMigrations())

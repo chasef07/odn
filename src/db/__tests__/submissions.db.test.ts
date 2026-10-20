@@ -4,6 +4,9 @@ import {
   SMS_SUPPORT_AUTOMATION_STATUS,
   SMS_SUPPORT_JOB_STATUS,
   SMS_SUPPORT_STATUS,
+  type SmsSupportAutomationStatus,
+  type SmsSupportJobStatus,
+  type SmsSupportStatus,
 } from '@/lib/sms-support-types'
 import { db } from '../pool'
 import { sql } from '../sql'
@@ -1149,7 +1152,10 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
     otherNotePurpose: null,
   }
 
-  async function seedTicket(status: string, automationStatus: string): Promise<string> {
+  async function seedTicket(
+    status: SmsSupportStatus,
+    automationStatus: SmsSupportAutomationStatus
+  ): Promise<string> {
     const id = randomUUID()
     await db.affected(
       sql`${insert(smsSupportTickets, {
@@ -1166,7 +1172,7 @@ describe('commitSupportAutomationSubmissionUpdate', () => {
     return id
   }
 
-  async function seedJob(ticketId: string, status: string): Promise<string> {
+  async function seedJob(ticketId: string, status: SmsSupportJobStatus): Promise<string> {
     const id = randomUUID()
     await db.affected(
       sql`${insert(smsSupportJobs, { id, ticketId, kind: 'RUN_SUPPORT_AUTOMATION', status, attempts: 1, runAfter: committedAt })}`

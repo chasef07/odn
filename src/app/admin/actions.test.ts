@@ -655,57 +655,72 @@ describe('denySubmission - Denial Automation', () => {
       expect(mockSendDenialEmail).not.toHaveBeenCalled()
     })
 
-    it('reports a refund another run recorded first as recorded, without emailing again', async () => {
-      permits('deny', mockSubmission)
-      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
-      mockTransition.mockImplementation(async (step: { transition: string; row: object }) =>
-        step.transition === 'recordRefund'
-          ? { ok: false, refusal: { reason: 'stale' } }
-          : { ok: true, value: step.row }
-      )
-      mockFindSubmissionById.mockResolvedValueOnce({
-        ...mockSubmission,
-        status: SubmissionStatus.DENIED,
-        stripeRefundId: mockRefundId,
-        refundedAt: new Date('2026-03-05T12:00:00.000Z'),
-        denialEmailSentAt: new Date('2026-03-05T12:00:01.000Z'),
-      })
+    const ANOTHER_RUN = {
+      success: true,
+      warning: `Refund ${mockRefundId} was already recorded by another run`,
+    }
 
-      const result = await denySubmission(mockSubmissionId, 'Legal')
-
-      expect(result).toEqual({
-        success: true,
-        warning: `Refund ${mockRefundId} was already recorded by another run`,
-      })
-      expect(mockFindSubmissionById).toHaveBeenCalledExactlyOnceWith(mockSubmissionId)
-      expect(mockRevokeNoteVerificationForSubmission).toHaveBeenCalledWith(
-        mockSubmissionId,
-        expect.any(Date)
+    function stubRecordRefund(outcome: 'refused' | 'throws'): { at: Date } {
+      const seen = { at: new Date(0) }
+      mockTransition.mockImplementation(
+        async (step: { transition: string; row: object }, input: { at: Date }) => {
+          if (step.transition !== 'recordRefund') return { ok: true, value: step.row }
+          seen.at = input.at
+          if (outcome === 'throws') throw new Error('connection reset')
+          return { ok: false, refusal: { reason: 'stale' } }
+        }
       )
-      expect(mockSendDenialEmail).not.toHaveBeenCalled()
-    })
+      return seen
+    }
 
-    it('sends the denial email itself when another run recorded the refund but its email predates it', async () => {
-      permits('deny', mockSubmission)
-      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
-      mockTransition.mockImplementation(async (step: { transition: string; row: object }) =>
-        step.transition === 'recordRefund'
-          ? { ok: false, refusal: { reason: 'stale' } }
-          : { ok: true, value: step.row }
-      )
-      mockFindSubmissionById.mockResolvedValueOnce({
+    function rowRecorded(refundedAt: Date) {
+      return {
         ...mockSubmission,
         email: 'current@example.com',
         status: SubmissionStatus.DENIED,
         stripeRefundId: mockRefundId,
-        refundedAt: new Date('2026-03-05T12:00:01.000Z'),
-        denialEmailSentAt: new Date('2026-03-05T12:00:00.000Z'),
-      })
+        refundedAt,
+        denialEmailSentAt: null,
+      }
+    }
+
+    it('reports a refund another run recorded first as recorded, without revoking or emailing, even when the times coincide', async () => {
+      permits('deny', mockSubmission)
+      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
+      const record = stubRecordRefund('refused')
+      mockFindSubmissionById.mockImplementationOnce(async () => rowRecorded(record.at))
+
+      expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual(ANOTHER_RUN)
+      expect(mockFindSubmissionById).toHaveBeenCalledExactlyOnceWith(mockSubmissionId)
+      expect(mockRevokeNoteVerificationForSubmission).not.toHaveBeenCalled()
+      expect(mockSendDenialEmail).not.toHaveBeenCalled()
+    })
+
+    it('finishes the denial from the row it reads back when its own record committed but the reply was lost', async () => {
+      permits('deny', mockSubmission)
+      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
+      const record = stubRecordRefund('throws')
+      mockFindSubmissionById.mockImplementationOnce(async () => rowRecorded(record.at))
 
       expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual({ success: true })
+      expect(mockRevokeNoteVerificationForSubmission).toHaveBeenCalledWith(
+        mockSubmissionId,
+        record.at
+      )
       expect(mockSendDenialEmail).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({ to: 'current@example.com', refundAmount: 24.95 })
       )
+    })
+
+    it('reports a refund another run recorded while its own record threw, without emailing', async () => {
+      permits('deny', mockSubmission)
+      mockRefundsCreate.mockResolvedValue({ id: mockRefundId, amount: 2495 })
+      stubRecordRefund('throws')
+      mockFindSubmissionById.mockResolvedValueOnce(rowRecorded(new Date('2026-03-05T12:00:00Z')))
+
+      expect(await denySubmission(mockSubmissionId, 'Legal')).toEqual(ANOTHER_RUN)
+      expect(mockRevokeNoteVerificationForSubmission).not.toHaveBeenCalled()
+      expect(mockSendDenialEmail).not.toHaveBeenCalled()
     })
 
     it('reports a refund that could not be recorded when the row cannot be read back either', async () => {
