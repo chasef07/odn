@@ -127,6 +127,11 @@ export function set<D>(table: Table<D>, patch: Patch<D>): Sql {
 }
 
 function stamped<D>(table: Table<D>, values: Patch<D>, inserting: boolean): Patch<D> {
+  const unknown = Object.keys(values).filter((key) => !Object.hasOwn(table.columns, key))
+  if (unknown.length > 0) {
+    const operation = inserting ? 'insert' : 'set'
+    throw new Error(`${operation}(${table.name}) cannot write ${unknown.join(', ')}`)
+  }
   const row: Record<string, unknown> = { ...values }
   const now = new Date()
   const id = (table.columns as Record<string, Column | undefined>).id

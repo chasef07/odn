@@ -11,7 +11,7 @@ import {
   type Migration,
 } from '../migrate'
 import { createPool } from '../pool'
-import { startTestDatabase, type TestDatabase } from '../test-database'
+import { localTestDatabaseUrl, startTestDatabase, type TestDatabase } from '../test-database'
 
 let database: TestDatabase
 let pool: ReturnType<typeof createPool>
@@ -176,6 +176,39 @@ SELECT 1/0;`
       applied: [],
       alreadyApplied: migrations.length,
     })
+  })
+})
+
+const realPostgresUrl = process.env.TEST_DATABASE_URL
+
+describe.skipIf(!realPostgresUrl)('migrate on a real Postgres', () => {
+  it('reads each file with standard_conforming_strings on when the database default is off', async () => {
+    const admin = createPool(localTestDatabaseUrl(realPostgresUrl ?? ''))
+    const name = `odn_migrate_strings_${process.pid}_test`
+    await admin.query(`DROP DATABASE IF EXISTS ${name}`)
+    await admin.query(`CREATE DATABASE ${name}`)
+    await admin.query(`ALTER DATABASE ${name} SET standard_conforming_strings = off`)
+    const url = new URL(realPostgresUrl ?? '')
+    url.pathname = `/${name}`
+    const target = createPool(url.toString())
+    try {
+      const hiddenCommit = migration(
+        '0001_hidden_commit',
+        String.raw`CREATE TABLE hidden_commit (id int);
+SELECT '\', '; COMMIT; SELECT 'x';
+SELECT 1/0;`
+      )
+
+      expect(await refusal(() => migrate(target, [hiddenCommit]))).toBe('apply_failed')
+      const { rows } = await target.query(
+        "SELECT to_regclass('hidden_commit') IS NOT NULL AS present"
+      )
+      expect(rows).toEqual([{ present: false }])
+    } finally {
+      await target.end()
+      await admin.query(`DROP DATABASE ${name} WITH (FORCE)`)
+      await admin.end()
+    }
   })
 })
 

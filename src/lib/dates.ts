@@ -92,15 +92,6 @@ export function addDays(day: DateOnly, days: number): DateOnly {
   return dateOnlyFromUtcDate(new Date(utcDateFromDateOnly(day).getTime() + days * MS_PER_DAY))
 }
 
-export function addMonthsUTC(at: Date, months: number): Date {
-  const monthIndex = at.getUTCFullYear() * 12 + at.getUTCMonth() + months
-  const year = Math.floor(monthIndex / 12)
-  const month = monthIndex - year * 12
-  const shifted = new Date(at.getTime())
-  shifted.setUTCFullYear(year, month, Math.min(at.getUTCDate(), daysInMonth(year, month + 1)))
-  return shifted
-}
-
 export function inclusiveDayCount(first: DateOnly, last: DateOnly): number {
   const elapsed = utcDateFromDateOnly(last).getTime() - utcDateFromDateOnly(first).getTime()
   return elapsed / MS_PER_DAY + 1

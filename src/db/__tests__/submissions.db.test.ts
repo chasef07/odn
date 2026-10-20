@@ -41,9 +41,7 @@ import {
   findApprovedSubmissionsMissingApprovalEmail,
   findApprovedSubmissionsOverlapping,
   findApprovedSupportSubmissionIdsByReference,
-  findBusinessAnalyticsPage,
   findDueFollowUpEmails,
-  findFriendsFamilyAnalyticsPage,
   findLatestApprovedSubmissionIdsForSupportPhone,
   findLatestSubmission,
   findLatestSubmissionIdForInboundSmsPhone,
@@ -576,42 +574,6 @@ describe('searchSubmissionsPage', () => {
 
     const underscore = await searchSubmissionsPage({ by: 'anyName', term: 'n_m' }, page)
     expect(underscore.submissions.map((row) => row.patientFirstName)).toEqual(['Ann_Marie'])
-  })
-})
-
-describe('analytics pages', () => {
-  it('pages created-since rows by id ascending from a cursor, whatever the insert or creation order', async () => {
-    const c = await seed({ id: '00000000-0000-4000-8000-00000000000c', createdAt: at(2) })
-    const a = await seed({ id: '00000000-0000-4000-8000-00000000000a', createdAt: at(3) })
-    const b = await seed({ id: '00000000-0000-4000-8000-00000000000b', createdAt: at(1) })
-    await seed({ id: '00000000-0000-4000-8000-000000000009', createdAt: at(-5) })
-    const atCutoff = await seed({ id: '00000000-0000-4000-8000-00000000000d', createdAt: T0 })
-
-    const page1 = await findFriendsFamilyAnalyticsPage(T0, 2, undefined)
-    const page2 = await findFriendsFamilyAnalyticsPage(T0, 2, b.id)
-    expect(ids(page1)).toEqual([a.id, b.id])
-    expect(ids(page2)).toEqual([c.id, atCutoff.id])
-    expect(Object.keys(page1[0])).toHaveLength(18)
-
-    const business = await findBusinessAnalyticsPage(T0, 10, a.id)
-    expect(ids(business)).toEqual([b.id, c.id, atCutoff.id])
-    expect(ids(await findBusinessAnalyticsPage(T0, 1, a.id))).toEqual([b.id])
-    expect(business[0]).toEqual({
-      id: b.id,
-      status: 'PENDING_REVIEW',
-      state: 'CA',
-      patientFirstName: 'John',
-      patientLastName: 'Doe',
-      patientDateOfBirth: DOB,
-      email: 'john@example.com',
-      phone: '(555) 123-4567',
-      offerCode: null,
-      attributionChannel: null,
-      paymentAmount: null,
-      stripeRefundId: null,
-      refundedAt: null,
-      createdAt: at(1),
-    })
   })
 })
 

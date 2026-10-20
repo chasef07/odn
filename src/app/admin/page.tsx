@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BarChart3, HeartHandshake, MessageSquare, Search } from 'lucide-react'
+import { MessageSquare, Search } from 'lucide-react'
 import { AdminStats } from '@/components/admin/AdminStats'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
@@ -67,18 +67,6 @@ export default async function AdminDashboardPage() {
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Link href="/admin/analytics">
-                <Button variant="outline" className="w-full gap-2 sm:w-auto">
-                  <BarChart3 data-icon="inline-start" />
-                  Business Analytics
-                </Button>
-              </Link>
-              <Link href="/admin/friends-family">
-                <Button variant="outline" className="w-full gap-2 sm:w-auto">
-                  <HeartHandshake data-icon="inline-start" />
-                  Friends &amp; Family Analytics
-                </Button>
-              </Link>
               <Link href="/admin/search">
                 <Button variant="outline" className="w-full gap-2 sm:w-auto">
                   <Search data-icon="inline-start" />

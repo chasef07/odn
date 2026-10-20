@@ -43,17 +43,23 @@ describe('defineTable', () => {
 })
 
 describe('insert', () => {
-  it('writes no refund column through the birth descriptor, whatever the values carry', () => {
-    const { text } = insert(submissionBirth, {
-      stripePaymentIntentId: 'pi_1',
-      status: 'DENIED',
-      // @ts-expect-error a row is born without a refund
-      stripeRefundId: 're_1',
-      refundedAt: new Date(),
-    }).compile()
+  it('refuses a refund column through the birth descriptor', () => {
+    expect(() =>
+      insert(submissionBirth, {
+        stripePaymentIntentId: 'pi_1',
+        status: 'DENIED',
+        // @ts-expect-error a row is born without a refund
+        stripeRefundId: 're_1',
+        refundedAt: new Date(),
+      })
+    ).toThrow('insert(submissions) cannot write stripeRefundId, refundedAt')
+  })
 
-    expect(text).toContain('"status"')
-    expect(text).not.toContain('refund')
+  it('refuses a key outside the descriptor that a spread carried in', () => {
+    const row = { stripePaymentIntentId: 'pi_1', state: 'CA', notes: 'not a column' }
+    const values: { stripePaymentIntentId: string; state: string } = row
+
+    expect(() => insert(submissionBirth, values)).toThrow('insert(submissions) cannot write notes')
   })
 
   it('fills id, created_at and updated_at when the table has them and the caller did not', () => {
@@ -95,6 +101,12 @@ describe('insert', () => {
 })
 
 describe('set', () => {
+  it('refuses a key outside the descriptor, even one set to undefined', () => {
+    const patch = { status: 'APPROVED' as const, reviewNote: undefined }
+
+    expect(() => set(submissions, { ...patch })).toThrow('set(submissions) cannot write reviewNote')
+  })
+
   it('appends updated_at unless the caller sets it, and accepts SQL expressions', () => {
     const stamped = set(submissions, { status: 'APPROVED' }).compile()
     expect(stamped.text).toBe('"status" = $1, "updated_at" = $2')
