@@ -1,5 +1,5 @@
-import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
@@ -494,11 +494,25 @@ function mutantsOf(source, ordered) {
   return mutants
 }
 
+let running = null
+let stopping = null
+
 function outcome(test) {
-  const run = spawnSync('npx', ['vitest', 'run', '--project', 'db', test], { encoding: 'utf8' })
-  if (run.signal || run.error) throw new Error(`vitest did not finish: ${run.signal ?? run.error}`)
-  if (run.status === 0) return 'passed'
-  return /syntax error at or near/.test(run.stdout + run.stderr) ? 'invalid' : 'failed'
+  return new Promise((resolve, reject) => {
+    const child = spawn('npx', ['vitest', 'run', '--project', 'db', test])
+    running = child
+    let output = ''
+    child.stdout.on('data', (chunk) => (output += chunk))
+    child.stderr.on('data', (chunk) => (output += chunk))
+    child.on('error', reject)
+    child.on('close', (status, signal) => {
+      running = null
+      if (stopping) reject(new Error(`stopped by ${stopping}`))
+      else if (signal) reject(new Error(`vitest did not finish: ${signal}`))
+      else if (status === 0) resolve('passed')
+      else resolve(/syntax error at or near/.test(output) ? 'invalid' : 'failed')
+    })
+  })
 }
 
 function testedModules(only) {
@@ -514,7 +528,7 @@ function testedModules(only) {
 const { values } = parseArgs({
   options: {
     module: { type: 'string', multiple: true, default: [] },
-    out: { type: 'string', default: join(tmpdir(), 'db-mutants.tsv') },
+    out: { type: 'string' },
     list: { type: 'boolean', default: false },
     modules: { type: 'boolean', default: false },
     shard: { type: 'string', default: '1/1' },
@@ -542,7 +556,12 @@ if (!shard || Number(shard[1]) < 1 || Number(shard[1]) > Number(shard[2])) {
 }
 const inShard = (_, index) => index % Number(shard[2]) === Number(shard[1]) - 1
 
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {})
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    stopping = signal
+    running?.kill(signal)
+  })
+}
 
 const rows = []
 const problems = []
@@ -557,12 +576,12 @@ for (const name of testedModules(values.module)) {
     for (const mutant of mutants) console.log(`${name}\t${mutant.function}\t${mutant.mutation}`)
     continue
   }
-  if (outcome(test) !== 'passed') throw new Error(`${test} fails before any mutation`)
+  if ((await outcome(test)) !== 'passed') throw new Error(`${test} fails before any mutation`)
   const moduleStarted = Date.now()
   try {
     for (const mutant of mutants) {
       writeFileSync(file, mutant.source)
-      const result = outcome(test)
+      const result = await outcome(test)
       const equivalent = EQUIVALENT.some(
         (entry) =>
           entry.module === name &&
@@ -602,10 +621,11 @@ for (const name of testedModules(values.module)) {
 
 if (!values.list) {
   const lines = [['module', 'function', 'mutation', 'status'], ...rows].map((row) => row.join('\t'))
-  writeFileSync(values.out, `${lines.join('\n')}\n`)
+  const out = values.out ?? join(mkdtempSync(join(tmpdir(), 'db-mutants-')), 'db-mutants.tsv')
+  writeFileSync(out, `${lines.join('\n')}\n`)
   const tally = (status) => rows.filter((row) => row[3] === status).length
   console.log(
-    `${rows.length} mutants in ${((Date.now() - started) / 1000).toFixed(1)}s: ${tally('killed')} killed, ${tally('equivalent')} equivalent, ${tally('invalid')} invalid, ${tally('survived')} survived. TSV: ${values.out}`
+    `${rows.length} mutants in ${((Date.now() - started) / 1000).toFixed(1)}s: ${tally('killed')} killed, ${tally('equivalent')} equivalent, ${tally('invalid')} invalid, ${tally('survived')} survived. TSV: ${out}`
   )
   if (problems.length > 0) {
     console.error(
