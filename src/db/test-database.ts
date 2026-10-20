@@ -1,7 +1,18 @@
 import { PGlite } from '@electric-sql/pglite'
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
+import pg from 'pg'
 import { loadMigrations, migrate } from './migrate'
 import { createPool } from './pool'
+
+export function localTestDatabaseUrl(url: string): string {
+  const { host, database } = new pg.Client({ connectionString: url })
+  if (!['localhost', '127.0.0.1'].includes(host) || !database?.endsWith('_test')) {
+    throw new Error(
+      'TEST_DATABASE_URL must name a localhost database ending in _test; its tables are truncated before every test'
+    )
+  }
+  return url
+}
 
 export type TestDatabase = { url: string; stop(): Promise<void> }
 

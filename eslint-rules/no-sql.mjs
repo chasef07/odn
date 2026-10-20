@@ -2,7 +2,7 @@ const KEYWORD_STATEMENT =
   /^\s*(INSERT\s+INTO\s|UPDATE\s+\S+\s+SET\s|DELETE\s+FROM\s|CREATE\s+(TABLE|INDEX|UNIQUE|TYPE|SCHEMA|FUNCTION|EXTENSION|OR\s+REPLACE)\s|ALTER\s+(TABLE|TYPE)\s|DROP\s+(TABLE|INDEX|TYPE|SCHEMA|FUNCTION)\s|TRUNCATE\s+(TABLE\s+)?(ONLY\s+)?"?[A-Za-z_][A-Za-z0-9_.]*"?\s*(;|$|,|CASCADE|RESTART)|WITH\s+(RECURSIVE\s+)?\S+\s+AS\s*\()/
 const SELECT_STATEMENT = /^\s*SELECT\s[\s\S]+\sFROM\s/
 
-function statementText(node) {
+export function statementText(node) {
   if (node.type === 'Literal' && typeof node.value === 'string') return node.value
   if (node.type === 'TemplateLiteral') {
     return node.quasis.map((quasi) => quasi.value.cooked ?? '').join(' ')

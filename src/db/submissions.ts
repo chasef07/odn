@@ -1,7 +1,13 @@
 import { db } from './pool'
 import { and, array, count, likeContains, likeStartsWith, or, sql, type Sql } from './sql'
 import { insert, select, selectAll, set, type Patch } from './table'
-import { noteVerifications, smsMessages, submissions } from './tables'
+import {
+  noteVerifications,
+  smsMessages,
+  submissionBirth,
+  submissionDetails,
+  submissions,
+} from './tables'
 import {
   NoteVerificationStatus,
   SubmissionStatus,
@@ -9,35 +15,10 @@ import {
   type NoteVerification,
   type SmsMessage,
   type Submission,
+  type SubmissionDetails,
 } from './types'
 import { deleteEveryRow } from './wipe'
 import { transition, transitionJob } from './sms-support-lifecycle'
-
-export type MaybeReview = {
-  maybeReason: string
-  maybeInternalNote: string | null
-  maybeApprovedDays: number | null
-  reviewedByAdminId: string
-  reviewedAt: Date
-}
-
-export type Review = {
-  reviewedByAdminId: string
-  reviewedAt: Date
-}
-
-export type StatusChange = Review & {
-  updatedAt: Date
-}
-
-export type Approval = Review & {
-  approvalDiagnosis: string | null
-  approvalWithRestrictions: boolean
-}
-
-export type Denial = Review & {
-  denialReason: string
-}
 
 export type SubmissionStatusFilter = {
   status: SubmissionStatus
@@ -274,41 +255,6 @@ async function countSubmissionsWhere(where: Sql): Promise<number> {
 
 export async function findSubmissionById(id: string): Promise<Submission | null> {
   return db.one(sql`SELECT ${selectAll(submissions)} FROM submissions WHERE id = ${id}`)
-}
-
-export async function findSubmissionStatus(id: string): Promise<Pick<Submission, 'status'> | null> {
-  return db.one(sql`SELECT ${select(submissions, ['status'])} FROM submissions WHERE id = ${id}`)
-}
-
-export async function findSubmissionForDenial(
-  id: string
-): Promise<Pick<
-  Submission,
-  | 'id'
-  | 'stripePaymentIntentId'
-  | 'stripeRefundId'
-  | 'email'
-  | 'phone'
-  | 'smsOptIn'
-  | 'smsPhoneE164'
-  | 'patientFirstName'
-  | 'patientLastName'
-  | 'status'
-> | null> {
-  return db.one(
-    sql`SELECT ${select(submissions, [
-      'id',
-      'stripePaymentIntentId',
-      'stripeRefundId',
-      'email',
-      'phone',
-      'smsOptIn',
-      'smsPhoneE164',
-      'patientFirstName',
-      'patientLastName',
-      'status',
-    ])} FROM submissions WHERE id = ${id}`
-  )
 }
 
 export async function findSubmissionGuardianDetails(
@@ -590,61 +536,11 @@ export async function findApprovedSubmissionsOverlapping(
   )
 }
 
-async function updateById(id: string, patch: Patch<Submission>): Promise<void> {
+async function updateById(id: string, patch: Patch<SubmissionDetails>): Promise<void> {
   const affected = await db.affected(
-    sql`UPDATE submissions SET ${set(submissions, patch)} WHERE id = ${id}`
+    sql`UPDATE submissions SET ${set(submissionDetails, patch)} WHERE id = ${id}`
   )
   if (affected === 0) throw new Error(`Submission ${id} not found`)
-}
-
-function maybePatch(review: MaybeReview): Patch<Submission> {
-  return {
-    status: SubmissionStatus.MAYBE,
-    maybeReason: review.maybeReason,
-    maybeInternalNote: review.maybeInternalNote,
-    maybeApprovedDays: review.maybeApprovedDays,
-    maybeEmailSentAt: null,
-    reviewedByAdminId: review.reviewedByAdminId,
-    reviewedAt: review.reviewedAt,
-    updatedAt: review.reviewedAt,
-  }
-}
-
-function reviewPatch(review: Review): Patch<Submission> {
-  return { reviewedByAdminId: review.reviewedByAdminId, reviewedAt: review.reviewedAt }
-}
-
-function denialPatch(denial: Denial): Patch<Submission> {
-  return {
-    status: SubmissionStatus.DENIED,
-    ...reviewPatch(denial),
-    denialReason: denial.denialReason,
-  }
-}
-
-function approvalPatch(approval: Approval): Patch<Submission> {
-  return {
-    status: SubmissionStatus.APPROVED,
-    ...reviewPatch(approval),
-    denialReason: null,
-    approvalDiagnosis: approval.approvalDiagnosis,
-    approvalWithRestrictions: approval.approvalWithRestrictions,
-  }
-}
-
-const reviewableStatuses = array(
-  [SubmissionStatus.PENDING_REVIEW, SubmissionStatus.MAYBE],
-  '"SubmissionStatus"'
-)
-
-export async function markPendingSubmissionMaybe(id: string, review: MaybeReview): Promise<number> {
-  return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, maybePatch(review))} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
-  )
-}
-
-export async function markSubmissionMaybe(id: string, review: MaybeReview): Promise<void> {
-  await updateById(id, maybePatch(review))
 }
 
 export async function recordMaybeEmailSent(id: string, sentAt: Date): Promise<void> {
@@ -657,103 +553,6 @@ export async function recordApprovalEmailSent(id: string, sentAt: Date): Promise
 
 export async function recordDenialEmailSent(id: string, sentAt: Date): Promise<void> {
   await updateById(id, { denialEmailSentAt: sentAt })
-}
-
-export async function markMaybeSubmissionManual(id: string, review: Review): Promise<void> {
-  await updateById(id, { status: SubmissionStatus.MANUAL, ...reviewPatch(review) })
-}
-
-export async function markSubmissionManual(id: string, change: StatusChange): Promise<void> {
-  await updateById(id, {
-    status: SubmissionStatus.MANUAL,
-    ...reviewPatch(change),
-    updatedAt: change.updatedAt,
-  })
-}
-
-export async function approveManualSubmission(id: string, review: Review): Promise<void> {
-  await updateById(id, {
-    status: SubmissionStatus.APPROVED,
-    ...reviewPatch(review),
-    denialReason: null,
-    approvalEmailSentAt: null,
-    approvalDiagnosis: null,
-    approvalWithRestrictions: null,
-  })
-}
-
-export async function approveReviewableSubmission(id: string, approval: Approval): Promise<number> {
-  return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, approvalPatch(approval))} WHERE id = ${id} AND status = ANY(${reviewableStatuses})`
-  )
-}
-
-export async function reapproveSubmission(
-  id: string,
-  expectedUpdatedAt: Date,
-  approval: Approval
-): Promise<number> {
-  return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { ...approvalPatch(approval), updatedAt: approval.reviewedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.APPROVED} AND updated_at = ${expectedUpdatedAt}`
-  )
-}
-
-export async function markSubmissionDenied(
-  id: string,
-  denial: Denial & StatusChange
-): Promise<void> {
-  await updateById(id, { ...denialPatch(denial), updatedAt: denial.updatedAt })
-}
-
-export async function markSubmissionDeniedAndRefunded(
-  id: string,
-  denial: Denial & StatusChange & { stripeRefundId: string; refundedAt: Date }
-): Promise<void> {
-  await updateById(id, {
-    ...denialPatch(denial),
-    updatedAt: denial.updatedAt,
-    stripeRefundId: denial.stripeRefundId,
-    refundedAt: denial.refundedAt,
-  })
-}
-
-export async function denyManualSubmission(id: string, denial: Denial): Promise<void> {
-  await updateById(id, { ...denialPatch(denial), denialEmailSentAt: null })
-}
-
-export async function markSubmissionRefundReserved(id: string, denial: Denial): Promise<number> {
-  const patch: Patch<Submission> = {
-    ...denialPatch(denial),
-    stripeRefundId: `pending_${id}`,
-    refundedAt: denial.reviewedAt,
-  }
-  return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, patch)} WHERE id = ${id} AND status = ANY(${reviewableStatuses}) AND stripe_refund_id IS NULL`
-  )
-}
-
-export async function releaseSubmissionRefundReservation(id: string): Promise<void> {
-  await updateById(id, {
-    status: SubmissionStatus.PENDING_REVIEW,
-    stripeRefundId: null,
-    reviewedByAdminId: null,
-    reviewedAt: null,
-    refundedAt: null,
-    denialReason: null,
-  })
-}
-
-export async function recordSubmissionRefund(id: string, stripeRefundId: string): Promise<void> {
-  await updateById(id, { stripeRefundId })
-}
-
-export async function returnSubmissionToReview(id: string, updatedAt: Date): Promise<void> {
-  await updateById(id, {
-    status: SubmissionStatus.PENDING_REVIEW,
-    reviewedByAdminId: null,
-    reviewedAt: null,
-    updatedAt,
-  })
 }
 
 export async function removeSubmissionGuardian(id: string, updatedAt: Date): Promise<void> {
@@ -780,7 +579,7 @@ export async function updatePendingSubmissionClassification(
   updatedAt: Date
 ): Promise<number> {
   return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { ...pick(classification, classificationColumns), updatedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
+    sql`UPDATE submissions SET ${set(submissionDetails, { ...pick(classification, classificationColumns), updatedAt })} WHERE id = ${id} AND status = ${SubmissionStatus.PENDING_REVIEW}`
   )
 }
 
@@ -830,7 +629,7 @@ export async function insertSubmission(
   submission: SubmissionInsert
 ): Promise<SubmissionInsertResult> {
   const inserted = await db.one(
-    sql`${insert(submissions, submission)} ON CONFLICT (stripe_payment_intent_id) DO NOTHING RETURNING ${selectAll(submissions)}`
+    sql`${insert(submissionBirth, submission)} ON CONFLICT (stripe_payment_intent_id) DO NOTHING RETURNING ${selectAll(submissions)}`
   )
   if (inserted) return { submission: inserted, inserted: true }
   const existing = await db.one(
@@ -884,19 +683,19 @@ export async function findDueFollowUpEmails(
 
 export async function claimDueFollowUpEmail(id: string, now: Date): Promise<number> {
   return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: now })} WHERE id = ${id} AND ${dueFollowUpEmailWhere(now)}`
+    sql`UPDATE submissions SET ${set(submissionDetails, { followUpEmailClaimedAt: now })} WHERE id = ${id} AND ${dueFollowUpEmailWhere(now)}`
   )
 }
 
 export async function releaseFollowUpEmailClaimAt(id: string, claimedAt: Date): Promise<void> {
   await db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: null })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
+    sql`UPDATE submissions SET ${set(submissionDetails, { followUpEmailClaimedAt: null })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
   )
 }
 
 export async function acknowledgeFollowUpEmailSent(id: string, claimedAt: Date): Promise<number> {
   return db.affected(
-    sql`UPDATE submissions SET ${set(submissions, { followUpEmailClaimedAt: null, followUpEmailSentAt: claimedAt })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
+    sql`UPDATE submissions SET ${set(submissionDetails, { followUpEmailClaimedAt: null, followUpEmailSentAt: claimedAt })} WHERE id = ${id} AND follow_up_email_sent_at IS NULL AND follow_up_email_claimed_at = ${claimedAt}`
   )
 }
 
@@ -1085,7 +884,7 @@ export async function commitSupportAutomationSubmissionUpdate({
     if (!job.ok) return 'cancelled'
 
     const submissionUpdate = await tx.affected(
-      sql`UPDATE submissions SET ${set(submissions, updateData)} WHERE id = ${submissionId} AND status = ${SubmissionStatus.APPROVED} AND updated_at = ${submissionUpdatedAt}`
+      sql`UPDATE submissions SET ${set(submissionDetails, updateData)} WHERE id = ${submissionId} AND status = ${SubmissionStatus.APPROVED} AND updated_at = ${submissionUpdatedAt}`
     )
 
     if (submissionUpdate !== 1) return 'submission_changed'
