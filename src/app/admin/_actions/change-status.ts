@@ -1,7 +1,7 @@
 'use server'
 
 import { permit, transition } from '@/db/submission-lifecycle'
-import { SubmissionStatus } from '@/db/types'
+import { SubmissionStatus, type DenialChoice } from '@/db/types'
 import { logger } from '@/lib/logger'
 import { revokeNoteVerificationForSubmission } from '@/db/note-verifications'
 import { type MaybeSubmissionInput } from './maybe'
@@ -10,6 +10,7 @@ import {
   errorMessage,
   moveSubmissionToMaybe,
   notifyDenial,
+  parseDenial,
   refused,
   revalidate,
   type ActionResult,
@@ -34,7 +35,7 @@ export const changeSubmissionStatus = adminAction(
     { doctorId },
     submissionId: string,
     newStatus: OverrideTarget,
-    denialReason?: string,
+    denialInput?: DenialChoice,
     maybeInput?: MaybeSubmissionInput
   ): Promise<ActionResult> => {
     try {
@@ -47,13 +48,12 @@ export const changeSubmissionStatus = adminAction(
 
       switch (newStatus) {
         case SubmissionStatus.DENIED: {
-          if (!denialReason) {
-            return { success: false, error: 'Denial reason is required' }
-          }
+          const parsed = parseDenial(denialInput)
+          if (!parsed.ok) return { success: false, error: parsed.error }
 
           const allowed = await permit(submissionId, 'overrideDenyRefunded', 'overrideDeny')
           if (!allowed.ok) return refused('deny', allowed.refusal)
-          const denial = { adminId: doctorId, at: now, reason: denialReason }
+          const denial = { adminId: doctorId, at: now, ...parsed.denial }
           const paths = [...detailPaths, '/admin/denied']
 
           if (allowed.value.transition === 'overrideDeny') {
@@ -68,7 +68,7 @@ export const changeSubmissionStatus = adminAction(
 
           const notified = await notifyDenial(
             denied.value,
-            denialReason,
+            denial.reason,
             denied.value.paymentAmount ?? 0
           )
 

@@ -415,3 +415,108 @@ describe('adoptPrismaHistory', () => {
     expect(await ledger()).toHaveLength(2)
   })
 })
+
+describe('0009_constrain_denial_reason', () => {
+  const SUBMISSION_COLUMNS = `id, stripe_payment_intent_id, status, state, recipient, patient_first_name,
+    patient_last_name, patient_date_of_birth, email, phone, note_purpose, first_day_off,
+    last_day_off, absence_reason, updated_at, denial_reason`
+
+  async function seedLegacy(id: string, status: string, reason: string | null): Promise<void> {
+    await pool.query(
+      `INSERT INTO submissions (${SUBMISSION_COLUMNS}) VALUES ($1, $1, $2, 'CA', 'myself', 'J', 'D',
+        '1990-01-01', 'j@example.com', '5551234567', 'work', '2026-01-01', '2026-01-02',
+        'illness', now(), $3)`,
+      [id, status, reason]
+    )
+  }
+
+  async function denials(): Promise<[string, string | null, string | null][]> {
+    const { rows } = await pool.query(
+      'SELECT id, denial_reason, denial_note FROM submissions ORDER BY id'
+    )
+    return rows.map((row) => [row.id, row.denial_reason, row.denial_note])
+  }
+
+  async function migrateThrough0009(seed: [string, string, string | null][]): Promise<void> {
+    const migrations = loadMigrations()
+    const index = migrations.findIndex((m) => m.name === '0009_constrain_denial_reason')
+    await migrate(pool, migrations.slice(0, index))
+    for (const [id, status, reason] of seed) await seedLegacy(id, status, reason)
+    expect((await migrate(pool, migrations)).applied).toEqual(
+      migrations.slice(index).map((m) => m.name)
+    )
+  }
+
+  it('keeps every stored reason, maps a choice typed with other case or spacing to that choice, and moves other free text into the note under Other', async () => {
+    await migrateThrough0009([
+      ['a', 'DENIED', 'Legal'],
+      ['b', 'DENIED', 'Refund'],
+      ['c', 'DENIED', '  ACCOMMODATIONS '],
+      ['d', 'DENIED', 'no answer '],
+      ['e', 'DENIED', 'Other'],
+      ['f', 'APPROVED', '7+ days'],
+      ['g', 'PENDING_REVIEW', null],
+      ['h', 'DENIED', 'under  18'],
+      ['i', 'DENIED', 'Refund\n'],
+      ['j', 'DENIED', 'other'],
+      ['k', 'DENIED', '\tduplicate'],
+      ['l', 'DENIED', 'accommodations needed'],
+      ['m', 'DENIED', 'refund (customer)'],
+      ['n', 'DENIED', 'ACCOMMODATİONS'],
+      ['o', 'DENIED', 'Under 18'],
+    ])
+
+    expect(await denials()).toEqual([
+      ['a', 'Legal', null],
+      ['b', 'Refund', null],
+      ['c', 'Accommodations', null],
+      ['d', 'Other', 'no answer '],
+      ['e', 'Other', null],
+      ['f', '7+ days', null],
+      ['g', null, null],
+      ['h', 'Under 18', null],
+      ['i', 'Refund', null],
+      ['j', 'Other', null],
+      ['k', 'Duplicate', null],
+      ['l', 'Other', 'accommodations needed'],
+      ['m', 'Refund (Customer)', null],
+      ['n', 'Other', 'ACCOMMODATİONS'],
+      ['o', 'Other', 'Under 18'],
+    ])
+  })
+
+  it('leaves the rows alone when the runner runs again', async () => {
+    await migrateThrough0009([
+      ['a', 'DENIED', 'DUPLICATE '],
+      ['b', 'DENIED', 'duplicate twice'],
+    ])
+    const migrated = await denials()
+
+    expect(await migrate(pool, loadMigrations())).toEqual({
+      applied: [],
+      alreadyApplied: loadMigrations().length,
+    })
+    expect(migrated).toEqual([
+      ['a', 'Duplicate', null],
+      ['b', 'Other', 'duplicate twice'],
+    ])
+    expect(await denials()).toEqual(migrated)
+  })
+
+  it('refuses a reason outside the list, and a note on any reason but Other', async () => {
+    await migrateThrough0009([
+      ['a', 'DENIED', 'Legal'],
+      ['b', 'DENIED', 'no answer'],
+    ])
+
+    await expect(
+      pool.query("UPDATE submissions SET denial_reason = 'Legal matter' WHERE id = 'a'")
+    ).rejects.toThrow('submissions_denial_reason_check')
+    await expect(
+      pool.query("UPDATE submissions SET denial_note = 'court' WHERE id = 'a'")
+    ).rejects.toThrow('submissions_denial_note_check')
+    await expect(
+      pool.query("UPDATE submissions SET denial_reason = NULL WHERE id = 'b'")
+    ).rejects.toThrow('submissions_denial_note_check')
+  })
+})

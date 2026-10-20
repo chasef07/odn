@@ -45,6 +45,7 @@ const mockSubmission: Submission = {
   reviewedAt: null,
   reviewedByAdminId: null,
   denialReason: null,
+  denialNote: null,
   maybeReason: null,
   maybeInternalNote: null,
   maybeApprovedDays: null,

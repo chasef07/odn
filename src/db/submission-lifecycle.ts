@@ -3,7 +3,7 @@ import { and, sql, type Sql } from './sql'
 import { selectAll, set, type Patch } from './table'
 import { submissions } from './tables'
 import { findSubmissionById } from './submissions'
-import { SubmissionStatus, type Submission } from './types'
+import { SubmissionStatus, type DenialChoice, type Submission } from './types'
 
 export type RefundState = 'none' | 'reserved' | 'refunded'
 
@@ -20,7 +20,7 @@ export function reservedRefundId(submissionId: string): string {
 
 export type Review = { adminId: string; at: Date }
 export type Approval = Review & { diagnosis: string | null; withRestrictions: boolean }
-export type Denial = Review & { reason: string }
+export type Denial = Review & DenialChoice
 export type MaybeReview = Review & {
   reason: string
   internalNote: string | null
@@ -40,6 +40,7 @@ type OwnedColumn =
   | 'reviewedAt'
   | 'reviewedByAdminId'
   | 'denialReason'
+  | 'denialNote'
   | 'maybeReason'
   | 'maybeInternalNote'
   | 'maybeApprovedDays'
@@ -56,7 +57,7 @@ type Decided = Owned & Pick<Submission, 'status'>
 
 type Reservation = Pick<
   Submission,
-  'status' | 'denialReason' | 'reviewedByAdminId' | 'reviewedAt' | 'stripeRefundId'
+  'status' | 'denialReason' | 'denialNote' | 'reviewedByAdminId' | 'reviewedAt' | 'stripeRefundId'
 >
 
 type Entry<I extends Stamped, W extends Owned = Decided> = {
@@ -71,6 +72,7 @@ function approved(approval: Approval): Decided {
     reviewedByAdminId: approval.adminId,
     reviewedAt: approval.at,
     denialReason: null,
+    denialNote: null,
     approvalDiagnosis: approval.diagnosis,
     approvalWithRestrictions: approval.withRestrictions,
   }
@@ -82,6 +84,7 @@ function approvedManually(review: Review): Decided {
     reviewedByAdminId: review.adminId,
     reviewedAt: review.at,
     denialReason: null,
+    denialNote: null,
     approvalEmailSentAt: null,
     approvalDiagnosis: null,
     approvalWithRestrictions: null,
@@ -92,6 +95,7 @@ function reserved(denial: Denial, read: Submission): Reservation {
   return {
     status: SubmissionStatus.DENIED,
     denialReason: denial.reason,
+    denialNote: denial.note,
     reviewedByAdminId: denial.adminId,
     reviewedAt: denial.at,
     stripeRefundId: reservedRefundId(read.id),
@@ -110,6 +114,7 @@ function released({ prior }: RefundRelease, read: Submission): Reservation {
   return {
     status: prior.status,
     denialReason: prior.denialReason,
+    denialNote: prior.denialNote,
     reviewedByAdminId: prior.reviewedByAdminId,
     reviewedAt: prior.reviewedAt,
     stripeRefundId: null,
@@ -127,6 +132,7 @@ function denied(denial: Denial): Decided {
   return {
     status: SubmissionStatus.DENIED,
     denialReason: denial.reason,
+    denialNote: denial.note,
     reviewedByAdminId: denial.adminId,
     reviewedAt: denial.at,
   }

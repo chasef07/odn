@@ -45,8 +45,9 @@ import { type FormattedSubmission } from '@/app/admin/_actions/search'
 import { type MaybeSubmissionInput } from '@/app/admin/_actions/maybe'
 import { createSupportTicketFromSubmission } from '@/app/admin/support/_actions/tickets'
 import { smsStatusLabel } from '@/lib/sms-status'
-import { SubmissionStatus } from '@/db/types'
+import { SubmissionStatus, type DenialChoice } from '@/db/types'
 import { DATE_LIMITS } from '@/lib/validation-constants'
+import { formatDenialReason } from '@/lib/admin-utils'
 
 interface SearchSubmissionDetailProps {
   submission: FormattedSubmission
@@ -257,20 +258,15 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     }
   }
 
-  const handleDeny = async (finalReason: string) => {
-    if (!finalReason) {
-      setError('Please select or enter a denial reason')
-      return
-    }
-
+  const handleDeny = async (denial: DenialChoice) => {
     setIsLoading(true)
     setError(null)
 
     try {
       const result =
         submission.status === SubmissionStatus.APPROVED
-          ? await changeSubmissionStatus(submission.id, SubmissionStatus.DENIED, finalReason)
-          : await denySubmission(submission.id, finalReason)
+          ? await changeSubmissionStatus(submission.id, SubmissionStatus.DENIED, denial)
+          : await denySubmission(submission.id, denial)
 
       if (result.success) {
         setShowDenialDialog(false)
@@ -1000,7 +996,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           {submission.denialReason && (
             <div>
               <dt className="font-medium text-gray-500">Denial Reason</dt>
-              <dd className="mt-1 text-gray-900">{submission.denialReason}</dd>
+              <dd className="mt-1 text-gray-900">
+                {formatDenialReason(submission.denialReason, submission.denialNote)}
+              </dd>
             </div>
           )}
           {submission.stripeRefundId && (

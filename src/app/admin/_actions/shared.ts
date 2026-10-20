@@ -22,7 +22,13 @@ import {
   type Permit,
   type Refusal,
 } from '@/db/submission-lifecycle'
-import { SubmissionStatus, type Submission } from '@/db/types'
+import {
+  isDenialReasonChoice,
+  SubmissionStatus,
+  type DenialChoice,
+  type DenialReason,
+  type Submission,
+} from '@/db/types'
 import { type MaybeSubmissionInput } from './maybe'
 
 export type ActionResult = { success: boolean; error?: string; warning?: string }
@@ -61,6 +67,23 @@ export function revalidate(paths: readonly string[]): void {
 }
 
 export const QUEUE_PATHS = ['/admin', '/admin/review', '/admin/maybe']
+
+export type ParsedDenial = { ok: true; denial: DenialChoice } | { ok: false; error: string }
+
+export function parseDenial(input: { reason?: unknown; note?: unknown } | undefined): ParsedDenial {
+  if (!input?.reason) return { ok: false, error: 'Denial reason is required' }
+  const { reason } = input
+  if (!isDenialReasonChoice(reason)) return { ok: false, error: 'Invalid denial reason' }
+  const note = input.note ?? null
+  if (note !== null && typeof note !== 'string') {
+    return { ok: false, error: 'Invalid denial note' }
+  }
+  const trimmed = note?.trim() || null
+  if (trimmed !== null && reason !== 'Other') {
+    return { ok: false, error: 'Only an Other denial takes a note' }
+  }
+  return { ok: true, denial: { reason, note: trimmed } }
+}
 
 export type RefundOrigin = 'admin-denial-automation' | 'admin-status-change'
 
@@ -119,7 +142,7 @@ export async function denyAndRefund(
 export async function finishRefundedDenial(
   reserved: Submission,
   refund: Pick<Stripe.Refund, 'id' | 'amount'>,
-  reason: string,
+  reason: DenialReason,
   at: Date
 ): Promise<ActionResult> {
   const recorded = await transition(
@@ -211,6 +234,7 @@ export async function settleRefundReservation(
         status,
         stripeRefundId: null,
         denialReason: null,
+        denialNote: null,
         reviewedByAdminId: null,
         reviewedAt: null,
       },
@@ -229,7 +253,7 @@ function refundCertainlyFailed(error: unknown): boolean {
 
 export async function notifyDenial(
   submission: Submission,
-  reason: string,
+  reason: DenialReason,
   refundCents: number
 ): Promise<ActionResult> {
   try {

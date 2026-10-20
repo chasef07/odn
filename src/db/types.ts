@@ -18,6 +18,29 @@ export const SubmissionStatus = {
 
 export type SubmissionStatus = (typeof SubmissionStatus)[keyof typeof SubmissionStatus]
 
+export const DENIAL_REASON_CHOICES = [
+  'Legal',
+  '7+ days',
+  'Duplicate',
+  'Refund (Customer)',
+  'Refund (Denial)',
+  'Under 18',
+  'Accommodations',
+  'Other',
+] as const
+
+export type DenialReasonChoice = (typeof DENIAL_REASON_CHOICES)[number]
+
+export function isDenialReasonChoice(value: unknown): value is DenialReasonChoice {
+  return DENIAL_REASON_CHOICES.some((choice) => choice === value)
+}
+
+export const DENIAL_REASONS = [...DENIAL_REASON_CHOICES, 'Refund'] as const
+
+export type DenialReason = (typeof DENIAL_REASONS)[number]
+
+export type DenialChoice = { readonly reason: DenialReasonChoice; readonly note: string | null }
+
 export const NoteVerificationStatus = {
   ACTIVE: 'ACTIVE',
   REVOKED: 'REVOKED',
@@ -69,7 +92,8 @@ export type Submission = {
   additionalInformation: string | null
   reviewedAt: Date | null
   reviewedByAdminId: string | null
-  denialReason: string | null
+  denialReason: DenialReason | null
+  denialNote: string | null
   maybeReason: string | null
   maybeInternalNote: string | null
   maybeApprovedDays: number | null

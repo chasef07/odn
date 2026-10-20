@@ -12,16 +12,17 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { DENIAL_REASON_OPTIONS, DenialReason } from '@/lib/admin-utils'
+import { isDenialReasonChoice, type DenialReasonChoice } from '@/db/types'
+import { DENIAL_REASON_OPTIONS } from '@/lib/admin-utils'
 
 interface DenialReasonDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: (reason: DenialReason) => void
+  onConfirm: (reason: DenialReasonChoice) => void
 }
 
 export function DenialReasonDialog({ open, onOpenChange, onConfirm }: DenialReasonDialogProps) {
-  const [selectedReason, setSelectedReason] = useState<DenialReason>('Other')
+  const [selectedReason, setSelectedReason] = useState<DenialReasonChoice>('Other')
 
   const handleConfirm = () => {
     onConfirm(selectedReason)
@@ -46,7 +47,9 @@ export function DenialReasonDialog({ open, onOpenChange, onConfirm }: DenialReas
         <div className="overflow-y-auto py-4">
           <RadioGroup
             value={selectedReason}
-            onValueChange={(value) => setSelectedReason(value as DenialReason)}
+            onValueChange={(value) => {
+              if (isDenialReasonChoice(value)) setSelectedReason(value)
+            }}
           >
             <div className="space-y-4">
               {DENIAL_REASON_OPTIONS.map((reason) => (

@@ -19,12 +19,13 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { isDenialReasonChoice, type DenialChoice, type DenialReasonChoice } from '@/db/types'
 import { DENIAL_REASON_OPTIONS } from '@/lib/admin-utils'
 
 interface SelectDenialDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: (reason: string) => void
+  onConfirm: (denial: DenialChoice) => void
   isLoading: boolean
   error: string | null
   title: string
@@ -42,21 +43,20 @@ export function SelectDenialDialog({
   description,
   confirmLabel,
 }: SelectDenialDialogProps) {
-  const [denialReason, setDenialReason] = useState<string>('')
+  const [denialReason, setDenialReason] = useState<DenialReasonChoice | null>(null)
   const [otherReason, setOtherReason] = useState('')
+  const missingNote = denialReason === 'Other' && !otherReason.trim()
 
   useEffect(() => {
     if (open) {
-      setDenialReason('')
+      setDenialReason(null)
       setOtherReason('')
     }
   }, [open])
 
   const handleConfirm = () => {
-    const finalReason = denialReason === 'Other' ? otherReason : denialReason
-    if (finalReason) {
-      onConfirm(finalReason)
-    }
+    if (!denialReason || missingNote) return
+    onConfirm({ reason: denialReason, note: denialReason === 'Other' ? otherReason : null })
   }
 
   return (
@@ -76,7 +76,12 @@ export function SelectDenialDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="denial-reason">Reason for Denial</Label>
-            <Select value={denialReason} onValueChange={setDenialReason}>
+            <Select
+              value={denialReason ?? ''}
+              onValueChange={(value) => {
+                if (isDenialReasonChoice(value)) setDenialReason(value)
+              }}
+            >
               <SelectTrigger id="denial-reason">
                 <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
@@ -110,7 +115,7 @@ export function SelectDenialDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isLoading || !denialReason || (denialReason === 'Other' && !otherReason)}
+            disabled={isLoading || !denialReason || missingNote}
             variant="destructive"
           >
             {isLoading ? 'Processing...' : confirmLabel}

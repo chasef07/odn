@@ -15,6 +15,7 @@ import {
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { approveSubmission } from '@/app/admin/_actions/approve'
 import { denySubmission } from '@/app/admin/_actions/deny'
+import type { DenialChoice } from '@/db/types'
 
 interface ManualActionButtonsProps {
   submissionId: string
@@ -60,12 +61,12 @@ export function ManualActionButtons({ submissionId }: ManualActionButtonsProps) 
     setShowDenialDialog(true)
   }
 
-  const handleDenyConfirm = async (reason: string) => {
+  const handleDenyConfirm = async (denial: DenialChoice) => {
     setIsLoading(true)
     setDenialError(null)
 
     try {
-      const result = await denySubmission(submissionId, reason)
+      const result = await denySubmission(submissionId, denial)
 
       if (result.success) {
         setShowDenialDialog(false)
