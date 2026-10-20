@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { MessageSquare, Search } from 'lucide-react'
+import { MessageSquare, Search, Sparkles } from 'lucide-react'
 import { AdminStats } from '@/components/admin/AdminStats'
 import { Button } from '@/components/ui/button'
 import { LogoutButton } from '@/components/admin/LogoutButton'
@@ -71,6 +71,12 @@ export default async function AdminDashboardPage() {
                 <Button variant="outline" className="w-full gap-2 sm:w-auto">
                   <Search data-icon="inline-start" />
                   Search All Submissions
+                </Button>
+              </Link>
+              <Link href="/admin/agent">
+                <Button variant="outline" className="w-full gap-2 sm:w-auto">
+                  <Sparkles data-icon="inline-start" />
+                  Ask
                 </Button>
               </Link>
               <Link href="/admin/support">

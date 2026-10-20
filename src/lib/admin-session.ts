@@ -4,10 +4,16 @@ import { auth } from '@/lib/auth'
 
 export type AdminSession = { doctorId: string; email: string }
 
-export async function requireAdminSession(): Promise<AdminSession> {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) redirect('/admin/login')
+export async function findAdminSession(requestHeaders: Headers): Promise<AdminSession | null> {
+  const session = await auth.api.getSession({ headers: requestHeaders })
+  if (!session?.user) return null
   return { doctorId: session.user.id, email: session.user.email }
+}
+
+export async function requireAdminSession(): Promise<AdminSession> {
+  const admin = await findAdminSession(await headers())
+  if (!admin) redirect('/admin/login')
+  return admin
 }
 
 export function adminAction<Args extends unknown[], Result>(

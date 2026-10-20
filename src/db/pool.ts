@@ -21,13 +21,13 @@ declare global {
   var odnPool: pg.Pool | undefined
 }
 
-export function createPool(connectionString: string): pg.Pool {
+export function createPool(connectionString: string, { max = 5 } = {}): pg.Pool {
   pg.defaults.parseInputDatesAsUTC = true
   const pool = new pg.Pool({
     connectionString,
     types: utcTypes,
     options: '-c TimeZone=UTC',
-    max: 5,
+    max,
     connectionTimeoutMillis: 10_000,
   })
   pool.on('error', (error) => {
@@ -64,7 +64,7 @@ function extended(text: string, values: unknown[] = []): pg.QueryConfig {
   return { text, values, queryMode: 'extended' } as pg.QueryConfig
 }
 
-async function run(client: Queryable, query: Sql<unknown>): Promise<pg.QueryResult> {
+export async function run(client: Queryable, query: Sql<unknown>): Promise<pg.QueryResult> {
   const { text, values } = query.compile()
   const result = await client.query(extended(text, values))
   const names = result.fields.map((field) => field.name)
