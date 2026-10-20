@@ -19,6 +19,7 @@ import { insert, selectAll, type Patch } from '../table'
 import { smsSupportJobs, smsSupportTickets, submissions } from '../tables'
 import type { SmsSupportJob, SmsSupportTicket, Submission } from '../types'
 import {
+  ABANDONED_COMMIT_ERROR,
   cancelSupportJobs,
   createAdminSupportTicket,
   createInboundSupportTicket,
@@ -183,6 +184,7 @@ const ticketInputs: { [K in TicketTransition]: TicketInput<K> } = {
     at: AT,
     adminSummary: 'Automated CHANGE_DOB update completed and emailed.',
   },
+  automationAbandoned: { at: AT, failureReason: 'Automation stopped before the result' },
 }
 
 const csrReview = {
@@ -273,6 +275,10 @@ const ticketWrites: { [K in TicketTransition]: Partial<SmsSupportTicket> } = {
     failureReason: null,
     closedAt: AT,
   },
+  automationAbandoned: {
+    automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED,
+    failureReason: 'Automation stopped before the result',
+  },
 }
 
 type Admission = {
@@ -315,6 +321,7 @@ const ticketAdmission: { [K in TicketTransition]: Admission } = {
     automation: [SMS_SUPPORT_AUTOMATION_STATUS.RUNNING],
   },
   automationSucceeded: { statuses: [SMS_SUPPORT_STATUS.RUNNING_AUTOMATION] },
+  automationAbandoned: everyStatus,
 }
 
 function admits(admission: Admission, state: State, { pinned = true } = {}): boolean {
@@ -621,6 +628,7 @@ const jobInputs: { [K in RowStep]: JobInput<K> } = {
   commit: { at: AT },
   complete: { at: AT },
   fail: { at: AT, lastError: 'Resend timeout' },
+  abandon: { at: AT },
 }
 
 const failedWrite = {
@@ -646,6 +654,7 @@ const jobWrites: { [K in RowStep]: Partial<SmsSupportJob> } = {
     lastError: null,
   },
   fail: { ...failedWrite, lastError: 'Resend timeout' },
+  abandon: { ...failedWrite, lastError: ABANDONED_COMMIT_ERROR },
 }
 
 const jobAdmission: { [K in RowStep]: readonly SmsSupportJobStatus[] } = {
@@ -653,7 +662,12 @@ const jobAdmission: { [K in RowStep]: readonly SmsSupportJobStatus[] } = {
   commit: [SMS_SUPPORT_JOB_STATUS.RUNNING],
   complete: jobStatuses,
   fail: jobStatuses,
+  abandon: [SMS_SUPPORT_JOB_STATUS.COMMITTING],
 }
+
+const COMMIT_TIMEOUT_MS = 15 * 60 * 1000
+const lockedAtTimeout = new Date(AT.getTime() - COMMIT_TIMEOUT_MS)
+const lockedInsideTimeout = new Date(lockedAtTimeout.getTime() + 1)
 
 const rowSteps = Object.keys(jobInputs) as RowStep[]
 
@@ -913,11 +927,12 @@ describe('takeOver', () => {
     expect(await readTicket(other.id)).toEqual(other)
   })
 
-  it('refuses and rolls back while a job is committing', async () => {
+  it('refuses and rolls back while a job committed inside the timeout', async () => {
     const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
     const committing = await seedJob(ticket.id, {
       kind: 'committing',
       status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+      lockedAt: lockedInsideTimeout,
     })
     const queued = await seedJob(ticket.id, {
       kind: 'queued',
@@ -933,6 +948,75 @@ describe('takeOver', () => {
     expect(await readTicket(ticket.id)).toEqual(ticket)
     expect(await readJob(committing.id)).toEqual(committing)
     expect(await readJob(queued.id)).toEqual(queued)
+  })
+
+  it.each(['closeByAdmin', 'returnToCsr', 'adminReplied'] as const)(
+    '%s abandons a job that has been committing for the whole timeout, then cancels the rest',
+    async (name) => {
+      const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
+      const committing = await seedJob(ticket.id, {
+        kind: 'committing',
+        status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+        lockedAt: lockedAtTimeout,
+      })
+      const queued = await seedJob(ticket.id, {
+        kind: 'queued',
+        status: SMS_SUPPORT_JOB_STATUS.QUEUED,
+      })
+
+      const result = await takeOver(name, ticket.id, cancel)
+
+      expect(result).toEqual({
+        ok: true,
+        value: {
+          ...ticket,
+          ...ticketWrites[name],
+          automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED,
+          failureReason: ABANDONED_COMMIT_ERROR,
+          updatedAt: AT,
+        },
+      })
+      expect(await readTicket(ticket.id)).toEqual(result.ok ? result.value : null)
+      expect(await readJob(committing.id)).toEqual({
+        ...committing,
+        ...failedWrite,
+        lastError: ABANDONED_COMMIT_ERROR,
+        updatedAt: AT,
+      })
+      expect(await readJob(queued.id)).toEqual({
+        ...queued,
+        ...failedWrite,
+        lastError: cancel.lastError,
+        updatedAt: AT,
+      })
+    }
+  )
+
+  it('ends in the completed job and the taken-over ticket when a late complete races the take-over', async () => {
+    for (let round = 0; round < 30; round += 1) {
+      const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
+      const job = await seedJob(ticket.id, {
+        status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
+        lockedAt: lockedAtTimeout,
+      })
+      const complete = () => transitionJob('complete', job.id, { at: AT })
+      const take = () => takeOver('closeByAdmin', ticket.id, cancel)
+
+      const results = await Promise.all(
+        round % 2 === 0 ? [complete(), take()] : [take(), complete()]
+      )
+
+      expect(results.map((result) => result.ok)).toEqual([true, true])
+      expect(await readJob(job.id)).toEqual({ ...job, ...jobWrites.complete, updatedAt: AT })
+      const closed = { ...ticket, ...ticketWrites.closeByAdmin, updatedAt: AT }
+      const flagged = {
+        ...closed,
+        automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED,
+        failureReason: ABANDONED_COMMIT_ERROR,
+      }
+      const final = await readTicket(ticket.id)
+      expect(final).toEqual(final?.failureReason === ABANDONED_COMMIT_ERROR ? flagged : closed)
+    }
   })
 
   it('reports a missing ticket and cancels nothing', async () => {
