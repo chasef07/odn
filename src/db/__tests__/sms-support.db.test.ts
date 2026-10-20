@@ -21,7 +21,6 @@ import {
   findActiveSupportTicketsForQueue,
   findActiveSupportTicketSummaryForPhone,
   findClosedSupportTicketsForQueue,
-  findCommittingSupportJob,
   findLatestSupportAutomationJob,
   findRunnableQueuedSupportJob,
   findSmsMessageSupportHandledAt,
@@ -534,7 +533,6 @@ describe('job lookup', () => {
     expect(await findActiveSupportAutomationJob(ticket.id)).toEqual(committing)
     expect(await findActiveSupportAutomationJobId(ticket.id)).toEqual({ id: committing.id })
     expect(await findLatestSupportAutomationJob(ticket.id)).toEqual(committing)
-    expect(await findCommittingSupportJob(ticket.id)).toEqual({ id: committing.id })
     expect(await findSupportJobStatus(failed.id)).toEqual({ status: SMS_SUPPORT_JOB_STATUS.FAILED })
     expect(await findSupportJobStatus(elsewhere.id)).toEqual({
       status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
@@ -545,7 +543,6 @@ describe('job lookup', () => {
     expect(await findActiveSupportAutomationJob(ticket.id)).toBeNull()
     expect(await findActiveSupportAutomationJobId(ticket.id)).toBeNull()
     expect((await findLatestSupportAutomationJob(ticket.id))?.id).toBe(committing.id)
-    expect(await findCommittingSupportJob(ticket.id)).toBeNull()
     expect(await readJob(elsewhere.id)).toEqual(elsewhere)
   })
 

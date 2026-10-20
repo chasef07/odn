@@ -20,7 +20,8 @@ function refused(refusal: TakeOverRefusal): Failed {
     case 'committing':
       return {
         success: false,
-        error: 'Automation is finalizing the updated note. Refresh in a moment before taking over.',
+        error:
+          'Automation is finalizing the updated note. Refresh in a moment. A crashed job unlocks 15 minutes after it started committing.',
       }
     default:
       return {

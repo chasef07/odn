@@ -191,7 +191,8 @@ describe('createSupportTicketFromSubmission', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Automation is finalizing the updated note. Refresh in a moment before taking over.',
+      error:
+        'Automation is finalizing the updated note. Refresh in a moment. A crashed job unlocks 15 minutes after it started committing.',
     })
   })
 
@@ -259,7 +260,8 @@ describe('createSupportTicketFromSubmission', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Automation is finalizing the updated note. Refresh in a moment before taking over.',
+      error:
+        'Automation is finalizing the updated note. Refresh in a moment. A crashed job unlocks 15 minutes after it started committing.',
     })
     expect(mockSendSupportSms).not.toHaveBeenCalled()
     expect(mockTransition).not.toHaveBeenCalled()
