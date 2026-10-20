@@ -1,16 +1,9 @@
-import {
-  SMS_SUPPORT_AUTOMATION_STATUS,
-  SMS_SUPPORT_JOB_STATUS,
-  SMS_SUPPORT_STATUS,
-} from '@/lib/sms-support-types'
 import { db } from './pool'
 import { and, array, count, likeContains, likeStartsWith, or, sql, type Sql } from './sql'
 import { insert, select, selectAll, set, type Patch } from './table'
 import {
   noteVerifications,
   smsMessages,
-  smsSupportJobs,
-  smsSupportTickets,
   submissionBirth,
   submissionDetails,
   submissions,
@@ -25,6 +18,7 @@ import {
   type SubmissionDetails,
 } from './types'
 import { deleteEveryRow } from './wipe'
+import { transition, transitionJob } from './sms-support-lifecycle'
 
 export type SubmissionStatusFilter = {
   status: SubmissionStatus
@@ -881,17 +875,13 @@ export async function commitSupportAutomationSubmissionUpdate({
   updateData: SmsSupportAutomationSubmissionUpdate
 }): Promise<SmsSupportAutomationCommitResult> {
   return db.transaction(async (tx) => {
-    const ticketGuard = await tx.affected(
-      sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, { failureReason: null })} WHERE id = ${ticketId} AND status = ${SMS_SUPPORT_STATUS.RUNNING_AUTOMATION} AND automation_status = ${SMS_SUPPORT_AUTOMATION_STATUS.RUNNING}`
-    )
+    const ticket = await transition('commitAutomation', ticketId, { at: committedAt }, tx)
 
-    if (ticketGuard !== 1) return 'cancelled'
+    if (!ticket.ok) return 'cancelled'
 
-    const jobGuard = await tx.affected(
-      sql`UPDATE sms_support_jobs SET ${set(smsSupportJobs, { status: SMS_SUPPORT_JOB_STATUS.COMMITTING, lockedAt: committedAt })} WHERE id = ${jobId} AND status = ${SMS_SUPPORT_JOB_STATUS.RUNNING}`
-    )
+    const job = await transitionJob('commit', jobId, { at: committedAt }, tx)
 
-    if (jobGuard !== 1) return 'cancelled'
+    if (!job.ok) return 'cancelled'
 
     const submissionUpdate = await tx.affected(
       sql`UPDATE submissions SET ${set(submissionDetails, updateData)} WHERE id = ${submissionId} AND status = ${SubmissionStatus.APPROVED} AND updated_at = ${submissionUpdatedAt}`

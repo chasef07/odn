@@ -68,7 +68,6 @@ export const SMS_SUPPORT_AUTOMATION_STATUS = {
   RUNNING: 'RUNNING',
   SUCCEEDED: 'SUCCEEDED',
   FAILED: 'FAILED',
-  BLOCKED: 'BLOCKED',
 } as const
 
 export type SmsSupportAutomationStatus =

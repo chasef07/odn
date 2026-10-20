@@ -1,15 +1,21 @@
 import { SubmissionStatus, type SmsSupportTicket } from '@/db/types'
 import {
-  createInboundSupportTicket,
-  escalateSupportTicketToCsr,
-  failQueuedOrRunningSupportJobs,
   findActiveSupportTicketForPhone,
   linkSmsMessageToSupportTicket,
-  markSupportTicketReplyFailed,
   recordSupportTicketInbound,
-  updateSupportTicketConversation,
-  type SupportTicketConversationUpdate,
 } from '@/db/sms-support'
+import {
+  cancelSupportJobs,
+  createInboundSupportTicket,
+  describeRefusal,
+  isConversing,
+  required,
+  startAutomation,
+  transition,
+  type ConversingTicket,
+  type TicketInput,
+  type TicketRefusal,
+} from '@/db/sms-support-lifecycle'
 import {
   findApprovedSubmissionBirthDateForSupport,
   findApprovedSubmissionIdForSupportTicket,
@@ -51,13 +57,8 @@ import {
 import { sendSupportSms } from '@/lib/sms-support-sms'
 import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
 import { automationPayloadForCollectedData, automationSummary } from '@/lib/sms-support-automation'
+import { processSmsSupportJobNow } from '@/lib/sms-support-jobs'
 import {
-  enqueueSupportAutomationJob,
-  processSmsSupportJobNow,
-  SupportAutomationPayloadConflictError,
-} from '@/lib/sms-support-jobs'
-import {
-  SMS_SUPPORT_AUTOMATION_STATUS,
   SMS_SUPPORT_CATEGORY,
   SMS_SUPPORT_STATE,
   SMS_SUPPORT_STATUS,
@@ -67,6 +68,17 @@ import {
 } from '@/lib/sms-support-types'
 
 type SupportReplySmsType = 'SUPPORT_REPLY' | 'SUPPORT_AUTOMATION_UPDATE' | 'SUPPORT_CSR_ALERT'
+
+type ConversationStep = 'prompt' | 'closeFound' | 'escalate'
+
+const CONVERSATION_ATTEMPTS = 3
+
+export class TicketMoved extends Error {
+  constructor(step: string, ticketId: string, refusal: TicketRefusal) {
+    super(`${step} of support ticket ${ticketId} was refused: ${describeRefusal(refusal)}`)
+    this.name = 'TicketMoved'
+  }
+}
 
 export async function handleInboundSupportSms({
   fromPhone,
@@ -83,6 +95,22 @@ export async function handleInboundSupportSms({
   const trimmedBody = body.trim()
   if (!phoneE164 || !trimmedBody) return
 
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await converse(phoneE164, trimmedBody, providerMessageId, receivedAt)
+      return
+    } catch (error) {
+      if (!(error instanceof TicketMoved) || attempt === CONVERSATION_ATTEMPTS) throw error
+    }
+  }
+}
+
+async function converse(
+  phoneE164: string,
+  trimmedBody: string,
+  providerMessageId: string | undefined,
+  receivedAt: Date
+): Promise<void> {
   let ticket = await findActiveSupportTicketForPhone(phoneE164)
   if (!ticket) {
     const matchedSubmission = await findSafeSubmissionForPhone(phoneE164)
@@ -113,6 +141,9 @@ export async function handleInboundSupportSms({
     await reply(ticket, automationStillRunningSms(), 'SUPPORT_AUTOMATION_UPDATE')
     return
   }
+  if (!isConversing(ticket)) {
+    throw new TicketMoved('conversation', ticket.id, { reason: 'status', status: ticket.status })
+  }
 
   if (isHelpRequest(trimmedBody)) {
     if (ticket.status === SMS_SUPPORT_STATUS.NEEDS_CSR) {
@@ -121,9 +152,10 @@ export async function handleInboundSupportSms({
     }
 
     await updateTicketAndReply(
-      ticket.id,
+      ticket,
+      'prompt',
       {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: new Date(),
         state: SMS_SUPPORT_STATE.INTRO_MENU,
         category: null,
         failureReason: null,
@@ -138,7 +170,7 @@ export async function handleInboundSupportSms({
 }
 
 async function routeByState(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   body: string,
   providerMessageId?: string
 ): Promise<void> {
@@ -193,25 +225,20 @@ async function routeByState(
       return
     default:
       await updateTicketAndReply(
-        ticket.id,
-        {
-          status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-          state: SMS_SUPPORT_STATE.INTRO_MENU,
-        },
+        ticket,
+        'prompt',
+        { at: new Date(), state: SMS_SUPPORT_STATE.INTRO_MENU },
         supportIntroMenuSms()
       )
   }
 }
 
-async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function routeIntroMenu(ticket: ConversingTicket, body: string): Promise<void> {
   if (isChangeNoteMenuRequest(body)) {
     await updateTicketAndReply(
-      ticket.id,
-      {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU,
-        category: null,
-      },
+      ticket,
+      'prompt',
+      { at: new Date(), state: SMS_SUPPORT_STATE.CHANGE_NOTE_MENU, category: null },
       changeNoteMenuSms()
     )
     return
@@ -221,12 +248,9 @@ async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<v
 
   if (category === SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED) {
     await updateTicketAndReply(
-      ticket.id,
-      {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK,
-        category,
-      },
+      ticket,
+      'prompt',
+      { at: new Date(), state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_SPAM_CHECK, category },
       noteNotReceivedSms()
     )
     return
@@ -271,12 +295,9 @@ async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<v
 
   if (category === SMS_SUPPORT_CATEGORY.DIAGNOSIS_SYMPTOMS) {
     await updateTicketAndReply(
-      ticket.id,
-      {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.DIAGNOSIS_SYMPTOMS_CONFIRM,
-        category,
-      },
+      ticket,
+      'prompt',
+      { at: new Date(), state: SMS_SUPPORT_STATE.DIAGNOSIS_SYMPTOMS_CONFIRM, category },
       diagnosisSymptomsConfirmSms()
     )
     return
@@ -302,12 +323,9 @@ async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<v
 
   if (category === SMS_SUPPORT_CATEGORY.NAME_CORRECTION) {
     await updateTicketAndReply(
-      ticket.id,
-      {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.NAME_CORRECTION_COLLECT,
-        category,
-      },
+      ticket,
+      'prompt',
+      { at: new Date(), state: SMS_SUPPORT_STATE.NAME_CORRECTION_COLLECT, category },
       nameCorrectionPromptSms()
     )
     return
@@ -315,12 +333,9 @@ async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<v
 
   if (category === SMS_SUPPORT_CATEGORY.RESTRICTIONS_ACCOMMODATIONS) {
     await updateTicketAndReply(
-      ticket.id,
-      {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.RESTRICTIONS_CONFIRM,
-        category,
-      },
+      ticket,
+      'prompt',
+      { at: new Date(), state: SMS_SUPPORT_STATE.RESTRICTIONS_CONFIRM, category },
       restrictionsConfirmSms()
     )
     return
@@ -328,28 +343,23 @@ async function routeIntroMenu(ticket: SmsSupportTicket, body: string): Promise<v
 
   if (category === SMS_SUPPORT_CATEGORY.OTHER) {
     await updateTicketAndReply(
-      ticket.id,
-      {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-        state: SMS_SUPPORT_STATE.OTHER_MENU,
-        category,
-      },
+      ticket,
+      'prompt',
+      { at: new Date(), state: SMS_SUPPORT_STATE.OTHER_MENU, category },
       otherMenuSms()
     )
     return
   }
 
   await updateTicketAndReply(
-    ticket.id,
-    {
-      status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
-      state: SMS_SUPPORT_STATE.INTRO_MENU,
-    },
+    ticket,
+    'prompt',
+    { at: new Date(), state: SMS_SUPPORT_STATE.INTRO_MENU },
     supportIntroMenuSms()
   )
 }
 
-async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function routeChangeNoteMenu(ticket: ConversingTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized.includes('ISSUE') || normalized.includes('EVALUATION')) {
@@ -393,9 +403,10 @@ async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Prom
 
   if (normalized === '5' || normalized.includes('DIAGNOSIS') || normalized.includes('SYMPTOM')) {
     await updateTicketAndReply(
-      ticket.id,
+      ticket,
+      'prompt',
       {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: new Date(),
         state: SMS_SUPPORT_STATE.DIAGNOSIS_SYMPTOMS_CONFIRM,
         category: SMS_SUPPORT_CATEGORY.DIAGNOSIS_SYMPTOMS,
       },
@@ -417,9 +428,10 @@ async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Prom
 
   if (normalized === '7' || normalized.includes('NAME') || normalized.includes('SPELL')) {
     await updateTicketAndReply(
-      ticket.id,
+      ticket,
+      'prompt',
       {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: new Date(),
         state: SMS_SUPPORT_STATE.NAME_CORRECTION_COLLECT,
         category: SMS_SUPPORT_CATEGORY.NAME_CORRECTION,
       },
@@ -434,9 +446,10 @@ async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Prom
     normalized.includes('ACCOMMODATION')
   ) {
     await updateTicketAndReply(
-      ticket.id,
+      ticket,
+      'prompt',
       {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: new Date(),
         state: SMS_SUPPORT_STATE.RESTRICTIONS_CONFIRM,
         category: SMS_SUPPORT_CATEGORY.RESTRICTIONS_ACCOMMODATIONS,
       },
@@ -447,9 +460,10 @@ async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Prom
 
   if (normalized === '9' || normalized.includes('OTHER')) {
     await updateTicketAndReply(
-      ticket.id,
+      ticket,
+      'prompt',
       {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: new Date(),
         state: SMS_SUPPORT_STATE.OTHER_COLLECT_MESSAGE,
         category: SMS_SUPPORT_CATEGORY.OTHER,
       },
@@ -461,7 +475,7 @@ async function routeChangeNoteMenu(ticket: SmsSupportTicket, body: string): Prom
   await reply(ticket, changeNoteMenuSms())
 }
 
-async function routeOtherMenu(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function routeOtherMenu(ticket: ConversingTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized.includes('FORM')) {
@@ -484,9 +498,10 @@ async function routeOtherMenu(ticket: SmsSupportTicket, body: string): Promise<v
 
   if (normalized === '3' || normalized.includes('OTHER')) {
     await updateTicketAndReply(
-      ticket.id,
+      ticket,
+      'prompt',
       {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: new Date(),
         state: SMS_SUPPORT_STATE.OTHER_COLLECT_MESSAGE,
         category: SMS_SUPPORT_CATEGORY.OTHER,
       },
@@ -499,7 +514,7 @@ async function routeOtherMenu(ticket: SmsSupportTicket, body: string): Promise<v
 }
 
 async function startAutomationCategory(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   category: SmsSupportCategory
 ): Promise<void> {
   const collectState = stateForAutomationCategory(category)
@@ -524,9 +539,10 @@ async function startAutomationCategory(
 
   if (resolution.status === 'ambiguous') {
     await updateTicketAndReply(
-      ticket.id,
+      ticket,
+      'prompt',
       {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: new Date(),
         state: SMS_SUPPORT_STATE.COLLECT_SUBMISSION_REF,
         category,
         collectedData: {
@@ -541,10 +557,11 @@ async function startAutomationCategory(
   }
 
   await updateTicketAndReply(
-    ticket.id,
+    ticket,
+    'prompt',
     {
+      at: new Date(),
       submissionId: resolution.submission.id,
-      status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
       state: collectState,
       category,
       collectedData: {},
@@ -554,18 +571,16 @@ async function startAutomationCategory(
 }
 
 async function handleSubmissionReference(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   body: string,
   providerMessageId?: string
 ): Promise<void> {
   const data = ticketCollectedData(ticket)
   if (!data.pendingCategory || !data.pendingState) {
     await updateTicketAndReply(
-      ticket.id,
-      {
-        state: SMS_SUPPORT_STATE.INTRO_MENU,
-        collectedData: {},
-      },
+      ticket,
+      'prompt',
+      { at: new Date(), state: SMS_SUPPORT_STATE.INTRO_MENU, collectedData: {} },
       supportIntroMenuSms()
     )
     return
@@ -584,21 +599,21 @@ async function handleSubmissionReference(
     })
   }
 
-  const nextData: SmsSupportCollectedData = {}
   await updateTicketAndReply(
-    ticket.id,
+    ticket,
+    'prompt',
     {
+      at: new Date(),
       submissionId: submission.id,
-      status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
       state: data.pendingState,
       category: data.pendingCategory,
-      collectedData: nextData,
+      collectedData: {},
     },
     promptForState(data.pendingState)
   )
 }
 
-async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectDob(ticket: ConversingTicket, body: string): Promise<void> {
   const dateOfBirth = parseUsDate(body)
   const today = todayUTC()
   if (!dateOfBirth || dateOfBirth < DATE_LIMITS.EARLIEST_DAY || dateOfBirth > today) {
@@ -633,7 +648,7 @@ async function collectDob(ticket: SmsSupportTicket, body: string): Promise<void>
   })
 }
 
-async function collectPurpose(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectPurpose(ticket: ConversingTicket, body: string): Promise<void> {
   if (isLegalPurposeReply(body)) {
     await moveToCsr(ticket, {
       category: SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE,
@@ -656,7 +671,7 @@ async function collectPurpose(ticket: SmsSupportTicket, body: string): Promise<v
 }
 
 async function collectDiagnosisSymptomsConfirmation(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   body: string
 ): Promise<void> {
   if (!isConfirmReply(body)) {
@@ -671,7 +686,7 @@ async function collectDiagnosisSymptomsConfirmation(
   })
 }
 
-async function collectNameCorrection(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectNameCorrection(ticket: ConversingTicket, body: string): Promise<void> {
   const correctedName = body.trim().slice(0, 200)
   if (!correctedName) {
     await reply(ticket, nameCorrectionPromptSms())
@@ -688,7 +703,7 @@ async function collectNameCorrection(ticket: SmsSupportTicket, body: string): Pr
 }
 
 async function collectRestrictionsConfirmation(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   body: string
 ): Promise<void> {
   if (!isConfirmReply(body)) {
@@ -703,29 +718,20 @@ async function collectRestrictionsConfirmation(
   })
 }
 
-async function collectMissingNoteSpamCheck(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectMissingNoteSpamCheck(ticket: ConversingTicket, body: string): Promise<void> {
   const normalized = normalizeSmsKeyword(body)
 
   if (normalized === '1' || normalized === 'YES' || normalized.includes('FOUND')) {
-    await updateTicketAndReply(
-      ticket.id,
-      {
-        status: SMS_SUPPORT_STATUS.CLOSED,
-        state: SMS_SUPPORT_STATE.CLOSED,
-        category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
-        adminSummary: 'Customer found the note after checking spam/junk.',
-        closedAt: new Date(),
-      },
-      noteNotReceivedFoundSms()
-    )
+    await updateTicketAndReply(ticket, 'closeFound', { at: new Date() }, noteNotReceivedFoundSms())
     return
   }
 
   if (normalized === '2' || normalized === 'NO' || normalized.includes('CANNOT')) {
     await updateTicketAndReply(
-      ticket.id,
+      ticket,
+      'prompt',
       {
-        status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+        at: new Date(),
         state: SMS_SUPPORT_STATE.NOTE_NOT_RECEIVED_COLLECT_EMAIL,
         category: SMS_SUPPORT_CATEGORY.NOTE_NOT_RECEIVED,
       },
@@ -737,7 +743,7 @@ async function collectMissingNoteSpamCheck(ticket: SmsSupportTicket, body: strin
   await reply(ticket, noteNotReceivedSms())
 }
 
-async function collectMissingNoteEmail(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectMissingNoteEmail(ticket: ConversingTicket, body: string): Promise<void> {
   const email = body.trim()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     await reply(ticket, 'Please reply with a valid email address.')
@@ -753,7 +759,7 @@ async function collectMissingNoteEmail(ticket: SmsSupportTicket, body: string): 
   })
 }
 
-async function collectRefundReason(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectRefundReason(ticket: ConversingTicket, body: string): Promise<void> {
   await moveToCsr(ticket, {
     category: SMS_SUPPORT_CATEGORY.REFUND,
     summary: `Refund request: ${body.trim().slice(0, 500)}`,
@@ -763,7 +769,7 @@ async function collectRefundReason(ticket: SmsSupportTicket, body: string): Prom
   })
 }
 
-async function collectOtherMessage(ticket: SmsSupportTicket, body: string): Promise<void> {
+async function collectOtherMessage(ticket: ConversingTicket, body: string): Promise<void> {
   await moveToCsr(ticket, {
     category: ticket.category || SMS_SUPPORT_CATEGORY.OTHER,
     summary: `Customer message: ${body.trim().slice(0, 500)}`,
@@ -774,7 +780,7 @@ async function collectOtherMessage(ticket: SmsSupportTicket, body: string): Prom
 }
 
 async function queueAutomation(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   {
     category,
     data,
@@ -793,38 +799,30 @@ async function queueAutomation(
   }
 
   const payload = automationPayloadForCollectedData({ category, ...data })
-  let job: Awaited<ReturnType<typeof enqueueSupportAutomationJob>>
-  try {
-    job = await enqueueSupportAutomationJob({ ticketId: ticket.id, payload })
-  } catch (error) {
-    if (error instanceof SupportAutomationPayloadConflictError) {
+  const started = await startAutomation(ticket.id, {
+    at: new Date(),
+    from: ticket.status,
+    category,
+    automationKind: payload.kind,
+    adminSummary: automationSummary(payload),
+    collectedData: data,
+    payload,
+  })
+  if (!started.ok) {
+    if (started.refusal.reason === 'job') {
       await reply(ticket, automationStillRunningSms(), 'SUPPORT_AUTOMATION_UPDATE')
       return
     }
-    throw error
+    throw new TicketMoved('queueAutomation', ticket.id, started.refusal)
   }
 
-  await updateTicketAndReply(
-    ticket.id,
-    {
-      status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-      state: SMS_SUPPORT_STATE.CSR_REVIEW,
-      category,
-      automationKind: payload.kind,
-      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
-      adminSummary: automationSummary(payload),
-      failureReason: null,
-      collectedData: data,
-    },
-    automationQueuedSms(),
-    'SUPPORT_AUTOMATION_UPDATE'
-  )
+  await reply(started.value.ticket, automationQueuedSms(), 'SUPPORT_AUTOMATION_UPDATE')
 
-  await processSmsSupportJobNow(job.id, { workerId: `sms-inbound-${Date.now()}` })
+  await processSmsSupportJobNow(started.value.job.id, { workerId: `sms-inbound-${Date.now()}` })
 }
 
 async function moveToCsr(
-  ticket: SmsSupportTicket,
+  ticket: ConversingTicket,
   {
     category,
     summary,
@@ -832,14 +830,15 @@ async function moveToCsr(
     collectedData,
     replyBody,
   }: {
-    category: SmsSupportCategory | string | null
+    category: SmsSupportCategory | null
     summary: string
     alertSummary?: string
     collectedData?: SmsSupportCollectedData
     replyBody: string
   }
 ): Promise<void> {
-  const updatedTicket = await escalateSupportTicketToCsr(ticket.id, {
+  const updatedTicket = await move(ticket, 'escalate', {
+    at: new Date(),
     category,
     adminSummary: summary,
     collectedData: {
@@ -1049,14 +1048,28 @@ function ticketCollectedData(ticket: SmsSupportTicket): SmsSupportCollectedData 
   return ticket.collectedData as SmsSupportCollectedData
 }
 
-async function updateTicketAndReply(
-  ticketId: string,
-  data: SupportTicketConversationUpdate,
+async function move<K extends ConversationStep>(
+  ticket: ConversingTicket,
+  name: K,
+  input: Omit<TicketInput<K>, 'from'>
+): Promise<SmsSupportTicket> {
+  const moved = await transition(name, ticket.id, {
+    ...input,
+    from: ticket.status,
+  } as TicketInput<K>)
+  if (moved.ok) return moved.value
+  throw new TicketMoved(name, ticket.id, moved.refusal)
+}
+
+async function updateTicketAndReply<K extends ConversationStep>(
+  ticket: ConversingTicket,
+  name: K,
+  input: Omit<TicketInput<K>, 'from'>,
   body: string,
   type: SupportReplySmsType = 'SUPPORT_REPLY'
 ): Promise<void> {
-  const ticket = await updateSupportTicketConversation(ticketId, data)
-  await reply(ticket, body, type)
+  const updated = await move(ticket, name, input)
+  await reply(updated, body, type)
 }
 
 async function reply(
@@ -1084,9 +1097,15 @@ async function reply(
       ticketId: ticket.id,
       error: result.error,
     })
-    await cancelActiveAutomationJobs(ticket.id, 'Support SMS failed before automation completed')
+    await cancelSupportJobs(ticket.id, {
+      at: new Date(),
+      lastError: 'Support SMS failed before automation completed',
+    })
 
-    const failedTicket = await markSupportTicketReplyFailed(ticket.id, failureReason)
+    const failedTicket = required(
+      await transition('replyFailed', ticket.id, { at: new Date(), failureReason }),
+      `replyFailed of support ticket ${ticket.id}`
+    )
 
     if (alertOnFailure) {
       await alertSupportTicketNeedsCsr({
@@ -1102,10 +1121,6 @@ async function reply(
   }
 
   return true
-}
-
-async function cancelActiveAutomationJobs(ticketId: string, lastError: string): Promise<void> {
-  await failQueuedOrRunningSupportJobs(ticketId, { lastError, completedAt: new Date() })
 }
 
 function isHelpRequest(body: string): boolean {

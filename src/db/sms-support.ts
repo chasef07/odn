@@ -5,21 +5,17 @@ import {
   smsMessages,
   smsPhoneStates,
   smsSupportJobs,
+  smsSupportTicketDetails,
   smsSupportTickets,
   submissions,
 } from './tables'
 import {
-  SMS_SUPPORT_AUTOMATION_STATUS,
-  SMS_SUPPORT_CATEGORY,
   SMS_SUPPORT_JOB_KIND,
   SMS_SUPPORT_JOB_STATUS,
-  SMS_SUPPORT_SOURCE,
-  SMS_SUPPORT_STATE,
   SMS_SUPPORT_STATUS,
 } from '@/lib/sms-support-types'
+import { ACTIVE_AUTOMATION_STATUSES } from './sms-support-lifecycle'
 import type {
-  JsonObject,
-  JsonValue,
   SmsMessage,
   SmsPhoneState,
   SmsSupportJob,
@@ -39,11 +35,6 @@ const ACTIVE_JOB_STATUSES = [
   SMS_SUPPORT_JOB_STATUS.RUNNING,
   SMS_SUPPORT_JOB_STATUS.COMMITTING,
 ]
-
-export const ACTIVE_AUTOMATION_STATUSES = [
-  SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
-  SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
-] as const
 
 const listSubmissionKeys = [
   'id',
@@ -124,19 +115,6 @@ export type SupportTicketDetail = SmsSupportTicket & {
   jobs: Pick<SmsSupportJob, (typeof detailJobKeys)[number]>[]
 }
 
-export type SupportTicketConversationUpdate = {
-  submissionId?: string
-  status?: string
-  state?: string
-  category?: string | null
-  automationKind?: string
-  automationStatus?: string
-  adminSummary?: string
-  failureReason?: string | null
-  collectedData?: JsonObject
-  closedAt?: Date | null
-}
-
 export type SmsSupportJobWithTicket = SmsSupportJob & { ticket: SmsSupportTicket }
 
 const JOINED = 'joined'
@@ -183,7 +161,7 @@ const ticketWithSubmission = <K extends keyof Submission & string>(keys: readonl
   sql`${selectAll(smsSupportTickets, { alias: 't' })}, ${select(submissions, keys, { alias: 's', prefix: JOINED })}
     FROM sms_support_tickets t LEFT JOIN submissions s ON s.id = t.submission_id`
 
-const jobWithTicket = sql`${selectAll(smsSupportJobs, { alias: 'j' })}, ${select(smsSupportTickets, smsSupportTickets.keys, { alias: 't', prefix: JOINED })}
+const jobWithTicket = sql`${selectAll(smsSupportJobs, { alias: 'j' })}, ${selectAll(smsSupportTickets, { alias: 't', prefix: JOINED })}
   FROM sms_support_jobs j JOIN sms_support_tickets t ON t.id = j.ticket_id`
 
 const runnableJob = () => sql`j.status = ${SMS_SUPPORT_JOB_STATUS.QUEUED}
@@ -196,24 +174,6 @@ async function updateMessage(id: string, patch: Patch<SmsMessage>): Promise<void
     sql`UPDATE sms_messages SET ${set(smsMessages, patch)} WHERE id = ${id}`
   )
   if (updated === 0) throw new Error(`SMS message ${id} not found`)
-}
-
-async function updateTicket(
-  ticketId: string,
-  patch: Patch<SmsSupportTicket>
-): Promise<SmsSupportTicket> {
-  const ticket = await db.one(
-    sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, patch)} WHERE id = ${ticketId} RETURNING ${selectAll(smsSupportTickets)}`
-  )
-  if (!ticket) throw new Error(`Support ticket ${ticketId} not found`)
-  return ticket
-}
-
-async function updateJob(jobId: string, patch: Patch<SmsSupportJob>): Promise<void> {
-  const updated = await db.affected(
-    sql`UPDATE sms_support_jobs SET ${set(smsSupportJobs, patch)} WHERE id = ${jobId}`
-  )
-  if (updated === 0) throw new Error(`Support job ${jobId} not found`)
 }
 
 export async function findSmsPhoneOptOut(
@@ -390,104 +350,25 @@ export async function findActiveSupportTicketSummaryForPhone(
   )
 }
 
-export async function createInboundSupportTicket({
-  phoneE164,
-  submissionId,
-  lastInboundAt,
-}: {
-  phoneE164: string
-  submissionId: string | undefined
-  lastInboundAt: Date
-}): Promise<SmsSupportTicket> {
-  const [ticket] = await db.rows(
-    sql`${insert(smsSupportTickets, {
-      phoneE164,
-      submissionId,
-      status: SMS_SUPPORT_STATUS.OPEN,
-      state: SMS_SUPPORT_STATE.INTRO_MENU,
-      source: SMS_SUPPORT_SOURCE.INBOUND_SMS,
-      lastInboundAt,
-    })} RETURNING ${selectAll(smsSupportTickets)}`
-  )
-  return ticket
-}
-
-export async function createAdminSupportTicket({
-  phoneE164,
-  submissionId,
-  adminSummary,
-}: {
-  phoneE164: string
-  submissionId: string
-  adminSummary: string
-}): Promise<Pick<SmsSupportTicket, 'id'>> {
-  const [ticket] = await db.rows(
-    sql`${insert(smsSupportTickets, {
-      phoneE164,
-      submissionId,
-      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-      category: SMS_SUPPORT_CATEGORY.OTHER,
-      state: SMS_SUPPORT_STATE.CSR_REVIEW,
-      source: SMS_SUPPORT_SOURCE.ADMIN_CREATED,
-      adminSummary,
-    })} RETURNING ${select(smsSupportTickets, ['id'])}`
-  )
-  return ticket
-}
-
 export async function recordSupportTicketInbound(
   ticketId: string,
   { matchedSubmissionId, lastInboundAt }: { matchedSubmissionId?: string; lastInboundAt: Date }
 ): Promise<SmsSupportTicket> {
-  return updateTicket(ticketId, {
-    submissionId: matchedSubmissionId,
-    lastInboundAt,
-    closedAt: null,
-  })
-}
-
-export async function updateSupportTicketConversation(
-  ticketId: string,
-  update: SupportTicketConversationUpdate
-): Promise<SmsSupportTicket> {
-  return updateTicket(ticketId, update)
-}
-
-export async function escalateSupportTicketToCsr(
-  ticketId: string,
-  {
-    category,
-    adminSummary,
-    collectedData,
-  }: { category: string | null; adminSummary: string; collectedData: JsonObject }
-): Promise<SmsSupportTicket> {
-  return updateTicket(ticketId, {
-    status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-    state: SMS_SUPPORT_STATE.CSR_REVIEW,
-    category,
-    adminSummary,
-    collectedData,
-  })
-}
-
-export async function markSupportTicketReplyFailed(
-  ticketId: string,
-  failureReason: string
-): Promise<SmsSupportTicket> {
-  return updateTicket(ticketId, {
-    status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-    state: SMS_SUPPORT_STATE.CSR_REVIEW,
-    failureReason,
-    adminSummary: 'Support SMS failed to send. Admin should contact the customer manually.',
-    closedAt: null,
-  })
+  const ticket = await db.one(
+    sql`UPDATE sms_support_tickets SET ${set(smsSupportTicketDetails, { submissionId: matchedSubmissionId, lastInboundAt })} WHERE id = ${ticketId} RETURNING ${selectAll(smsSupportTickets)}`
+  )
+  if (!ticket) throw new Error(`Support ticket ${ticketId} not found`)
+  return ticket
 }
 
 export async function assignSupportTicketSubmission(
   ticketId: string,
   submissionId: string
 ): Promise<void> {
-  await updateTicket(ticketId, { submissionId })
+  const updated = await db.affected(
+    sql`UPDATE sms_support_tickets SET ${set(smsSupportTicketDetails, { submissionId })} WHERE id = ${ticketId}`
+  )
+  if (updated === 0) throw new Error(`Support ticket ${ticketId} not found`)
 }
 
 async function listSupportTickets(where: Sql, limit: number): Promise<SupportTicketListItem[]> {
@@ -546,14 +427,6 @@ export async function findSupportTicketDetail(
   return { ...nest(ticket, 'submission', true), messages, jobs }
 }
 
-export async function findSupportTicketContact(
-  ticketId: string
-): Promise<Pick<SmsSupportTicket, 'id' | 'phoneE164' | 'submissionId'> | null> {
-  return db.one(
-    sql`SELECT ${select(smsSupportTickets, ['id', 'phoneE164', 'submissionId'])} FROM sms_support_tickets WHERE id = ${ticketId}`
-  )
-}
-
 export async function findSupportTicketLastOutboundAt(
   ticketId: string
 ): Promise<Pick<SmsSupportTicket, 'lastOutboundAt'> | null> {
@@ -564,7 +437,7 @@ export async function findSupportTicketLastOutboundAt(
 
 export async function recordSupportTicketOutbound(ticketId: string): Promise<void> {
   await db.affected(
-    sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, { lastOutboundAt: new Date() })} WHERE id = ${ticketId}`
+    sql`UPDATE sms_support_tickets SET ${set(smsSupportTicketDetails, { lastOutboundAt: new Date() })} WHERE id = ${ticketId}`
   )
 }
 
@@ -578,148 +451,8 @@ export async function findSupportTicketCsrAlert(
 
 export async function markSupportTicketCsrAlerted(ticketId: string): Promise<void> {
   await db.affected(
-    sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, { csrAlertedAt: new Date() })} WHERE id = ${ticketId} AND csr_alerted_at IS NULL`
+    sql`UPDATE sms_support_tickets SET ${set(smsSupportTicketDetails, { csrAlertedAt: new Date() })} WHERE id = ${ticketId} AND csr_alerted_at IS NULL`
   )
-}
-
-export async function markSupportTicketAdminReplied(ticketId: string): Promise<void> {
-  await updateTicket(ticketId, {
-    status: SMS_SUPPORT_STATUS.OPEN,
-    state: SMS_SUPPORT_STATE.CSR_REVIEW,
-    adminSummary: 'Admin replied by SMS.',
-    csrAlertedAt: null,
-  })
-}
-
-export async function markSupportTicketAdminReplyFailed(
-  ticketId: string,
-  failureReason: string
-): Promise<void> {
-  await updateTicket(ticketId, {
-    status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-    state: SMS_SUPPORT_STATE.CSR_REVIEW,
-    adminSummary: 'Admin reply failed to send by SMS.',
-    failureReason,
-  })
-}
-
-export async function closeSupportTicketByAdmin(
-  ticketId: string,
-  closedAt: Date
-): Promise<Pick<SmsSupportTicket, 'submissionId'>> {
-  const { submissionId } = await updateTicket(ticketId, {
-    status: SMS_SUPPORT_STATUS.CLOSED,
-    state: SMS_SUPPORT_STATE.CLOSED,
-    closedAt,
-  })
-  return { submissionId }
-}
-
-export async function returnSupportTicketToCsrReview(
-  ticketId: string
-): Promise<Pick<SmsSupportTicket, 'submissionId'>> {
-  const { submissionId } = await updateTicket(ticketId, {
-    status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-    state: SMS_SUPPORT_STATE.CSR_REVIEW,
-    closedAt: null,
-  })
-  return { submissionId }
-}
-
-export async function findSupportTicketForAutomationRetry(
-  ticketId: string
-): Promise<Pick<
-  SmsSupportTicket,
-  'id' | 'automationKind' | 'automationStatus' | 'collectedData' | 'status'
-> | null> {
-  return db.one(
-    sql`SELECT ${select(smsSupportTickets, ['id', 'automationKind', 'automationStatus', 'collectedData', 'status'])} FROM sms_support_tickets WHERE id = ${ticketId}`
-  )
-}
-
-export async function startSupportAutomationRetry(
-  ticketId: string,
-  retrySummary: string | null
-): Promise<void> {
-  await updateTicket(ticketId, {
-    status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-    automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
-    adminSummary: retrySummary ? `Retry started: ${retrySummary}` : 'Retry started.',
-    failureReason: null,
-    retryCount: sql`retry_count + 1`,
-  })
-}
-
-export async function escalateSupportTicketAfterAutomationFailure(
-  ticketId: string,
-  failureReason: string
-): Promise<SmsSupportTicket> {
-  return updateTicket(ticketId, {
-    status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-    state: 'CSR_REVIEW',
-    automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED,
-    failureReason,
-  })
-}
-
-export async function claimSupportTicketAutomationRun(ticketId: string): Promise<number> {
-  return db.affected(
-    sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, {
-      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
-      failureReason: null,
-    })} WHERE id = ${ticketId} AND status = ${SMS_SUPPORT_STATUS.RUNNING_AUTOMATION} AND automation_status = ANY(${array(ACTIVE_AUTOMATION_STATUSES)})`
-  )
-}
-
-export async function closeSupportTicketAfterAutomation(
-  ticketId: string,
-  adminSummary: string
-): Promise<void> {
-  await db.affected(
-    sql`UPDATE sms_support_tickets SET ${set(smsSupportTickets, {
-      status: SMS_SUPPORT_STATUS.CLOSED,
-      state: 'CLOSED',
-      automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.SUCCEEDED,
-      adminSummary,
-      failureReason: null,
-      closedAt: new Date(),
-    })} WHERE id = ${ticketId} AND status = ${SMS_SUPPORT_STATUS.RUNNING_AUTOMATION}`
-  )
-}
-
-export async function createSupportAutomationJob({
-  ticketId,
-  payload,
-}: {
-  ticketId: string
-  payload: JsonObject
-}): Promise<SmsSupportJob | null> {
-  return db.one(
-    sql`${insert(smsSupportJobs, {
-      ticketId,
-      kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
-      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      payload,
-    })} ON CONFLICT DO NOTHING RETURNING ${selectAll(smsSupportJobs)}`
-  )
-}
-
-export async function createRetrySupportAutomationJob({
-  ticketId,
-  payload,
-}: {
-  ticketId: string
-  payload: JsonValue | null
-}): Promise<SmsSupportJob> {
-  const [job] = await db.rows(
-    sql`${insert(smsSupportJobs, {
-      ticketId,
-      kind: SMS_SUPPORT_JOB_KIND.RUN_SUPPORT_AUTOMATION,
-      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      payload,
-    })} RETURNING ${selectAll(smsSupportJobs)}`
-  )
-  return job
 }
 
 export async function findActiveSupportAutomationJob(
@@ -760,18 +493,6 @@ export async function findRunnableQueuedSupportJobs(limit: number): Promise<SmsS
   )
 }
 
-export async function requeueStaleRunningSupportJobs(staleBefore: Date): Promise<void> {
-  await db.affected(
-    sql`UPDATE sms_support_jobs SET ${set(smsSupportJobs, {
-      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      lockedAt: null,
-      lockedBy: null,
-      lastError: 'Recovered stale running job lock',
-      runAfter: new Date(),
-    })} WHERE status = ${SMS_SUPPORT_JOB_STATUS.RUNNING} AND locked_at < ${staleBefore}`
-  )
-}
-
 export async function findStaleCommittingSupportJobs(
   staleBefore: Date,
   limit: number
@@ -780,67 +501,6 @@ export async function findStaleCommittingSupportJobs(
     sql`SELECT ${jobWithTicket} WHERE j.status = ${SMS_SUPPORT_JOB_STATUS.COMMITTING} AND j.locked_at < ${staleBefore} LIMIT ${limit}`
   )
   return rows.map((row) => nest(row, 'ticket'))
-}
-
-export async function failStaleCommittingSupportJob(
-  jobId: string,
-  { staleBefore, lastError }: { staleBefore: Date; lastError: string }
-): Promise<number> {
-  return db.affected(
-    sql`UPDATE sms_support_jobs SET ${set(smsSupportJobs, {
-      status: SMS_SUPPORT_JOB_STATUS.FAILED,
-      lockedAt: null,
-      lockedBy: null,
-      lastError,
-      completedAt: new Date(),
-    })} WHERE id = ${jobId} AND status = ${SMS_SUPPORT_JOB_STATUS.COMMITTING} AND locked_at < ${staleBefore}`
-  )
-}
-
-export async function claimQueuedSupportJob(jobId: string, workerId: string): Promise<number> {
-  return db.affected(
-    sql`UPDATE sms_support_jobs SET ${set(smsSupportJobs, {
-      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
-      lockedAt: new Date(),
-      lockedBy: workerId,
-      attempts: sql`attempts + 1`,
-    })} WHERE id = ${jobId} AND status = ${SMS_SUPPORT_JOB_STATUS.QUEUED}`
-  )
-}
-
-export async function completeSupportJob(jobId: string): Promise<void> {
-  await updateJob(jobId, {
-    status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED,
-    completedAt: new Date(),
-    lockedAt: null,
-    lockedBy: null,
-    lastError: null,
-  })
-}
-
-export async function failSupportJob(jobId: string, lastError: string): Promise<void> {
-  await updateJob(jobId, {
-    status: SMS_SUPPORT_JOB_STATUS.FAILED,
-    lockedAt: null,
-    lockedBy: null,
-    lastError,
-    completedAt: new Date(),
-  })
-}
-
-export async function failQueuedOrRunningSupportJobs(
-  ticketId: string,
-  { lastError, completedAt }: { lastError: string; completedAt: Date }
-): Promise<void> {
-  await db.affected(
-    sql`UPDATE sms_support_jobs SET ${set(smsSupportJobs, {
-      status: SMS_SUPPORT_JOB_STATUS.FAILED,
-      lockedAt: null,
-      lockedBy: null,
-      lastError,
-      completedAt,
-    })} WHERE ticket_id = ${ticketId} AND status = ANY(${array([SMS_SUPPORT_JOB_STATUS.QUEUED, SMS_SUPPORT_JOB_STATUS.RUNNING])})`
-  )
 }
 
 export async function findCommittingSupportJob(

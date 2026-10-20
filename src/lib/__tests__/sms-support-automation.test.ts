@@ -9,8 +9,7 @@ import {
 const {
   mockFindSupportJobWithTicket,
   mockFindSupportJobStatus,
-  mockClaimSupportTicketAutomationRun,
-  mockCloseSupportTicketAfterAutomation,
+  mockTransition,
   mockFindSubmissionById,
   mockCommitSupportAutomationSubmissionUpdate,
   mockRecordApprovalEmailSent,
@@ -26,8 +25,7 @@ const {
 } = vi.hoisted(() => ({
   mockFindSupportJobWithTicket: vi.fn(),
   mockFindSupportJobStatus: vi.fn(),
-  mockClaimSupportTicketAutomationRun: vi.fn(),
-  mockCloseSupportTicketAfterAutomation: vi.fn(),
+  mockTransition: vi.fn(),
   mockFindSubmissionById: vi.fn(),
   mockCommitSupportAutomationSubmissionUpdate: vi.fn(),
   mockRecordApprovalEmailSent: vi.fn(),
@@ -42,19 +40,14 @@ const {
   mockSendSupportSms: vi.fn(),
 }))
 
-vi.mock('@/db/sms-support', async () => {
-  const { SMS_SUPPORT_AUTOMATION_STATUS } = await import('../sms-support-types')
-  return {
-    ACTIVE_AUTOMATION_STATUSES: [
-      SMS_SUPPORT_AUTOMATION_STATUS.QUEUED,
-      SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
-    ],
-    claimSupportTicketAutomationRun: mockClaimSupportTicketAutomationRun,
-    closeSupportTicketAfterAutomation: mockCloseSupportTicketAfterAutomation,
-    findSupportJobStatus: mockFindSupportJobStatus,
-    findSupportJobWithTicket: mockFindSupportJobWithTicket,
-  }
-})
+vi.mock('@/db/sms-support', () => ({
+  findSupportJobStatus: mockFindSupportJobStatus,
+  findSupportJobWithTicket: mockFindSupportJobWithTicket,
+}))
+
+vi.mock('@/db/sms-support-lifecycle', () => ({
+  transition: mockTransition,
+}))
 
 vi.mock('@/db/submissions', () => ({
   commitSupportAutomationSubmissionUpdate: mockCommitSupportAutomationSubmissionUpdate,
@@ -186,7 +179,7 @@ describe('runSupportTicketAutomation', () => {
     mockGenerateQrCodeDataUrl.mockResolvedValue('data:image/png;base64,qr')
     mockGenerateDoctorNotePDF.mockResolvedValue(Buffer.from('pdf'))
     mockGeneratePDFFilename.mockReturnValue('doctor-note-sub_123.pdf')
-    mockClaimSupportTicketAutomationRun.mockResolvedValue(1)
+    mockTransition.mockResolvedValue({ ok: true, value: { id: 'ticket_123' } })
     mockCommitSupportAutomationSubmissionUpdate.mockResolvedValue('updated')
     mockSendApprovalEmail.mockResolvedValue({ success: true })
     mockSendSupportSms.mockResolvedValue({ success: true })
@@ -223,10 +216,63 @@ describe('runSupportTicketAutomation', () => {
 
     expect(mockCreateNoteVerification).not.toHaveBeenCalled()
     expect(mockGenerateDoctorNotePDF).not.toHaveBeenCalled()
-    expect(mockClaimSupportTicketAutomationRun).toHaveBeenCalledTimes(1)
-    expect(mockClaimSupportTicketAutomationRun).toHaveBeenCalledWith('ticket_123')
+    expect(mockTransition).toHaveBeenCalledTimes(1)
+    expect(mockTransition).toHaveBeenCalledWith('claimAutomation', 'ticket_123', {
+      at: expect.any(Date),
+    })
     expect(mockCommitSupportAutomationSubmissionUpdate).not.toHaveBeenCalled()
-    expect(mockCloseSupportTicketAfterAutomation).not.toHaveBeenCalled()
+  })
+
+  it('closes the ticket with a summary after the reissue is emailed', async () => {
+    await runSupportTicketAutomation('job_123')
+
+    expect(mockTransition).toHaveBeenCalledTimes(2)
+    expect(mockTransition).toHaveBeenNthCalledWith(1, 'claimAutomation', 'ticket_123', {
+      at: expect.any(Date),
+    })
+    expect(mockTransition).toHaveBeenNthCalledWith(2, 'automationSucceeded', 'ticket_123', {
+      at: expect.any(Date),
+      adminSummary: `Automated ${SMS_SUPPORT_CATEGORY.CHANGE_PURPOSE} update completed and emailed.`,
+    })
+    expect(mockTransition.mock.invocationCallOrder[0]).toBeLessThan(
+      mockFindSubmissionById.mock.invocationCallOrder[0]
+    )
+    expect(mockSendApprovalEmail.mock.invocationCallOrder[0]).toBeLessThan(
+      mockTransition.mock.invocationCallOrder[1]
+    )
+  })
+
+  it('finishes without throwing when the ticket left automation before it could close', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockTransition
+      .mockResolvedValueOnce({ ok: true, value: { id: 'ticket_123' } })
+      .mockResolvedValueOnce({
+        ok: false,
+        refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.NEEDS_CSR },
+      })
+
+    await expect(runSupportTicketAutomation('job_123')).resolves.toBeUndefined()
+
+    expect(mockSendApprovalEmail).toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith('Support ticket was not closed after automation:', {
+      ticketId: 'ticket_123',
+      refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.NEEDS_CSR },
+    })
+    warn.mockRestore()
+  })
+
+  it('claims the ticket before rejecting a job whose ticket has no linked submission', async () => {
+    mockFindSupportJobWithTicket.mockResolvedValue(supportJob({ submissionId: null }))
+
+    await expect(runSupportTicketAutomation('job_123')).rejects.toThrow(
+      'Support ticket has no linked submission'
+    )
+
+    expect(mockTransition).toHaveBeenCalledTimes(1)
+    expect(mockTransition).toHaveBeenCalledWith('claimAutomation', 'ticket_123', {
+      at: expect.any(Date),
+    })
+    expect(mockFindSubmissionById).not.toHaveBeenCalled()
   })
 
   it('does not run queued automation after admin escalates the ticket', async () => {
@@ -235,14 +281,20 @@ describe('runSupportTicketAutomation', () => {
         status: SMS_SUPPORT_STATUS.NEEDS_CSR,
       })
     )
+    mockTransition.mockResolvedValue({
+      ok: false,
+      refusal: { reason: 'status', status: SMS_SUPPORT_STATUS.NEEDS_CSR },
+    })
 
     await expect(runSupportTicketAutomation('job_123')).rejects.toBeInstanceOf(
       SupportAutomationCancelledError
     )
 
-    expect(mockClaimSupportTicketAutomationRun).not.toHaveBeenCalled()
+    expect(mockTransition).toHaveBeenCalledTimes(1)
+    expect(mockTransition).toHaveBeenCalledWith('claimAutomation', 'ticket_123', {
+      at: expect.any(Date),
+    })
     expect(mockCommitSupportAutomationSubmissionUpdate).not.toHaveBeenCalled()
-    expect(mockCloseSupportTicketAfterAutomation).not.toHaveBeenCalled()
     expect(mockFindSubmissionById).not.toHaveBeenCalled()
     expect(mockSendApprovalEmail).not.toHaveBeenCalled()
     expect(mockSendSupportSms).not.toHaveBeenCalled()

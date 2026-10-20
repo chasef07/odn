@@ -7,6 +7,7 @@ import dbBoundary from './eslint-rules/db-boundary.mjs'
 import dates from './eslint-rules/dates.mjs'
 import noSql from './eslint-rules/no-sql.mjs'
 import lifecycleOwner from './eslint-rules/lifecycle-owner.mjs'
+import smsLifecycleOwner from './eslint-rules/sms-lifecycle-owner.mjs'
 
 const localRules = {
   rules: {
@@ -16,6 +17,7 @@ const localRules = {
     ...noSql.rules,
     ...dates.rules,
     ...lifecycleOwner.rules,
+    ...smsLifecycleOwner.rules,
   },
 }
 const TESTS = ['src/**/__tests__/**', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}']
@@ -84,6 +86,13 @@ const eslintConfig = [
     ignores: [...TESTS, 'src/db/submission-lifecycle.ts'],
     rules: {
       'local/lifecycle-owner': 'error',
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx}', 'scripts/**/*.{ts,tsx,js,mjs}'],
+    ignores: [...TESTS, 'src/db/sms-support-lifecycle.ts'],
+    rules: {
+      'local/sms-lifecycle-owner': 'error',
     },
   },
   {
