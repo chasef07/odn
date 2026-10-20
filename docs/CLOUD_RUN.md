@@ -87,6 +87,30 @@ The bearer token is stored in the job definition, so anyone with
 `cloudscheduler.jobs.get` can read it. After rotating `CRON_SECRET`, update the
 jobs with `gcloud scheduler jobs update http ... --update-headers`.
 
+## Analytics reader
+
+The admin data agent at `/admin/agent` reads only the `analytics` schema of
+views that `0010_analytics_schema.sql` creates. It connects with its own login,
+which holds only the `NOLOGIN` role `analytics_reader`. The app owner login has
+no `CREATEROLE`, so create that role as `postgres` before the first deploy that
+runs the migration; the migration then skips creating it. Per environment:
+
+```bash
+ENV=staging
+DB=onlinedoctornote_staging
+psql "host=127.0.0.1 user=postgres dbname=$DB" -c 'CREATE ROLE analytics_reader NOLOGIN'
+gcloud sql users create odn_${ENV}_analytics --instance=onlinedoctornote-db --password="$PASSWORD"
+psql "host=127.0.0.1 user=postgres dbname=$DB" -c "GRANT analytics_reader TO odn_${ENV}_analytics"
+printf 'postgresql://odn_%s_analytics:%s@localhost/%s?host=/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db' \
+  "$ENV" "$PASSWORD" "$DB" | gcloud secrets create odn-$ENV-analytics-database-url --data-file=-
+```
+
+Then give `odn-<env>` `secretAccessor` on `odn-<env>-analytics-database-url`
+and on `odn-<env>-telnyx-inference-api-key`, and map them to
+`ANALYTICS_DATABASE_URL` and `TELNYX_INFERENCE_API_KEY` in the
+`--set-secrets` list of `cloudbuild.yaml`. Without both variables the page
+says the agent is not configured and the API answers 503.
+
 ## Production cutover
 
 Production today: Vercel project `onlinedoctornote` (team

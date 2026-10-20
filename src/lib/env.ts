@@ -15,6 +15,7 @@ const switchFlag = z.enum(['true', 'false']).transform((value) => value === 'tru
 
 const schema = {
   DATABASE_URL: nonEmpty,
+  ANALYTICS_DATABASE_URL: nonEmpty.optional(),
   STRIPE_SECRET_KEY: nonEmpty,
   STRIPE_WEBHOOK_SECRET: nonEmpty,
   STRIPE_PRICE_ID: priceId,
@@ -35,6 +36,7 @@ const schema = {
   TELNYX_API_KEY: nonEmpty.optional(),
   TELNYX_FROM_NUMBER: nonEmpty.optional(),
   TELNYX_PUBLIC_KEY: nonEmpty.optional(),
+  TELNYX_INFERENCE_API_KEY: nonEmpty.optional(),
   TELNYX_WEBHOOK_ENABLED: switchFlag.default(true),
   INTAKE_VALIDATION_ENFORCED: switchFlag.default(false),
 } satisfies Record<string, z.ZodType>

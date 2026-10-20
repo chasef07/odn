@@ -28,7 +28,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await pool.query('SELECT pg_advisory_unlock_all(); RESET lock_timeout')
-  await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public')
+  await pool.query(
+    'DROP SCHEMA IF EXISTS analytics CASCADE; DROP SCHEMA public CASCADE; CREATE SCHEMA public'
+  )
 })
 
 function migration(name: string, sql: string): Migration {
