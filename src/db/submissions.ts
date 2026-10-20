@@ -129,46 +129,6 @@ export type SubmissionSummary = Pick<
 export type PatientHistorySubmission = SubmissionSummary &
   Pick<Submission, 'reviewedAt' | 'denialReason'>
 
-export type FriendsFamilyAnalyticsRow = Pick<
-  Submission,
-  | 'id'
-  | 'status'
-  | 'patientFirstName'
-  | 'patientLastName'
-  | 'patientDateOfBirth'
-  | 'guardianFirstName'
-  | 'guardianLastName'
-  | 'recipient'
-  | 'email'
-  | 'phone'
-  | 'maybeReason'
-  | 'stripeRefundId'
-  | 'refundedAt'
-  | 'offerCode'
-  | 'paymentAmount'
-  | 'createdAt'
-  | 'reviewedAt'
-  | 'approvalEmailSentAt'
->
-
-export type BusinessAnalyticsRow = Pick<
-  Submission,
-  | 'id'
-  | 'status'
-  | 'state'
-  | 'patientFirstName'
-  | 'patientLastName'
-  | 'patientDateOfBirth'
-  | 'email'
-  | 'phone'
-  | 'offerCode'
-  | 'attributionChannel'
-  | 'paymentAmount'
-  | 'stripeRefundId'
-  | 'refundedAt'
-  | 'createdAt'
->
-
 export type SubmissionSmsMessage = Pick<
   SmsMessage,
   | 'id'
@@ -198,27 +158,6 @@ const summaryKeys = [
   'firstDayOff',
   'lastDayOff',
   'createdAt',
-] as const
-
-const friendsFamilyAnalyticsKeys = [
-  'id',
-  'status',
-  'patientFirstName',
-  'patientLastName',
-  'patientDateOfBirth',
-  'guardianFirstName',
-  'guardianLastName',
-  'recipient',
-  'email',
-  'phone',
-  'maybeReason',
-  'stripeRefundId',
-  'refundedAt',
-  'offerCode',
-  'paymentAmount',
-  'createdAt',
-  'reviewedAt',
-  'approvalEmailSentAt',
 ] as const
 
 const contactKeys = [
@@ -480,45 +419,6 @@ export async function searchSubmissionsPage(
   ])
 
   return { submissions: rows, total }
-}
-
-function createdSincePageWhere(createdSince: Date, cursor: string | undefined): Sql {
-  return and(sql`created_at >= ${createdSince}`, cursor !== undefined && sql`id > ${cursor}`)
-}
-
-export async function findFriendsFamilyAnalyticsPage(
-  createdSince: Date,
-  take: number,
-  cursor: string | undefined
-): Promise<FriendsFamilyAnalyticsRow[]> {
-  return db.rows(
-    sql`SELECT ${select(submissions, friendsFamilyAnalyticsKeys)} FROM submissions WHERE ${createdSincePageWhere(createdSince, cursor)} ORDER BY id ASC LIMIT ${take}`
-  )
-}
-
-export async function findBusinessAnalyticsPage(
-  createdSince: Date,
-  take: number,
-  cursor: string | undefined
-): Promise<BusinessAnalyticsRow[]> {
-  return db.rows(
-    sql`SELECT ${select(submissions, [
-      'id',
-      'status',
-      'state',
-      'patientFirstName',
-      'patientLastName',
-      'patientDateOfBirth',
-      'email',
-      'phone',
-      'offerCode',
-      'attributionChannel',
-      'paymentAmount',
-      'stripeRefundId',
-      'refundedAt',
-      'createdAt',
-    ])} FROM submissions WHERE ${createdSincePageWhere(createdSince, cursor)} ORDER BY id ASC LIMIT ${take}`
-  )
 }
 
 export async function findApprovedSubmissionsOverlapping(

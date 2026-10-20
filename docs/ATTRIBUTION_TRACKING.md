@@ -16,8 +16,6 @@ Google Ads or Reddit report.
 3. The Stripe webhook copies it onto the Submission: `attribution_channel`,
    `utm_source`, `utm_medium`, `utm_campaign` (last touch) and the full `attribution`
    JSON (first and last touch, click IDs, referrer, landing path).
-4. Admin → Business Analytics → **Sales by Source** groups orders by last-touch channel.
-   Orders placed before this launched show as _Not tracked_.
 
 Only the referrer's origin and path and the landing path are stored, never query
 strings, so form data cannot leak into attribution.
@@ -58,7 +56,7 @@ platform, add UTM parameters to the ad's destination URL.
 ?utm_source=walletpass&utm_medium=referral&utm_campaign=launch
 ```
 
-Offer codes (`?offer=...`) keep working alongside UTMs and are reported separately.
+Offer codes (`?offer=...`) keep working alongside UTMs.
 
 ## Deploying schema changes
 

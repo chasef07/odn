@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   addDays,
-  addMonthsUTC,
   currentYearET,
   ageOn,
   businessDayStart,
@@ -79,27 +78,6 @@ describe.each(PROCESS_TIME_ZONES)('in process time zone %s', (zone) => {
     expect(addDays(day('2024-02-28'), 1)).toBe('2024-02-29')
     expect(addDays(day('2023-02-28'), 1)).toBe('2023-03-01')
     expect(addDays(day('2026-01-01'), -1)).toBe('2025-12-31')
-  })
-
-  it('moves an instant by calendar months in UTC, keeping its time of day', () => {
-    expect(addMonthsUTC(at('2026-10-17T03:30:00Z'), -6).toISOString()).toBe(
-      '2026-04-17T03:30:00.000Z'
-    )
-    expect(addMonthsUTC(at('2026-03-08T12:00:00Z'), 8).toISOString()).toBe(
-      '2026-11-08T12:00:00.000Z'
-    )
-  })
-
-  it('clamps a month-end instant to the last day of the target month', () => {
-    expect(addMonthsUTC(at('2026-08-31T12:00:00Z'), -6).toISOString()).toBe(
-      '2026-02-28T12:00:00.000Z'
-    )
-    expect(addMonthsUTC(at('2024-08-31T12:00:00Z'), -6).toISOString()).toBe(
-      '2024-02-29T12:00:00.000Z'
-    )
-    expect(addMonthsUTC(at('2026-03-31T23:00:00Z'), 1).toISOString()).toBe(
-      '2026-04-30T23:00:00.000Z'
-    )
   })
 
   it('counts days inclusively across DST changes and leap days', () => {
