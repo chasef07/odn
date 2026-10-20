@@ -91,25 +91,39 @@ jobs with `gcloud scheduler jobs update http ... --update-headers`.
 
 The admin data agent at `/admin/agent` reads only the `analytics` schema of
 views that `0010_analytics_schema.sql` creates. It connects with its own login,
-which holds only the `NOLOGIN` role `analytics_reader`. The app owner login has
-no `CREATEROLE`, so create that role as `postgres` before the first deploy that
-runs the migration; the migration then skips creating it. Per environment:
+which holds only the `NOLOGIN` role `analytics_reader`. `0012` grants that role
+`CONNECT` on the app database. The app owner login has no `CREATEROLE`, so
+create the role as `postgres` before the first deploy that runs `0010`, which
+then skips creating it. `postgres` has no `CONNECT` on the app databases, so
+connect it to the `postgres` database; roles belong to the whole instance.
+
+`gcloud sql users create` adds the new login to `cloudsqlsuperuser`, which can
+create roles and databases. Take that away so the login holds only
+`analytics_reader`. Per environment:
 
 ```bash
 ENV=staging
 DB=onlinedoctornote_staging
-psql "host=127.0.0.1 user=postgres dbname=$DB" -c 'CREATE ROLE analytics_reader NOLOGIN'
+PASSWORD=$(openssl rand -hex 24)
 gcloud sql users create odn_${ENV}_analytics --instance=onlinedoctornote-db --password="$PASSWORD"
-psql "host=127.0.0.1 user=postgres dbname=$DB" -c "GRANT analytics_reader TO odn_${ENV}_analytics"
 printf 'postgresql://odn_%s_analytics:%s@localhost/%s?host=/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db' \
   "$ENV" "$PASSWORD" "$DB" | gcloud secrets create odn-$ENV-analytics-database-url --data-file=-
+gcloud sql connect onlinedoctornote-db --user=postgres --database=postgres
 ```
 
-Then give `odn-<env>` `secretAccessor` on `odn-<env>-analytics-database-url`
-and on `odn-<env>-telnyx-inference-api-key`, and map them to
-`ANALYTICS_DATABASE_URL` and `TELNYX_INFERENCE_API_KEY` in the
-`--set-secrets` list of `cloudbuild.yaml`. Without both variables the page
-says the agent is not configured and the API answers 503.
+```sql
+CREATE ROLE analytics_reader NOLOGIN;
+GRANT analytics_reader TO odn_staging_analytics;
+REVOKE cloudsqlsuperuser FROM odn_staging_analytics;
+ALTER ROLE odn_staging_analytics NOCREATEROLE NOCREATEDB;
+```
+
+For production, use `odn_production_analytics`, and skip `CREATE ROLE` when
+the role already exists. Then create
+`odn-<env>-telnyx-inference-api-key` and give `odn-<env>` `secretAccessor` on
+both secrets. `cloudbuild.yaml` maps them to `ANALYTICS_DATABASE_URL` and
+`TELNYX_INFERENCE_API_KEY`, so a deploy fails until both exist. Without both
+variables the page says the agent is not configured and the API answers 503.
 
 ## Production cutover
 
