@@ -24,7 +24,6 @@ import {
   createInboundSupportTicket,
   permit,
   required,
-  requeueStaleSupportJobs,
   startAutomation,
   startAutomationRetry,
   takeOver,
@@ -615,14 +614,13 @@ describe('required', () => {
   })
 })
 
-type RowStep = Exclude<JobTransition, 'cancel' | 'requeueStale'>
+type RowStep = Exclude<JobTransition, 'cancel'>
 
 const jobInputs: { [K in RowStep]: JobInput<K> } = {
   claim: { at: AT, workerId: 'worker-a' },
   commit: { at: AT },
   complete: { at: AT },
   fail: { at: AT, lastError: 'Resend timeout' },
-  failStale: { at: AT, lastError: 'stalled' },
 }
 
 const failedWrite = {
@@ -648,7 +646,6 @@ const jobWrites: { [K in RowStep]: Partial<SmsSupportJob> } = {
     lastError: null,
   },
   fail: { ...failedWrite, lastError: 'Resend timeout' },
-  failStale: { ...failedWrite, lastError: 'stalled' },
 }
 
 const jobAdmission: { [K in RowStep]: readonly SmsSupportJobStatus[] } = {
@@ -656,7 +653,6 @@ const jobAdmission: { [K in RowStep]: readonly SmsSupportJobStatus[] } = {
   commit: [SMS_SUPPORT_JOB_STATUS.RUNNING],
   complete: jobStatuses,
   fail: jobStatuses,
-  failStale: [SMS_SUPPORT_JOB_STATUS.COMMITTING],
 }
 
 const rowSteps = Object.keys(jobInputs) as RowStep[]
@@ -731,20 +727,6 @@ describe('concurrent job writers', () => {
     expect(await readJob(job.id)).toEqual(winners[0])
     expect(winners[0]).toMatchObject({ attempts: 4 })
   })
-
-  it('fails a stale committing job exactly once', async () => {
-    const job = await seedJob((await seedTicket()).id, {
-      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-    })
-
-    const outcomes = await Promise.all([
-      transitionJob('failStale', job.id, jobInputs.failStale),
-      transitionJob('failStale', job.id, jobInputs.failStale),
-    ])
-
-    expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1)
-    expect(await readJob(job.id)).toMatchObject({ ...failedWrite, lastError: 'stalled' })
-  })
 })
 
 describe('cancelSupportJobs', () => {
@@ -777,53 +759,6 @@ describe('cancelSupportJobs', () => {
       expect(await readJob(byStatus.get(status)!.id)).toEqual(byStatus.get(status))
     }
     expect(await readJob(elsewhere.id)).toEqual(elsewhere)
-  })
-})
-
-describe('requeueStaleSupportJobs', () => {
-  it('requeues running jobs locked strictly before the cutoff and leaves every other job alone', async () => {
-    const ticket = await seedTicket()
-    const stale = await seedJob(ticket.id, {
-      kind: 'A',
-      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
-      lockedAt: minutesBefore(20),
-    })
-    const fresh = await seedJob(ticket.id, {
-      kind: 'B',
-      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
-      lockedAt: minutesBefore(1),
-    })
-    const atCutoff = await seedJob(ticket.id, {
-      kind: 'C',
-      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
-      lockedAt: minutesBefore(10),
-    })
-    const committing = await seedJob(ticket.id, {
-      kind: 'D',
-      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-      lockedAt: minutesBefore(20),
-    })
-    const queued = await seedJob(ticket.id, { kind: 'E', lockedAt: minutesBefore(20) })
-    const finished = await Promise.all(
-      [SMS_SUPPORT_JOB_STATUS.SUCCEEDED, SMS_SUPPORT_JOB_STATUS.FAILED].map((status) =>
-        seedJob(ticket.id, { kind: status, status, lockedAt: minutesBefore(20) })
-      )
-    )
-
-    expect(await requeueStaleSupportJobs(minutesBefore(10), { at: AT })).toBe(1)
-
-    expect(await readJob(stale.id)).toEqual({
-      ...stale,
-      status: SMS_SUPPORT_JOB_STATUS.QUEUED,
-      lockedAt: null,
-      lockedBy: null,
-      lastError: 'Recovered stale running job lock',
-      runAfter: AT,
-      updatedAt: AT,
-    })
-    for (const job of [fresh, atCutoff, committing, queued, ...finished]) {
-      expect(await readJob(job.id)).toEqual(job)
-    }
   })
 })
 

@@ -11,22 +11,15 @@ import {
   findActiveSupportAutomationJobId,
   findLatestSupportAutomationJob,
   findRunnableQueuedSupportJob,
-  findRunnableQueuedSupportJobs,
-  findStaleCommittingSupportJobs,
 } from '@/db/sms-support'
 import {
   permit,
-  requeueStaleSupportJobs,
   required,
   startAutomationRetry,
   transition,
   transitionJob,
 } from '@/db/sms-support-lifecycle'
 import type { JsonObject, SmsSupportTicket } from '@/db/types'
-
-const STALE_RUNNING_JOB_MS = 15 * 60 * 1000
-const STALE_COMMITTING_MESSAGE =
-  'Support automation stalled while finalizing the updated note. Admin must verify whether the note/email was issued before retrying manually.'
 
 type JobProcessingResult = { processed: number; succeeded: number; failed: number }
 type QueuedSupportJob = { id: string; ticketId: string }
@@ -40,58 +33,6 @@ export async function processSmsSupportJobNow(
   if (!job) return { processed: 0, succeeded: 0, failed: 0 }
 
   return processQueuedSupportJob(job, workerId)
-}
-
-export async function processQueuedSmsSupportJobs({
-  limit = 5,
-  workerId = `sms-support-${process.pid}`,
-}: {
-  limit?: number
-  workerId?: string
-} = {}): Promise<{ processed: number; succeeded: number; failed: number }> {
-  const now = new Date()
-  const staleBefore = new Date(now.getTime() - STALE_RUNNING_JOB_MS)
-
-  await requeueStaleSupportJobs(staleBefore, { at: now })
-
-  let processed = 0
-  let succeeded = 0
-  let failed = 0
-
-  const staleCommittingJobs = await findStaleCommittingSupportJobs(staleBefore, limit)
-
-  for (const job of staleCommittingJobs) {
-    const claimed = await transitionJob('failStale', job.id, {
-      at: new Date(),
-      lastError: STALE_COMMITTING_MESSAGE,
-    })
-
-    if (!claimed.ok) continue
-
-    processed += 1
-    failed += 1
-
-    const ticket = await escalateTicket(job.ticketId, STALE_COMMITTING_MESSAGE)
-
-    await alertSupportTicketNeedsCsr({
-      ticketId: ticket.id,
-      phoneE164: ticket.phoneE164,
-      category: ticket.category,
-      submissionId: ticket.submissionId,
-      summary: STALE_COMMITTING_MESSAGE,
-    })
-  }
-
-  const jobs = await findRunnableQueuedSupportJobs(limit)
-
-  for (const job of jobs) {
-    const result = await processQueuedSupportJob(job, workerId)
-    processed += result.processed
-    succeeded += result.succeeded
-    failed += result.failed
-  }
-
-  return { processed, succeeded, failed }
 }
 
 async function processQueuedSupportJob(

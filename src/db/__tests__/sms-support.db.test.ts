@@ -24,11 +24,9 @@ import {
   findCommittingSupportJob,
   findLatestSupportAutomationJob,
   findRunnableQueuedSupportJob,
-  findRunnableQueuedSupportJobs,
   findSmsMessageSupportHandledAt,
   findSmsPhoneConsentState,
   findSmsPhoneOptOut,
-  findStaleCommittingSupportJobs,
   findSupportJobStatus,
   findSupportJobWithTicket,
   findSupportTicketCsrAlert,
@@ -609,75 +607,6 @@ describe('job lookup', () => {
 
     await transitionJob('claim', due.id, { at: T3, workerId: 'worker' })
     expect(await findRunnableQueuedSupportJob(due.id)).toBeNull()
-  })
-
-  it('lists runnable jobs oldest first up to the limit', async () => {
-    const tickets = await Promise.all(
-      [0, 1, 2].map(() =>
-        seedTicket({
-          status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION,
-          automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.RUNNING,
-        })
-      )
-    )
-    const newest = await seedJob(tickets[0].id, { createdAt: T2, runAfter: T0 })
-    const oldest = await seedJob(tickets[1].id, { createdAt: T0, runAfter: T0 })
-    const middle = await seedJob(tickets[2].id, { createdAt: T1, runAfter: T0 })
-    await seedJob(tickets[2].id, {
-      kind: 'OTHER',
-      createdAt: T0,
-      runAfter: new Date(Date.now() + 60_000),
-    })
-
-    expect(await findRunnableQueuedSupportJobs(10)).toEqual([oldest, middle, newest])
-    expect(await findRunnableQueuedSupportJobs(2)).toEqual([oldest, middle])
-  })
-})
-
-describe('stale job recovery', () => {
-  it('lists stale committing jobs with their ticket, oldest lock first up to the limit', async () => {
-    const other = await seedTicket({ phoneE164: OTHER_PHONE })
-    const ticket = await seedTicket({ status: SMS_SUPPORT_STATUS.RUNNING_AUTOMATION })
-    const stale = await seedJob(ticket.id, {
-      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-      lockedAt: T0,
-      lockedBy: 'w',
-    })
-    const otherStale = await seedJob(other.id, {
-      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-      lockedAt: T0,
-    })
-    const fresh = await seedJob(ticket.id, {
-      kind: 'B',
-      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-      lockedAt: T2,
-    })
-    const staleRunning = await seedJob(ticket.id, {
-      kind: 'C',
-      status: SMS_SUPPORT_JOB_STATUS.RUNNING,
-      lockedAt: T0,
-    })
-    const lockedAtCutoff = await seedJob(ticket.id, {
-      kind: 'D',
-      status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-      lockedAt: T1,
-    })
-    const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id)
-
-    expect((await findStaleCommittingSupportJobs(T1, 10)).sort(byId)).toEqual(
-      [
-        { ...stale, ticket },
-        { ...otherStale, ticket: other },
-      ].sort(byId)
-    )
-    expect(await findStaleCommittingSupportJobs(T1, 1)).toHaveLength(1)
-    expect(await findStaleCommittingSupportJobs(T1, 0)).toEqual([])
-
-    await transitionJob('failStale', stale.id, { at: T3, lastError: 'stalled' })
-    for (const job of [otherStale, fresh, staleRunning, lockedAtCutoff]) {
-      expect(await readJob(job.id)).toEqual(job)
-    }
-    expect(await findStaleCommittingSupportJobs(T1, 10)).toEqual([{ ...otherStale, ticket: other }])
   })
 })
 

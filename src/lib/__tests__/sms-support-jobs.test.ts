@@ -10,12 +10,9 @@ const {
   mockTransitionJob,
   mockPermit,
   mockStartAutomationRetry,
-  mockRequeueStaleSupportJobs,
   mockFindActiveSupportAutomationJobId,
   mockFindLatestSupportAutomationJob,
   mockFindRunnableQueuedSupportJob,
-  mockFindRunnableQueuedSupportJobs,
-  mockFindStaleCommittingSupportJobs,
   mockRunSupportTicketAutomation,
   mockAlertSupportTicketNeedsCsr,
 } = vi.hoisted(() => ({
@@ -23,12 +20,9 @@ const {
   mockTransitionJob: vi.fn(),
   mockPermit: vi.fn(),
   mockStartAutomationRetry: vi.fn(),
-  mockRequeueStaleSupportJobs: vi.fn(),
   mockFindActiveSupportAutomationJobId: vi.fn(),
   mockFindLatestSupportAutomationJob: vi.fn(),
   mockFindRunnableQueuedSupportJob: vi.fn(),
-  mockFindRunnableQueuedSupportJobs: vi.fn(),
-  mockFindStaleCommittingSupportJobs: vi.fn(),
   mockRunSupportTicketAutomation: vi.fn(),
   mockAlertSupportTicketNeedsCsr: vi.fn(),
 }))
@@ -37,8 +31,6 @@ vi.mock('@/db/sms-support', () => ({
   findActiveSupportAutomationJobId: mockFindActiveSupportAutomationJobId,
   findLatestSupportAutomationJob: mockFindLatestSupportAutomationJob,
   findRunnableQueuedSupportJob: mockFindRunnableQueuedSupportJob,
-  findRunnableQueuedSupportJobs: mockFindRunnableQueuedSupportJobs,
-  findStaleCommittingSupportJobs: mockFindStaleCommittingSupportJobs,
 }))
 
 vi.mock('@/db/sms-support-lifecycle', async (importOriginal) => {
@@ -49,7 +41,6 @@ vi.mock('@/db/sms-support-lifecycle', async (importOriginal) => {
     transitionJob: mockTransitionJob,
     permit: mockPermit,
     startAutomationRetry: mockStartAutomationRetry,
-    requeueStaleSupportJobs: mockRequeueStaleSupportJobs,
   }
 })
 
@@ -65,11 +56,7 @@ vi.mock('@/lib/sms-support-alerts', () => ({
   alertSupportTicketNeedsCsr: mockAlertSupportTicketNeedsCsr,
 }))
 
-import {
-  processSmsSupportJobNow,
-  processQueuedSmsSupportJobs,
-  retrySupportAutomationJob,
-} from '../sms-support-jobs'
+import { processSmsSupportJobNow, retrySupportAutomationJob } from '../sms-support-jobs'
 import {
   SupportAutomationManualReviewError,
   type SupportAutomationPayload,
@@ -189,35 +176,16 @@ describe('retrySupportAutomationJob', () => {
   })
 })
 
-describe('processQueuedSmsSupportJobs', () => {
+describe('processSmsSupportJobNow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockFindStaleCommittingSupportJobs.mockResolvedValue([])
-    mockFindRunnableQueuedSupportJobs.mockResolvedValue([])
+    mockFindRunnableQueuedSupportJob.mockResolvedValue({ id: 'job_123', ticketId: 'ticket_123' })
     mockTransitionJob.mockResolvedValue({ ok: true, value: { id: 'job_123' } })
     mockRunSupportTicketAutomation.mockResolvedValue(undefined)
     mockTransition.mockResolvedValue({ ok: true, value: escalatedTicket })
   })
 
-  it('recovers stale running jobs before selecting queued work', async () => {
-    const result = await processQueuedSmsSupportJobs({ limit: 1, workerId: 'test-worker' })
-
-    expect(result).toEqual({ processed: 0, succeeded: 0, failed: 0 })
-    expect(mockRequeueStaleSupportJobs).toHaveBeenCalledWith(expect.any(Date), {
-      at: expect.any(Date),
-    })
-    expect(mockFindRunnableQueuedSupportJobs).toHaveBeenCalledWith(1)
-    expect(mockRequeueStaleSupportJobs.mock.invocationCallOrder[0]).toBeLessThan(
-      mockFindRunnableQueuedSupportJobs.mock.invocationCallOrder[0]
-    )
-  })
-
   it('runs a single queued job immediately when requested by the SMS flow', async () => {
-    mockFindRunnableQueuedSupportJob.mockResolvedValue({
-      id: 'job_123',
-      ticketId: 'ticket_123',
-    })
-
     const result = await processSmsSupportJobNow('job_123', { workerId: 'sms-inbound-test' })
 
     expect(result).toEqual({ processed: 1, succeeded: 1, failed: 0 })
@@ -233,10 +201,6 @@ describe('processQueuedSmsSupportJobs', () => {
   })
 
   it('skips a queued job another worker already claimed', async () => {
-    mockFindRunnableQueuedSupportJob.mockResolvedValue({
-      id: 'job_123',
-      ticketId: 'ticket_123',
-    })
     mockTransitionJob.mockResolvedValue({
       ok: false,
       refusal: { reason: 'status', status: SMS_SUPPORT_JOB_STATUS.RUNNING },
@@ -250,16 +214,9 @@ describe('processQueuedSmsSupportJobs', () => {
   })
 
   it('escalates automation failures instead of rescheduling hidden cron work', async () => {
-    mockFindRunnableQueuedSupportJobs.mockResolvedValueOnce([
-      {
-        id: 'job_123',
-        ticketId: 'ticket_123',
-        attempts: 0,
-      },
-    ])
     mockRunSupportTicketAutomation.mockRejectedValue(new Error('Resend timeout'))
 
-    const result = await processQueuedSmsSupportJobs({ limit: 1, workerId: 'test-worker' })
+    const result = await processSmsSupportJobNow('job_123', { workerId: 'test-worker' })
 
     expect(result).toEqual({ processed: 1, succeeded: 0, failed: 1 })
     expect(mockTransitionJob).toHaveBeenCalledWith('fail', 'job_123', {
@@ -279,20 +236,13 @@ describe('processQueuedSmsSupportJobs', () => {
   })
 
   it('escalates manual-review automation failures without retrying', async () => {
-    mockFindRunnableQueuedSupportJobs.mockResolvedValueOnce([
-      {
-        id: 'job_123',
-        ticketId: 'ticket_123',
-        attempts: 0,
-      },
-    ])
     mockRunSupportTicketAutomation.mockRejectedValue(
       new SupportAutomationManualReviewError(
         'Approval PDF options are unknown; admin must reissue this note manually'
       )
     )
 
-    const result = await processQueuedSmsSupportJobs({ limit: 1, workerId: 'test-worker' })
+    const result = await processSmsSupportJobNow('job_123', { workerId: 'test-worker' })
 
     expect(result).toEqual({ processed: 1, succeeded: 0, failed: 1 })
     expect(mockTransitionJob).toHaveBeenCalledWith('fail', 'job_123', {
@@ -309,52 +259,5 @@ describe('processQueuedSmsSupportJobs', () => {
         summary: expect.stringContaining('requires admin review'),
       })
     )
-  })
-
-  it('escalates stale finalizing jobs so tickets do not stay stuck', async () => {
-    mockFindStaleCommittingSupportJobs.mockResolvedValueOnce([
-      {
-        id: 'job_finalizing',
-        ticketId: 'ticket_123',
-        status: SMS_SUPPORT_JOB_STATUS.COMMITTING,
-        lockedAt: new Date('2026-06-29T12:00:00Z'),
-        ticket: escalatedTicket,
-      },
-    ])
-
-    const result = await processQueuedSmsSupportJobs({ limit: 1, workerId: 'test-worker' })
-
-    expect(result).toEqual({ processed: 1, succeeded: 0, failed: 1 })
-    expect(mockFindStaleCommittingSupportJobs).toHaveBeenCalledWith(expect.any(Date), 1)
-    expect(mockTransitionJob).toHaveBeenCalledWith('failStale', 'job_finalizing', {
-      at: expect.any(Date),
-      lastError: expect.stringContaining('stalled while finalizing'),
-    })
-    expect(mockTransition).toHaveBeenCalledWith('automationFailed', 'ticket_123', {
-      at: expect.any(Date),
-      failureReason: expect.stringContaining('stalled while finalizing'),
-    })
-    expect(mockAlertSupportTicketNeedsCsr).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ticketId: 'ticket_123',
-        summary: expect.stringContaining('stalled while finalizing'),
-      })
-    )
-  })
-
-  it('leaves a stale finalizing job alone when it finished before it could be failed', async () => {
-    mockFindStaleCommittingSupportJobs.mockResolvedValueOnce([
-      { id: 'job_finalizing', ticketId: 'ticket_123' },
-    ])
-    mockTransitionJob.mockResolvedValue({
-      ok: false,
-      refusal: { reason: 'status', status: SMS_SUPPORT_JOB_STATUS.SUCCEEDED },
-    })
-
-    const result = await processQueuedSmsSupportJobs({ limit: 1, workerId: 'test-worker' })
-
-    expect(result).toEqual({ processed: 0, succeeded: 0, failed: 0 })
-    expect(mockTransition).not.toHaveBeenCalled()
-    expect(mockAlertSupportTicketNeedsCsr).not.toHaveBeenCalled()
   })
 })
