@@ -35,21 +35,6 @@ export const ATTRIBUTION_CHANNELS = [
 
 export type AttributionChannel = (typeof ATTRIBUTION_CHANNELS)[number]
 
-export const ATTRIBUTION_CHANNEL_LABELS: Record<AttributionChannel, string> = {
-  reddit: 'Reddit Ads',
-  google_ads: 'Google Ads',
-  meta: 'Meta Ads',
-  microsoft_ads: 'Microsoft Ads',
-  tiktok: 'TikTok Ads',
-  email: 'Email',
-  sms: 'SMS',
-  other_campaign: 'Other campaign',
-  organic_search: 'Organic search',
-  social: 'Social (organic)',
-  referral: 'Referral',
-  direct: 'Direct',
-}
-
 export interface AttributionTouch {
   channel: AttributionChannel
   source: string | null
