@@ -487,14 +487,6 @@ export async function findRunnableQueuedSupportJob(
   )
 }
 
-export async function findCommittingSupportJob(
-  ticketId: string
-): Promise<Pick<SmsSupportJob, 'id'> | null> {
-  return db.one(
-    sql`SELECT ${select(smsSupportJobs, ['id'])} FROM sms_support_jobs WHERE ticket_id = ${ticketId} AND status = ${SMS_SUPPORT_JOB_STATUS.COMMITTING} LIMIT 1`
-  )
-}
-
 export async function findSupportJobWithTicket(
   jobId: string
 ): Promise<SmsSupportJobWithTicket | null> {

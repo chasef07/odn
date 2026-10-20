@@ -211,6 +211,13 @@ function automationSuccess(input: Summary): Patch<TicketWritten> {
   }
 }
 
+function automationAbandonment(input: Failure): Patch<TicketWritten> {
+  return {
+    automationStatus: SMS_SUPPORT_AUTOMATION_STATUS.FAILED,
+    failureReason: input.failureReason,
+  }
+}
+
 const tickets = {
   prompt: { from: CONVERSING, write: prompted },
   closeFound: { from: CONVERSING, write: closedByCustomer },
@@ -241,6 +248,7 @@ const tickets = {
     from: [SMS_SUPPORT_STATUS.RUNNING_AUTOMATION],
     write: automationSuccess,
   },
+  automationAbandoned: { from: EVERY_TICKET_STATUS, write: automationAbandonment },
 } as const
 
 export type TicketTransition = keyof typeof tickets
@@ -283,12 +291,21 @@ function failed(input: JobFailure): Patch<JobWritten> {
   }
 }
 
+const COMMIT_TIMEOUT_MS = 15 * 60 * 1000
+export const ABANDONED_COMMIT_ERROR =
+  'Automation stopped before it recorded the result of the note update. Check whether the customer received the updated note.'
+
+function abandoned(input: Stamped): Patch<JobWritten> {
+  return failed({ at: input.at, lastError: ABANDONED_COMMIT_ERROR })
+}
+
 const jobs = {
   claim: { from: [SMS_SUPPORT_JOB_STATUS.QUEUED], write: claimed },
   commit: { from: [SMS_SUPPORT_JOB_STATUS.RUNNING], write: committed },
   complete: { from: EVERY_JOB_STATUS, write: completed },
   fail: { from: EVERY_JOB_STATUS, write: failed },
   cancel: { from: [SMS_SUPPORT_JOB_STATUS.QUEUED, SMS_SUPPORT_JOB_STATUS.RUNNING], write: failed },
+  abandon: { from: [SMS_SUPPORT_JOB_STATUS.COMMITTING], write: abandoned },
 } as const
 
 export type JobTransition = keyof typeof jobs
@@ -479,12 +496,25 @@ export function takeOver(
   return atomically<SmsSupportTicket, TakeOverRefusal>(async (tx) => {
     const ticket = await transition(name, ticketId, { at: input.at }, tx)
     if (!ticket.ok) return ticket
+    const crashedBefore = new Date(input.at.getTime() - COMMIT_TIMEOUT_MS)
+    const abandoned = await transitionJobs(
+      'abandon',
+      sql`ticket_id = ${ticketId} AND locked_at <= ${crashedBefore}`,
+      { at: input.at },
+      tx
+    )
     const committing = await tx.one(
       sql`SELECT ${select(smsSupportJobs, ['id'])} FROM sms_support_jobs WHERE ticket_id = ${ticketId} AND status = ${SMS_SUPPORT_JOB_STATUS.COMMITTING} LIMIT 1`
     )
     if (committing) return refuse({ reason: 'committing' })
     await transitionJobs('cancel', sql`ticket_id = ${ticketId}`, input, tx)
-    return ticket
+    if (abandoned === 0) return ticket
+    return transition(
+      'automationAbandoned',
+      ticketId,
+      { at: input.at, failureReason: ABANDONED_COMMIT_ERROR },
+      tx
+    )
   })
 }
 
