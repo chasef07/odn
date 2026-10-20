@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, inject, it, vi } from 'vitest'
 import { deleteAllAuthSessions } from '../auth'
 import { countSubmissions, deleteAllSubmissions, insertSubmission } from '../submissions'
 import { closePool } from '../pool'
@@ -92,13 +92,11 @@ describe('the delete-every-row functions', () => {
     await deleteAllSubmissions()
     await deleteAllAuthSessions()
 
+    const { hostname, pathname } = new URL(inject('testDatabaseUrl'))
+    const target = `in database "${pathname.slice(1)}" on host "${hostname}" port `
     expect(info.mock.calls.map(([line]) => line)).toEqual([
-      expect.stringMatching(
-        /^Deleting every row of submissions in database "postgres" on host "127\.0\.0\.1"/
-      ),
-      expect.stringMatching(
-        /^Deleting every row of sessions in database "postgres" on host "127\.0\.0\.1"/
-      ),
+      expect.stringContaining(`Deleting every row of submissions ${target}`),
+      expect.stringContaining(`Deleting every row of sessions ${target}`),
     ])
   })
 })
