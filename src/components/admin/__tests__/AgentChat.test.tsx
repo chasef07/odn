@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentUIMessage } from '@/lib/agent/tools'
@@ -53,45 +53,51 @@ describe('AgentChat', () => {
     expect(chat.sendMessage).toHaveBeenCalledWith({ text: 'Approval rate by state' })
   })
 
-  it('renders at most 100 rows of a query result and says how many there were and that it was cut off', () => {
-    const rows = Array.from({ length: 150 }, (_, index) => ({ i: index + 1 }))
+  it('shows only the final answer and the chart, not the SQL, the rows or the narration', () => {
     chat.messages = [
       assistant([
+        { type: 'text', text: 'Let me look that up.' },
         {
           type: 'tool-query',
           toolCallId: 'c1',
           state: 'output-available',
           input: { sql: SQL },
-          output: { columns: ['i'], rows, truncated: true },
+          output: { columns: ['i'], rows: [{ i: 41 }], truncated: false },
         },
+        {
+          type: 'tool-chart',
+          toolCallId: 'c2',
+          state: 'output-available',
+          input: { sql: SQL, kind: 'bar', title: 'Notes', x: 'month', series: [] },
+          output: {
+            kind: 'bar',
+            title: 'Notes by month',
+            x: 'month',
+            series: [{ column: 'notes', label: 'Notes', format: 'number' }],
+            rows: [{ month: '2026-09', notes: 41 }],
+            truncated: false,
+          },
+        },
+        { type: 'text', text: '41 notes in September 2026.' },
       ]),
     ]
 
     render(<AgentChat configured />)
 
-    const table = screen.getByRole('table')
-    expect(within(table).getAllByRole('row')).toHaveLength(101)
-    expect(within(table).getByText('100')).toBeInTheDocument()
-    expect(within(table).queryByText('101')).not.toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Showing 100 of 150 rows. The query returned more than 500 rows, so the result was cut off.'
-      )
-    ).toBeInTheDocument()
+    expect(screen.getByText('41 notes in September 2026.')).toBeInTheDocument()
+    expect(screen.getByText('Notes by month')).toBeInTheDocument()
+    expect(screen.queryByText('Let me look that up.')).not.toBeInTheDocument()
+    expect(screen.queryByText(SQL)).not.toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
-  it('shows a running query, then the error text of a failed one', () => {
+  it('shows one working line while a tool runs and hides a failed tool call', () => {
+    chat.status = 'streaming'
     chat.messages = [
       assistant([
         {
-          type: 'tool-query',
-          toolCallId: 'c1',
-          state: 'input-available',
-          input: { sql: SQL },
-        },
-        {
           type: 'tool-chart',
-          toolCallId: 'c2',
+          toolCallId: 'c1',
           state: 'output-error',
           input: {
             sql: SQL,
@@ -102,15 +108,29 @@ describe('AgentChat', () => {
           },
           errorText: 'The SQL does not return month. It returns: i.',
         },
+        {
+          type: 'tool-query',
+          toolCallId: 'c2',
+          state: 'input-available',
+          input: { sql: SQL },
+        },
       ]),
     ]
 
     render(<AgentChat configured />)
 
-    expect(screen.getByText('Running query')).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'The SQL does not return month. It returns: i.'
-    )
+    expect(screen.getByText('Working')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('hides the working line once the answer streams', () => {
+    chat.status = 'streaming'
+    chat.messages = [assistant([{ type: 'text', text: '41 notes.' }])]
+
+    render(<AgentChat configured />)
+
+    expect(screen.getByText('41 notes.')).toBeInTheDocument()
+    expect(screen.queryByText('Working')).not.toBeInTheDocument()
   })
 
   it('locks the input while streaming and stops on request', async () => {
