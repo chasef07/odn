@@ -123,6 +123,15 @@ describe('AgentChat', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('shows the working line as soon as a question is sent', () => {
+    chat.status = 'submitted'
+    chat.messages = [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Notes per month' }] }]
+
+    render(<AgentChat configured />)
+
+    expect(screen.getByText('Working')).toBeInTheDocument()
+  })
+
   it('hides the working line once the answer streams', () => {
     chat.status = 'streaming'
     chat.messages = [assistant([{ type: 'text', text: '41 notes.' }])]

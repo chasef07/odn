@@ -66,7 +66,9 @@ function Chat() {
     transport: new DefaultChatTransport({ api: '/api/admin/agent' }),
   })
   const busy = status === 'submitted' || status === 'streaming'
-  const working = busy && messages.at(-1)?.parts.at(-1)?.type !== 'text'
+  const working =
+    status === 'submitted' ||
+    (status === 'streaming' && messages.at(-1)?.parts.at(-1)?.type !== 'text')
 
   function ask(text: string) {
     const question = text.trim()
