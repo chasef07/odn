@@ -11,19 +11,9 @@ import {
   ConversationScrollButton,
 } from '@/components/ai-elements/conversation'
 import { Message, MessageContent, MessageResponse } from '@/components/ai-elements/message'
-import { Tool, ToolContent, ToolHeader } from '@/components/ai-elements/tool'
 import { AgentChart } from '@/components/admin/AgentChart'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
-import type { AnalyticsResult } from '@/db/analytics-query'
 import type { AgentUIMessage } from '@/lib/agent/tools'
 
 export const STARTER_QUESTIONS = [
@@ -32,22 +22,9 @@ export const STARTER_QUESTIONS = [
   'Refund rate by acquisition channel',
 ] as const
 
-const RENDERED_ROW_LIMIT = 100
-
 type Part = AgentUIMessage['parts'][number]
-type QueryPart = Extract<Part, { type: 'tool-query' }>
-type ChartPart = Extract<Part, { type: 'tool-chart' }>
 
-function Running() {
-  return (
-    <div className="text-muted-foreground flex items-center gap-2 text-sm">
-      <LoaderCircle className="size-4 animate-spin" />
-      Running query
-    </div>
-  )
-}
-
-function ToolError({ text }: { text: string }) {
+function ErrorText({ text }: { text: string }) {
   return (
     <p role="alert" className="bg-destructive/10 text-destructive rounded-md p-3 text-sm">
       {text}
@@ -55,80 +32,21 @@ function ToolError({ text }: { text: string }) {
   )
 }
 
-function Sql({ part, title }: { part: QueryPart | ChartPart; title: string }) {
-  return (
-    <Tool>
-      <ToolHeader type={part.type} state={part.state} title={title} />
-      <ToolContent>
-        <pre className="bg-muted/50 overflow-x-auto rounded-md p-3 font-mono text-xs whitespace-pre-wrap">
-          {part.input?.sql}
-        </pre>
-      </ToolContent>
-    </Tool>
-  )
+function isToolPart(part: Part): boolean {
+  return part.type === 'tool-query' || part.type === 'tool-chart'
 }
 
-function cellText(value: unknown): string {
-  if (value === null || value === undefined) return 'null'
-  if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
-}
-
-function ResultTable({ result }: { result: AnalyticsResult }) {
-  const shown = result.rows.slice(0, RENDERED_ROW_LIMIT)
-  return (
-    <div className="space-y-2">
-      <div className="max-h-96 overflow-auto rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {result.columns.map((column) => (
-                <TableHead key={column}>{column}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shown.map((row, index) => (
-              <TableRow key={index}>
-                {result.columns.map((column) => (
-                  <TableCell key={column}>{cellText(row[column])}</TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <p className="text-muted-foreground text-xs">
-        {shown.length < result.rows.length
-          ? `Showing ${shown.length} of ${result.rows.length} rows.`
-          : `${result.rows.length} ${result.rows.length === 1 ? 'row' : 'rows'}.`}
-        {result.truncated && ' The query returned more than 500 rows, so the result was cut off.'}
-      </p>
-    </div>
-  )
-}
-
-function ToolPartView({ part }: { part: QueryPart | ChartPart }) {
-  const title = part.type === 'tool-chart' ? (part.input?.title ?? 'Chart') : 'Query'
-  return (
-    <div className="w-full space-y-3">
-      <Sql part={part} title={title} />
-      {(part.state === 'input-streaming' || part.state === 'input-available') && <Running />}
-      {part.state === 'output-error' && <ToolError text={part.errorText} />}
-      {part.state === 'output-available' &&
-        (part.type === 'tool-chart' ? (
-          <AgentChart chart={part.output} />
-        ) : (
-          <ResultTable result={part.output} />
-        ))}
-    </div>
-  )
-}
-
-function PartView({ part }: { part: Part }) {
-  if (part.type === 'text') return <MessageResponse>{part.text}</MessageResponse>
-  if (part.type === 'tool-query' || part.type === 'tool-chart') return <ToolPartView part={part} />
-  return null
+function MessageParts({ parts }: { parts: Part[] }) {
+  const lastTool = parts.findLastIndex(isToolPart)
+  return parts.map((part, index) => {
+    if (part.type === 'text' && index > lastTool) {
+      return <MessageResponse key={index}>{part.text}</MessageResponse>
+    }
+    if (part.type === 'tool-chart' && part.state === 'output-available') {
+      return <AgentChart key={index} chart={part.output} />
+    }
+    return null
+  })
 }
 
 function NotConfigured() {
@@ -148,6 +66,9 @@ function Chat() {
     transport: new DefaultChatTransport({ api: '/api/admin/agent' }),
   })
   const busy = status === 'submitted' || status === 'streaming'
+  const working =
+    status === 'submitted' ||
+    (status === 'streaming' && messages.at(-1)?.parts.at(-1)?.type !== 'text')
 
   function ask(text: string) {
     const question = text.trim()
@@ -200,20 +121,18 @@ function Chat() {
             messages.map((message) => (
               <Message from={message.role} key={message.id}>
                 <MessageContent className="group-[.is-assistant]:w-full">
-                  {message.parts.map((part, index) => (
-                    <PartView key={index} part={part} />
-                  ))}
+                  <MessageParts parts={message.parts} />
                 </MessageContent>
               </Message>
             ))
           )}
-          {status === 'submitted' && (
+          {working && (
             <div className="text-muted-foreground flex items-center gap-2 text-sm">
               <LoaderCircle className="size-4 animate-spin" />
-              Thinking
+              Working
             </div>
           )}
-          {error && <ToolError text={`The request failed: ${error.message}`} />}
+          {error && <ErrorText text={`The request failed: ${error.message}`} />}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
