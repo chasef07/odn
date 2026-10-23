@@ -84,6 +84,8 @@ describe('POST /api/create-payment-intent', () => {
     email: 'john@example.com',
     phone: '5551234567',
     smsOptIn: true,
+    certifyAccurate: true,
+    agreeTerms: true,
     notePurpose: 'work',
     firstDayOff: _daysFromToday(-1),
     lastDayOff: _daysFromToday(1),
@@ -1245,5 +1247,73 @@ describe('POST /api/create-payment-intent', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Unable to process your request. Please try again.')
+  })
+  describe('terms consent', () => {
+    beforeEach(() => {
+      mockCreateTemporarySubmission.mockResolvedValue({ id: 'temp_consent' })
+      mockPaymentIntentCreate.mockResolvedValue({
+        id: 'pi_consent',
+        client_secret: 'pi_consent_secret',
+        amount: 2495,
+        currency: 'usd',
+      })
+      mockAttachPaymentIntent.mockResolvedValue({})
+    })
+
+    it.each([
+      ['enforced', 'true'],
+      ['log-only', 'false'],
+    ])(
+      'refuses a draft without terms agreement and sends it back to review (%s)',
+      async (_mode, enforced) => {
+        process.env.INTAKE_VALIDATION_ENFORCED = enforced
+
+        const response = await post({ ...mockFormData, agreeTerms: false })
+
+        expect(response.status).toBe(400)
+        expect(await response.json()).toEqual({
+          error: 'You must agree to the Terms of Service and Privacy Policy',
+          route: '/review',
+        })
+        expect(mockCreateTemporarySubmission).not.toHaveBeenCalled()
+        expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+      }
+    )
+
+    it('refuses a draft without the accuracy certification', async () => {
+      const response = await post({ ...mockFormData, certifyAccurate: undefined })
+
+      expect(response.status).toBe(400)
+      expect(await response.json()).toEqual({
+        error: 'You must certify that the information is accurate',
+        route: '/review',
+      })
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('refuses a draft that carries neither consent field, as the review page used to send', async () => {
+      process.env.INTAKE_VALIDATION_ENFORCED = 'false'
+      const { certifyAccurate: _certify, agreeTerms: _agree, ...withoutConsent } = mockFormData
+
+      const response = await post(withoutConsent)
+
+      expect(response.status).toBe(400)
+      expect((await response.json()).route).toBe('/review')
+      expect(mockPaymentIntentCreate).not.toHaveBeenCalled()
+    })
+
+    it('sends an earlier intake step before review when both are wrong', async () => {
+      const response = await post({ ...mockFormData, notePurpose: 'legal', agreeTerms: false })
+
+      expect(response.status).toBe(400)
+      expect((await response.json()).route).toBe('/note-purpose')
+    })
+
+    it('creates the payment intent once both are given', async () => {
+      const response = await post(mockFormData)
+
+      expect(response.status).toBe(200)
+      expect(mockPaymentIntentCreate).toHaveBeenCalledTimes(1)
+    })
   })
 })

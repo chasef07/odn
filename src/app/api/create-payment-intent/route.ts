@@ -11,6 +11,7 @@ import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { FormData } from '@/lib/form-storage'
 import { checkoutBlockers, loggedIssues, parseIntake } from '@/lib/intake'
+import { termsSchema } from '@/lib/validation-schemas'
 import { getCachedPrice } from '@/lib/stripe-price'
 import { getOfferConfig, normalizeOfferCode, type PriceType } from '@/lib/offer-codes'
 import {
@@ -82,6 +83,19 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+    }
+
+    const consent = termsSchema.safeParse(formData)
+    if (!consent.success) {
+      logger.event('WARNING', {
+        event: 'checkout_consent_missing',
+        endpoint: ENDPOINT,
+        fields: consent.error.issues.map((issue) => issue.path.join('.')),
+      })
+      return NextResponse.json(
+        { error: consent.error.issues[0].message, route: '/review' },
+        { status: 400 }
+      )
     }
 
     const draft = formData as FormData
