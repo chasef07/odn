@@ -138,9 +138,33 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
 
 ### Before cutover day
 
-1. **Lower TTLs (at least 48 hours before).** In Vercel DNS, record the current
-   apex and `www` records for both domains (today: A records, TTL 1800), then
-   set their TTL to 60 seconds. Wait for the old TTL to expire.
+1. **Record the current DNS.** Each domain has two records that Vercel manages
+   and "may change without notice": an apex `ALIAS` to
+   `c68552752002aea9.vercel-dns-017.com` and a wildcard `*` `ALIAS` to
+   `cname.vercel-dns-016.com.`. Since 2026-10-21 each domain also has an
+   explicit `www` `ALIAS` to `cname.vercel-dns-016.com.`, TTL 60, the same
+   target as the wildcard: `rec_8c76efa1661e3bdc16e7dd08` on
+   `onlinedoctornote.com` and `rec_f7444e40fc4177cf21f5a09b` on
+   `phealthclinic.com`. Vercel flattens the `ALIAS` records and resolvers get
+   Vercel's A records with TTL 1800, so the TTL cannot be lowered. Plan for up
+   to 30 minutes of mixed traffic after the cutover DNS change; both stacks
+   share the database, so that is safe. Save the record list (Vercel
+   dashboard, or `GET /v5/domains/<domain>/records`) and what resolvers see
+   today:
+
+   ```bash
+   for name in onlinedoctornote.com www.onlinedoctornote.com phealthclinic.com www.phealthclinic.com; do
+     dig +noall +answer @ns1.vercel-dns.com "$name" A
+   done
+   ```
+
+   Never leave `www` without its own record while anything sits below it. A
+   wildcard never answers for a name that exists, and a record such as
+   `_acme-challenge_<x>.www` makes `www` exist with no address. On 2026-10-21
+   adding the `www` challenge CNAMEs before the explicit `www` records took
+   `www` down on both domains until they were deleted. Do not delete either
+   `www` record while the `www` challenge CNAMEs exist; change it instead.
+
 2. **Production secrets.** Create `odn-production-*` secrets (same names as
    staging) from the Vercel production values. Pull them to a private temp file
    with `vercel env pull --environment=production`, never print them, and
@@ -152,6 +176,18 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    10 s to get one), so the URL carries no `connection_limit`.
    Vercel marks some values Sensitive (not pullable); copy those from their
    source dashboards (Stripe, Telnyx, Resend).
+
+   Three secrets have no Vercel value, because doctors sign in with Google
+   only on Cloud Run:
+   - `odn-production-google-client-id`: the ID of the OAuth client
+     `ODN admin sign-in` in project `odn-sign-in`. It already lists
+     `https://onlinedoctornote.com/api/auth/callback/google` as a redirect URI.
+   - `odn-production-google-client-secret`: add a new secret on that client
+     for production instead of reusing staging's.
+   - `odn-production-admin-emails`: the comma-separated Google emails of every
+     doctor who reviews notes. Anyone not on it is refused. Each doctor needs a
+     Google account on that exact email.
+
 3. **Runtime identity.** Create service account `odn-production` with
    `roles/cloudsql.client` and `secretAccessor` on each `odn-production-*`
    secret; give `odn-deploy` `iam.serviceAccountUser` on it and
@@ -166,23 +202,73 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    schema is current. The deploy sets `--no-invoker-iam-check`, so the
    service is public.
    Smoke-test the `run.app` URL (home, `/admin/login`, `/verify/<slug>`).
-5. **Load balancer and certificates.** Create a global external Application
-   Load Balancer with a serverless NEG for `odn-production`, a reserved global
-   IPv4 address, and a Certificate Manager certificate for
-   `onlinedoctornote.com`, `www.onlinedoctornote.com`, `phealthclinic.com`,
-   `www.phealthclinic.com` using **DNS authorization** (add the
-   `_acme-challenge` CNAMEs in Vercel DNS). Wait until the certificate is
-   `ACTIVE` before cutover, so there is no TLS gap. Test with
-   `curl --resolve onlinedoctornote.com:443:<LB IP> https://onlinedoctornote.com/`
-   and the same for `phealthclinic.com/verify`.
+   `/admin/login` only shows the Google button here: the Google callback goes
+   to `https://onlinedoctornote.com`, which is still Vercel, so a real sign-in
+   waits for the cutover.
+5. **Load balancer and certificates.** Built on 2026-10-21; the certificate is
+   `ACTIVE`. All names are global unless a region is given:
+
+   | What               | Name                                                                                                                |
+   | ------------------ | ------------------------------------------------------------------------------------------------------------------- |
+   | IP address         | `odn-production-ip`, `136.81.47.63`                                                                                 |
+   | Serverless NEG     | `odn-production-neg` (`us-east4`), Cloud Run service `odn-production`                                               |
+   | Backend service    | `odn-production-backend` (`EXTERNAL_MANAGED`)                                                                       |
+   | HTTPS              | URL map `odn-production-url-map`, proxy `odn-production-https-proxy`, rule `odn-production-https-rule` (443)        |
+   | HTTP               | URL map `odn-production-http-redirect-map`, proxy `odn-production-http-proxy`, rule `odn-production-http-rule` (80) |
+   | Certificate        | `odn-production-cert` in map `odn-production-cert-map`, one entry per hostname                                      |
+   | DNS authorizations | `odn-production-{odn,phc}-{apex,www}-dns-auth`, one per hostname                                                    |
+
+   `odn-production-url-map` sends `www.onlinedoctornote.com` to
+   `onlinedoctornote.com` with a 308, as Vercel does, and everything else to
+   the backend; the app itself sends `phealthclinic.com/` to `/verify`.
+   `odn-production-http-redirect-map` sends every HTTP request to HTTPS with a 308. Both keep the path and query. The `Location` header carries `:443`
+   (`https://onlinedoctornote.com:443/...`); the `acuity-web` load balancer
+   does the same, and browsers drop the default port.
+
+   The four `_acme-challenge_5zbzfbsna5sj32bt` CNAMEs stay in Vercel DNS for
+   renewals. They were added after the explicit `www` records; see step 1.
+   Before cutover, test with
+   `curl --resolve onlinedoctornote.com:443:136.81.47.63 https://onlinedoctornote.com/`
+   and the same for `phealthclinic.com/verify`. Until `odn-production` is
+   deployed the load balancer returns 404 with a valid certificate. The
+   explicit `www` records show that a record you add wins over the wildcard
+   `ALIAS`. Whether an `A` record at the apex wins over the managed apex
+   `ALIAS` is unknown until cutover; step 1 of the cutover checks it.
+
 6. **Crons.** Create the production Cloud Scheduler jobs (commands above with
    `ENV=production`, `URL=https://onlinedoctornote.com`) and immediately
    `gcloud scheduler jobs pause` them.
+7. **Doctor accounts.** The doctors already have rows in the shared `users`
+   table from the Vercel app. On a doctor's first Google sign-in, better-auth
+   links Google to that row only when its `email_verified` is true; otherwise
+   the sign-in ends on `/admin/login` with `error=account_not_linked`. Check
+   read-only:
+
+   ```sql
+   SELECT email, email_verified FROM users;
+   ```
+
+   Every email on `odn-production-admin-emails` must either have no row, so
+   the first sign-in creates one, or a row with `email_verified` true. Set it
+   to true for a doctor's known email before cutover. The rows' email and
+   password accounts stay, so the Vercel app keeps its login through the
+   rollback week.
 
 ### Cutover
 
-1. In Vercel DNS, change the apex and `www` A records of both domains to the
-   load balancer IP (remove the Vercel A records).
+1. In Vercel DNS, on both domains:
+   - Change the `www` record (`rec_8c76efa1661e3bdc16e7dd08`,
+     `rec_f7444e40fc4177cf21f5a09b`) from `ALIAS` to `A` `136.81.47.63`, TTL 60.
+     Change it in place; never delete it (see "Before cutover day" step 1).
+   - Add an `A` record at the apex (`@`) to `136.81.47.63`, TTL 60.
+
+   Leave the Vercel-managed `ALIAS` records and the `_acme-challenge` CNAMEs in
+   place; Vercel owns the managed records, and the wildcard still serves any
+   other subdomain. Rerun the `dig` loop from "Before cutover day" step 1: all
+   four names must return only `136.81.47.63`. If an apex still returns Vercel
+   IPs, the apex `A` record did not override the managed `ALIAS`; roll back
+   (below) and stop.
+
 2. Resume the production Cloud Scheduler jobs. Vercel's crons keep running
    from the old repo during the rollback week; both jobs are safe to run
    twice (cleanup deletes expired rows; follow-ups claim rows with
@@ -192,7 +278,14 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    Telnyx `https://onlinedoctornote.com/api/webhooks/telnyx`, Resend
    `https://onlinedoctornote.com/api/webhooks/resend`. During propagation some
    deliveries still reach Vercel; both stacks write to the same database.
-4. Watch for an hour: Cloud Run request logs and 5xx rate; `/`,
+4. Sign in at `https://onlinedoctornote.com/admin/login` with Google as a
+   doctor on `odn-production-admin-emails`; you should land on `/admin`. Then
+   sign in with a Google account that is not on the list; you should land
+   back on `/admin/login` with the not-allowed message. Do this only once the
+   `dig` loop shows the load balancer IP: sign-in starts and finishes on the
+   same host, so a resolver that still returns Vercel shows Vercel's old
+   email and password login.
+5. Watch for an hour: Cloud Run request logs and 5xx rate; `/`,
    `/admin/login`, and a real `/verify/<slug>` on `phealthclinic.com`; and
    Stripe/Telnyx/Resend webhook delivery status in each dashboard (all 2xx).
    Confirm requests are reaching Cloud Run (`gcloud run services logs read
@@ -200,8 +293,12 @@ odn-production`) rather than Vercel.
 
 ### Rollback (any time during the following 7 days)
 
-1. In Vercel DNS, restore the A records recorded in step 1 of "Before
-   cutover day". With a 60 s TTL, traffic returns to Vercel within minutes.
+1. In Vercel DNS, on both domains, delete the apex `A` record added at
+   cutover, and change the `www` record back to `ALIAS`
+   `cname.vercel-dns-016.com.`, TTL 60. Do not delete the `www` record. Check
+   with the `dig` loop that the answers match what step 1 of "Before cutover
+   day" recorded. The cutover records have TTL 60, so traffic returns to
+   Vercel within minutes.
 2. Pause the production Cloud Scheduler jobs.
 3. Nothing else: the Vercel production deployment, its env vars, and its
    crons are left untouched for the whole week, and it still reaches the same
@@ -229,7 +326,8 @@ odn-production`) rather than Vercel.
    Cloud Run and the Auth Proxy connect through the Cloud SQL Admin API with
    IAM and are unaffected.
 
-3. Restore normal TTLs (e.g. 3600 s).
+3. Raise the TTL of the apex and `www` `A` records to a normal value (e.g.
+   3600 s).
 
 ## Cutover from Prisma migrations
 
