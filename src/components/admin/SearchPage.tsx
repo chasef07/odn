@@ -30,14 +30,16 @@ interface SearchPageProps {
   initialPage?: number
 }
 
+const SEARCH_TYPE_LABELS: Record<AdminSearchType, string> = {
+  name: 'Name',
+  email: 'Email',
+  phone: 'Phone',
+  id: 'Submission ID',
+  medicalRecord: 'Medical Record #',
+}
+
 function isAdminSearchType(value: string): value is AdminSearchType {
-  return (
-    value === 'name' ||
-    value === 'email' ||
-    value === 'id' ||
-    value === 'phone' ||
-    value === 'medicalRecord'
-  )
+  return Object.hasOwn(SEARCH_TYPE_LABELS, value)
 }
 
 export function SearchPage({
@@ -145,14 +147,14 @@ export function SearchPage({
             disabled={isPending}
           >
             <SelectTrigger className="w-44">
-              <SelectValue />
+              <SelectValue>{SEARCH_TYPE_LABELS[searchType]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="phone">Phone</SelectItem>
-              <SelectItem value="id">Submission ID</SelectItem>
-              <SelectItem value="medicalRecord">Medical Record #</SelectItem>
+              {Object.entries(SEARCH_TYPE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Button onClick={() => handleSearch(1)} disabled={isPending || !query.trim()}>
