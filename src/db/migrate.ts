@@ -69,7 +69,7 @@ function withoutQuotedTextOrComments(sql: string): string {
   let code = ''
   let end = 0
   QUOTED_OR_COMMENT_START.lastIndex = 0
-  for (let match; (match = QUOTED_OR_COMMENT_START.exec(sql)); ) {
+  for (let match; (match = QUOTED_OR_COMMENT_START.exec(sql));) {
     code += `${sql.slice(end, match.index)} `
     end =
       match[0] === '/*' ? endOfBlockComment(sql, match.index) : QUOTED_OR_COMMENT_START.lastIndex
@@ -81,7 +81,7 @@ function withoutQuotedTextOrComments(sql: string): string {
 function endOfBlockComment(sql: string, start: number): number {
   let depth = 0
   BLOCK_COMMENT_MARK.lastIndex = start
-  for (let mark; (mark = BLOCK_COMMENT_MARK.exec(sql)); ) {
+  for (let mark; (mark = BLOCK_COMMENT_MARK.exec(sql));) {
     depth += mark[0] === '/*' ? 1 : -1
     if (depth === 0) return BLOCK_COMMENT_MARK.lastIndex
   }
