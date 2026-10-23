@@ -176,6 +176,18 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    10 s to get one), so the URL carries no `connection_limit`.
    Vercel marks some values Sensitive (not pullable); copy those from their
    source dashboards (Stripe, Telnyx, Resend).
+
+   Three secrets have no Vercel value, because doctors sign in with Google
+   only on Cloud Run:
+   - `odn-production-google-client-id`: the ID of the OAuth client
+     `ODN admin sign-in` in project `odn-sign-in`. It already lists
+     `https://onlinedoctornote.com/api/auth/callback/google` as a redirect URI.
+   - `odn-production-google-client-secret`: add a new secret on that client
+     for production instead of reusing staging's.
+   - `odn-production-admin-emails`: the comma-separated Google emails of every
+     doctor who reviews notes. Anyone not on it is refused. Each doctor needs a
+     Google account on that exact email.
+
 3. **Runtime identity.** Create service account `odn-production` with
    `roles/cloudsql.client` and `secretAccessor` on each `odn-production-*`
    secret; give `odn-deploy` `iam.serviceAccountUser` on it and
@@ -190,6 +202,9 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    schema is current. The deploy sets `--no-invoker-iam-check`, so the
    service is public.
    Smoke-test the `run.app` URL (home, `/admin/login`, `/verify/<slug>`).
+   `/admin/login` only shows the Google button here: the Google callback goes
+   to `https://onlinedoctornote.com`, which is still Vercel, so a real sign-in
+   waits for the cutover.
 5. **Load balancer and certificates.** Built on 2026-10-21; the certificate is
    `ACTIVE`. All names are global unless a region is given:
 
@@ -223,6 +238,21 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
 6. **Crons.** Create the production Cloud Scheduler jobs (commands above with
    `ENV=production`, `URL=https://onlinedoctornote.com`) and immediately
    `gcloud scheduler jobs pause` them.
+7. **Doctor accounts.** The doctors already have rows in the shared `users`
+   table from the Vercel app. On a doctor's first Google sign-in, better-auth
+   links Google to that row only when its `email_verified` is true; otherwise
+   the sign-in ends on `/admin/login` with `error=account_not_linked`. Check
+   read-only:
+
+   ```sql
+   SELECT email, email_verified FROM users;
+   ```
+
+   Every email on `odn-production-admin-emails` must either have no row, so
+   the first sign-in creates one, or a row with `email_verified` true. Set it
+   to true for a doctor's known email before cutover. The rows' email and
+   password accounts stay, so the Vercel app keeps its login through the
+   rollback week.
 
 ### Cutover
 
@@ -248,7 +278,14 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    Telnyx `https://onlinedoctornote.com/api/webhooks/telnyx`, Resend
    `https://onlinedoctornote.com/api/webhooks/resend`. During propagation some
    deliveries still reach Vercel; both stacks write to the same database.
-4. Watch for an hour: Cloud Run request logs and 5xx rate; `/`,
+4. Sign in at `https://onlinedoctornote.com/admin/login` with Google as a
+   doctor on `odn-production-admin-emails`; you should land on `/admin`. Then
+   sign in with a Google account that is not on the list; you should land
+   back on `/admin/login` with the not-allowed message. Do this only once the
+   `dig` loop shows the load balancer IP: sign-in starts and finishes on the
+   same host, so a resolver that still returns Vercel shows Vercel's old
+   email and password login.
+5. Watch for an hour: Cloud Run request logs and 5xx rate; `/`,
    `/admin/login`, and a real `/verify/<slug>` on `phealthclinic.com`; and
    Stripe/Telnyx/Resend webhook delivery status in each dashboard (all 2xx).
    Confirm requests are reaching Cloud Run (`gcloud run services logs read
