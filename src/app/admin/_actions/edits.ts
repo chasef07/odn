@@ -13,6 +13,7 @@ import { toE164UsPhone } from '@/lib/phone-utils'
 import { ageOn, dateOnlyFromUtcDate, todayUTC } from '@/lib/dates'
 import { adminAction } from '@/lib/admin-session'
 import { DATE_LIMITS } from '@/lib/validation-constants'
+import { ABSENCE_REVERSED_MESSAGE } from '@/lib/date-validators'
 
 export const removeGuardianFromAdultSubmission = adminAction(
   async (_admin, submissionId: string) => {
@@ -93,6 +94,16 @@ export const updateSubmission = adminAction(
       ]
       if (dates.some((date) => date && dateOnlyFromUtcDate(date) < DATE_LIMITS.EARLIEST_DAY)) {
         return { success: false, error: `Every date must be ${DATE_LIMITS.EARLIEST_DAY} or later.` }
+      }
+      if ((data.firstDayOff === undefined) !== (data.lastDayOff === undefined)) {
+        return { success: false, error: 'Send the first and last day off together' }
+      }
+      if (
+        data.firstDayOff &&
+        data.lastDayOff &&
+        dateOnlyFromUtcDate(data.lastDayOff) < dateOnlyFromUtcDate(data.firstDayOff)
+      ) {
+        return { success: false, error: ABSENCE_REVERSED_MESSAGE }
       }
 
       let updateData: typeof data & {
