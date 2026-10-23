@@ -20,7 +20,6 @@ async function seedDoctor(): Promise<string> {
   const user = await createVerifiedUser({ email, name: 'Dr Test' })
   await createCredentialAccount({
     userId: user.id,
-    accountId: user.id,
     password: await bcrypt.hash(password, 10),
   })
   return user.id

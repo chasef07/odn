@@ -78,15 +78,13 @@ export async function createVerifiedUser({
 
 export async function createCredentialAccount({
   userId,
-  accountId,
   password,
 }: {
   userId: string
-  accountId: string
   password: string
 }): Promise<void> {
   await db.affected(
-    sql`${insert(accounts, { userId, accountId, providerId: 'credential', password })}`
+    sql`${insert(accounts, { userId, accountId: userId, providerId: 'credential', password })}`
   )
 }
 

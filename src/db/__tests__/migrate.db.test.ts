@@ -522,3 +522,50 @@ describe('0009_constrain_denial_reason', () => {
     ).rejects.toThrow('submissions_denial_note_check')
   })
 })
+
+describe('0013_credential_account_id_is_user_id', () => {
+  async function seedUser(id: string): Promise<void> {
+    await pool.query(
+      `INSERT INTO users (id, email, name, updated_at) VALUES ($1, $1 || '@example.test', $1, now())`,
+      [id]
+    )
+  }
+
+  async function seedAccount(id: string, userId: string, accountId: string, providerId: string) {
+    await pool.query(
+      `INSERT INTO accounts (id, user_id, account_id, provider_id, updated_at)
+        VALUES ($1, $2, $3, $4, now())`,
+      [id, userId, accountId, providerId]
+    )
+  }
+
+  async function accountIds(): Promise<[string, string][]> {
+    const { rows } = await pool.query('SELECT id, account_id FROM accounts ORDER BY id')
+    return rows.map((row) => [row.id, row.account_id])
+  }
+
+  async function migrateThrough0013(): Promise<void> {
+    const migrations = loadMigrations()
+    const index = migrations.findIndex((m) => m.name === '0013_credential_account_id_is_user_id')
+    expect(index).toBeGreaterThan(0)
+    await migrate(pool, migrations.slice(0, index))
+    await seedUser('doctor-a')
+    await seedUser('doctor-b')
+    await seedAccount('acct-email', 'doctor-a', 'doctor-a@example.test', 'credential')
+    await seedAccount('acct-id', 'doctor-b', 'doctor-b', 'credential')
+    await seedAccount('acct-google', 'doctor-a', 'google-subject-123', 'google')
+    expect((await migrate(pool, migrations)).applied).toEqual(
+      migrations.slice(index).map((m) => m.name)
+    )
+  }
+
+  it('sets a credential account_id that holds the email to the user id, and leaves other providers alone', async () => {
+    await migrateThrough0013()
+
+    expect(await accountIds()).toEqual([
+      ['acct-email', 'doctor-a'],
+      ['acct-google', 'google-subject-123'],
+      ['acct-id', 'doctor-b'],
+    ])
+  })
+})

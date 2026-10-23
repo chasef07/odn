@@ -22,7 +22,6 @@ async function createDoctorUser() {
 
     await createCredentialAccount({
       userId: user.id,
-      accountId: email,
       password: hashedPassword,
     })
 
