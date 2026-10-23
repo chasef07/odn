@@ -177,7 +177,7 @@ export default function ReviewPage() {
   })
 
   const onSubmit = (data: TermsFormData) => {
-    saveFormData({ smsOptIn: data.smsOptIn === true })
+    saveFormData(data)
     const intake = parseIntake(getFormData())
     if (intake.kind !== 'valid') {
       router.push(intake.issues[0].route)
