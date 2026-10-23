@@ -9,6 +9,7 @@ type AuthOptions = Omit<
   BetterAuthOptions,
   'database' | 'user' | 'account' | 'session' | 'verification'
 > & {
+  user?: Pick<NonNullable<BetterAuthOptions['user']>, 'validateUserInfo'>
   session?: Omit<NonNullable<BetterAuthOptions['session']>, 'modelName' | 'fields'>
 }
 
@@ -17,6 +18,7 @@ export function createAuth(options: AuthOptions) {
     ...options,
     database: getPool(),
     user: {
+      ...options.user,
       modelName: users.name,
       fields: {
         emailVerified: users.columns.emailVerified.name,
@@ -74,20 +76,6 @@ export async function createVerifiedUser({
   )
   if (!row) throw new Error('user insert returned no row')
   return row
-}
-
-export async function createCredentialAccount({
-  userId,
-  accountId,
-  password,
-}: {
-  userId: string
-  accountId: string
-  password: string
-}): Promise<void> {
-  await db.affected(
-    sql`${insert(accounts, { userId, accountId, providerId: 'credential', password })}`
-  )
 }
 
 export async function deleteAllAuthSessions(): Promise<void> {

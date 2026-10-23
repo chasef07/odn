@@ -183,7 +183,7 @@ describe('approveSubmission - Approval Automation', () => {
     vi.clearAllMocks()
 
     mockGetSession.mockResolvedValue({
-      user: { id: mockDoctorId },
+      user: { id: mockDoctorId, email: 'doctor@example.test', emailVerified: true },
     })
     mockParseIssueDateInput.mockImplementation((evaluationDate?: string) => {
       if (!evaluationDate) return mockDefaultIssueDate
@@ -592,7 +592,7 @@ describe('removeGuardianFromAdultSubmission', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({
-      user: { id: mockDoctorId },
+      user: { id: mockDoctorId, email: 'doctor@example.test', emailVerified: true },
     })
   })
 
@@ -679,7 +679,7 @@ describe('reApproveSubmission - Re-approve already approved submission', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({
-      user: { id: mockDoctorId },
+      user: { id: mockDoctorId, email: 'doctor@example.test', emailVerified: true },
     })
     mockParseIssueDateInput.mockImplementation((evaluationDate?: string) => {
       if (!evaluationDate) return mockDefaultIssueDate

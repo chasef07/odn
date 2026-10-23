@@ -131,7 +131,9 @@ const { permits, refuses, transitionsSucceed, expectTransition, expectNoTransiti
 describe('getDashboardStats', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetSession.mockResolvedValue({ user: { id: 'doctor_123' } })
+    mockGetSession.mockResolvedValue({
+      user: { id: 'doctor_123', email: 'doctor@example.test', emailVerified: true },
+    })
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
@@ -178,7 +180,7 @@ describe('searchSubmissions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({
-      user: { id: 'doctor_123' },
+      user: { id: 'doctor_123', email: 'doctor@example.test', emailVerified: true },
     })
     mockSearchSubmissionsPage.mockResolvedValue({
       submissions: [
@@ -231,7 +233,7 @@ describe('updateSubmission', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({
-      user: { id: 'doctor_123' },
+      user: { id: 'doctor_123', email: 'doctor@example.test', emailVerified: true },
     })
     mockUpdateSubmissionDetails.mockResolvedValue(undefined)
   })
@@ -308,7 +310,7 @@ describe('updateReviewClassification', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({
-      user: { id: 'doctor_123' },
+      user: { id: 'doctor_123', email: 'doctor@example.test', emailVerified: true },
     })
   })
 
@@ -375,7 +377,7 @@ describe('denySubmission - Denial Automation', () => {
     vi.clearAllMocks()
 
     mockGetSession.mockResolvedValue({
-      user: { id: mockDoctorId },
+      user: { id: mockDoctorId, email: 'doctor@example.test', emailVerified: true },
     })
     transitionsSucceed()
   })
@@ -932,7 +934,7 @@ describe('changeSubmissionStatus - Denial SMS', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({
-      user: { id: mockDoctorId },
+      user: { id: mockDoctorId, email: 'doctor@example.test', emailVerified: true },
     })
     mockSendDenialEmail.mockResolvedValue({ success: true })
     mockSendTransactionalSmsForSubmission.mockResolvedValue(undefined)
@@ -1003,7 +1005,9 @@ describe('changeSubmissionStatus - Denial SMS', () => {
 describe('changeSubmissionStatus - target status', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetSession.mockResolvedValue({ user: { id: 'doctor_123' } })
+    mockGetSession.mockResolvedValue({
+      user: { id: 'doctor_123', email: 'doctor@example.test', emailVerified: true },
+    })
   })
 
   it.each(['APPROVED', 'SHIPPED'])('refuses %s before reading the row', async (target) => {
@@ -1035,7 +1039,7 @@ describe('maybeSubmission - Maybe Review Workflow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({
-      user: { id: mockDoctorId },
+      user: { id: mockDoctorId, email: 'doctor@example.test', emailVerified: true },
     })
     transitionsSucceed()
     mockSendMaybeEmail.mockResolvedValue({ id: 'email_123' })
@@ -1286,7 +1290,9 @@ describe('revalidation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetSession.mockResolvedValue({ user: { id: 'doctor_123' } })
+    mockGetSession.mockResolvedValue({
+      user: { id: 'doctor_123', email: 'doctor@example.test', emailVerified: true },
+    })
     transitionsSucceed()
     mockRefundsCreate.mockResolvedValue({ id: 're_test_123', amount: 2495 })
     mockSendDenialEmail.mockResolvedValue({ success: true })

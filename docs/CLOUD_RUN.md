@@ -31,14 +31,14 @@ command from the workflow.
 
 ## Staging
 
-| What       | Value                                                                                                                                                                                                        |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| URL        | https://odn-staging-1006405058436.us-east4.run.app                                                                                                                                                           |
-| Service    | `odn-staging`, public via `--no-invoker-iam-check` (the org policy rejects `allUsers`)                                                                                                                       |
-| Runtime SA | `odn-staging@` — `roles/cloudsql.client`, `secretAccessor` on its `odn-staging-*` secrets                                                                                                                    |
-| Database   | `onlinedoctornote_staging`, owned by login `odn_staging` (no `CREATEDB`/`CREATEROLE`, `CONNECT` revoked from `PUBLIC`)                                                                                       |
-| Secrets    | `odn-staging-{database-url,db-password,stripe-secret-key,stripe-publishable-key,stripe-webhook-secret,better-auth-secret,cron-secret,resend-api-key,resend-webhook-secret,telnyx-api-key,telnyx-public-key}` |
-| Crons      | Cloud Scheduler `odn-staging-cleanup-temp-submissions`, `odn-staging-send-note-follow-ups`                                                                                                                   |
+| What       | Value                                                                                                                                                                                                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| URL        | https://odn-staging-1006405058436.us-east4.run.app                                                                                                                                                                                                              |
+| Service    | `odn-staging`, public via `--no-invoker-iam-check` (the org policy rejects `allUsers`)                                                                                                                                                                          |
+| Runtime SA | `odn-staging@` — `roles/cloudsql.client`, `secretAccessor` on its `odn-staging-*` secrets                                                                                                                                                                       |
+| Database   | `onlinedoctornote_staging`, owned by login `odn_staging` (no `CREATEDB`/`CREATEROLE`, `CONNECT` revoked from `PUBLIC`)                                                                                                                                          |
+| Secrets    | `odn-staging-{database-url,db-password,stripe-secret-key,stripe-publishable-key,stripe-webhook-secret,better-auth-secret,cron-secret,resend-api-key,resend-webhook-secret,telnyx-api-key,telnyx-public-key,google-client-id,google-client-secret,admin-emails}` |
+| Crons      | Cloud Scheduler `odn-staging-cleanup-temp-submissions`, `odn-staging-send-note-follow-ups`                                                                                                                                                                      |
 
 Staging never uses live credentials:
 
@@ -50,6 +50,10 @@ Staging never uses live credentials:
   to a staging sending domain if staging email is needed.
 - Telnyx: `TELNYX_SMS_ENABLED=false` (outbound SMS is skipped) and
   `TELNYX_WEBHOOK_ENABLED=false`. The Telnyx secrets are placeholders.
+- Admin sign-in is Google only. The staging Google OAuth client lists
+  `https://odn-staging-1006405058436.us-east4.run.app/api/auth/callback/google`
+  as a redirect URI, and `odn-staging-admin-emails` holds the comma-separated
+  doctor emails allowed in.
 - PDFs are signed as `Dr. Staging Test, MD (staging)`.
 - Intake validation runs in log-only mode (`INTAKE_VALIDATION_ENFORCED=false`, the
   `_INTAKE_VALIDATION_ENFORCED` substitution). Rule failures at checkout are logged as
@@ -146,7 +150,11 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    with `vercel env pull --environment=production`, never print them, and
    delete the file afterwards. Reuse the live `BETTER_AUTH_SECRET` (keeps admin
    sessions valid), `CRON_SECRET`, Stripe, Resend and Telnyx values unchanged
-   so webhook signatures keep verifying. `odn-production-database-url` is
+   so webhook signatures keep verifying. The Vercel app has no Google sign-in,
+   so `odn-production-google-client-id`, `odn-production-google-client-secret`
+   and `odn-production-admin-emails` are new: the Google OAuth client must list
+   `https://onlinedoctornote.com/api/auth/callback/google` as a redirect URI.
+   `odn-production-database-url` is
    `postgresql://odn_app:<password>@localhost/onlinedoctornote?host=/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db`.
    The pool size is fixed in code (`src/db/pool.ts`: 5 connections per instance,
    10 s to get one), so the URL carries no `connection_limit`.
