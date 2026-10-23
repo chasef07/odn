@@ -50,10 +50,14 @@ Staging never uses live credentials:
   to a staging sending domain if staging email is needed.
 - Telnyx: `TELNYX_SMS_ENABLED=false` (outbound SMS is skipped) and
   `TELNYX_WEBHOOK_ENABLED=false`. The Telnyx secrets are placeholders.
-- Admin sign-in is Google only. The staging Google OAuth client lists
-  `https://odn-staging-1006405058436.us-east4.run.app/api/auth/callback/google`
-  as a redirect URI, and `odn-staging-admin-emails` holds the comma-separated
-  doctor emails allowed in.
+- Admin sign-in is Google only. The OAuth client `ODN admin sign-in` and its
+  External consent screen, `Online Doctor's Note`, live in their own project,
+  `odn-sign-in`, so they leave the Acuity Health consent screen in
+  `acuity-health-prod` alone. The client lists the staging, production and
+  `localhost:3000` callbacks (`<origin>/api/auth/callback/google`) as redirect
+  URIs. `odn-staging-google-client-id` and `odn-staging-google-client-secret`
+  hold its credentials, and `odn-staging-admin-emails` holds the
+  comma-separated doctor emails allowed in.
 - PDFs are signed as `Dr. Staging Test, MD (staging)`.
 - Intake validation runs in log-only mode (`INTAKE_VALIDATION_ENFORCED=false`, the
   `_INTAKE_VALIDATION_ENFORCED` substitution). Rule failures at checkout are logged as
@@ -152,7 +156,8 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    sessions valid), `CRON_SECRET`, Stripe, Resend and Telnyx values unchanged
    so webhook signatures keep verifying. The Vercel app has no Google sign-in,
    so `odn-production-google-client-id`, `odn-production-google-client-secret`
-   and `odn-production-admin-emails` are new: the Google OAuth client must list
+   and `odn-production-admin-emails` are new. Copy the client ID and secret of
+   the `ODN admin sign-in` client in project `odn-sign-in`, which already lists
    `https://onlinedoctornote.com/api/auth/callback/google` as a redirect URI.
    `odn-production-database-url` is
    `postgresql://odn_app:<password>@localhost/onlinedoctornote?host=/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db`.
