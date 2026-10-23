@@ -12,6 +12,7 @@ import {
   translate,
   translateReactTree,
 } from '@/lib/i18n'
+import { spanishTranslations } from '@/locales/es'
 
 describe('Spanish localization primitives', () => {
   it('routes English and Spanish without changing the default route', () => {
@@ -104,5 +105,17 @@ describe('Spanish localization primitives', () => {
     expect(entries).toHaveLength(12)
     expect(englishFaq?.alternates?.languages?.['es-US']).toContain('/es/faq')
     expect(spanishFaq?.alternates?.languages?.['en-US']).toContain('/faq')
+  })
+
+  it('keeps the title separator and the brand names in every Spanish string', () => {
+    const broken = Object.entries(spanishTranslations).filter(
+      ([english, spanish]) =>
+        (english.includes(' | ') && !spanish.includes(' | ')) ||
+        ['OnlineDoctorNote', 'Platinum Health Clinic'].some(
+          (brand) => english.includes(brand) && !spanish.includes(brand)
+        )
+    )
+
+    expect(broken).toEqual([])
   })
 })
