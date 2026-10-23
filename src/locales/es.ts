@@ -91,7 +91,7 @@ export const spanishTranslations: Record<string, string> = {
   'Abdominal pain': 'Dolor abdominal',
   About: 'Quiénes somos',
   'About Us': 'Quiénes somos',
-  'About Us | OnlineDoctorNote': 'Sobre nosotros ← OnlineDoctorNote',
+  'About Us | OnlineDoctorNote': 'Sobre nosotros | OnlineDoctorNote',
   'Absence Dates': 'Fechas de ausencia',
   'Absence Reason': 'Motivo de la ausencia',
   'Accepted across 46 states': 'Aceptada en 46 estados',
@@ -224,11 +224,11 @@ export const spanishTranslations: Record<string, string> = {
   "Doctor's Note - Online Medical Documentation": 'Nota médica - Documentación médica en línea',
   "Doctor's Note Verification": 'Verificación de nota médica',
   "Doctor's Note Verification | Platinum Health Clinic":
-    'Verificación de notas del médico ← Clínica de salud platino',
+    'Verificación de notas del médico | Platinum Health Clinic',
   DoctorNote: 'Doctor Note',
   'DOCUMENT VERIFICATION': 'VERIFICACIÓN DEL DOCUMENTO',
   'Document Verification | Platinum Health Clinic':
-    'Verificación de documentos Ø Platinum Health Clinic',
+    'Verificación de documentos | Platinum Health Clinic',
   'download or print a copy of any portion of the Content to which you have properly gained access':
     'descargar o imprimir una copia de cualquier parte del Contenido al que haya obtenido acceso correctamente',
   'During business hours (8am-12am EST), most notes are delivered within 30 minutes to 2 hours. During off-hours, it may take slightly longer, but we always aim to be as quick as possible.':
@@ -495,13 +495,13 @@ export const spanishTranslations: Record<string, string> = {
   Online: 'Online',
   'Online Medical Documentation': 'Documentación médica en línea',
   "OnlineDoctorNote - Get Your Doctor's Note Online":
-    'OnlineDoctorNota - Obtenga la nota de su médico en línea',
+    'OnlineDoctorNote - Obtenga la nota de su médico en línea',
   'OnlineDoctorNote privacy policy. Learn how we protect your personal health information and comply with HIPAA regulations.':
-    'OnlineDoctorNota política de privacidad. Aprenda cómo protegemos su información de salud personal y cumplimos con las regulaciones HIPAA.',
+    'Política de privacidad de OnlineDoctorNote. Aprenda cómo protegemos su información de salud personal y cumplimos con las regulaciones HIPAA.',
   'OnlineDoctorNote team providing telehealth services':
     'Equipo OnlineDoctorNote que proporciona servicios de telesalud',
   'OnlineDoctorNote terms of service. Read our terms and conditions for using our online medical documentation service.':
-    'OnlineDoctorNota términos de servicio. Lea nuestros términos y condiciones para utilizar nuestro servicio de documentación médica en línea.',
+    'Términos de servicio de OnlineDoctorNote. Lea nuestros términos y condiciones para utilizar nuestro servicio de documentación médica en línea.',
   'OnlineDoctorNote.com': 'OnlineDoctorNote.com',
   'OnlineDoctorNote.com ·': 'OnlineDoctorNote.com ·',
   'Open menu': 'Abrir menú',
@@ -796,7 +796,7 @@ export const spanishTranslations: Record<string, string> = {
   'Valid Nationwide': 'Válida en todo el país',
   Verify: 'Verificar',
   'Verify a Platinum Health Clinic medical note by Medical Record #.':
-    'Verifique una nota médica de la Clínica de Salud Platinum por Registro Médico #.',
+    'Verifique una nota médica de Platinum Health Clinic por Registro Médico #.',
   'Verify document': 'Verificar documento',
   'Verifying your payment...': 'Verificando su pago...',
   'Verifying...': 'Verificando...',
