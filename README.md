@@ -7,7 +7,7 @@ Staging runs this repo on Cloud Run. Production still runs the old `Data-Buddies
 ## Who uses it
 
 - **Patients** fill in the intake in English, or in Spanish under `/es`, pay on `/payment`, and get updates by email and, if they opt in, by SMS.
-- **Doctors** sign in at `/admin/login` and work the queues under `/admin`. They approve, deny, or set aside each request, and answer SMS support tickets. Every signed-in user has the same rights, because `requireAdminSession` in `src/lib/admin-session.ts` checks only for a session. Public sign-up is off, so a doctor account exists only if someone creates it.
+- **Doctors** sign in with Google at `/admin/login` and work the queues under `/admin`. They approve, deny, or set aside each request, and answer SMS support tickets. Only a Google account whose verified email is on `ADMIN_EMAILS` gets in: better-auth's `user.validateUserInfo` in `src/lib/auth.ts` refuses any other account before it creates a user or a session, and `findAdminSession` in `src/lib/admin-session.ts` checks the list again on every admin page, route and action. Every admin has the same rights. There is no email and password sign-in.
 - **Employers and schools** check a note on `/verify` by its QR code or its medical record number. `src/proxy.ts` picks the host from two hardcoded sets in `src/lib/verification-url.ts`. On `phealthclinic.com` it serves only the `/verify` pages. On `onlinedoctornote.com` it redirects `/verify` to `VERIFICATION_BASE_URL`. That variable is only the redirect destination and the base URL of the verification links in notes.
 
 The app depends on these outside services and libraries.
@@ -17,7 +17,7 @@ The app depends on these outside services and libraries.
 | Stripe                | Takes the payment through a payment intent. Its `payment_intent.succeeded` webhook creates the submission. A denial refunds the payment, except a queue denial of a `MANUAL` submission.                                                            | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe-prod3`                     |
 | Resend                | Sends the payment confirmation, approval, denial, maybe, and follow-up emails. The approval email has the PDF attached. Its `email.bounced` webhook alerts the team and texts an opted-in patient.                                                  | `src/lib/email.ts`, `src/emails`, `src/app/api/webhooks/resend`              |
 | Telnyx                | Sends transactional SMS when `TELNYX_SMS_ENABLED=true`. Its webhook records delivery status and opt-outs, and turns inbound texts into support tickets.                                                                                             | `src/lib/telnyx.ts`, `src/lib/sms-support.ts`, `src/app/api/webhooks/telnyx` |
-| better-auth           | Runs doctor login and sessions on the app's own Postgres tables, with bcrypt password hashes.                                                                                                                                                       | `src/lib/auth.ts`, `src/db/auth.ts`, `src/app/api/auth/[...all]`             |
+| better-auth           | Runs doctor sign-in with Google and the sessions on the app's own Postgres tables. Only a verified Google email on `ADMIN_EMAILS` may sign in.                                                                                                      | `src/lib/auth.ts`, `src/db/auth.ts`, `src/app/api/auth/[...all]`             |
 | `@react-pdf/renderer` | Renders the note PDF inside the app process. `qrcode` draws the QR code. Both are libraries, not remote services.                                                                                                                                   | `src/lib/pdf/generate-pdf.tsx`, `src/lib/qr-code.ts`                         |
 | Cron scheduler        | Calls the two cron routes every hour with `Authorization: Bearer $CRON_SECRET`. One deletes expired drafts and one sends follow-up emails. On staging the caller is Cloud Scheduler. Production uses the old repo's Vercel crons until the cutover. | `src/app/api/cron`, `docs/CLOUD_RUN.md`                                      |
 
@@ -211,11 +211,7 @@ You need Node 26 and a Postgres database you can reach.
    npm run db:migrate
    ```
 
-4. Create a doctor account. The script reads `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_NAME`, and `ADMIN_PASSWORD` from the shell, not from `.env.local`.
-
-   ```bash
-   npx tsx scripts/create-doctor-user.ts
-   ```
+4. To sign in to `/admin`, create a Google OAuth web client with the redirect URI `http://localhost:3000/api/auth/callback/google`, put its ID and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and put your Google email in `ADMIN_EMAILS`. The first Google sign-in creates the user.
 
 5. Start the dev server on port 3000.
 
@@ -239,7 +235,7 @@ To run part of the tests, use `npm run test:unit` for the tests that need no dat
 | Stripe         | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`. The offer prices `STRIPE_FRIENDS_FAMILY_PRICE_ID` and `STRIPE_DOCTOR_10_PRICE_ID` are optional.                                                        |
 | Resend         | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_FROM_EMAIL`                                                                                                                                                          |
 | Telnyx         | `TELNYX_SMS_ENABLED`. When it is `true`, also `TELNYX_API_KEY` and `TELNYX_FROM_NUMBER`. The webhook is on by default and rejects every event without `TELNYX_PUBLIC_KEY`. `TELNYX_WEBHOOK_ENABLED=false` turns it off. |
-| Auth and crons | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the app's own origin), `CRON_SECRET`                                                                                                                                           |
+| Auth and crons | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the app's own origin), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAILS` (comma-separated doctor emails), `CRON_SECRET`                                               |
 | Note content   | `DOCTOR_NAME`, `DOCTOR_CREDENTIALS`, `DOCTOR_SIGNATURE_URL`, `DOCTOR_NPI` (has a built-in default), `VERIFICATION_BASE_URL` (the host in QR codes and verification links)                                               |
 | Intake         | `INTAKE_VALIDATION_ENFORCED`, `false` when unset                                                                                                                                                                        |
 | Public         | `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. These two are the only ones `next build` needs.                                                                                                           |

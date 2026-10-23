@@ -56,6 +56,22 @@ describe('server env', () => {
     )
   })
 
+  it('reads ADMIN_EMAILS as a trimmed, lower-case list of emails', () => {
+    vi.stubEnv('ADMIN_EMAILS', ' Doctor@Example.test, second@example.test ,')
+
+    expect(env.ADMIN_EMAILS).toEqual(['doctor@example.test', 'second@example.test'])
+  })
+
+  it('rejects an ADMIN_EMAILS that names no email or a malformed one', () => {
+    vi.stubEnv('ADMIN_EMAILS', ' , ')
+    expect(() => env.ADMIN_EMAILS).toThrow(
+      'Environment variable ADMIN_EMAILS is invalid: must name at least one email'
+    )
+
+    vi.stubEnv('ADMIN_EMAILS', 'doctor@example.test,not-an-email')
+    expect(() => env.ADMIN_EMAILS).toThrow('Environment variable ADMIN_EMAILS is invalid')
+  })
+
   it('turns SMS off only when TELNYX_SMS_ENABLED is false', () => {
     vi.stubEnv('TELNYX_SMS_ENABLED', 'false')
     expect(telnyxSmsSender()).toBeNull()

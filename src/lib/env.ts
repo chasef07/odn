@@ -13,6 +13,16 @@ const origin = z
 
 const switchFlag = z.enum(['true', 'false']).transform((value) => value === 'true')
 
+const emailList = z
+  .string()
+  .transform((value) =>
+    value
+      .split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)
+  )
+  .pipe(z.array(z.email()).min(1, 'must name at least one email'))
+
 const schema = {
   DATABASE_URL: nonEmpty,
   ANALYTICS_DATABASE_URL: nonEmpty.optional(),
@@ -24,6 +34,9 @@ const schema = {
   CRON_SECRET: nonEmpty,
   BETTER_AUTH_SECRET: nonEmpty,
   BETTER_AUTH_URL: z.url(),
+  GOOGLE_CLIENT_ID: nonEmpty,
+  GOOGLE_CLIENT_SECRET: nonEmpty,
+  ADMIN_EMAILS: emailList,
   RESEND_API_KEY: nonEmpty,
   RESEND_WEBHOOK_SECRET: nonEmpty,
   RESEND_FROM_EMAIL: nonEmpty,

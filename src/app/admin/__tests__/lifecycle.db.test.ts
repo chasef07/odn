@@ -121,9 +121,11 @@ beforeEach(async () => {
   afterWrite.throwOnce = null
   stripeRefunds.length = 0
   mockRefundsList.mockImplementation(listRefunds)
-  const admin = await createVerifiedUser({ email: 'doc@example.com', name: 'Doc' })
+  const admin = await createVerifiedUser({ email: 'doctor@example.test', name: 'Doc' })
   adminId = admin.id
-  mockGetSession.mockResolvedValue({ user: { id: adminId, email: 'doc@example.com' } })
+  mockGetSession.mockResolvedValue({
+    user: { id: adminId, email: 'doctor@example.test', emailVerified: true },
+  })
 })
 
 async function seedPending(): Promise<Submission> {

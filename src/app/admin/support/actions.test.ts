@@ -83,7 +83,7 @@ describe('createSupportTicketFromSubmission', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({
-      user: { id: 'admin_123' },
+      user: { id: 'admin_123', email: 'doctor@example.test', emailVerified: true },
     })
     mockFindSubmissionForSupportTicket.mockResolvedValue({
       id: 'sub_123',

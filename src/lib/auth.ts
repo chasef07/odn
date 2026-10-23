@@ -1,23 +1,25 @@
-import bcrypt from 'bcryptjs'
+import { isAllowlistedAdmin } from '@/lib/admin-allowlist'
 import { env } from '@/lib/env'
 import { createAuth } from '@/db/auth'
 
 function configureAuth() {
   return createAuth({
-    emailAndPassword: {
-      enabled: true,
-      disableSignUp: true,
-      requireEmailVerification: false,
-      minPasswordLength: 8,
-      maxPasswordLength: 128,
-      password: {
-        hash: async (password: string) => {
-          return bcrypt.hash(password, 10)
-        },
-        verify: async ({ password, hash }: { password: string; hash: string }) => {
-          return bcrypt.compare(password, hash)
-        },
+    socialProviders: {
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+        prompt: 'select_account',
       },
+    },
+
+    user: {
+      validateUserInfo: ({ user }) =>
+        isAllowlistedAdmin(user)
+          ? undefined
+          : {
+              error: 'not_an_admin',
+              errorDescription: 'This Google account is not allowed to use the admin portal',
+            },
     },
 
     session: {

@@ -92,7 +92,9 @@ async function chunks(response: Response): Promise<{ type: string; [key: string]
 }
 
 beforeEach(() => {
-  mockGetSession.mockResolvedValue({ user: { id: 'doc_1', email: 'doc@example.com' } })
+  mockGetSession.mockResolvedValue({
+    user: { id: 'doc_1', email: 'doctor@example.test', emailVerified: true },
+  })
   mockIsAnalyticsConfigured.mockReturnValue(true)
   vi.stubEnv('TELNYX_INFERENCE_API_KEY', 'test-inference-key')
   vi.spyOn(console, 'info').mockImplementation(() => {})
@@ -172,7 +174,7 @@ describe('POST /api/admin/agent', () => {
       expect.objectContaining({ type: 'text-delta', delta: 'September beat August.' })
     )
     expect(console.info).toHaveBeenCalledWith('admin agent query', {
-      adminEmail: 'doc@example.com',
+      adminEmail: 'doctor@example.test',
       sql: MONTHLY_SQL,
       rowCount: 2,
     })
@@ -233,7 +235,7 @@ describe('POST /api/admin/agent', () => {
       })
     )
     expect(console.info).toHaveBeenCalledWith('admin agent query', {
-      adminEmail: 'doc@example.com',
+      adminEmail: 'doctor@example.test',
       sql: 'select nope from submissions',
       error: 'column "nope" does not exist',
     })
