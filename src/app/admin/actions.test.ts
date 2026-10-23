@@ -251,6 +251,44 @@ describe('updateSubmission', () => {
     expect(mockUpdateSubmissionDetails).not.toHaveBeenCalled()
   })
 
+  it('refuses a last day off before the first day off without writing', async () => {
+    const result = await updateSubmission('sub_123', {
+      firstDayOff: new Date('2026-10-23T00:00:00.000Z'),
+      lastDayOff: new Date('2026-10-19T00:00:00.000Z'),
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Last day off must be on or after first day off',
+    })
+    expect(mockUpdateSubmissionDetails).not.toHaveBeenCalled()
+  })
+
+  it('refuses one absence date without the other, since the pair cannot be checked', async () => {
+    const result = await updateSubmission('sub_123', {
+      lastDayOff: new Date('2026-10-19T00:00:00.000Z'),
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Send the first and last day off together',
+    })
+    expect(mockUpdateSubmissionDetails).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a single day', '2026-10-23', '2026-10-23'],
+    ['more than 7 days, which admins may approve', '2026-10-20', '2026-10-30'],
+  ])('saves %s', async (_label, first, last) => {
+    const result = await updateSubmission('sub_123', {
+      firstDayOff: new Date(`${first}T00:00:00.000Z`),
+      lastDayOff: new Date(`${last}T00:00:00.000Z`),
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockUpdateSubmissionDetails).toHaveBeenCalledTimes(1)
+  })
+
   it('clears SMS consent when admins change the consented phone number', async () => {
     mockFindSubmissionSmsContact.mockResolvedValue({
       phone: '(555) 123-4567',

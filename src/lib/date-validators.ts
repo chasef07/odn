@@ -4,6 +4,8 @@ import { DATE_LIMITS } from './validation-constants'
 
 const US_ZONE_GRACE_DAYS = 1
 
+export const ABSENCE_REVERSED_MESSAGE = 'Last day off must be on or after first day off'
+
 export interface DatesFormData {
   firstDayOff: string
   lastDayOff: string
@@ -43,7 +45,7 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
   if (lastDayOff < firstDayOff) {
     errors.push({
       field: 'lastDayOff',
-      message: 'Last day off must be on or after first day off',
+      message: ABSENCE_REVERSED_MESSAGE,
       rule: 'absence_reversed',
     })
   }
