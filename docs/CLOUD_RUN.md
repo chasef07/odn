@@ -154,12 +154,7 @@ the same time; cutover is only a DNS change and rollback is a DNS change back.
    with `vercel env pull --environment=production`, never print them, and
    delete the file afterwards. Reuse the live `BETTER_AUTH_SECRET` (keeps admin
    sessions valid), `CRON_SECRET`, Stripe, Resend and Telnyx values unchanged
-   so webhook signatures keep verifying. The Vercel app has no Google sign-in,
-   so `odn-production-google-client-id`, `odn-production-google-client-secret`
-   and `odn-production-admin-emails` are new. Copy the client ID and secret of
-   the `ODN admin sign-in` client in project `odn-sign-in`, which already lists
-   `https://onlinedoctornote.com/api/auth/callback/google` as a redirect URI.
-   `odn-production-database-url` is
+   so webhook signatures keep verifying. `odn-production-database-url` is
    `postgresql://odn_app:<password>@localhost/onlinedoctornote?host=/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db`.
    The pool size is fixed in code (`src/db/pool.ts`: 5 connections per instance,
    10 s to get one), so the URL carries no `connection_limit`.
