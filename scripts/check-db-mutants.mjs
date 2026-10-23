@@ -205,7 +205,7 @@ function splitTop(masked, depth, [start, end], operator) {
   pattern.lastIndex = start
   const parts = []
   let from = start
-  for (let match; (match = pattern.exec(masked)) && match.index < end; ) {
+  for (let match; (match = pattern.exec(masked)) && match.index < end;) {
     if (depth[match.index] !== depth[start]) continue
     parts.push([from, match.index])
     from = match.index + match[0].length

@@ -328,8 +328,7 @@ export type JobRefusal =
   | { readonly reason: 'stale' }
 
 export type Outcome<V, R> =
-  | { readonly ok: true; readonly value: V }
-  | { readonly ok: false; readonly refusal: R }
+  { readonly ok: true; readonly value: V } | { readonly ok: false; readonly refusal: R }
 
 function refuse<R>(refusal: R): { ok: false; refusal: R } {
   return { ok: false, refusal }

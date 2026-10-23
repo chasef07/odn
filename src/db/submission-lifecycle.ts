@@ -288,8 +288,7 @@ export type Refusal =
   | { readonly reason: 'stale' }
 
 export type Outcome<V> =
-  | { readonly ok: true; readonly value: V }
-  | { readonly ok: false; readonly refusal: Refusal }
+  { readonly ok: true; readonly value: V } | { readonly ok: false; readonly refusal: Refusal }
 
 type Step<K extends Transition> = { readonly transition: K; readonly row: Submission }
 

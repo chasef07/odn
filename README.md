@@ -191,7 +191,7 @@ This is one paid request, from the first form to the PDF in the patient's inbox.
 
 ## Develop locally
 
-You need Node 22 and a Postgres database you can reach.
+You need Node 26 and a Postgres database you can reach.
 
 1. Install the dependencies.
 

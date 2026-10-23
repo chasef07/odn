@@ -22,7 +22,7 @@ const READY_FOR_QUERY = 'Z'.charCodeAt(0)
 function withoutReadyForQuery(response: Uint8Array): Uint8Array {
   const view = new DataView(response.buffer, response.byteOffset, response.byteLength)
   const kept: Uint8Array[] = []
-  for (let at = 0; at < response.length; ) {
+  for (let at = 0; at < response.length;) {
     const end = at + 1 + view.getInt32(at + 1)
     if (response[at] !== READY_FOR_QUERY) kept.push(response.subarray(at, end))
     at = end

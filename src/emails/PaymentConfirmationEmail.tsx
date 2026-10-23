@@ -70,7 +70,7 @@ export const PaymentConfirmationEmail = ({
                   What happens next?
                 </Heading>
 
-                <div className="space-y-4">
+                <div>
                   <Row className="items-start">
                     <Column className="w-8">
                       <Text className="m-0 text-xl font-bold" style={{ color: '#009ed9' }}>
@@ -84,7 +84,7 @@ export const PaymentConfirmationEmail = ({
                     </Column>
                   </Row>
 
-                  <Row className="items-start">
+                  <Row className="mt-4 items-start">
                     <Column className="w-8">
                       <Text className="m-0 text-xl font-bold" style={{ color: '#009ed9' }}>
                         2
@@ -97,7 +97,7 @@ export const PaymentConfirmationEmail = ({
                     </Column>
                   </Row>
 
-                  <Row className="items-start">
+                  <Row className="mt-4 items-start">
                     <Column className="w-8">
                       <Text className="m-0 text-xl font-bold" style={{ color: '#009ed9' }}>
                         3
