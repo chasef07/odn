@@ -3,8 +3,7 @@
 Online Doctor Note runs on Cloud Run in GCP project `acuity-health-prod`
 (region `us-east4`) and talks to Cloud SQL instance
 `acuity-health-prod:us-east4:onlinedoctornote-db` over the Cloud SQL unix
-socket. Production is still served by Vercel from the old
-`Data-Buddies-Solutions/onlinedoctornote` repo until the cutover below.
+socket. Production moved here from Vercel on 2026-10-26; see Production below.
 
 ## How a deploy works
 
@@ -17,17 +16,43 @@ socket. Production is still served by Vercel from the old
    files in `src/db/migrations/`) from the Dockerfile's `migrate` target, through
    the Cloud SQL Auth Proxy (IAM, no authorized network needed), using the same
    `DATABASE_URL` secret the service uses. The runner refuses a database whose
-   Prisma history was never adopted; see the cutover rule below.
+   Prisma history was never adopted; see Prisma history below.
 3. Deploys Cloud Run service `odn-<env>` as service account `odn-<env>`, with
    `--add-cloudsql-instances`, env vars from substitutions, and secrets from
    Secret Manager `odn-<env>-*`.
 
-Staging deploys on every push to `main` via
-`.github/workflows/deploy-staging.yml` (GitHub OIDC → workload identity
-provider `github-actions/odn-staging`, restricted to this repo, `main`, that
-workflow, and the `staging` environment). The staging values live in that
-workflow. To deploy staging by hand, run the same `gcloud builds submit`
-command from the workflow.
+`.github/workflows/deploy.yml` runs it for both environments, signed in through
+GitHub OIDC and workload identity providers in pool `github-actions`. Each
+provider accepts only this repo, `main`, `deploy.yml`, and its own GitHub
+environment: `odn-staging` takes `staging`, `odn-production` takes
+`production`. The non-secret values of both environments live in that
+workflow.
+
+On every push to `main`:
+
+1. The `staging` job deploys the commit to staging.
+2. Only if that succeeds, release-please (`release-please-config.json`,
+   `.release-please-manifest.json`) opens or updates the release PR. It bumps
+   the version in `package.json` and lists the `feat:` and `fix:` commits since
+   the last release in `CHANGELOG.md`.
+3. When the push is the merge of the release PR, release-please tags it
+   `vX.Y.Z`, creates the GitHub release, and the `production` job deploys that
+   tag. The job refuses a tag that does not point at the commit staging just
+   deployed.
+
+The release PR is opened with the workflow's `GITHUB_TOKEN`, so CI does not run
+on it. It changes only version files and `CHANGELOG.md`, which Prettier
+ignores.
+
+Migrations run before every deploy and only go forward, so a schema change
+must work with the code that is still running, and deploying an older release
+keeps the newer schema.
+
+To deploy a release to production again, run the workflow by hand from `main`
+with its tag. To roll back without a build, send traffic to an earlier revision
+with `gcloud run services update-traffic odn-production --region=us-east4
+--to-revisions=<revision>=100`. While traffic is pinned, new revisions get
+none, so undo it with `--to-latest`.
 
 ## Staging
 
@@ -133,139 +158,88 @@ both secrets. `cloudbuild.yaml` maps them to `ANALYTICS_DATABASE_URL` and
 `TELNYX_INFERENCE_API_KEY`, so a deploy fails until both exist. Without both
 variables the page says the agent is not configured and the API answers 503.
 
-## Production cutover
+## Production
 
-Production today: Vercel project `onlinedoctornote` (team
-`data-buddies-solutions`), DNS hosted on Vercel DNS (`ns1/ns2.vercel-dns.com`)
-for both `onlinedoctornote.com` and `phealthclinic.com`, database already on
-Cloud SQL (`onlinedoctornote`, login `odn_app`) reached over the instance's
-public IP through the `0.0.0.0/0` authorized network.
+| What          | Value                                                                                                                                                                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| URL           | https://onlinedoctornote.com, and https://phealthclinic.com for note verification                                                                                                                                                                                                                      |
+| Service       | `odn-production`, min 1 and max 3 instances, public via `--no-invoker-iam-check`                                                                                                                                                                                                                       |
+| Runtime SA    | `odn-production@` — `roles/cloudsql.client`, `secretAccessor` on its `odn-production-*` secrets                                                                                                                                                                                                        |
+| Database      | `onlinedoctornote`, login `odn_app`; the data agent uses `odn_production_analytics`                                                                                                                                                                                                                    |
+| Secrets       | `odn-production-{database-url,stripe-secret-key,stripe-publishable-key,stripe-webhook-secret,better-auth-secret,cron-secret,resend-api-key,resend-webhook-secret,telnyx-api-key,telnyx-public-key,analytics-database-url,telnyx-inference-api-key,google-client-id,google-client-secret,admin-emails}` |
+| Crons         | Cloud Scheduler `odn-production-cleanup-temp-submissions`, `odn-production-send-note-follow-ups`                                                                                                                                                                                                       |
+| Load balancer | IP `odn-production-ip` (`136.81.47.63`), serverless NEG `odn-production-neg`, URL maps `odn-production-url-map` and `odn-production-http-redirect-map`, certificate `odn-production-cert` in map `odn-production-cert-map`                                                                             |
 
-Because Vercel and Cloud Run share the same database, both can serve traffic at
-the same time; cutover is only a DNS change and rollback is a DNS change back.
+The load balancer sends `www.onlinedoctornote.com` to `onlinedoctornote.com`
+and HTTP to HTTPS with a 308. The certificate renews through the four
+`_acme-challenge_5zbzfbsna5sj32bt` CNAMEs, which must stay in DNS.
 
-### Before cutover day
+The first deploy of a new public service must be run by a person with
+`run.services.setIamPolicy`: `odn-deploy` cannot set `--no-invoker-iam-check`
+on a service that does not exist yet. Later deploys do not change it and pass.
 
-1. **Lower TTLs (at least 48 hours before).** In Vercel DNS, record the current
-   apex and `www` records for both domains (today: A records, TTL 1800), then
-   set their TTL to 60 seconds. Wait for the old TTL to expire.
-2. **Production secrets.** Create `odn-production-*` secrets (same names as
-   staging) from the Vercel production values. Pull them to a private temp file
-   with `vercel env pull --environment=production`, never print them, and
-   delete the file afterwards. Reuse the live `BETTER_AUTH_SECRET` (keeps admin
-   sessions valid), `CRON_SECRET`, Stripe, Resend and Telnyx values unchanged
-   so webhook signatures keep verifying. `odn-production-database-url` is
-   `postgresql://odn_app:<password>@localhost/onlinedoctornote?host=/cloudsql/acuity-health-prod:us-east4:onlinedoctornote-db`.
-   The pool size is fixed in code (`src/db/pool.ts`: 5 connections per instance,
-   10 s to get one), so the URL carries no `connection_limit`.
-   Vercel marks some values Sensitive (not pullable); copy those from their
-   source dashboards (Stripe, Telnyx, Resend).
-3. **Runtime identity.** Create service account `odn-production` with
-   `roles/cloudsql.client` and `secretAccessor` on each `odn-production-*`
-   secret; give `odn-deploy` `iam.serviceAccountUser` on it and
-   `secretAccessor` on `odn-production-database-url` and
-   `odn-production-stripe-publishable-key`.
-4. **Deploy `odn-production`.** Run `cloudbuild.yaml` with `_ENV=production`,
-   `_SITE_URL=https://onlinedoctornote.com`,
-   `_VERIFICATION_BASE_URL=https://phealthclinic.com`, `_RESEND_FROM_EMAIL`,
-   the live price IDs, `_TELNYX_SMS_ENABLED=true`, `_TELNYX_FROM_NUMBER`,
-   `_TELNYX_WEBHOOK_ENABLED=true`, `_MIN_INSTANCES=1`, and the real doctor
-   name/credentials. Its migrate step is a no-op if the
-   schema is current. The deploy sets `--no-invoker-iam-check`, so the
-   service is public.
-   Smoke-test the `run.app` URL (home, `/admin/login`, `/verify/<slug>`).
-5. **Load balancer and certificates.** Create a global external Application
-   Load Balancer with a serverless NEG for `odn-production`, a reserved global
-   IPv4 address, and a Certificate Manager certificate for
-   `onlinedoctornote.com`, `www.onlinedoctornote.com`, `phealthclinic.com`,
-   `www.phealthclinic.com` using **DNS authorization** (add the
-   `_acme-challenge` CNAMEs in Vercel DNS). Wait until the certificate is
-   `ACTIVE` before cutover, so there is no TLS gap. Test with
-   `curl --resolve onlinedoctornote.com:443:<LB IP> https://onlinedoctornote.com/`
-   and the same for `phealthclinic.com/verify`.
-6. **Crons.** Create the production Cloud Scheduler jobs (commands above with
-   `ENV=production`, `URL=https://onlinedoctornote.com`) and immediately
-   `gcloud scheduler jobs pause` them.
+Webhooks use the same URLs as on Vercel: Stripe
+`https://onlinedoctornote.com/api/webhooks/stripe-prod3`, Telnyx
+`https://onlinedoctornote.com/api/webhooks/telnyx`, Resend
+`https://onlinedoctornote.com/api/webhooks/resend`.
 
-### Cutover
+To add an admin, add a version of `odn-production-admin-emails` with the whole
+comma-separated list, then start a new revision so it is read:
 
-1. In Vercel DNS, change the apex and `www` A records of both domains to the
-   load balancer IP (remove the Vercel A records).
-2. Resume the production Cloud Scheduler jobs. Vercel's crons keep running
-   from the old repo during the rollback week; both jobs are safe to run
-   twice (cleanup deletes expired rows; follow-ups claim rows with
-   `followUpEmailClaimedAt` before sending).
-3. Webhooks stay on the same URLs, so nothing changes in the provider
-   dashboards: Stripe `https://onlinedoctornote.com/api/webhooks/stripe-prod3`,
-   Telnyx `https://onlinedoctornote.com/api/webhooks/telnyx`, Resend
-   `https://onlinedoctornote.com/api/webhooks/resend`. During propagation some
-   deliveries still reach Vercel; both stacks write to the same database.
-4. Watch for an hour: Cloud Run request logs and 5xx rate; `/`,
-   `/admin/login`, and a real `/verify/<slug>` on `phealthclinic.com`; and
-   Stripe/Telnyx/Resend webhook delivery status in each dashboard (all 2xx).
-   Confirm requests are reaching Cloud Run (`gcloud run services logs read
-odn-production`) rather than Vercel.
+```bash
+gcloud run services update odn-production --region=us-east4 --update-secrets=ADMIN_EMAILS=odn-production-admin-emails:latest
+```
 
-### Rollback (any time during the following 7 days)
+A doctor whose `users` row has `email_verified` false cannot link Google to
+it; the sign-in ends on `/admin/login` with `error=account_not_linked`.
 
-1. In Vercel DNS, restore the A records recorded in step 1 of "Before
-   cutover day". With a 60 s TTL, traffic returns to Vercel within minutes.
-2. Pause the production Cloud Scheduler jobs.
-3. Nothing else: the Vercel production deployment, its env vars, and its
-   crons are left untouched for the whole week, and it still reaches the same
-   database through the public IP.
+### DNS
 
-### After the rollback week
+Cloud DNS zones `onlinedoctornote-com` (`ns-cloud-e1` to `e4.googledomains.com`)
+and `phealthclinic-com` (`ns-cloud-b1` to `b4.googledomains.com`) hold every
+record, including Google Workspace MX and Resend's DKIM and SPF. The
+registrars, GoDaddy for `onlinedoctornote.com` and Name.com for
+`phealthclinic.com`, still name Vercel DNS until they are switched to those
+nameservers.
 
-1. Retire Vercel production (remove the domains from the Vercel project, then
-   delete or pause the project). Move DNS off Vercel DNS if desired (Cloud DNS),
-   keeping the same records.
-2. **Remove the `0.0.0.0/0` authorized network** from the Cloud SQL instance.
-   This must wait until Vercel is retired, because Vercel connects over the
-   public IP. Before removing it, confirm nothing else depends on it:
-   - `jazzy-eyes` (Vercel, same team) uses database `jazzy_eyes` / login
-     `jazzy_app` on this same instance — confirm how it connects.
-   - `.github/workflows/production-migrations.yml` runs the migration runner
-     from GitHub-hosted runners over the public IP; replace it with the
-     `cloudbuild.yaml` migrate step (Cloud SQL Auth Proxy).
-   - Local tooling must use the Cloud SQL Auth Proxy.
+While Vercel DNS serves a domain, its apex is an `A` record beside Vercel's
+managed apex `ALIAS`, which the `A` overrides, and `www` is an `ALIAS` to the
+apex. Vercel refuses to change a record's type and to add an `A` beside an
+`ALIAS`, and deleting `www` while `_acme-challenge_<x>.www` exists leaves `www`
+with no address. In Cloud DNS both are plain `A` records. Change a record in
+both places until the registrar switch has been live for 48 hours.
+
+### Vercel
+
+Vercel production, from the old `Data-Buddies-Solutions/onlinedoctornote`
+repo, shares the database and is the rollback target until 2026-11-02. To roll
+back while Vercel DNS serves the domains, point each `www` `ALIAS` back to
+`cname.vercel-dns-017.com.`, then delete the apex `A` records. The Vercel team
+is on the Hobby plan, so treat this as a short-term fallback.
+
+Vercel's admin saves a free-text "Other" denial reason, which
+`submissions_denial_reason_check` rejects, so doctors pick a listed reason
+there.
+
+After 2026-11-02, in this order:
+
+1. Switch the registrars to Cloud DNS and wait 48 hours.
+2. Remove the domains from the Vercel project and pause or delete it. Doing
+   this while Vercel DNS still serves a domain can delete its zone.
+3. Remove the `0.0.0.0/0` authorized network from the Cloud SQL instance, once
+   nothing connects over the public IP. Check `jazzy-eyes`, which uses database
+   `jazzy_eyes` on the same instance, and use the Cloud SQL Auth Proxy for
+   local tooling.
 
    ```bash
    gcloud sql instances patch onlinedoctornote-db --clear-authorized-networks
    ```
 
-   Cloud Run and the Auth Proxy connect through the Cloud SQL Admin API with
-   IAM and are unaffected.
+## Prisma history
 
-3. Restore normal TTLs (e.g. 3600 s).
-
-## Cutover from Prisma migrations
-
-Each database (staging, production) moves from `prisma migrate deploy` to the
-runner exactly once, in this order:
-
-1. Run the last `prisma migrate deploy` you intend to run. Nothing may change the
-   schema through Prisma after this point.
-2. Run `npx tsx scripts/adopt-prisma-migrations.ts` against that database (or the
-   `adopt-prisma` action of `production-migrations.yml`). It copies the finished
-   `_prisma_migrations` rows into `schema_migrations`, refuses on any checksum
-   mismatch or unresolved failed attempt, and is a no-op when run again.
-3. Deploy the code that runs the runner. From here on, every schema change is a
-   new numbered file in `src/db/migrations/` applied by `npm run db:migrate`.
-
-No schema change ships through both tools. A deploy that reaches the runner before
-step 2 fails with `adopt_required` and changes nothing. After step 2 the runner
-checks `_prisma_migrations` on every run and refuses with `prisma_drift` if a
-Prisma migration finished that `schema_migrations` does not record.
-
-Staging has no adopt action: before the Prisma-deleting PR merges, run step 2 from
-that branch against `onlinedoctornote_staging` through the Cloud SQL Auth Proxy.
-Otherwise the first `deploy-staging.yml` run fails at the migrate step with
-`adopt_required`, and you rerun it after adopting.
-
-`pg` verifies the server certificate when `DATABASE_URL` says `sslmode=require`
-(Prisma did not). Over the Cloud SQL unix socket there is no TLS and nothing to
-change. For `production-migrations.yml`, which connects over the public IP, the
-`DATABASE_URL` secret needs either the instance's server CA (`sslrootcert`) or
-`sslmode=no-verify`, or the step moves behind the proxy; otherwise the first run
-fails the TLS handshake.
+Both databases moved from `prisma migrate deploy` to the runner once: staging
+before Prisma was deleted from this repo, production on 2026-10-26, each with
+`npx tsx scripts/adopt-prisma-migrations.ts` through the Cloud SQL Auth Proxy.
+The runner checks `_prisma_migrations` on every run and refuses with
+`prisma_drift` if a Prisma migration finished that `schema_migrations` does not
+record, so the old repo must never run `prisma migrate deploy` again.

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "bootstrap-sha": "a154710afaddc235358f384f5de8a0c748b1614c",
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "package-name": "onlinedoctornote",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}

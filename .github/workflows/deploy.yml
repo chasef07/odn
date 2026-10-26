@@ -1,0 +1,135 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to deploy to production again, such as v6.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  staging:
+    name: Cloud Build → odn-staging
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    environment:
+      name: staging
+      url: https://odn-staging-1006405058436.us-east4.run.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/1006405058436/locations/global/workloadIdentityPools/github-actions/providers/odn-staging
+          service_account: odn-deploy@acuity-health-prod.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build, migrate, deploy
+        run: |
+          gcloud builds submit \
+            --project=acuity-health-prod \
+            --region=us-east4 \
+            --config=cloudbuild.yaml \
+            --suppress-logs \
+            --service-account=projects/acuity-health-prod/serviceAccounts/odn-deploy@acuity-health-prod.iam.gserviceaccount.com \
+            --substitutions="^|^_ENV=staging|_GIT_SHA=${GITHUB_SHA}|_SITE_URL=${SITE_URL}|_VERIFICATION_BASE_URL=${SITE_URL}|_RESEND_FROM_EMAIL=hello@updates.onlinedoctornote.com|_DOCTOR_NAME=Dr. Staging Test|_DOCTOR_CREDENTIALS=MD (staging)|_STRIPE_PRICE_ID=price_1UNGDXPOlfpeoqYjaZUgZLh6|_TELNYX_SMS_ENABLED=false" \
+            .
+        env:
+          SITE_URL: https://odn-staging-1006405058436.us-east4.run.app
+
+  release:
+    name: Release PR and tag
+    needs: staging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  production:
+    name: Cloud Build → odn-production
+    needs: [staging, release]
+    if: >-
+      always() &&
+      ((github.event_name == 'push' && needs.staging.result == 'success' && needs.release.outputs.release_created == 'true') ||
+       github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://onlinedoctornote.com
+    steps:
+      - name: Choose the release
+        id: target
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            if [ "$RELEASE_SHA" != "$GITHUB_SHA" ]; then
+              echo "::error::Release $RELEASE_TAG points at $RELEASE_SHA, but staging deployed $GITHUB_SHA. Deploy it by hand with this workflow's tag input once staging has run it."
+              exit 1
+            fi
+            tag="$RELEASE_TAG"
+          else
+            tag="$INPUT_TAG"
+          fi
+          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$tag is not a release tag like v6.1.0"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ steps.target.outputs.tag }}
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/1006405058436/locations/global/workloadIdentityPools/github-actions/providers/odn-production
+          service_account: odn-deploy@acuity-health-prod.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build, migrate, deploy
+        run: |
+          gcloud builds submit \
+            --project=acuity-health-prod \
+            --region=us-east4 \
+            --config=cloudbuild.yaml \
+            --suppress-logs \
+            --service-account=projects/acuity-health-prod/serviceAccounts/odn-deploy@acuity-health-prod.iam.gserviceaccount.com \
+            --substitutions="^|^_ENV=production|_GIT_SHA=$(git rev-parse HEAD)|_SITE_URL=https://onlinedoctornote.com|_VERIFICATION_BASE_URL=https://phealthclinic.com|_RESEND_FROM_EMAIL=hello@updates.onlinedoctornote.com|_DOCTOR_NAME=Dr.Jason Buchwald|_DOCTOR_CREDENTIALS=MD FACEP|_STRIPE_PRICE_ID=price_1T5xI2AUn2OovAav9klLgIFn|_STRIPE_FRIENDS_FAMILY_PRICE_ID=price_1TRDuDAUn2OovAavQUxDEBtE|_STRIPE_DOCTOR_10_PRICE_ID=price_1TixWuAUn2OovAav3HAsgzSS|_TELNYX_SMS_ENABLED=true|_TELNYX_FROM_NUMBER=+18886611941|_TELNYX_WEBHOOK_ENABLED=true|_INTAKE_VALIDATION_ENFORCED=false|_MIN_INSTANCES=1|_MAX_INSTANCES=3" \
+            .
