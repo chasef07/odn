@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const { mockEmailSend, mockRender } = vi.hoisted(() => ({
   mockEmailSend: vi.fn(),
@@ -316,5 +316,84 @@ describe('sendPaymentConfirmationEmail', () => {
         })
       ).rejects.toThrow('Failed to send payment confirmation email: Render failed')
     })
+  })
+})
+
+describe('Resend rate limits', () => {
+  const rateLimited = (retryAfter?: string) => ({
+    data: null,
+    error: {
+      name: 'rate_limit_exceeded',
+      statusCode: 429,
+      message: 'Too many requests. You can only make 10 requests per second.',
+    },
+    headers: retryAfter === undefined ? {} : { 'retry-after': retryAfter },
+  })
+  const sent = { data: { id: 'email_123' }, error: null, headers: {} }
+  const send = () =>
+    sendMaybeEmail({ to: 'patient@example.com', patientName: 'Jane Doe', reason: 'OTHER_REVIEW' })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEmailSend.mockReset()
+    vi.useFakeTimers()
+    mockRender.mockResolvedValue('<html>Maybe email</html>')
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('waits for retry-after, then sends again', async () => {
+    mockEmailSend.mockResolvedValueOnce(rateLimited('2')).mockResolvedValueOnce(sent)
+
+    const result = send()
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(mockEmailSend).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+
+    await expect(result).resolves.toEqual(sent)
+    expect(mockEmailSend).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits one second when retry-after is missing and at most five seconds', async () => {
+    mockEmailSend
+      .mockResolvedValueOnce(rateLimited())
+      .mockResolvedValueOnce(rateLimited('60'))
+      .mockResolvedValueOnce(sent)
+
+    const result = send()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(mockEmailSend).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(mockEmailSend).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+
+    await expect(result).resolves.toEqual(sent)
+    expect(mockEmailSend).toHaveBeenCalledTimes(3)
+  })
+
+  it('fails after four rate-limited attempts', async () => {
+    mockEmailSend.mockResolvedValue(rateLimited('1'))
+
+    const result = send()
+    const failure = expect(result).rejects.toThrow(
+      'Failed to send maybe email: Too many requests. You can only make 10 requests per second.'
+    )
+    await vi.advanceTimersByTimeAsync(10_000)
+
+    await failure
+    expect(mockEmailSend).toHaveBeenCalledTimes(4)
+  })
+
+  it('does not retry other Resend errors', async () => {
+    mockEmailSend.mockResolvedValue({
+      data: null,
+      error: { name: 'validation_error', statusCode: 422, message: 'Invalid to address' },
+      headers: {},
+    })
+
+    await expect(send()).rejects.toThrow('Failed to send maybe email: Invalid to address')
+    expect(mockEmailSend).toHaveBeenCalledTimes(1)
   })
 })

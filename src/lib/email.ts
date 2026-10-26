@@ -39,6 +39,25 @@ function throwIfResendFailed(result: unknown): void {
   }
 }
 
+const RATE_LIMIT_ATTEMPTS = 4
+const DEFAULT_RATE_LIMIT_WAIT_MS = 1000
+const MAX_RATE_LIMIT_WAIT_MS = 5000
+
+function rateLimitWaitMs(result: unknown): number | null {
+  if (typeof result !== 'object' || result === null || !('error' in result)) return null
+
+  const { error, headers } = result as {
+    error?: { name?: string } | null
+    headers?: Record<string, string> | null
+  }
+  if (error?.name !== 'rate_limit_exceeded') return null
+
+  const seconds = Number(headers?.['retry-after'])
+  return Number.isFinite(seconds) && seconds > 0
+    ? Math.min(seconds * 1000, MAX_RATE_LIMIT_WAIT_MS)
+    : DEFAULT_RATE_LIMIT_WAIT_MS
+}
+
 type SendEmailOptions = Parameters<Resend['emails']['send']>[0]
 type SendEmailRequestOptions = Parameters<Resend['emails']['send']>[1]
 
@@ -49,9 +68,16 @@ async function sendEmail(
 ) {
   try {
     const options = await buildOptions()
-    const result = requestOptions
-      ? await resend.emails.send(options, requestOptions)
-      : await resend.emails.send(options)
+    const send = () =>
+      requestOptions ? resend.emails.send(options, requestOptions) : resend.emails.send(options)
+
+    let result = await send()
+    for (let attempt = 1; attempt < RATE_LIMIT_ATTEMPTS; attempt++) {
+      const waitMs = rateLimitWaitMs(result)
+      if (waitMs === null) break
+      await new Promise((resolve) => setTimeout(resolve, waitMs))
+      result = await send()
+    }
     throwIfResendFailed(result)
 
     return result
