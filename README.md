@@ -244,13 +244,13 @@ Generate `CRON_SECRET` with `openssl rand -hex 32` and `BETTER_AUTH_SECRET` with
 
 ## Deploy
 
-Staging runs this repo on Cloud Run. Every push to `main` deploys it through `.github/workflows/deploy-staging.yml` and `cloudbuild.yaml`, which run the migration runner before they deploy the new revision. Cloud Scheduler calls its cron routes.
+Staging and production run this repo on Cloud Run, and Cloud Scheduler calls their cron routes. `.github/workflows/deploy.yml` deploys through `cloudbuild.yaml`, which runs the migration runner before it deploys the new revision.
 
-Production does not run this repo yet. It runs the old `Data-Buddies-Solutions/onlinedoctornote` repo on Vercel, and Vercel's crons call its cron routes. `docs/CLOUD_RUN.md` covers the staging deploy, the crons, production migrations, and the cutover that moves production to Cloud Run.
+Every push to `main` deploys staging. When staging succeeds, release-please opens or updates a release PR with the next version and changelog. Merging that PR tags the release and deploys it to production. `docs/CLOUD_RUN.md` covers both environments, the crons, rollback, and what is left from the move off Vercel.
 
 ## Repository layout
 
-- `.github/workflows` has CI, the staging deploy, and the production migration workflow.
+- `.github/workflows` has CI and the staging and production deploy.
 - `docs` has the Cloud Run runbook and the attribution and purchase tracking notes.
 - `eslint-rules` has the repo's own ESLint rules and their tests.
 - `public` has static images and `llms-full.txt`.
