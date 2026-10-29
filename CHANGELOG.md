@@ -1,5 +1,17 @@
 # Changelog
 
+## [6.2.0](https://github.com/chasef07/odn/compare/v6.1.0...v6.2.0) (2026-10-29)
+
+
+### Features
+
+* **admin:** save data agent threads and reopen them from a sidebar ([#60](https://github.com/chasef07/odn/issues/60)) ([2cf80a6](https://github.com/chasef07/odn/commit/2cf80a6e73bda7f8e7cc31f28547d96e913523e9))
+
+
+### Performance Improvements
+
+* **admin:** keep the agent panel and sidebar in a layout so threads open fast ([#64](https://github.com/chasef07/odn/issues/64)) ([d57de94](https://github.com/chasef07/odn/commit/d57de94fc0cf34f814530e0e1a95106d89cbb12c))
+
 ## [6.1.0](https://github.com/chasef07/odn/compare/v6.0.0...v6.1.0) (2026-10-26)
 
 
