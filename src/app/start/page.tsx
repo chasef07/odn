@@ -4,9 +4,11 @@ import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedR
 import { CheckCircle2, ArrowRight } from 'lucide-react'
 import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
+import { useFunnelStep } from '@/components/useFunnelStep'
 
 export default function LandingPage() {
   const router = useRouter()
+  useFunnelStep('/start')
 
   return (
     <LocalizedPage>

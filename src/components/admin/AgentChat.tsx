@@ -21,6 +21,7 @@ export const STARTER_QUESTIONS = [
   'Notes sold per month this year',
   'Approval rate by state',
   'Refund rate by acquisition channel',
+  'Chart funnel drop-off by step and acquisition channel, last 7 days',
 ] as const
 
 type Part = AgentUIMessage['parts'][number]
@@ -109,8 +110,8 @@ function Chat({ threadId, initialMessages }: ChatProps) {
               <div className="space-y-1">
                 <h3 className="text-sm font-medium">Ask about the business</h3>
                 <p className="text-muted-foreground text-sm">
-                  Questions run as read-only SQL over orders, refunds, acquisition and SMS support.
-                  No patient names or contact details are available.
+                  Questions run as read-only SQL over orders, refunds, acquisition, the order funnel
+                  and SMS support. No patient names or contact details are available.
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2">

@@ -9,6 +9,7 @@ import { FormLayout } from '@/components/form-layout'
 import { getFormData } from '@/lib/form-storage'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { LocalizedPage } from '@/components/i18n/LocalizedPage'
+import { useFunnelStep } from '@/components/useFunnelStep'
 import { publicEnv } from '@/lib/public-env'
 
 const stripePromise = loadStripe(publicEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -122,6 +123,7 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { locale, t } = useI18n()
+  useFunnelStep('/payment', clientSecret !== '')
 
   useEffect(() => {
     const createPaymentIntent = async () => {
