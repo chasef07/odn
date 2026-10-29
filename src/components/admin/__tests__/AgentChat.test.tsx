@@ -3,21 +3,31 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentUIMessage } from '@/lib/agent/tools'
 
-const { chat } = vi.hoisted(() => ({
-  chat: {
+const { chat, useChat, refresh } = vi.hoisted(() => {
+  const chat = {
     messages: [] as unknown[],
     status: 'ready' as string,
     error: undefined as Error | undefined,
     sendMessage: vi.fn(),
     stop: vi.fn(),
-  },
-}))
+  }
+  return { chat, useChat: vi.fn(() => chat), refresh: vi.fn() }
+})
 
-vi.mock('@ai-sdk/react', () => ({ useChat: () => chat }))
+vi.mock('@ai-sdk/react', () => ({ useChat }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }))
 
 import { AgentChat } from '../AgentChat'
 
 const SQL = 'select i from generate_series(1, 150) as i'
+
+const THREAD_ID = '0b9a4d8e-2f43-4c1e-9d55-7a1f3c2b6e10'
+
+function renderChat(configured = true, initialMessages: AgentUIMessage[] = []) {
+  return render(
+    <AgentChat configured={configured} threadId={THREAD_ID} initialMessages={initialMessages} />
+  )
+}
 
 function assistant(parts: AgentUIMessage['parts']): AgentUIMessage {
   return { id: 'a1', role: 'assistant', parts }
@@ -39,14 +49,38 @@ beforeEach(() => {
 
 describe('AgentChat', () => {
   it('says the agent is not configured and offers no input', () => {
-    render(<AgentChat configured={false} />)
+    renderChat(false)
 
     expect(screen.getByText('The data agent is not configured')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
+  it('opens the thread with its stored messages, sends only the new message, and refreshes the thread list when an answer finishes', async () => {
+    const stored: AgentUIMessage[] = [
+      { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Notes per month' }] },
+    ]
+
+    renderChat(true, stored)
+
+    const options = (useChat.mock.lastCall as unknown[] | undefined)?.[0] as {
+      id: string
+      messages: AgentUIMessage[]
+      transport: { prepareSendMessagesRequest: (request: object) => { body: object } }
+      onFinish: () => void
+    }
+    expect(options.id).toBe(THREAD_ID)
+    expect(options.messages).toBe(stored)
+    const next = { id: 'u2', role: 'user', parts: [{ type: 'text', text: 'And by state?' }] }
+    expect(
+      options.transport.prepareSendMessagesRequest({ id: THREAD_ID, messages: [...stored, next] })
+        .body
+    ).toEqual({ id: THREAD_ID, message: next })
+    options.onFinish()
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
   it('sends a starter question when it is clicked', async () => {
-    render(<AgentChat configured />)
+    renderChat()
 
     await userEvent.click(screen.getByRole('button', { name: 'Approval rate by state' }))
 
@@ -82,7 +116,7 @@ describe('AgentChat', () => {
       ]),
     ]
 
-    render(<AgentChat configured />)
+    renderChat()
 
     expect(screen.getByText('41 notes in September 2026.')).toBeInTheDocument()
     expect(screen.getByText('Notes by month')).toBeInTheDocument()
@@ -117,7 +151,7 @@ describe('AgentChat', () => {
       ]),
     ]
 
-    render(<AgentChat configured />)
+    renderChat()
 
     expect(screen.getByText('Working')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -127,7 +161,7 @@ describe('AgentChat', () => {
     chat.status = 'submitted'
     chat.messages = [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Notes per month' }] }]
 
-    render(<AgentChat configured />)
+    renderChat()
 
     expect(screen.getByText('Working')).toBeInTheDocument()
   })
@@ -136,7 +170,7 @@ describe('AgentChat', () => {
     chat.status = 'streaming'
     chat.messages = [assistant([{ type: 'text', text: '41 notes.' }])]
 
-    render(<AgentChat configured />)
+    renderChat()
 
     expect(screen.getByText('41 notes.')).toBeInTheDocument()
     expect(screen.queryByText('Working')).not.toBeInTheDocument()
@@ -146,7 +180,7 @@ describe('AgentChat', () => {
     chat.status = 'streaming'
     chat.messages = [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Notes per month' }] }]
 
-    render(<AgentChat configured />)
+    renderChat()
 
     expect(screen.getByRole('textbox', { name: 'Question' })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: 'Stop' }))

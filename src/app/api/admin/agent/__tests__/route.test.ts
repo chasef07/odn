@@ -5,14 +5,21 @@ import type { AnalyticsView } from '@/db/analytics-query'
 type StreamResult = Awaited<ReturnType<MockLanguageModelV4['doStream']>>
 type StreamPart = StreamResult['stream'] extends ReadableStream<infer Part> ? Part : never
 
-const { mockGetSession, mockRunAnalyticsQuery, mockIsAnalyticsConfigured, model } = vi.hoisted(
-  () => ({
-    mockGetSession: vi.fn(),
-    mockRunAnalyticsQuery: vi.fn(),
-    mockIsAnalyticsConfigured: vi.fn(() => true),
-    model: { current: null as unknown },
-  })
-)
+const {
+  mockGetSession,
+  mockRunAnalyticsQuery,
+  mockIsAnalyticsConfigured,
+  mockFindAgentThread,
+  mockSaveAgentThread,
+  model,
+} = vi.hoisted(() => ({
+  mockGetSession: vi.fn(),
+  mockRunAnalyticsQuery: vi.fn(),
+  mockIsAnalyticsConfigured: vi.fn(() => true),
+  mockFindAgentThread: vi.fn(),
+  mockSaveAgentThread: vi.fn(),
+  model: { current: null as unknown },
+}))
 
 const VIEWS: AnalyticsView[] = [
   {
@@ -31,6 +38,11 @@ vi.mock('@/db/analytics-query', () => ({
   runAnalyticsQuery: mockRunAnalyticsQuery,
   describeAnalyticsSchema: vi.fn(async () => VIEWS),
   isAnalyticsConfigured: mockIsAnalyticsConfigured,
+}))
+
+vi.mock('@/db/agent-threads', () => ({
+  findAgentThread: mockFindAgentThread,
+  saveAgentThread: mockSaveAgentThread,
 }))
 
 vi.mock('@/lib/agent/model', async (importOriginal) => ({
@@ -73,14 +85,29 @@ function textStep(text: string): StreamResult {
   }
 }
 
+const THREAD_ID = '0b9a4d8e-2f43-4c1e-9d55-7a1f3c2b6e10'
+
+function userMessage(id: string, text: string) {
+  return { id, role: 'user' as const, parts: [{ type: 'text' as const, text }] }
+}
+
 function ask(question: string, body?: unknown): Request {
   return new Request('http://localhost/api/admin/agent', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(
-      body ?? { messages: [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: question }] }] }
-    ),
+    body: JSON.stringify(body ?? { id: THREAD_ID, message: userMessage('u1', question) }),
   })
+}
+
+function storedThread(adminUserId: string, messages: unknown[]) {
+  return {
+    id: THREAD_ID,
+    adminUserId,
+    title: 'Notes per month',
+    messages,
+    createdAt: new Date('2026-10-20T12:00:00.000Z'),
+    updatedAt: new Date('2026-10-20T12:00:00.000Z'),
+  }
 }
 
 async function chunks(response: Response): Promise<{ type: string; [key: string]: unknown }[]> {
@@ -96,6 +123,8 @@ beforeEach(() => {
     user: { id: 'doc_1', email: 'doctor@example.test', emailVerified: true },
   })
   mockIsAnalyticsConfigured.mockReturnValue(true)
+  mockFindAgentThread.mockResolvedValue(null)
+  mockSaveAgentThread.mockResolvedValue(undefined)
   vi.stubEnv('TELNYX_INFERENCE_API_KEY', 'test-inference-key')
   vi.spyOn(console, 'info').mockImplementation(() => {})
 })
@@ -125,10 +154,78 @@ describe('POST /api/admin/agent', () => {
     expect((await POST(ask('Notes per month'))).status).toBe(503)
   })
 
-  it('answers 400 when the body has no messages', async () => {
-    const response = await POST(ask('', { prompt: 'Notes per month' }))
+  it('answers 400 when the body has no thread id or no user message, and reads no thread', async () => {
+    const question = userMessage('u1', 'Notes per month')
 
-    expect(response.status).toBe(400)
+    expect((await POST(ask('', { prompt: 'Notes per month' }))).status).toBe(400)
+    expect((await POST(ask('', { id: 'not-a-uuid', message: question }))).status).toBe(400)
+    expect(
+      (await POST(ask('', { id: THREAD_ID, message: { ...question, role: 'assistant' } }))).status
+    ).toBe(400)
+    expect(mockFindAgentThread).not.toHaveBeenCalled()
+  })
+
+  it('answers 404 for a thread another admin owns and neither runs nor saves anything', async () => {
+    mockFindAgentThread.mockResolvedValue(storedThread('doc_2', []))
+    const mock = new MockLanguageModelV4({ doStream: [textStep('Never sent.')] })
+    model.current = mock
+
+    const response = await POST(ask('Notes per month'))
+
+    expect(response.status).toBe(404)
+    expect(mockFindAgentThread).toHaveBeenCalledWith(THREAD_ID)
+    expect(mock.doStreamCalls).toHaveLength(0)
+    expect(mockSaveAgentThread).not.toHaveBeenCalled()
+  })
+
+  it('saves a new thread titled by its question once the answer finishes', async () => {
+    model.current = new MockLanguageModelV4({ doStream: [textStep('412 notes in August.')] })
+
+    await chunks(await POST(ask('  Notes   sold in August?  ')))
+
+    expect(mockSaveAgentThread).toHaveBeenCalledTimes(1)
+    const saved = mockSaveAgentThread.mock.calls[0][0]
+    expect(saved).toMatchObject({
+      id: THREAD_ID,
+      adminUserId: 'doc_1',
+      title: 'Notes sold in August?',
+    })
+    expect(saved.messages).toEqual([
+      userMessage('u1', '  Notes   sold in August?  '),
+      expect.objectContaining({
+        role: 'assistant',
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: 'text', text: '412 notes in August.' }),
+        ]),
+      }),
+    ])
+  })
+
+  it('continues a stored thread: the model sees its history and the save keeps it', async () => {
+    const earlier = [
+      userMessage('u1', 'Notes sold in August?'),
+      { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: '412 notes.' }] },
+    ]
+    mockFindAgentThread.mockResolvedValue(storedThread('doc_1', earlier))
+    const mock = new MockLanguageModelV4({ doStream: [textStep('455 in September.')] })
+    model.current = mock
+
+    await chunks(
+      await POST(ask('', { id: THREAD_ID, message: userMessage('u2', 'And September?') }))
+    )
+
+    const prompt = JSON.stringify(mock.doStreamCalls[0].prompt)
+    expect(prompt).toContain('Notes sold in August?')
+    expect(prompt).toContain('412 notes.')
+    expect(prompt).toContain('And September?')
+    const saved = mockSaveAgentThread.mock.calls[0][0]
+    expect(saved.title).toBe('Notes sold in August?')
+    expect(saved.messages.map((message: { id: string }) => message.id).slice(0, 3)).toEqual([
+      'u1',
+      'a1',
+      'u2',
+    ])
+    expect(saved.messages).toHaveLength(4)
   })
 
   it('runs the chart SQL in Postgres and streams the chart built from its rows', async () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { ArrowUp, Database, LoaderCircle, Square } from 'lucide-react'
@@ -60,10 +61,19 @@ function NotConfigured() {
   )
 }
 
-function Chat() {
+function Chat({ threadId, initialMessages }: ChatProps) {
+  const router = useRouter()
   const [input, setInput] = useState('')
   const { messages, sendMessage, status, stop, error } = useChat<AgentUIMessage>({
-    transport: new DefaultChatTransport({ api: '/api/admin/agent' }),
+    id: threadId,
+    messages: initialMessages,
+    transport: new DefaultChatTransport({
+      api: '/api/admin/agent',
+      prepareSendMessagesRequest: ({ id, messages }) => ({
+        body: { id, message: messages.at(-1) },
+      }),
+    }),
+    onFinish: () => router.refresh(),
   })
   const busy = status === 'submitted' || status === 'streaming'
   const working =
@@ -162,6 +172,8 @@ function Chat() {
   )
 }
 
-export function AgentChat({ configured }: { configured: boolean }) {
-  return configured ? <Chat /> : <NotConfigured />
+type ChatProps = { threadId: string; initialMessages: AgentUIMessage[] }
+
+export function AgentChat({ configured, ...chat }: ChatProps & { configured: boolean }) {
+  return configured ? <Chat {...chat} /> : <NotConfigured />
 }

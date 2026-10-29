@@ -4,6 +4,7 @@ import {
   refundColumns,
   smsSupportLifecycleColumns,
   type Account,
+  type AgentThread,
   type NoteVerification,
   type ResendWebhookEvent,
   type Session,
@@ -249,6 +250,15 @@ export const noteVerifications = defineTable<NoteVerification>('note_verificatio
   revokedAt: nullable('revoked_at', 'timestamp'),
 })
 
+export const agentThreads = defineTable<AgentThread>('agent_threads', {
+  id: col('id', 'text'),
+  adminUserId: col('admin_user_id', 'text'),
+  title: col('title', 'text'),
+  messages: jsonCol('messages'),
+  createdAt: col('created_at', 'timestamp'),
+  updatedAt: col('updated_at', 'timestamp'),
+})
+
 export const tables = {
   users,
   accounts,
@@ -263,4 +273,5 @@ export const tables = {
   telnyxWebhookEvents,
   resendWebhookEvents,
   noteVerifications,
+  agentThreads,
 }
