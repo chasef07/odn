@@ -4,6 +4,7 @@ import {
   refundColumns,
   smsSupportLifecycleColumns,
   type Account,
+  type FunnelStepRecord,
   type NoteVerification,
   type ResendWebhookEvent,
   type Session,
@@ -65,6 +66,16 @@ export const verifications = defineTable<Verification>('verifications', {
   expiresAt: col('expires_at', 'timestamp'),
   createdAt: col('created_at', 'timestamp'),
   updatedAt: col('updated_at', 'timestamp'),
+})
+
+export const funnelSteps = defineTable<FunnelStepRecord>('funnel_steps', {
+  id: uuid('id'),
+  visitorId: col('visitor_id', 'text'),
+  step: col('step', 'text'),
+  stepOrder: col('step_order', 'int'),
+  locale: col('locale', 'text'),
+  attributionChannel: nullable('attribution_channel', 'text'),
+  createdAt: col('created_at', 'timestamp'),
 })
 
 export const temporarySubmissions = defineTable<TemporarySubmission>('temporary_submissions', {
@@ -254,6 +265,7 @@ export const tables = {
   accounts,
   sessions,
   verifications,
+  funnelSteps,
   temporarySubmissions,
   submissions,
   smsPhoneStates,

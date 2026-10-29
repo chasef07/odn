@@ -143,6 +143,16 @@ export type NoteVerification = {
   revokedAt: Date | null
 }
 
+export type FunnelStepRecord = {
+  id: string
+  visitorId: string
+  step: string
+  stepOrder: number
+  locale: string
+  attributionChannel: string | null
+  createdAt: Date
+}
+
 export type TemporarySubmission = {
   id: string
   paymentIntentId: string

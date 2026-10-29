@@ -8,7 +8,10 @@ import {
   notesSplit,
   runAnalyticsQuery,
 } from '../analytics-query'
+import { db } from '../pool'
 import { countSubmissions } from '../submissions'
+import { insert } from '../table'
+import { funnelSteps } from '../tables'
 import { SubmissionStatus } from '../types'
 import { seedSubmission } from './seed'
 
@@ -95,6 +98,26 @@ describe('runAnalyticsQuery', () => {
     expect(customers.rows).toEqual([{ customers: 2 }])
   })
 
+  it('reads funnel steps with their business day', async () => {
+    const step = {
+      visitorId: '6f1c2a8e-4b7d-4c3a-9e2f-1a2b3c4d5e6f',
+      stepOrder: 1,
+      locale: 'en',
+      attributionChannel: 'google_ads',
+      createdAt: PAID_AT,
+    }
+    await db.affected(insert(funnelSteps, { ...step, step: '/get-started' }))
+    await db.affected(insert(funnelSteps, { ...step, step: '/get-started' }))
+
+    const result = await runAnalyticsQuery(
+      'select step, created_day_et, count(distinct visitor_id) as visitors, count(*) as views from funnel_steps group by 1, 2'
+    )
+
+    expect(result.rows).toEqual([
+      { step: '/get-started', created_day_et: '2026-03-05', visitors: 1, views: 2 },
+    ])
+  })
+
   it('returns at most 500 rows and stops Postgres reading at the 501st', async () => {
     const result = await runAnalyticsQuery(
       'select case when i <= 501 then i else i / (i - i) end as i from generate_series(1, 1000) as i'
@@ -141,9 +164,21 @@ describe('describeAnalyticsSchema', () => {
     const views = await describeAnalyticsSchema()
 
     expect(views.map((view) => view.name)).toEqual([
+      'funnel_steps',
       'sms_messages',
       'sms_support_tickets',
       'submissions',
+    ])
+    const funnel = views.find((view) => view.name === 'funnel_steps')
+    expect(funnel?.description).toContain('distinct visitor_id')
+    expect(funnel?.columns.map((column) => column.name)).toEqual([
+      'visitor_id',
+      'step',
+      'step_order',
+      'locale',
+      'attribution_channel',
+      'created_at',
+      'created_day_et',
     ])
     const submissions = views.find((view) => view.name === 'submissions')
     expect(submissions?.description).toContain('paid doctor')

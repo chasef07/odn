@@ -6,6 +6,7 @@ import { FormLayout } from '@/components/form-layout'
 import { CheckCircle2 } from 'lucide-react'
 import { clearFormData } from '@/lib/form-storage'
 import { stripStripeSecretParams, trackPurchaseOnce } from '@/lib/conversion-tracking'
+import { useFunnelStep } from '@/components/useFunnelStep'
 
 export default function PaymentSuccessPage() {
   const [paymentIntent] = useState<string | null>(() => {
@@ -22,6 +23,7 @@ export default function PaymentSuccessPage() {
   })
 
   const [email, setEmail] = useState<string | null>(null)
+  useFunnelStep('/payment/success', status === 'success')
 
   useEffect(() => {
     if (!paymentIntent) {
