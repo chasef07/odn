@@ -98,6 +98,46 @@ describe('runAnalyticsQuery', () => {
     expect(customers.rows).toEqual([{ customers: 2 }])
   })
 
+  it('reads the first touch beside the last touch, and null without stored attribution', async () => {
+    const touch = (channel: string, source: string) => ({
+      channel,
+      source,
+      medium: null,
+      campaign: null,
+      content: null,
+      term: null,
+      clickIds: { gclid: 'secret-click-id' },
+      referrer: 'https://www.reddit.com/r/x',
+      landingPath: '/',
+      at: '2026-03-01T12:00:00.000Z',
+    })
+    await seedSubmission(
+      { status: SubmissionStatus.APPROVED, refund: 'none' },
+      {
+        createdAt: PAID_AT,
+        attributionChannel: 'google_ads',
+        attribution: { first: touch('reddit', 'reddit'), last: touch('google_ads', 'google') },
+      }
+    )
+    await seedSubmission(
+      { status: SubmissionStatus.APPROVED, refund: 'none' },
+      { createdAt: new Date('2026-03-07T12:00:00.000Z'), attribution: null }
+    )
+
+    const result = await runAnalyticsQuery(
+      'select attribution_channel, first_attribution_channel, first_source from submissions order by created_at'
+    )
+
+    expect(result.rows).toEqual([
+      {
+        attribution_channel: 'google_ads',
+        first_attribution_channel: 'reddit',
+        first_source: 'reddit',
+      },
+      { attribution_channel: null, first_attribution_channel: null, first_source: null },
+    ])
+  })
+
   it('reads funnel steps with their business day', async () => {
     const step = {
       visitorId: '6f1c2a8e-4b7d-4c3a-9e2f-1a2b3c4d5e6f',
@@ -205,7 +245,16 @@ describe('describeAnalyticsSchema', () => {
       'customer_id',
       'customer_note_number',
       'is_returning',
+      'first_attribution_channel',
+      'first_source',
     ])
+    expect(
+      submissions?.columns.find((column) => column.name === 'attribution_channel')?.description
+    ).toContain('last touch')
+    expect(
+      submissions?.columns.find((column) => column.name === 'first_attribution_channel')
+        ?.description
+    ).toContain('first touch')
     expect(submissions?.columns.find((column) => column.name === 'payment_amount_cents')).toEqual({
       name: 'payment_amount_cents',
       type: 'integer',
