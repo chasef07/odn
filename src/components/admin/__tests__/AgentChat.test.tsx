@@ -87,6 +87,15 @@ describe('AgentChat', () => {
     expect(chat.sendMessage).toHaveBeenCalledWith({ text: 'Approval rate by state' })
   })
 
+  it('offers the funnel drop-off by channel as a starter question', async () => {
+    renderChat()
+    const question = 'Chart funnel drop-off by step and acquisition channel, last 7 days'
+
+    await userEvent.click(screen.getByRole('button', { name: question }))
+
+    expect(chat.sendMessage).toHaveBeenCalledWith({ text: question })
+  })
+
   it('shows only the final answer and the chart, not the SQL, the rows or the narration', () => {
     chat.messages = [
       assistant([
