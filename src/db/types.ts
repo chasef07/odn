@@ -290,3 +290,14 @@ export type ResendWebhookEvent = {
   eventType: string
   processedAt: Date
 }
+
+export type AgentThread = {
+  id: string
+  adminUserId: string
+  title: string
+  messages: JsonValue
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type AgentThreadSummary = Pick<AgentThread, 'id' | 'title' | 'updatedAt'>
