@@ -1,17 +1,15 @@
+'use client'
+
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import type { AgentThreadSummary } from '@/db/types'
 import { Button } from '@/components/ui/button'
 import { formatInstantET, instantOf } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
-export function AgentThreadList({
-  threads,
-  activeId,
-}: {
-  threads: AgentThreadSummary[]
-  activeId: string
-}) {
+export function AgentThreadList({ threads }: { threads: AgentThreadSummary[] }) {
+  const { threadId } = useParams<{ threadId?: string }>()
   return (
     <aside className="flex flex-col rounded-lg border bg-white lg:h-[calc(100vh-13rem)] lg:min-h-[32rem]">
       <div className="border-b p-3">
@@ -31,7 +29,7 @@ export function AgentThreadList({
         ) : (
           <ul className="space-y-1">
             {threads.map((thread) => {
-              const active = thread.id === activeId
+              const active = thread.id === threadId
               return (
                 <li key={thread.id}>
                   <Link
