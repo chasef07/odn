@@ -2,6 +2,7 @@ import { Progress } from '@/components/ui/progress'
 import { getFormData } from '@/lib/form-storage'
 import { stepNumber, totalSteps, type IntakeRoute } from '@/lib/intake'
 import { useI18n } from '@/components/i18n/I18nProvider'
+import { useFunnelStep } from '@/components/useFunnelStep'
 
 interface FormProgressProps {
   route: IntakeRoute
@@ -9,6 +10,7 @@ interface FormProgressProps {
 
 export function FormProgress({ route }: FormProgressProps) {
   const { t } = useI18n()
+  useFunnelStep(route)
   const draft = getFormData()
   const current = stepNumber(route, draft)
   const total = totalSteps(draft)
