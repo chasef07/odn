@@ -5,8 +5,10 @@ import { INTAKE_STEPS } from '@/lib/intake'
 const visitorId = '6f1c2a8e-4b7d-4c3a-9e2f-1a2b3c4d5e6f'
 
 describe('FUNNEL_STEPS', () => {
-  it('is every intake step in order, then payment, then the paid success page', () => {
+  it('is a site visit, the start page, every intake step in order, payment, then paid', () => {
     expect(FUNNEL_STEPS).toEqual([
+      'visit',
+      '/start',
       ...INTAKE_STEPS.map((step) => step.route),
       '/payment',
       '/payment/success',
@@ -24,10 +26,8 @@ describe('parseFunnelStepView', () => {
     })
   })
 
-  it('numbers the first step 1 and the paid page last', () => {
-    expect(parseFunnelStepView({ visitorId, step: '/get-started', locale: 'en' })?.stepOrder).toBe(
-      1
-    )
+  it('numbers the site visit 1 and the paid page last', () => {
+    expect(parseFunnelStepView({ visitorId, step: 'visit', locale: 'en' })?.stepOrder).toBe(1)
     expect(
       parseFunnelStepView({ visitorId, step: '/payment/success', locale: 'en' })?.stepOrder
     ).toBe(FUNNEL_STEPS.length)

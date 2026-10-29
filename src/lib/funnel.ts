@@ -3,6 +3,8 @@ import { INTAKE_STEPS } from '@/lib/intake'
 import { locales, type Locale } from '@/lib/i18n'
 
 export const FUNNEL_STEPS = [
+  'visit',
+  '/start',
   ...INTAKE_STEPS.map((step) => step.route),
   '/payment',
   '/payment/success',
