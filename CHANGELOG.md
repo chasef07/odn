@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.3.0](https://github.com/chasef07/odn/compare/v6.2.1...v6.3.0) (2026-10-30)
+
+
+### Features
+
+* **intake:** let phones autofill name, email, phone and state ([#67](https://github.com/chasef07/odn/issues/67)) ([8147c6c](https://github.com/chasef07/odn/commit/8147c6cb9747ac3fc0d6b647233307d5445e5246))
+* **intake:** preselect the patient's state from their location ([#68](https://github.com/chasef07/odn/issues/68)) ([179301a](https://github.com/chasef07/odn/commit/179301a6df81a31a1df2f51351c72dd43b2f7778))
+
 ## [6.2.1](https://github.com/chasef07/odn/compare/v6.2.0...v6.2.1) (2026-10-30)
 
 
