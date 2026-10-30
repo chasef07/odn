@@ -35,7 +35,7 @@ export function LanguageSwitch({
           window.location.assign(`${href}${window.location.search}${window.location.hash}`)
         }
       }}
-      className={`inline-flex min-h-10 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 transition-colors hover:border-[#009ed9]/40 hover:text-[#007fac] focus-visible:ring-2 focus-visible:ring-[#009ed9] focus-visible:ring-offset-2 focus-visible:outline-none ${className}`}
+      className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 transition-colors hover:border-[#009ed9]/40 hover:text-[#007fac] focus-visible:ring-2 focus-visible:ring-[#009ed9] focus-visible:ring-offset-2 focus-visible:outline-none lg:min-h-10 ${className}`}
       aria-label={locale === 'es' ? 'Cambiar el sitio a inglés' : 'Switch site to Spanish'}
     >
       {!compact && <Languages className="h-4 w-4" aria-hidden="true" />}

@@ -115,33 +115,37 @@ export default function PaymentSuccessPage() {
       usePersonalization={true}
     >
       <div className="space-y-6">
-        <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center">
+        <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-center sm:p-8">
           <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-green-600" />
           <h2 className="text-foreground mb-2 text-2xl font-bold">Thank you for your payment!</h2>
           <p className="text-muted-foreground">
             Your doctor&apos;s note is being processed and will be sent to{' '}
-            {email ? <span className="text-foreground font-medium">{email}</span> : 'your email'}{' '}
+            {email ? (
+              <span className="text-foreground font-medium break-words">{email}</span>
+            ) : (
+              'your email'
+            )}{' '}
             shortly.
           </p>
         </div>
 
-        <div className="border-border/40 rounded-xl border bg-white p-6 shadow-sm">
+        <div className="border-border/40 rounded-xl border bg-white p-4 shadow-sm sm:p-6">
           <h3 className="text-foreground mb-3 text-sm font-semibold">What happens next?</h3>
           <ul className="text-muted-foreground space-y-2 text-sm">
             <li className="flex items-start">
-              <span className="bg-primary/10 text-primary mr-3 inline-block h-6 w-6 flex-shrink-0 rounded-full text-center">
+              <span className="bg-primary/10 text-primary mr-3 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full">
                 1
               </span>
               <span>You&apos;ll receive a confirmation email within the next few minutes</span>
             </li>
             <li className="flex items-start">
-              <span className="bg-primary/10 text-primary mr-3 inline-block h-6 w-6 flex-shrink-0 rounded-full text-center">
+              <span className="bg-primary/10 text-primary mr-3 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full">
                 2
               </span>
               <span>Your doctor&apos;s note will be reviewed and processed</span>
             </li>
             <li className="flex items-start">
-              <span className="bg-primary/10 text-primary mr-3 inline-block h-6 w-6 flex-shrink-0 rounded-full text-center">
+              <span className="bg-primary/10 text-primary mr-3 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full">
                 3
               </span>
               <span>The completed note will be sent to your registered email address</span>

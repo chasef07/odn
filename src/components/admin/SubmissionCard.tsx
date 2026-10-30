@@ -117,8 +117,8 @@ export function SubmissionCard({
           <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Patient Information
           </h3>
-          <div className="space-y-1 text-xs">
-            <div className="flex items-center gap-2">
+          <div className="space-y-1 text-sm sm:text-xs">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-muted-foreground">Name: </span>
               <span>
                 {submission.patientFirstName} {submission.patientLastName}
@@ -139,13 +139,16 @@ export function SubmissionCard({
             </div>
             <div>
               <span className="text-muted-foreground">Email: </span>
-              <a href={`mailto:${submission.email}`} className="text-blue-600 hover:underline">
+              <a
+                href={`mailto:${submission.email}`}
+                className="break-all text-blue-600 hover:underline"
+              >
                 {submission.email}
               </a>
             </div>
             <div>
               <span className="text-muted-foreground">Phone: </span>
-              <span>{submission.phone}</span>
+              <span className="whitespace-nowrap">{submission.phone}</span>
             </div>
             <div>
               <span className="text-muted-foreground">State: </span>
@@ -159,7 +162,7 @@ export function SubmissionCard({
             <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               Guardian Information
             </h3>
-            <div className="space-y-1 text-xs">
+            <div className="space-y-1 text-sm sm:text-xs">
               <div>
                 <span className="text-muted-foreground">Name: </span>
                 <span>
@@ -193,7 +196,7 @@ export function SubmissionCard({
           <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Note Request
           </h3>
-          <div className="space-y-1 text-xs">
+          <div className="space-y-1 text-sm break-words sm:text-xs">
             <div>
               <span className="text-muted-foreground">Purpose: </span>
               <span>
@@ -227,7 +230,9 @@ export function SubmissionCard({
             {submission.additionalInformation && (
               <div>
                 <span className="text-muted-foreground">Additional Info: </span>
-                <span className="italic">{submission.additionalInformation}</span>
+                <span className="break-words whitespace-pre-wrap italic">
+                  {submission.additionalInformation}
+                </span>
               </div>
             )}
           </div>
@@ -248,7 +253,10 @@ export function SubmissionCard({
                   onValueChange={onNotePurposeChange}
                   disabled={isClassificationDisabled}
                 >
-                  <SelectTrigger id="review-note-purpose" className="h-8 text-xs">
+                  <SelectTrigger
+                    id="review-note-purpose"
+                    className="h-8 max-w-full text-sm sm:text-xs"
+                  >
                     <SelectValue placeholder="Purpose" />
                   </SelectTrigger>
                   <SelectContent>
@@ -269,7 +277,10 @@ export function SubmissionCard({
                   onValueChange={onAbsenceReasonChange}
                   disabled={isClassificationDisabled}
                 >
-                  <SelectTrigger id="review-absence-reason" className="h-8 text-xs">
+                  <SelectTrigger
+                    id="review-absence-reason"
+                    className="h-8 max-w-full text-sm sm:text-xs"
+                  >
                     <SelectValue placeholder="Reason" />
                   </SelectTrigger>
                   <SelectContent>
@@ -284,7 +295,7 @@ export function SubmissionCard({
               <Button
                 type="button"
                 size="sm"
-                className="h-8"
+                className="h-10 sm:h-8"
                 onClick={onClassificationSave}
                 disabled={isClassificationDisabled || !isClassificationDirty}
               >
@@ -314,7 +325,7 @@ export function SubmissionCard({
                   min={DATE_LIMITS.EARLIEST_DAY}
                   value={evaluationDate ?? ''}
                   onChange={(e) => onEvaluationDateChange(e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10 text-base sm:h-8 sm:text-sm"
                 />
               </div>
             )}
@@ -330,7 +341,7 @@ export function SubmissionCard({
                   onChange={(e) => onDiagnosisChange(e.target.value)}
                   placeholder=""
                   rows={2}
-                  className="text-sm"
+                  className="text-base sm:text-sm"
                 />
               </div>
             )}
@@ -342,7 +353,10 @@ export function SubmissionCard({
                   checked={withRestrictions ?? true}
                   onCheckedChange={onWithRestrictionsChange}
                 />
-                <Label htmlFor="card-restrictions-toggle" className="text-muted-foreground text-xs">
+                <Label
+                  htmlFor="card-restrictions-toggle"
+                  className="text-muted-foreground text-sm sm:text-xs"
+                >
                   Include &quot;with no restrictions&quot; in PDF
                 </Label>
               </div>

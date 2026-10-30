@@ -86,19 +86,19 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                 <tr>
                   <th
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                    className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6"
                   >
                     Patient Name
                   </th>
                   <th
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                    className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6"
                   >
                     Email
                   </th>
                   <th
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                    className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6"
                   >
                     Absence Dates
                   </th>
@@ -106,13 +106,13 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                     <>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                        className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6"
                       >
                         Reason
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                        className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6"
                       >
                         Email
                       </th>
@@ -120,11 +120,11 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                   )}
                   <th
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                    className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6"
                   >
                     {activeTab === 'maybe' ? 'Marked as Maybe' : 'Marked as Manual'}
                   </th>
-                  <th scope="col" className="relative px-6 py-3">
+                  <th scope="col" className="relative px-4 py-3 sm:px-6">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
@@ -137,10 +137,10 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
 
                   return (
                     <tr key={submission.id} className="transition-colors hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
+                      <td className="px-4 py-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:px-6">
                         {submission.patientFirstName} {submission.patientLastName}
                       </td>
-                      <td className="px-6 py-4 text-sm whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm whitespace-nowrap sm:px-6">
                         <a
                           href={`mailto:${submission.email}`}
                           className="text-blue-600 hover:underline"
@@ -148,12 +148,12 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                           {submission.email}
                         </a>
                       </td>
-                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-600">
+                      <td className="px-4 py-4 text-sm whitespace-nowrap text-gray-600 sm:px-6">
                         {formatDateOnlyRange(submission.firstDayOff, submission.lastDayOff)}
                       </td>
                       {maybeSubmission && (
                         <>
-                          <td className="max-w-[220px] px-6 py-4 text-sm text-gray-600">
+                          <td className="max-w-[220px] px-4 py-4 text-sm text-gray-600 sm:px-6">
                             {getMaybeReasonLabel(maybeSubmission.maybeReason)}
                             {maybeSubmission.maybeApprovedDays && (
                               <div className="mt-1 text-xs text-gray-500">
@@ -162,19 +162,19 @@ export function MaybePortalTabs({ maybeSubmissions, manualSubmissions }: MaybePo
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
+                          <td className="px-4 py-4 text-sm whitespace-nowrap text-gray-500 sm:px-6">
                             {maybeEmailSentAt
                               ? formatInstantET(instantOf(maybeEmailSentAt))
                               : 'Not sent'}
                           </td>
                         </>
                       )}
-                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
+                      <td className="px-4 py-4 text-sm whitespace-nowrap text-gray-500 sm:px-6">
                         {submission.reviewedAt
                           ? formatInstantET(instantOf(submission.reviewedAt))
                           : 'N/A'}
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
+                      <td className="px-4 py-4 text-right text-sm font-medium whitespace-nowrap sm:px-6">
                         {maybeSubmission ? (
                           <MaybeActionButtons submission={maybeSubmission} />
                         ) : (

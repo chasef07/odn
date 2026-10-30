@@ -12,16 +12,18 @@ export default function LandingPage() {
 
   return (
     <LocalizedPage>
-      <div className="min-h-screen bg-white">
-        <main className="mx-auto max-w-2xl px-6 py-12 text-center">
+      <div className="min-h-dvh bg-white">
+        <main className="mx-auto max-w-2xl px-4 py-8 text-center sm:px-6 sm:py-12">
           <div className="mb-6 flex justify-end">
             <LanguageSwitch />
           </div>
-          <h1 className="font-display text-foreground mb-4 text-4xl font-bold sm:text-5xl">
+          <h1 className="font-display text-foreground mb-4 text-3xl font-bold sm:text-5xl">
             Need a quick doctor&apos;s note for work or school?
           </h1>
 
-          <p className="text-muted-foreground mb-8 text-2xl">You&apos;re in the right place.</p>
+          <p className="text-muted-foreground mb-8 text-xl sm:text-2xl">
+            You&apos;re in the right place.
+          </p>
 
           <div className="mx-auto mb-8 max-w-xl space-y-4 text-left">
             <div className="flex items-start gap-3">
@@ -49,7 +51,7 @@ export default function LandingPage() {
 
           <button
             onClick={() => router.push('/get-started')}
-            className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center gap-2 rounded-xl px-12 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl"
+            className="bg-primary hover:bg-primary/90 inline-flex w-full items-center justify-center gap-2 rounded-xl px-8 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl sm:w-auto sm:px-12"
           >
             Request My Note
             <ArrowRight className="h-5 w-5" />

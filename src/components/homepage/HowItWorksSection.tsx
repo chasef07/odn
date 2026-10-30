@@ -53,7 +53,7 @@ export default function HowItWorksSection() {
     <section id="how-it-works" className="bg-white px-4 py-20 md:px-6 md:py-28">
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
+          <h2 className="mb-4 text-3xl font-semibold tracking-tight text-balance text-gray-900 md:text-4xl">
             {t('How it works')}
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-gray-600">

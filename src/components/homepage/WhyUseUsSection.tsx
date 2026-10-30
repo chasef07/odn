@@ -46,7 +46,7 @@ export default function WhyUseUsSection() {
     <section className="bg-[#009ed9] px-4 py-20 md:px-6 md:py-28">
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          <h2 className="mb-4 text-3xl font-semibold tracking-tight text-balance text-white md:text-4xl">
             {t('Why Thousands of Patients Trust Us')}
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-white/80">

@@ -43,7 +43,7 @@ export function FormCheckboxGroup({
           return (
             <label
               key={option.value}
-              className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-2.5 transition-all ${
+              className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-4 py-2.5 transition-all ${
                 isSelected
                   ? 'border-primary bg-primary/5'
                   : 'border-border/40 hover:border-primary/40 bg-white'
@@ -53,7 +53,7 @@ export function FormCheckboxGroup({
                 type="checkbox"
                 value={option.value}
                 {...register}
-                className="border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-primary/40 h-4 w-4 rounded border-2 focus-visible:ring-2"
+                className="border-border/60 checked:bg-primary checked:border-primary focus-visible:ring-primary/40 h-5 w-5 shrink-0 rounded border-2 focus-visible:ring-2 sm:h-4 sm:w-4"
                 aria-required="true"
                 aria-invalid={!!error}
                 aria-describedby={error ? `${fieldName}-error` : undefined}

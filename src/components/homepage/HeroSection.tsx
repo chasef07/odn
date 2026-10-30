@@ -16,16 +16,13 @@ export default function HeroSection() {
       <div className="mx-auto max-w-6xl">
         <div className="grid items-center gap-6 md:grid-cols-2 md:gap-12">
           <div className="order-1 text-left">
-            <h1 className="font-hero animate-fade-in-up mb-3 text-4xl leading-[1.1] font-bold tracking-tight text-gray-900 md:text-5xl lg:text-6xl">
+            <h1 className="font-hero animate-fade-in-up mb-3 text-4xl leading-[1.1] font-bold tracking-tight text-balance text-gray-900 md:text-5xl md:text-wrap lg:text-6xl">
               {t("Get a Doctor's Note")}
               <span
                 className={`relative block whitespace-nowrap text-[#009ed9] ${
                   locale === 'es' ? 'text-[clamp(1.5rem,7.6vw,2.25rem)] sm:text-[inherit]' : ''
                 }`}
               >
-                <span aria-hidden="true" className="invisible">
-                  {t(heroPhrases[0])}
-                </span>
                 {heroPhrases.map((phrase, i) => (
                   <span
                     key={phrase}
@@ -35,6 +32,9 @@ export default function HeroSection() {
                     {t(phrase)}
                   </span>
                 ))}
+                <span aria-hidden="true" className="invisible">
+                  {t(heroPhrases[0])}
+                </span>
               </span>
             </h1>
 

@@ -400,7 +400,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               <Button
                 onClick={() => setShowApprovalDialog(true)}
                 disabled={isActionDisabled}
-                className="bg-green-600 hover:bg-green-700"
+                className="h-10 bg-green-600 hover:bg-green-700 sm:h-8"
                 size="sm"
               >
                 {approveButtonText}
@@ -412,6 +412,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 disabled={isActionDisabled}
                 variant="destructive"
                 size="sm"
+                className="h-10 sm:h-8"
               >
                 Deny
               </Button>
@@ -425,7 +426,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 disabled={isActionDisabled}
                 variant="outline"
                 size="sm"
-                className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                className="h-10 border-yellow-500 text-yellow-700 hover:bg-yellow-50 sm:h-8"
               >
                 Maybe
               </Button>
@@ -436,7 +437,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 disabled={isActionDisabled}
                 variant="outline"
                 size="sm"
-                className="border-purple-500 text-purple-700 hover:bg-purple-50"
+                className="h-10 border-purple-500 text-purple-700 hover:bg-purple-50 sm:h-8"
               >
                 Manual
               </Button>
@@ -446,6 +447,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               disabled={isActionDisabled}
               variant="outline"
               size="sm"
+              className="h-10 sm:h-8"
             >
               {isSupportTicketPending ? 'Opening...' : 'Support Ticket'}
             </Button>
@@ -612,7 +614,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                   disabled={isLoading}
                 />
               ) : (
-                <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
+                <p className="rounded-md bg-gray-50 px-3 py-2 text-sm break-all">
                   <a href={`mailto:${email}`} className="text-blue-600 hover:underline">
                     {email}
                   </a>
@@ -950,7 +952,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <dt className="font-medium text-gray-500">Medical Record #</dt>
-              <dd className="mt-1 font-mono text-gray-900">
+              <dd className="mt-1 font-mono break-all text-gray-900">
                 {latestNoteVerification.medicalRecordNumber}
               </dd>
             </div>
@@ -973,11 +975,11 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <dt className="font-medium text-gray-500">Submission ID</dt>
-            <dd className="mt-1 font-mono text-gray-900">{submission.id}</dd>
+            <dd className="mt-1 font-mono break-all text-gray-900">{submission.id}</dd>
           </div>
           <div>
             <dt className="font-medium text-gray-500">Payment ID</dt>
-            <dd className="mt-1 font-mono text-gray-900">
+            <dd className="mt-1 font-mono break-all text-gray-900">
               {submission.stripePaymentIntentId || 'N/A'}
             </dd>
           </div>
@@ -1004,7 +1006,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           {submission.stripeRefundId && (
             <div>
               <dt className="font-medium text-gray-500">Refund ID</dt>
-              <dd className="mt-1 font-mono text-gray-900">{submission.stripeRefundId}</dd>
+              <dd className="mt-1 font-mono break-all text-gray-900">
+                {submission.stripeRefundId}
+              </dd>
             </div>
           )}
         </dl>

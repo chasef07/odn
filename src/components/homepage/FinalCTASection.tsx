@@ -18,7 +18,7 @@ export default function FinalCTASection() {
         <p className="mb-8 text-lg text-gray-400">{t('Skip the waiting room. Get started now.')}</p>
         <button
           onClick={() => router.push(path('/start'))}
-          className="inline-flex items-center gap-2 rounded-full bg-[#009ed9] px-8 py-4 text-base font-medium text-white transition-all hover:bg-[#00b4f5]"
+          className="inline-flex items-center gap-2 rounded-full bg-[#009ed9] px-6 py-4 text-base font-medium text-white transition-all hover:bg-[#00b4f5] sm:px-8"
         >
           {t('Get Your Note — $24.95')}
           <ArrowRight className="h-5 w-5" />

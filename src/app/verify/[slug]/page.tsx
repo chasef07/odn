@@ -156,7 +156,7 @@ export default async function VerifySlugPage({ params, locale = 'en' }: PageProp
                 )}
               </dl>
 
-              <div className="mt-6 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+              <div className="mt-6 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm break-words text-gray-600">
                 <p>
                   For questions or concerns, please contact us via email at{' '}
                   <a

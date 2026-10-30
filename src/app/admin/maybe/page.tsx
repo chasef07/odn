@@ -23,7 +23,7 @@ export default async function MaybePortalPage() {
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="text-muted-foreground truncate text-sm">{admin.email}</span>
             </div>
             <LogoutButton />
@@ -33,14 +33,14 @@ export default async function MaybePortalPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-foreground text-3xl font-bold">Review Portal</h1>
+              <h1 className="text-foreground text-2xl font-bold sm:text-3xl">Review Portal</h1>
               <p className="text-muted-foreground mt-1 text-sm">
                 {totalCount} {totalCount === 1 ? 'submission' : 'submissions'} awaiting review
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Link href="/admin/search">
                 <Button variant="outline" className="gap-1">
                   <Search className="h-4 w-4" />

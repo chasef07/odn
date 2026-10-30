@@ -17,7 +17,7 @@ export default async function AdminLoginPage({ searchParams }: PageProps) {
   const error = signInError((await searchParams).error)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+    <div className="flex min-h-dvh items-center justify-center bg-gray-50 px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-center text-2xl font-bold">Admin Portal</CardTitle>

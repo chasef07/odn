@@ -11,7 +11,7 @@ interface FormCardProps {
 export function FormCard({ children, spacing = 'space-y-6', className = '' }: FormCardProps) {
   return (
     <div
-      className={`border-border/40 rounded-xl border bg-white p-6 shadow-sm ${spacing} ${className}`}
+      className={`border-border/40 rounded-xl border bg-white p-4 shadow-sm sm:p-6 ${spacing} ${className}`}
     >
       {children}
     </div>
