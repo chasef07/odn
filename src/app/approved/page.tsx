@@ -10,16 +10,16 @@ export default function ApprovedPage() {
 
   return (
     <LocalizedPage>
-      <div className="text-foreground min-h-screen bg-white">
-        <main className="mx-auto max-w-4xl px-6 py-12 text-center">
+      <div className="text-foreground min-h-dvh bg-white">
+        <main className="mx-auto max-w-4xl px-4 py-8 text-center sm:px-6 sm:py-12">
           <div className="mb-6 flex justify-end">
             <LanguageSwitch />
           </div>
-          <h1 className="font-display text-foreground mb-10 text-4xl font-bold sm:text-5xl">
+          <h1 className="font-display text-foreground mb-6 text-3xl font-bold sm:mb-10 sm:text-5xl">
             Congratulations!
           </h1>
 
-          <div className="mx-auto mb-10 max-w-xl space-y-5 text-left">
+          <div className="mx-auto mb-8 max-w-xl space-y-5 text-left sm:mb-10">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-500" />
               <p className="text-foreground text-lg">You&apos;ve been pre-approved.</p>
@@ -48,15 +48,15 @@ export default function ApprovedPage() {
             </div>
           </div>
 
-          <p className="text-muted-foreground mb-8 text-xl">
+          <p className="text-muted-foreground mb-8 text-lg sm:text-xl">
             Final step - just $24.95 for your official doctor&apos;s note.
           </p>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => router.push('/review')}
-              className="text-foreground hover:bg-accent inline-flex items-center justify-center rounded-lg p-2 transition-all"
+              className="text-foreground hover:bg-accent inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-all"
               aria-label="Back"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -65,7 +65,7 @@ export default function ApprovedPage() {
             <button
               type="button"
               onClick={() => router.push('/payment')}
-              className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all"
+              className="bg-primary hover:bg-primary/90 inline-flex flex-1 items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all sm:flex-none"
             >
               Continue
             </button>

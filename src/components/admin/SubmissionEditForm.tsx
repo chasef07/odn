@@ -181,10 +181,10 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
 
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-foreground text-3xl font-bold">Edit Submission</h1>
-              <p className="text-muted-foreground mt-1 text-sm">ID: {submission.id}</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-foreground text-2xl font-bold sm:text-3xl">Edit Submission</h1>
+              <p className="text-muted-foreground mt-1 text-sm break-all">ID: {submission.id}</p>
             </div>
             <Link href="/admin/maybe">
               <Button variant="outline">Back to List</Button>
@@ -202,7 +202,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
             </div>
           )}
 
-          <div className="space-y-8 rounded-lg border border-gray-200 bg-white p-6 shadow">
+          <div className="space-y-8 rounded-lg border border-gray-200 bg-white p-4 shadow sm:p-6">
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Patient Information</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -513,7 +513,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               </div>
             </div>
 
-            <div className="flex gap-3 border-t border-gray-200 pt-6">
+            <div className="flex flex-col gap-3 border-t border-gray-200 pt-6 sm:flex-row">
               <Button onClick={handleSave} disabled={isActionDisabled} size="lg">
                 {isLoading ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -526,7 +526,12 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
                 {isLoading ? 'Approving...' : 'Approve & Send PDF'}
               </Button>
               <Link href="/admin/maybe">
-                <Button variant="outline" disabled={isActionDisabled} size="lg">
+                <Button
+                  variant="outline"
+                  disabled={isActionDisabled}
+                  size="lg"
+                  className="w-full sm:w-auto"
+                >
                   Back to Maybe List
                 </Button>
               </Link>

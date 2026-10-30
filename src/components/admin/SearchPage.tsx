@@ -146,7 +146,7 @@ export function SearchPage({
             }}
             disabled={isPending}
           >
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="min-w-0 flex-1 sm:w-44 sm:flex-none">
               <SelectValue>{SEARCH_TYPE_LABELS[searchType]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -176,7 +176,7 @@ export function SearchPage({
             {totalPages > 1 && ` (page ${page} of ${totalPages})`}
           </p>
 
-          <div className="space-y-3 sm:hidden">
+          <div className="space-y-3 md:hidden">
             {results.map((submission) => (
               <div
                 key={submission.id}
@@ -199,19 +199,19 @@ export function SearchPage({
                   </div>
                   <StatusBadge status={submission.status} />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-sm text-gray-500">
-                  <span>
+                <div className="mt-2 flex items-center justify-between gap-2 text-sm text-gray-500">
+                  <span className="min-w-0">
                     {formatDateRange(submission.firstDayOff, submission.lastDayOff)} |{' '}
                     {NOTE_PURPOSE_LABELS[submission.notePurpose] || submission.notePurpose}
                   </span>
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 shrink-0" />
                 </div>
                 <p className="mt-1 text-xs text-gray-400">ID: {submission.id.slice(0, 12)}...</p>
               </div>
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm sm:block">
+          <div className="hidden overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm md:block">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -279,6 +279,7 @@ export function SearchPage({
               <Button
                 variant="outline"
                 size="sm"
+                className="h-10 sm:h-8"
                 onClick={() => handleSearch(page - 1)}
                 disabled={page === 1 || isPending}
               >
@@ -291,6 +292,7 @@ export function SearchPage({
               <Button
                 variant="outline"
                 size="sm"
+                className="h-10 sm:h-8"
                 onClick={() => handleSearch(page + 1)}
                 disabled={page === totalPages || isPending}
               >

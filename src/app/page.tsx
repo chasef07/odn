@@ -54,7 +54,7 @@ export function HomePageContent() {
         <section className="bg-gradient-to-b from-gray-50 to-white px-4 py-20 md:px-6 md:py-28">
           <div className="mx-auto max-w-6xl">
             <div className="mb-10 text-center md:mb-14">
-              <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
+              <h2 className="mb-4 text-3xl font-semibold tracking-tight text-balance text-gray-900 md:text-4xl">
                 What&apos;s included
               </h2>
             </div>
@@ -145,7 +145,7 @@ export function HomePageContent() {
                   />
                 ))}
               </div>
-              <h2 className="mb-4 text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl">
+              <h2 className="mb-4 text-3xl font-semibold tracking-tight text-balance text-gray-900 md:text-4xl">
                 What our patients say
               </h2>
             </div>

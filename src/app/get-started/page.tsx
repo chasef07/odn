@@ -43,12 +43,12 @@ export default function Home() {
 
   return (
     <LocalizedPage>
-      <div className="text-foreground min-h-screen bg-white">
-        <main className="mx-auto w-full max-w-4xl px-6 py-8">
+      <div className="text-foreground min-h-dvh bg-white">
+        <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
           <div className="mb-3 flex justify-end">
             <LanguageSwitch />
           </div>
-          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <FormProgress route={ROUTE} />
             </div>
@@ -65,11 +65,11 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mb-10 text-center">
-            <h1 className="font-display text-foreground mb-4 text-4xl font-bold sm:text-5xl">
+          <div className="mb-6 text-center sm:mb-10">
+            <h1 className="font-display text-foreground mb-4 text-3xl font-bold sm:text-5xl">
               Where are you located?
             </h1>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-lg">
+            <p className="text-muted-foreground mx-auto max-w-2xl text-base sm:text-lg">
               Select your state to ensure we can serve you.
             </p>
           </div>

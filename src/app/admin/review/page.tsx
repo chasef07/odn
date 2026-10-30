@@ -375,7 +375,7 @@ export default function AdminReviewPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-120px)] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <div className="space-y-4 text-center">
           <div className="border-primary mx-auto h-12 w-12 animate-spin rounded-full border-b-2"></div>
           <p className="text-muted-foreground">Loading submissions...</p>
@@ -386,7 +386,7 @@ export default function AdminReviewPage() {
 
   if (error) {
     return (
-      <div className="flex h-[calc(100vh-120px)] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <div className="max-w-md space-y-4 text-center">
           <p className="font-semibold text-red-600">Error loading submissions</p>
           <p className="text-muted-foreground">{error}</p>
@@ -398,7 +398,7 @@ export default function AdminReviewPage() {
 
   if (submissions.length === 0) {
     return (
-      <div className="flex h-[calc(100vh-120px)] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <div className="space-y-4 text-center">
           <h2 className="text-2xl font-bold">No Pending Submissions</h2>
           <p className="text-muted-foreground">All submissions have been reviewed!</p>
@@ -421,13 +421,18 @@ export default function AdminReviewPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-120px)] flex-col space-y-3">
-      <div className="flex shrink-0 items-center justify-between">
-        <Button variant="outline" onClick={() => router.push('/admin')} size="sm">
+    <div className="flex flex-col space-y-3">
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          onClick={() => router.push('/admin')}
+          size="sm"
+          className="h-10 sm:h-8"
+        >
           ← Back
         </Button>
         <Link href="/admin/search">
-          <Button variant="outline" size="sm" className="gap-1">
+          <Button variant="outline" size="sm" className="h-10 gap-1 sm:h-8">
             <Search className="h-4 w-4" />
             Search
           </Button>
@@ -444,7 +449,7 @@ export default function AdminReviewPage() {
       )}
 
       <div
-        className={`flex-1 overflow-auto transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
+        className={`transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
       >
         <div className="space-y-4">
           {!isLoadingMonthlyData && monthlyLimitData && (
@@ -495,7 +500,7 @@ export default function AdminReviewPage() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-2xl shrink-0 pb-2">
+      <div className="sticky bottom-0 z-10 mx-auto w-full max-w-2xl border-t bg-white/95 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
         <div className="flex items-center justify-center gap-8 sm:gap-12">
           <button
             onClick={handleDeny}

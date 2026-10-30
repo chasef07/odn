@@ -17,7 +17,7 @@ export default async function ApprovedSubmissionsPage() {
         <header className="border-b bg-white shadow-sm">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <span className="text-muted-foreground truncate text-sm">{admin.email}</span>
               </div>
               <LogoutButton />
@@ -45,7 +45,7 @@ export default async function ApprovedSubmissionsPage() {
       <header className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="text-muted-foreground truncate text-sm">{admin.email}</span>
             </div>
             <LogoutButton />
@@ -55,14 +55,16 @@ export default async function ApprovedSubmissionsPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-green-600">Approved Submissions</h1>
+              <h1 className="text-2xl font-bold text-green-600 sm:text-3xl">
+                Approved Submissions
+              </h1>
               <p className="text-muted-foreground mt-1">
                 {submissions.length} {submissions.length === 1 ? 'approval' : 'approvals'} today
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Link href="/admin/search">
                 <Button variant="outline" className="gap-1">
                   <Search className="h-4 w-4" />
@@ -92,13 +94,13 @@ export default async function ApprovedSubmissionsPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-green-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6">
                         Patient Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6">
                         Email
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6">
                         Approved At
                       </th>
                     </tr>
@@ -106,10 +108,10 @@ export default async function ApprovedSubmissionsPage() {
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {submissions.map((submission) => (
                       <tr key={submission.id} className="transition-colors hover:bg-green-50">
-                        <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
+                        <td className="px-4 py-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:px-6">
                           {submission.patientFirstName} {submission.patientLastName}
                         </td>
-                        <td className="px-6 py-4 text-sm whitespace-nowrap">
+                        <td className="px-4 py-4 text-sm whitespace-nowrap sm:px-6">
                           <a
                             href={`mailto:${submission.email}`}
                             className="text-blue-600 hover:underline"
@@ -117,7 +119,7 @@ export default async function ApprovedSubmissionsPage() {
                             {submission.email}
                           </a>
                         </td>
-                        <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-green-600">
+                        <td className="px-4 py-4 text-sm font-medium whitespace-nowrap text-green-600 sm:px-6">
                           {submission.approvalEmailSentAt
                             ? formatInstantET(instantOf(submission.approvalEmailSentAt))
                             : 'N/A'}

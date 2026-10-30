@@ -82,7 +82,7 @@ export function SelectDenialDialog({
                 if (isDenialReasonChoice(value)) setDenialReason(value)
               }}
             >
-              <SelectTrigger id="denial-reason">
+              <SelectTrigger id="denial-reason" className="max-w-full">
                 <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
               <SelectContent>

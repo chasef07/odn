@@ -34,7 +34,7 @@ export function MonthlyLimitWarning({
       </div>
 
       <div className="mb-3">
-        <div className="mb-1 flex justify-between text-xs">
+        <div className="mb-1 flex justify-between gap-2 text-xs">
           <span className={wouldExceed ? 'text-red-700' : 'text-yellow-700'}>
             {monthlyUsage.totalDays} used + {requestedDays} requested ={' '}
             <strong>{newTotal} days</strong>

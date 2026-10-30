@@ -15,11 +15,11 @@ export function PrivacyPolicyPageContent() {
     <div className="min-h-screen bg-white">
       <Header />
 
-      <div className="mx-auto max-w-4xl px-6 py-12">
+      <div className="mx-auto max-w-4xl px-4 py-12 md:px-6">
         <h1 className="mb-6 text-4xl font-bold">Privacy Policy</h1>
         <p className="text-muted-foreground mb-8 text-sm">Last updated March 27, 2026</p>
 
-        <div className="prose prose-gray max-w-none space-y-8">
+        <div className="prose prose-gray max-w-none space-y-8 break-words">
           <section>
             <p className="leading-relaxed">
               This Privacy Notice for ODN LLC (doing business as OnlineDoctorNote.com)

@@ -49,22 +49,22 @@ export function FormEditableSection({
             <button
               type="button"
               onClick={() => onCancel(sectionId)}
-              className="text-foreground hover:bg-accent rounded-lg px-4 py-2 text-sm font-medium"
+              className="text-foreground hover:bg-accent rounded-lg px-4 py-3 text-sm font-medium sm:py-2"
             >
               {t('Cancel')}
             </button>
             <button
               type="button"
               onClick={onSave}
-              className="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+              className="bg-primary hover:bg-primary/90 rounded-lg px-4 py-3 text-sm font-semibold text-white sm:py-2"
             >
               {t('Save')}
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 space-y-1 break-words">
             <h3 className="text-foreground text-sm font-semibold">{t(title)}</h3>
             {translateReactTree(viewContent, locale)}
           </div>
@@ -72,7 +72,7 @@ export function FormEditableSection({
           <button
             type="button"
             onClick={() => onEdit(sectionId)}
-            className="text-primary flex items-center gap-1 text-sm font-medium hover:underline"
+            className="text-primary -my-3 -mr-2 flex shrink-0 items-center gap-1 px-2 py-3 text-sm font-medium hover:underline"
             aria-label={editAriaLabel ? t(editAriaLabel) : `${t('Edit')} ${t(title).toLowerCase()}`}
           >
             <Pencil className="h-4 w-4" />

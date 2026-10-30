@@ -72,13 +72,13 @@ export function PatientHistoryPopup({
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200"
+        className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200 sm:px-2 sm:py-0.5"
       >
         {count} prior
       </button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-[600px]">
+        <DialogContent className="max-h-[80dvh] overflow-y-auto sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Patient History</DialogTitle>
             <DialogDescription>
@@ -91,14 +91,14 @@ export function PatientHistoryPopup({
             {history?.map((entry) => (
               <div key={entry.id} className="rounded-lg border border-gray-200 p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <StatusBadge status={entry.status} />
                     <span className="text-gray-500">
                       {NOTE_PURPOSE_LABELS[entry.notePurpose] || entry.notePurpose}
                     </span>
                   </div>
                   <Link href={`/admin/search/${entry.id}`}>
-                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                    <Button variant="outline" size="sm" className="h-9 text-xs sm:h-7">
                       View
                     </Button>
                   </Link>
@@ -111,7 +111,7 @@ export function PatientHistoryPopup({
                   </div>
                   <div>
                     <span className="text-gray-400">Email: </span>
-                    {entry.email}
+                    <span className="break-all">{entry.email}</span>
                   </div>
                   <div>
                     <span className="text-gray-400">Submitted: </span>

@@ -86,7 +86,7 @@ export function FAQPageContent(locale: Locale = 'en') {
               <AccordionItem
                 key={index}
                 value={`item-${index}`}
-                className="rounded-lg border border-gray-200 bg-white px-6"
+                className="rounded-lg border border-gray-200 bg-white px-4 sm:px-6"
               >
                 <AccordionTrigger className="py-4 text-left text-base font-medium text-gray-900 hover:no-underline">
                   {item.question}

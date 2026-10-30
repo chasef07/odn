@@ -32,8 +32,8 @@ export function FormLayout({
     : title.replace('{firstName}', '')
 
   return (
-    <div className="text-foreground min-h-screen bg-white">
-      <main className="mx-auto w-full max-w-4xl px-6 py-6 md:py-8">
+    <div className="text-foreground min-h-dvh bg-white">
+      <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 md:py-8">
         <div className="mb-3 flex justify-end">
           <LanguageSwitch />
         </div>

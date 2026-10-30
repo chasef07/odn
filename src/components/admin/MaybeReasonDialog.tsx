@@ -102,7 +102,7 @@ export function MaybeReasonDialog({
           <div className="space-y-2">
             <Label htmlFor="maybe-reason">Maybe Reason</Label>
             <Select value={reason} onValueChange={handleReasonChange}>
-              <SelectTrigger id="maybe-reason">
+              <SelectTrigger id="maybe-reason" className="max-w-full">
                 <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
               <SelectContent>
@@ -122,7 +122,7 @@ export function MaybeReasonDialog({
             <div className="space-y-2">
               <Label htmlFor="maybe-approved-days">How many days can we approve?</Label>
               <Select value={approvedDays} onValueChange={setApprovedDays}>
-                <SelectTrigger id="maybe-approved-days">
+                <SelectTrigger id="maybe-approved-days" className="max-w-full">
                   <SelectValue placeholder="Select approved days" />
                 </SelectTrigger>
                 <SelectContent>

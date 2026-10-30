@@ -76,7 +76,7 @@ export default async function AdminAgentLayout({ children }: { children: ReactNo
             <RepeatCustomers />
           </Suspense>
         )}
-        <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
           <AgentThreadList threads={threads} />
           {children}
         </div>

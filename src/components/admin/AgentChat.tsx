@@ -101,11 +101,11 @@ function Chat({ threadId, initialMessages }: ChatProps) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-13rem)] min-h-[32rem] flex-col rounded-lg border bg-white">
+    <div className="flex h-[calc(100svh-4rem)] min-h-[24rem] flex-col rounded-lg border bg-white lg:h-[calc(100svh-13rem)] lg:min-h-[32rem]">
       <Conversation>
         <ConversationContent>
           {messages.length === 0 ? (
-            <ConversationEmptyState>
+            <ConversationEmptyState className="p-4 sm:p-8">
               <Database className="text-muted-foreground size-8" />
               <div className="space-y-1">
                 <h3 className="text-sm font-medium">Ask about the business</h3>
@@ -121,6 +121,7 @@ function Chat({ threadId, initialMessages }: ChatProps) {
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="h-auto min-h-10 py-1.5 whitespace-normal sm:min-h-8"
                     onClick={() => ask(question)}
                   >
                     {question}
@@ -131,7 +132,7 @@ function Chat({ threadId, initialMessages }: ChatProps) {
           ) : (
             messages.map((message) => (
               <Message from={message.role} key={message.id}>
-                <MessageContent className="group-[.is-assistant]:w-full">
+                <MessageContent className="break-words group-[.is-assistant]:w-full">
                   <MessageParts parts={message.parts} />
                 </MessageContent>
               </Message>

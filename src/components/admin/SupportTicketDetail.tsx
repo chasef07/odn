@@ -78,7 +78,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
     <div className="space-y-6">
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className={supportStatusClass(ticket.status)}>
                 {supportStatusLabel(ticket.status)}
@@ -88,16 +88,18 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
               </span>
             </div>
             <h1 className="mt-3 text-2xl font-bold text-gray-900">SMS Support Ticket</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm break-all text-gray-500">
               {ticket.id} | {ticket.phoneE164}
             </p>
             {ticket.adminSummary && (
-              <p className="mt-3 max-w-3xl text-sm text-gray-700">{ticket.adminSummary}</p>
+              <p className="mt-3 max-w-3xl text-sm break-words text-gray-700">
+                {ticket.adminSummary}
+              </p>
             )}
             {ticket.failureReason && (
               <div className="mt-3 flex gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{ticket.failureReason}</span>
+                <span className="min-w-0 break-words">{ticket.failureReason}</span>
               </div>
             )}
           </div>
@@ -146,7 +148,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-semibold text-gray-900">Conversation</h2>
@@ -171,9 +173,11 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                         )}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm whitespace-pre-wrap text-gray-800">{message.body}</p>
+                    <p className="mt-2 text-sm break-words whitespace-pre-wrap text-gray-800">
+                      {message.body}
+                    </p>
                     {(message.providerStatus || message.errorMessage) && (
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-2 text-xs break-words text-gray-500">
                         {message.providerStatus || 'unknown'}
                         {message.errorMessage ? `: ${message.errorMessage}` : ''}
                       </p>
@@ -216,7 +220,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                 <p className="font-medium text-gray-900">
                   {ticket.submission.patientFirstName} {ticket.submission.patientLastName}
                 </p>
-                <p className="text-gray-600">{ticket.submission.email}</p>
+                <p className="break-all text-gray-600">{ticket.submission.email}</p>
                 <p className="text-gray-600">
                   DOB: {dateOnlyFromUtcDate(ticket.submission.patientDateOfBirth)}
                 </p>
@@ -254,7 +258,9 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                     <p className="mt-1 text-xs text-gray-500">
                       {formatInstantET(instantOf(job.createdAt))}
                     </p>
-                    {job.lastError && <p className="mt-2 text-xs text-red-700">{job.lastError}</p>}
+                    {job.lastError && (
+                      <p className="mt-2 text-xs break-words text-red-700">{job.lastError}</p>
+                    )}
                   </div>
                 ))
               )}

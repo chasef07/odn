@@ -135,7 +135,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
         {t(label)}
       </Label>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <div className="flex flex-col items-center">
           <input
             ref={monthRef}

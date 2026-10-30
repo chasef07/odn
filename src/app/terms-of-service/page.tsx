@@ -15,11 +15,11 @@ export function TermsOfServicePageContent() {
     <div className="min-h-screen bg-white">
       <Header />
 
-      <div className="mx-auto max-w-4xl px-6 py-12">
+      <div className="mx-auto max-w-4xl px-4 py-12 md:px-6">
         <h1 className="mb-6 text-4xl font-bold">Terms of Service</h1>
         <p className="text-muted-foreground mb-8 text-sm">Last updated March 27, 2026</p>
 
-        <div className="prose prose-gray max-w-none space-y-8">
+        <div className="prose prose-gray max-w-none space-y-8 break-words">
           <section>
             <h2 className="mb-4 text-2xl font-bold">Agreement to Our Legal Terms</h2>
             <p className="leading-relaxed">

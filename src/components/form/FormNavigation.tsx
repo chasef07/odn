@@ -32,11 +32,11 @@ export function FormNavigation({
   }
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3">
       <button
         type="button"
         onClick={handleBackClick}
-        className="text-foreground hover:bg-accent inline-flex items-center justify-center rounded-lg p-2 transition-all"
+        className="text-foreground hover:bg-accent inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-all"
         aria-label={t('Back')}
       >
         <ArrowLeft className="h-5 w-5" />
@@ -45,7 +45,7 @@ export function FormNavigation({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50"
+        className="bg-primary hover:bg-primary/90 inline-flex flex-1 items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
       >
         {isSubmitting ? t('Loading...') : t(submitText)}
       </button>

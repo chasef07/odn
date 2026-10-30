@@ -74,13 +74,13 @@ export function AboutPageContent() {
 
       <section className="bg-gray-900 px-4 py-16 md:px-6 md:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="mb-4 text-3xl font-semibold tracking-tight text-white">
+          <h2 className="mb-4 text-3xl font-semibold tracking-tight text-balance text-white">
             Get Your Doctor&apos;s Note in Minutes
           </h2>
           <p className="mb-8 text-gray-400">Skip the waiting room. Get started now.</p>
           <Link
             href="/start"
-            className="inline-flex items-center gap-2 rounded-full bg-[#009ed9] px-8 py-4 text-base font-medium text-white transition-all hover:bg-[#00b4f5]"
+            className="inline-flex items-center gap-2 rounded-full bg-[#009ed9] px-6 py-4 text-base font-medium text-white transition-all hover:bg-[#00b4f5] sm:px-8"
           >
             Get Your Note — $24.95
             <ArrowRight className="h-5 w-5" />

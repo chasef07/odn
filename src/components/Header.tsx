@@ -80,7 +80,7 @@ export default function Header() {
       >
         {t('Skip to main content')}
       </a>
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-3 py-4 sm:px-4 lg:px-6">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-3 py-3 sm:px-4 lg:px-6 lg:py-4">
         <Link href={path('/')} className="shrink-0">
           <span className="text-lg font-bold tracking-tight sm:text-2xl">
             <span className="text-[#009ed9]">Online</span>
@@ -116,7 +116,7 @@ export default function Header() {
           <button
             ref={closeButtonRef}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="relative z-50 rounded-lg p-2 text-gray-600 hover:bg-gray-100"
+            className="relative z-50 rounded-lg p-2.5 text-gray-600 hover:bg-gray-100"
             aria-label={t(mobileMenuOpen ? 'Close menu' : 'Open menu')}
             aria-expanded={mobileMenuOpen}
           >
@@ -128,12 +128,12 @@ export default function Header() {
       {mobileMenuOpen && (
         <div
           ref={mobileMenuRef}
-          className="fixed inset-0 z-40 bg-white lg:hidden"
+          className="fixed inset-0 z-40 overflow-y-auto bg-white lg:hidden"
           role="dialog"
           aria-modal="true"
           aria-label={t('Mobile menu')}
         >
-          <div className="flex h-full flex-col px-6 pt-20">
+          <div className="flex min-h-full flex-col px-6 pt-20">
             <div className="flex flex-col gap-2">
               {navLinks.map((link) => (
                 <Link
@@ -166,7 +166,10 @@ export default function Header() {
 
             <div className="mt-auto pb-8 text-center">
               <p className="text-sm text-gray-500">{t('Questions? Call us')}</p>
-              <a href="tel:917-300-8543" className="text-lg font-medium text-gray-900">
+              <a
+                href="tel:917-300-8543"
+                className="inline-flex min-h-11 items-center text-lg font-medium text-gray-900"
+              >
                 917-300-8543
               </a>
             </div>

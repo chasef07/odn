@@ -39,7 +39,7 @@ export function AdminStats({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 border-green-500 px-2 text-xs text-green-600 hover:bg-green-50"
+                className="h-9 border-green-500 px-4 text-xs text-green-600 hover:bg-green-50 sm:h-7 sm:px-2"
               >
                 View
               </Button>
@@ -59,7 +59,7 @@ export function AdminStats({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 border-red-500 px-2 text-xs text-red-600 hover:bg-red-50"
+                className="h-9 border-red-500 px-4 text-xs text-red-600 hover:bg-red-50 sm:h-7 sm:px-2"
               >
                 View
               </Button>
@@ -81,7 +81,7 @@ export function AdminStats({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 border-yellow-500 px-2 text-xs text-yellow-600 hover:bg-yellow-50"
+                className="h-9 border-yellow-500 px-4 text-xs text-yellow-600 hover:bg-yellow-50 sm:h-7 sm:px-2"
               >
                 View
               </Button>
