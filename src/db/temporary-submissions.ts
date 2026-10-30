@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { db } from './pool'
 import { count, sql } from './sql'
-import { insert, select, selectAll, set } from './table'
+import { insert, select, selectAll } from './table'
 import { temporarySubmissions } from './tables'
 import type { JsonValue, TemporarySubmission } from './types'
 
@@ -19,29 +19,10 @@ export async function createTemporarySubmission({
   return row
 }
 
-export async function findTemporarySubmissionByPaymentIntent(
-  paymentIntentId: string
-): Promise<TemporarySubmission | null> {
-  return db.one(
-    sql`SELECT ${selectAll(temporarySubmissions)} FROM temporary_submissions WHERE payment_intent_id = ${paymentIntentId}`
-  )
-}
-
 export async function findTemporarySubmissionById(id: string): Promise<TemporarySubmission | null> {
   return db.one(
     sql`SELECT ${selectAll(temporarySubmissions)} FROM temporary_submissions WHERE id = ${id}`
   )
-}
-
-export async function attachPaymentIntentToTemporarySubmission(
-  id: string,
-  paymentIntentId: string
-): Promise<TemporarySubmission> {
-  const row = await db.one(
-    sql`UPDATE temporary_submissions SET ${set(temporarySubmissions, { paymentIntentId })} WHERE id = ${id} RETURNING ${selectAll(temporarySubmissions)}`
-  )
-  if (!row) throw new Error(`Temporary submission ${id} not found`)
-  return row
 }
 
 export async function deleteTemporarySubmission(id: string): Promise<void> {

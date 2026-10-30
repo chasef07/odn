@@ -4,7 +4,6 @@ import { sql } from '../sql'
 import { insert } from '../table'
 import { temporarySubmissions } from '../tables'
 import {
-  attachPaymentIntentToTemporarySubmission,
   countExpiredTemporarySubmissions,
   countTemporarySubmissions,
   createTemporarySubmission,
@@ -12,7 +11,6 @@ import {
   deleteTemporarySubmission,
   findRecentTemporarySubmissions,
   findTemporarySubmissionById,
-  findTemporarySubmissionByPaymentIntent,
 } from '../temporary-submissions'
 
 const formData = {
@@ -70,19 +68,6 @@ describe('temporary submissions', () => {
     expect(await findTemporarySubmissionById(created.id)).toEqual(created)
   })
 
-  it('finds a row by payment intent and returns null when none matches', async () => {
-    await seed('temp_1', 'pi_1', new Date('2026-08-01T00:00:00Z'), new Date('2026-08-06T00:00:00Z'))
-
-    expect(await findTemporarySubmissionByPaymentIntent('pi_1')).toEqual({
-      id: 'temp_1',
-      paymentIntentId: 'pi_1',
-      formData,
-      createdAt: new Date('2026-08-01T00:00:00Z'),
-      expiresAt: new Date('2026-08-06T00:00:00Z'),
-    })
-    expect(await findTemporarySubmissionByPaymentIntent('pi_missing')).toBeNull()
-  })
-
   it('finds a row by id and returns null when none matches', async () => {
     await seed('temp_1', 'pi_1', new Date('2026-08-01T00:00:00Z'), new Date('2026-08-06T00:00:00Z'))
 
@@ -91,53 +76,6 @@ describe('temporary submissions', () => {
       paymentIntentId: 'pi_1',
     })
     expect(await findTemporarySubmissionById('temp_missing')).toBeNull()
-  })
-
-  it('attaches the payment intent id to that row only and returns the updated row', async () => {
-    await seed(
-      'temp_1',
-      'pending_1',
-      new Date('2026-08-01T00:00:00Z'),
-      new Date('2026-08-06T00:00:00Z')
-    )
-    await seed(
-      'temp_2',
-      'pending_2',
-      new Date('2026-08-01T00:00:00Z'),
-      new Date('2026-08-06T00:00:00Z')
-    )
-
-    const updated = await attachPaymentIntentToTemporarySubmission('temp_1', 'pi_1')
-
-    expect(updated).toEqual({
-      id: 'temp_1',
-      paymentIntentId: 'pi_1',
-      formData,
-      createdAt: new Date('2026-08-01T00:00:00Z'),
-      expiresAt: new Date('2026-08-06T00:00:00Z'),
-    })
-    expect(await findTemporarySubmissionByPaymentIntent('pi_1')).toEqual(updated)
-    expect(await findTemporarySubmissionByPaymentIntent('pending_1')).toBeNull()
-    expect(await findTemporarySubmissionById('temp_2')).toMatchObject({
-      paymentIntentId: 'pending_2',
-    })
-  })
-
-  it('throws when attaching a payment intent to a missing row and leaves other rows alone', async () => {
-    await seed(
-      'temp_2',
-      'pending_2',
-      new Date('2026-08-01T00:00:00Z'),
-      new Date('2026-08-06T00:00:00Z')
-    )
-
-    await expect(attachPaymentIntentToTemporarySubmission('temp_missing', 'pi_1')).rejects.toThrow(
-      'temp_missing'
-    )
-
-    expect(await findTemporarySubmissionById('temp_2')).toMatchObject({
-      paymentIntentId: 'pending_2',
-    })
   })
 
   it('deletes a row by id and throws when the row is missing', async () => {

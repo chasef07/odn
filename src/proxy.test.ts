@@ -17,7 +17,9 @@ describe('verification host routing', () => {
   it('serves only verification routes on the verification host', () => {
     const allowed = proxy(new NextRequest('https://phealthclinic.com/verify/v_testslug'))
     const blockedPage = proxy(new NextRequest('https://phealthclinic.com/start'))
-    const blockedApi = proxy(new NextRequest('https://phealthclinic.com/api/create-payment-intent'))
+    const blockedApi = proxy(
+      new NextRequest('https://phealthclinic.com/api/create-checkout-session')
+    )
 
     expect(allowed.status).toBe(200)
     expect(allowed.headers.get('x-middleware-next')).toBe('1')

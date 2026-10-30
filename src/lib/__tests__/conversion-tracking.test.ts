@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   normalizeEmailForConversions,
   PURCHASE_EVENT,
-  stripStripeSecretParams,
   trackPurchaseOnce,
 } from '@/lib/conversion-tracking'
 
@@ -95,37 +94,6 @@ describe('trackPurchaseOnce', () => {
   it('ignores an empty transaction id', () => {
     expect(trackPurchaseOnce({ ...conversion, transactionId: '' })).toBe(false)
     expect(window.dataLayer).toBeUndefined()
-  })
-})
-
-describe('stripStripeSecretParams', () => {
-  afterEach(() => {
-    window.history.replaceState(null, '', '/')
-  })
-
-  it('removes the client secret but keeps the payment intent id', () => {
-    window.history.replaceState(
-      null,
-      '',
-      '/payment/success?payment_intent=pi_123&payment_intent_client_secret=pi_123_secret_abc&redirect_status=succeeded'
-    )
-
-    stripStripeSecretParams()
-
-    const params = new URLSearchParams(window.location.search)
-    expect(params.get('payment_intent')).toBe('pi_123')
-    expect(params.get('redirect_status')).toBe('succeeded')
-    expect(params.has('payment_intent_client_secret')).toBe(false)
-    expect(window.location.pathname).toBe('/payment/success')
-  })
-
-  it('leaves the URL alone when there is no secret', () => {
-    window.history.replaceState(null, '', '/payment/success?payment_intent=pi_123')
-    const spy = vi.spyOn(window.history, 'replaceState')
-
-    stripStripeSecretParams()
-
-    expect(spy).not.toHaveBeenCalled()
   })
 })
 

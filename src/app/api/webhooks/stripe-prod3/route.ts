@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { SubmissionStatus, type JsonValue } from '@/db/types'
 import { findSubmissionIdForPaymentIntent, insertSubmission } from '@/db/submissions'
-import {
-  attachPaymentIntentToTemporarySubmission,
-  deleteTemporarySubmission,
-  findTemporarySubmissionById,
-  findTemporarySubmissionByPaymentIntent,
-} from '@/db/temporary-submissions'
+import { deleteTemporarySubmission, findTemporarySubmissionById } from '@/db/temporary-submissions'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
@@ -91,26 +86,10 @@ export async function POST(request: NextRequest) {
       created: new Date(event.created * 1000).toISOString(),
     })
 
-    let tempSubmission = await findTemporarySubmissionByPaymentIntent(paymentIntent.id)
-
-    if (!tempSubmission && paymentIntent.metadata?.temporarySubmissionId) {
-      logger.info('Primary lookup failed, attempting fallback by metadata.temporarySubmissionId')
-
-      const tempSubmissionById = await findTemporarySubmissionById(
-        paymentIntent.metadata.temporarySubmissionId
-      )
-
-      if (tempSubmissionById) {
-        logger.info('FALLBACK SUCCESS: Found TemporarySubmission by metadata ID')
-
-        tempSubmission = await attachPaymentIntentToTemporarySubmission(
-          tempSubmissionById.id,
-          paymentIntent.id
-        )
-
-        logger.info('TemporarySubmission updated with correct paymentIntentId:', paymentIntent.id)
-      }
-    }
+    const tempSubmissionId = paymentIntent.metadata?.temporarySubmissionId
+    const tempSubmission = tempSubmissionId
+      ? await findTemporarySubmissionById(tempSubmissionId)
+      : null
 
     if (!tempSubmission) {
       logger.error('TemporarySubmission not found for payment:', paymentIntent.id)
@@ -119,7 +98,7 @@ export async function POST(request: NextRequest) {
         paymentIntentId: paymentIntent.id,
         amount: paymentIntent.amount,
         email: paymentIntent.metadata.email,
-        attemptedFallback: !!paymentIntent.metadata?.temporarySubmissionId,
+        tempSubmissionId: tempSubmissionId ?? null,
       })
 
       return NextResponse.json({ error: 'Temporary submission not found' }, { status: 500 })

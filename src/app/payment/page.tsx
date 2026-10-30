@@ -3,130 +3,26 @@
 import { useState, useEffect } from 'react'
 import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { loadStripe } from '@stripe/stripe-js'
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
+import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
 import { ArrowLeft } from 'lucide-react'
 import { FormLayout } from '@/components/form-layout'
 import { getFormData } from '@/lib/form-storage'
 import { useI18n } from '@/components/i18n/I18nProvider'
-import { LocalizedPage } from '@/components/i18n/LocalizedPage'
 import { useFunnelStep } from '@/components/useFunnelStep'
 import { publicEnv } from '@/lib/public-env'
 
 const stripePromise = loadStripe(publicEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
 
-type PriceInfo = {
-  amount: number
-  currency: string
-  priceId: string
-  formattedAmount: string
-  offerApplied: boolean
-  offerCode: string | null
-}
-
-function CheckoutForm({ priceInfo }: { priceInfo: PriceInfo | null }) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const router = useRouter()
-  const [message, setMessage] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const { t, path } = useI18n()
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!stripe || !elements) {
-      return
-    }
-
-    setIsLoading(true)
-    setMessage(null)
-
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}${path('/payment/success')}`,
-      },
-    })
-
-    if (error) {
-      if (error.type === 'card_error' || error.type === 'validation_error') {
-        setMessage(error.message || t('An error occurred'))
-      } else {
-        setMessage(t('An unexpected error occurred.'))
-      }
-    }
-
-    setIsLoading(false)
-  }
-
-  return (
-    <LocalizedPage>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="border-border/40 rounded-xl border bg-white p-4 shadow-sm sm:p-6">
-          <h3 className="text-foreground mb-4 text-sm font-semibold">Order Summary</h3>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-foreground text-base font-medium">
-                Doctor&apos;s Note - Online Medical Documentation
-              </p>
-              {priceInfo?.offerApplied && (
-                <p className="mt-1 text-sm font-medium text-green-700">Discount applied</p>
-              )}
-            </div>
-            <span className="text-primary text-xl font-bold">
-              {priceInfo ? (
-                `$${priceInfo.formattedAmount}`
-              ) : (
-                <span className="text-base text-red-600">Price unavailable</span>
-              )}
-            </span>
-          </div>
-        </div>
-
-        <div className="border-border/40 rounded-xl border bg-white p-4 shadow-sm sm:p-6">
-          <h3 className="text-foreground mb-4 text-sm font-semibold">Payment Details</h3>
-          <PaymentElement />
-        </div>
-
-        {message && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-            <p className="text-sm text-red-600">{message}</p>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between gap-3 pt-2">
-          <button
-            type="button"
-            onClick={() => router.push('/review')}
-            className="text-foreground hover:bg-accent inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-all"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <button
-            type="submit"
-            disabled={isLoading || !stripe || !elements}
-            className="bg-primary hover:bg-primary/90 inline-flex flex-1 items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
-          >
-            {isLoading ? 'Processing...' : 'Pay Now'}
-          </button>
-        </div>
-      </form>
-    </LocalizedPage>
-  )
-}
-
 export default function PaymentPage() {
   const router = useRouter()
   const [clientSecret, setClientSecret] = useState<string>('')
-  const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { locale, t } = useI18n()
   useFunnelStep('/payment', clientSecret !== '')
 
   useEffect(() => {
-    const createPaymentIntent = async () => {
+    const createCheckoutSession = async () => {
       try {
         const formData = getFormData()
 
@@ -136,10 +32,10 @@ export default function PaymentPage() {
           return
         }
 
-        const response = await fetch('/api/create-payment-intent', {
+        const response = await fetch('/api/create-checkout-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ formData, offerCode: formData.offerCode }),
+          body: JSON.stringify({ formData, offerCode: formData.offerCode, locale }),
         })
 
         if (!response.ok) {
@@ -148,7 +44,7 @@ export default function PaymentPage() {
             router.replace(errorData.route)
             return
           }
-          setError(t(errorData.error || 'Failed to create payment intent'))
+          setError(t(errorData.error || 'Failed to initialize payment'))
           return
         }
 
@@ -156,68 +52,19 @@ export default function PaymentPage() {
 
         if (data.clientSecret) {
           setClientSecret(data.clientSecret)
-          setPriceInfo({
-            amount: data.amount,
-            currency: data.currency,
-            priceId: data.priceId,
-            formattedAmount: data.formattedAmount,
-            offerApplied: data.offerApplied,
-            offerCode: data.offerCode,
-          })
         } else {
           setError(t('Failed to initialize payment'))
         }
       } catch (err) {
-        console.error('Payment intent creation error:', err)
+        console.error('Checkout Session creation error:', err)
         setError(t('Failed to connect to payment service. Please try again.'))
       } finally {
         setLoading(false)
       }
     }
 
-    createPaymentIntent()
-  }, [router, t])
-
-  const appearance = {
-    theme: 'stripe' as const,
-  }
-
-  const options = {
-    clientSecret,
-    appearance,
-    locale: locale === 'es' ? ('es' as const) : ('en' as const),
-  }
-
-  if (loading) {
-    return (
-      <FormLayout
-        title="Payment"
-        description="Secure payment powered by Stripe"
-        usePersonalization={false}
-      >
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2"></div>
-            <p className="text-muted-foreground">Loading payment form...</p>
-          </div>
-        </div>
-      </FormLayout>
-    )
-  }
-
-  if (error) {
-    return (
-      <FormLayout
-        title="Payment"
-        description="Secure payment powered by Stripe"
-        usePersonalization={false}
-      >
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6">
-          <p className="text-red-600">{error}</p>
-        </div>
-      </FormLayout>
-    )
-  }
+    createCheckoutSession()
+  }, [router, t, locale])
 
   return (
     <FormLayout
@@ -225,10 +72,38 @@ export default function PaymentPage() {
       description="Secure payment powered by Stripe"
       usePersonalization={false}
     >
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2"></div>
+            <p className="text-muted-foreground">Loading payment form...</p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+          <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
       {clientSecret && (
-        <Elements options={options} stripe={stripePromise}>
-          <CheckoutForm priceInfo={priceInfo} />
-        </Elements>
+        <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+          <EmbeddedCheckout />
+        </EmbeddedCheckoutProvider>
+      )}
+
+      {!loading && (
+        <div className="pt-4">
+          <button
+            type="button"
+            onClick={() => router.push('/review')}
+            className="text-foreground hover:bg-accent inline-flex h-11 w-11 items-center justify-center rounded-lg transition-all"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        </div>
       )}
     </FormLayout>
   )
