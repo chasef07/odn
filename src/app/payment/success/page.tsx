@@ -5,28 +5,27 @@ import Link from 'next/link'
 import { FormLayout } from '@/components/form-layout'
 import { CheckCircle2 } from 'lucide-react'
 import { clearFormData } from '@/lib/form-storage'
-import { stripStripeSecretParams, trackPurchaseOnce } from '@/lib/conversion-tracking'
+import { trackPurchaseOnce } from '@/lib/conversion-tracking'
 import { useFunnelStep } from '@/components/useFunnelStep'
+import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 
 export default function PaymentSuccessPage() {
-  const [paymentIntent] = useState<string | null>(() => {
+  const router = useRouter()
+  const [sessionId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
-    const params = new URLSearchParams(window.location.search)
-    stripStripeSecretParams()
-    return params.get('payment_intent')
+    return new URLSearchParams(window.location.search).get('session_id')
   })
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() => {
+  const [status, setStatus] = useState<'loading' | 'success' | 'processing' | 'error'>(() => {
     if (typeof window === 'undefined') return 'loading'
-    const params = new URLSearchParams(window.location.search)
-    return params.get('payment_intent') ? 'loading' : 'error'
+    return new URLSearchParams(window.location.search).get('session_id') ? 'loading' : 'error'
   })
 
   const [email, setEmail] = useState<string | null>(null)
   useFunnelStep('/payment/success', status === 'success')
 
   useEffect(() => {
-    if (!paymentIntent) {
+    if (!sessionId) {
       return
     }
 
@@ -35,7 +34,7 @@ export default function PaymentSuccessPage() {
         const response = await fetch('/api/verify-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentIntentId: paymentIntent }),
+          body: JSON.stringify({ sessionId }),
         })
 
         if (!response.ok) {
@@ -45,26 +44,34 @@ export default function PaymentSuccessPage() {
 
         const data = await response.json()
 
-        if (data.status === 'succeeded') {
-          setStatus('success')
-          if (data.email) {
-            setEmail(data.email)
-          }
+        if (data.status === 'open') {
+          router.replace('/payment')
+          return
+        }
 
+        if (data.status !== 'paid' && data.status !== 'processing') {
+          setStatus('error')
+          return
+        }
+
+        setStatus(data.status === 'paid' ? 'success' : 'processing')
+        if (data.email) {
+          setEmail(data.email)
+        }
+
+        if (data.status === 'paid') {
           trackPurchaseOnce({
-            transactionId: paymentIntent,
+            transactionId: data.paymentIntentId,
             amountCents: data.amount,
             currency: data.currency || 'usd',
             emailSha256: data.emailSha256,
           })
+        }
 
-          try {
-            clearFormData()
-          } catch (clearError) {
-            console.warn('Failed to clear form data:', clearError)
-          }
-        } else {
-          setStatus('error')
+        try {
+          clearFormData()
+        } catch (clearError) {
+          console.warn('Failed to clear form data:', clearError)
         }
       } catch {
         setStatus('error')
@@ -72,7 +79,7 @@ export default function PaymentSuccessPage() {
     }
 
     verifyPayment()
-  }, [paymentIntent])
+  }, [sessionId, router])
 
   if (status === 'loading') {
     return (
@@ -108,9 +115,15 @@ export default function PaymentSuccessPage() {
     )
   }
 
+  const recipient = email ? (
+    <span className="text-foreground font-medium break-words">{email}</span>
+  ) : (
+    'your email'
+  )
+
   return (
     <FormLayout
-      title="Payment Successful"
+      title={status === 'processing' ? 'Payment Received' : 'Payment Successful'}
       description="Your doctor's note is being processed"
       usePersonalization={true}
     >
@@ -118,15 +131,16 @@ export default function PaymentSuccessPage() {
         <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-center sm:p-8">
           <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-green-600" />
           <h2 className="text-foreground mb-2 text-2xl font-bold">Thank you for your payment!</h2>
-          <p className="text-muted-foreground">
-            Your doctor&apos;s note is being processed and will be sent to{' '}
-            {email ? (
-              <span className="text-foreground font-medium break-words">{email}</span>
-            ) : (
-              'your email'
-            )}{' '}
-            shortly.
-          </p>
+          {status === 'processing' ? (
+            <p className="text-muted-foreground">
+              Your bank payment is processing. This can take a few business days. We&apos;ll review
+              your doctor&apos;s note once it clears and send it to {recipient}.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              Your doctor&apos;s note is being processed and will be sent to {recipient} shortly.
+            </p>
+          )}
         </div>
 
         <div className="border-border/40 rounded-xl border bg-white p-4 shadow-sm sm:p-6">

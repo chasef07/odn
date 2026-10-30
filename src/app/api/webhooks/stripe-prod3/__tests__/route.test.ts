@@ -6,16 +6,12 @@ import type { FormData } from '@/lib/form-storage'
 const {
   mockFindSubmissionIdForPaymentIntent,
   mockInsertSubmission,
-  mockFindTempByPaymentIntent,
   mockFindTempById,
-  mockAttachPaymentIntent,
   mockDeleteTemp,
 } = vi.hoisted(() => ({
   mockFindSubmissionIdForPaymentIntent: vi.fn(),
   mockInsertSubmission: vi.fn(),
-  mockFindTempByPaymentIntent: vi.fn(),
   mockFindTempById: vi.fn(),
-  mockAttachPaymentIntent: vi.fn(),
   mockDeleteTemp: vi.fn(),
 }))
 
@@ -25,9 +21,7 @@ vi.mock('@/db/submissions', () => ({
 }))
 
 vi.mock('@/db/temporary-submissions', () => ({
-  findTemporarySubmissionByPaymentIntent: mockFindTempByPaymentIntent,
   findTemporarySubmissionById: mockFindTempById,
-  attachPaymentIntentToTemporarySubmission: mockAttachPaymentIntent,
   deleteTemporarySubmission: mockDeleteTemp,
 }))
 
@@ -102,7 +96,7 @@ function buildEvent(
     id: 'pi_test_123',
     amount: 2495,
     currency: 'usd',
-    metadata: { email: 'john@example.com' },
+    metadata: { email: 'john@example.com', temporarySubmissionId: 'temp_test' },
   }
 ): Stripe.Event {
   return {
@@ -134,7 +128,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('creates submission with PENDING_REVIEW when data is valid', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_ok',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
@@ -165,9 +159,46 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     })
   })
 
+  it('finds the draft by the temporarySubmissionId in the payment metadata', async () => {
+    mockWebhookConstructEvent.mockReturnValue(buildEvent())
+    mockFindTempById.mockResolvedValue({
+      id: 'temp_test',
+      paymentIntentId: 'pending_checkout',
+      formData: validFormData,
+    })
+    mockInsertSubmission.mockResolvedValue({
+      submission: { id: 'sub_meta', email: validFormData.email, patientFirstName: 'John' },
+      inserted: true,
+    })
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(200)
+    expect(mockFindTempById).toHaveBeenCalledWith('temp_test')
+    expect(mockInsertSubmission.mock.calls[0][0].stripePaymentIntentId).toBe('pi_test_123')
+    expect(mockDeleteTemp).toHaveBeenCalledWith('temp_test')
+  })
+
+  it('returns 500 so Stripe retries when the payment has no draft id in its metadata', async () => {
+    mockWebhookConstructEvent.mockReturnValue(
+      buildEvent({
+        id: 'pi_no_draft',
+        amount: 2495,
+        currency: 'usd',
+        metadata: { email: 'john@example.com' },
+      })
+    )
+
+    const response = await POST(buildRequest())
+
+    expect(response.status).toBe(500)
+    expect(mockFindTempById).not.toHaveBeenCalled()
+    expect(mockInsertSubmission).not.toHaveBeenCalled()
+  })
+
   it('acknowledges Stripe after a failed purchase email attempt without losing the submission', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_email_failure',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
@@ -191,7 +222,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('acknowledges a concurrent duplicate delivery without emailing or texting again', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_dup',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
@@ -229,7 +260,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('sends purchase confirmation SMS when opted in', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_sms',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
@@ -267,7 +298,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
         resolveSms = resolve
       })
     )
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_sms_pending',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
@@ -293,7 +324,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('does not send purchase confirmation SMS when opted out', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_no_sms',
       paymentIntentId: 'pi_test_123',
       formData: {
@@ -321,7 +352,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
   it('does not fail the Stripe webhook when purchase SMS fails', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
     mockSendTransactionalSmsForSubmission.mockRejectedValue(new Error('Telnyx unavailable'))
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_sms_error',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
@@ -366,10 +397,11 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
           price_type: 'friends_family',
           offer_code: 'friends20',
           offer_price_id: 'price_friends_family_mock',
+          temporarySubmissionId: 'temp_offer',
         },
       })
     )
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_offer',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
@@ -406,7 +438,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       at: '2026-10-07T12:00:00.000Z',
     }
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_attr',
       paymentIntentId: 'pi_test_123',
       formData: { ...validFormData, attribution: { first: touch, last: touch } },
@@ -433,7 +465,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('leaves attribution empty when the temporary submission has none', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_none',
       paymentIntentId: 'pi_test_123',
       formData: validFormData,
@@ -461,7 +493,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       firstDayOff: daysFromToday(0),
       lastDayOff: daysFromToday(10),
     }
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_bad_dates',
       paymentIntentId: 'pi_test_123',
       formData: badFormData,
@@ -515,7 +547,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       recipient: 'myself' as const,
       patientDateOfBirth: toISODate(dob),
     }
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_minor',
       paymentIntentId: 'pi_test_123',
       formData: badFormData,
@@ -551,7 +583,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
       guardianLastName: 'Doe',
       guardianDateOfBirth: '1980-01-01',
     }
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_future_dob',
       paymentIntentId: 'pi_test_123',
       formData: badFormData,
@@ -579,7 +611,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('persists a paid legal-purpose draft as MAYBE', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_legal',
       paymentIntentId: 'pi_test_123',
       formData: { ...validFormData, notePurpose: 'legal' },
@@ -608,7 +640,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('notes every failing field when persisting as MAYBE', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_state',
       paymentIntentId: 'pi_test_123',
       formData: { ...validFormData, state: 'CA', email: 'john@gmail.con' },
@@ -634,7 +666,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('stores the normalized phone and lowercased email', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_phone',
       paymentIntentId: 'pi_test_123',
       formData: { ...validFormData, phone: '+1 555 123 4567', email: 'John@Example.com' },
@@ -661,7 +693,7 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
 
   it('keeps malformed paid submissions retryable when required persisted fields are missing', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
-    mockFindTempByPaymentIntent.mockResolvedValue({
+    mockFindTempById.mockResolvedValue({
       id: 'temp_missing_required',
       paymentIntentId: 'pi_test_123',
       formData: {

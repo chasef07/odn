@@ -11,11 +11,8 @@ function getStripeClient(): Stripe {
 }
 
 export const stripe = {
-  get paymentIntents(): Stripe['paymentIntents'] {
-    return getStripeClient().paymentIntents
-  },
-  get prices(): Stripe['prices'] {
-    return getStripeClient().prices
+  get checkout(): Stripe['checkout'] {
+    return getStripeClient().checkout
   },
   get refunds(): Stripe['refunds'] {
     return getStripeClient().refunds

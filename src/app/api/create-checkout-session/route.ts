@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import {
-  attachPaymentIntentToTemporarySubmission,
-  createTemporarySubmission,
-  deleteTemporarySubmission,
-} from '@/db/temporary-submissions'
+import { createTemporarySubmission, deleteTemporarySubmission } from '@/db/temporary-submissions'
 import type { JsonValue } from '@/db/types'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
@@ -12,47 +8,29 @@ import { logger } from '@/lib/logger'
 import { FormData } from '@/lib/form-storage'
 import { checkoutBlockers, loggedIssues, parseIntake } from '@/lib/intake'
 import { termsSchema } from '@/lib/validation-schemas'
-import { getCachedPrice } from '@/lib/stripe-price'
 import { getOfferConfig, normalizeOfferCode, type PriceType } from '@/lib/offer-codes'
+import { localizePath, type Locale } from '@/lib/i18n'
 import {
   ATTRIBUTION_COOKIE,
   attributionStripeMetadata,
   parseAttributionCookie,
 } from '@/lib/attribution'
 
-const ENDPOINT = '/api/create-payment-intent'
-
-async function cancelPaymentIntentWithRetry(
-  paymentIntentId: string,
-  maxRetries = 3
-): Promise<boolean> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      await stripe.paymentIntents.cancel(paymentIntentId)
-      logger.info(`Payment intent canceled successfully on attempt ${i + 1}:`, paymentIntentId)
-      return true
-    } catch (error) {
-      logger.error(`Failed to cancel payment intent (attempt ${i + 1}/${maxRetries}):`, error)
-
-      if (i < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, i)))
-      }
-    }
-  }
-
-  logger.error('CRITICAL: Failed to cancel payment intent after all retries', {
-    paymentIntentId,
-  })
-  return false
-}
+const ENDPOINT = '/api/create-checkout-session'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { formData, offerCode } = body as { formData?: unknown; offerCode?: unknown }
+    const locale: Locale = body.locale === 'es' ? 'es' : 'en'
 
     if (!formData) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 })
+    }
+
+    const origin = request.headers.get('origin')
+    if (!origin) {
+      return NextResponse.json({ error: 'Origin header is required' }, { status: 400 })
     }
 
     const intake = parseIntake(formData)
@@ -114,28 +92,8 @@ export async function POST(request: NextRequest) {
     }
     const storedFormData = attribution ? { ...cleanFormData, attribution } : cleanFormData
 
-    const offerApplied = Boolean(offerConfig)
     const selectedPriceId = offerPriceId ?? env.STRIPE_PRICE_ID
     const priceType: PriceType = offerConfig?.priceType ?? 'standard'
-
-    let price: Stripe.Price
-    try {
-      price = await getCachedPrice(selectedPriceId)
-    } catch (priceError) {
-      logger.error('Failed to fetch Stripe price:', priceError)
-      return NextResponse.json(
-        { error: 'Unable to fetch pricing information. Please try again.' },
-        { status: 500 }
-      )
-    }
-
-    if (!price.unit_amount || !price.currency) {
-      logger.error('Invalid price object - missing unit_amount or currency:', price)
-      return NextResponse.json(
-        { error: 'Invalid pricing configuration. Please contact support.' },
-        { status: 500 }
-      )
-    }
 
     let tempSubmissionId: string
     try {
@@ -154,29 +112,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let paymentIntent: Stripe.PaymentIntent
+    let session: Stripe.Checkout.Session
     try {
-      paymentIntent = await stripe.paymentIntents.create({
-        amount: price.unit_amount,
-        currency: price.currency,
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        description: "Doctor's Note - Online Medical Documentation",
-        metadata: {
-          product: 'doctors-note',
-          service: 'online-doctors-note',
-          email: intake.data.email,
-          price_id: price.id,
-          price_type: priceType,
-          offer_code: offerConfig?.code ?? '',
-          offer_price_id: offerApplied ? price.id : '',
-          temporarySubmissionId: tempSubmissionId,
-          ...attributionStripeMetadata(attribution),
+      session = await stripe.checkout.sessions.create({
+        ui_mode: 'embedded',
+        mode: 'payment',
+        line_items: [{ price: selectedPriceId, quantity: 1 }],
+        customer_email: intake.data.email,
+        locale,
+        return_url: `${origin}${localizePath('/payment/success?session_id={CHECKOUT_SESSION_ID}', locale)}`,
+        payment_intent_data: {
+          description: "Doctor's Note - Online Medical Documentation",
+          metadata: {
+            product: 'doctors-note',
+            service: 'online-doctors-note',
+            email: intake.data.email,
+            price_id: selectedPriceId,
+            price_type: priceType,
+            offer_code: offerConfig?.code ?? '',
+            offer_price_id: offerConfig ? selectedPriceId : '',
+            temporarySubmissionId: tempSubmissionId,
+            ...attributionStripeMetadata(attribution),
+          },
         },
       })
 
-      logger.info('PaymentIntent created:', paymentIntent.id)
+      logger.info('Checkout Session created:', session.id)
     } catch (stripeError) {
       logger.error('Stripe API error:', stripeError)
 
@@ -193,51 +154,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    try {
-      await attachPaymentIntentToTemporarySubmission(tempSubmissionId, paymentIntent.id)
-
-      logger.info('TemporarySubmission updated with PaymentIntent ID:', paymentIntent.id)
-    } catch (updateError) {
-      logger.error('Failed to update TemporarySubmission with payment intent ID:', updateError)
-
-      logger.error('CRITICAL: Payment intent created but update failed', {
-        paymentIntentId: paymentIntent.id,
-        tempSubmissionId: tempSubmissionId,
-        email: intake.data.email,
-      })
-
-      const cancelSucceeded = await cancelPaymentIntentWithRetry(paymentIntent.id)
-
-      try {
-        await deleteTemporarySubmission(tempSubmissionId)
-        logger.info('Cleaned up TemporarySubmission after update failure:', tempSubmissionId)
-      } catch (cleanupError) {
-        logger.error('Failed to cleanup TemporarySubmission after update failure:', cleanupError)
-      }
-
-      if (!cancelSucceeded) {
-        logger.error(
-          'CRITICAL: PaymentIntent may still be active, webhook can use metadata fallback'
-        )
-      }
-
-      return NextResponse.json(
-        { error: 'Unable to process your request. Please try again.' },
-        { status: 500 }
-      )
-    }
-
-    return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-      amount: price.unit_amount,
-      currency: price.currency,
-      priceId: price.id,
-      formattedAmount: (price.unit_amount / 100).toFixed(2),
-      offerApplied,
-      offerCode: offerConfig?.code ?? null,
-    })
+    return NextResponse.json({ clientSecret: session.client_secret })
   } catch (error) {
-    logger.error('Unexpected error in create-payment-intent:', error)
+    logger.error('Unexpected error in create-checkout-session:', error)
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' },
       { status: 500 }

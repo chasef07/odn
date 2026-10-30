@@ -10,9 +10,10 @@ Google Ads or Reddit report.
    - **first** touch: the first visit we saw
    - **last** touch: the most recent visit that was not direct
    - Direct visits and returns from Stripe/wallet redirects never overwrite a campaign.
-2. `/api/create-payment-intent` reads the cookie server side (never from the request
+2. `/api/create-checkout-session` reads the cookie server side (never from the request
    body), stores it with the TemporarySubmission and adds `attr_*` keys to the
-   PaymentIntent metadata so the source is visible in Stripe.
+   metadata of the PaymentIntent that the Checkout Session creates, so the source is
+   visible in Stripe.
 3. The Stripe webhook copies it onto the Submission: `attribution_channel`,
    `utm_source`, `utm_medium`, `utm_campaign` (last touch) and the full `attribution`
    JSON (first and last touch, click IDs, referrer, landing path).

@@ -8,30 +8,11 @@ export const PURCHASE_EVENT = 'purchase'
 
 const TRACKED_KEY_PREFIX = 'odn-purchase-tracked:'
 
-const STRIPE_SECRET_PARAMS = ['payment_intent_client_secret']
-
 export interface PurchaseConversion {
   transactionId: string
   amountCents: number
   currency: string
   emailSha256?: string | null
-}
-
-export function stripStripeSecretParams(): void {
-  if (typeof window === 'undefined') return
-
-  const url = new URL(window.location.href)
-  let changed = false
-  for (const param of STRIPE_SECRET_PARAMS) {
-    if (url.searchParams.has(param)) {
-      url.searchParams.delete(param)
-      changed = true
-    }
-  }
-
-  if (changed) {
-    window.history.replaceState(window.history.state, '', url.toString())
-  }
 }
 
 function hasTracked(transactionId: string): boolean {

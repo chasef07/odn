@@ -8,19 +8,31 @@ const { mockRetrieve } = vi.hoisted(() => ({
 vi.mock('stripe', () => {
   return {
     default: class MockStripe {
-      paymentIntents: {
-        retrieve: typeof mockRetrieve
-      }
-      constructor() {
-        this.paymentIntents = {
-          retrieve: mockRetrieve,
-        }
-      }
+      checkout = { sessions: { retrieve: mockRetrieve } }
     },
   }
 })
 
 import { POST } from '../route'
+
+const paidSession = {
+  id: 'cs_test_123',
+  status: 'complete',
+  payment_status: 'paid',
+  payment_intent: 'pi_test_123',
+  amount_total: 2995,
+  currency: 'usd',
+  customer_email: 'test@example.com',
+}
+
+function verify(body: unknown) {
+  return POST(
+    new NextRequest('http://localhost:3000/api/verify-payment', {
+      method: 'POST',
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    })
+  )
+}
 
 describe('POST /api/verify-payment', () => {
   let originalEnv: NodeJS.ProcessEnv
@@ -35,72 +47,41 @@ describe('POST /api/verify-payment', () => {
     process.env = originalEnv
   })
 
-  it('should verify a succeeded payment', async () => {
-    const mockPaymentIntentId = 'pi_mock_123'
-    mockRetrieve.mockResolvedValue({
-      id: mockPaymentIntentId,
-      status: 'succeeded',
-      amount: 2999,
-      metadata: { email: 'test@example.com' },
-    })
+  it('reports a paid Checkout Session with its payment intent, amount and hashed email', async () => {
+    mockRetrieve.mockResolvedValue(paidSession)
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: mockPaymentIntentId }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
+    const response = await verify({ sessionId: 'cs_test_123' })
 
     expect(response.status).toBe(200)
-    expect(data).toEqual({
-      status: 'succeeded',
-      amount: 2999,
-      currency: null,
+    expect(mockRetrieve).toHaveBeenCalledOnce()
+    expect(mockRetrieve).toHaveBeenCalledWith('cs_test_123')
+    expect(await response.json()).toEqual({
+      status: 'paid',
+      paymentIntentId: 'pi_test_123',
+      amount: 2995,
+      currency: 'usd',
       email: 'test@example.com',
       emailSha256: '973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b',
     })
   })
 
-  it('should return currency and hash a normalized email for enhanced conversions', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'succeeded',
-      amount: 2495,
-      currency: 'usd',
-      metadata: { email: '  Test@Example.COM ' },
-    })
+  it('hashes a normalized email for enhanced conversions', async () => {
+    mockRetrieve.mockResolvedValue({ ...paidSession, customer_email: '  Test@Example.COM ' })
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
+    const data = await (await verify({ sessionId: 'cs_test_123' })).json()
 
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(data.currency).toBe('usd')
     expect(data.emailSha256).toBe(
       '973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b'
     )
   })
 
-  it('should hash Gmail addresses after removing periods and plus suffixes', async () => {
+  it('hashes Gmail addresses after removing periods and plus suffixes', async () => {
     mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'succeeded',
-      amount: 2495,
-      currency: 'usd',
-      metadata: { email: 'Jane.Doe+Shopping@googlemail.com' },
+      ...paidSession,
+      customer_email: 'Jane.Doe+Shopping@googlemail.com',
     })
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
+    const data = await (await verify({ sessionId: 'cs_test_123' })).json()
 
     expect(data.email).toBe('Jane.Doe+Shopping@googlemail.com')
     expect(data.emailSha256).toBe(
@@ -108,335 +89,90 @@ describe('POST /api/verify-payment', () => {
     )
   })
 
-  it('should return null email when metadata is missing', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'succeeded',
-      amount: 2999,
-    })
+  it('returns a null email and hash when the session has no email', async () => {
+    mockRetrieve.mockResolvedValue({ ...paidSession, customer_email: null })
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
+    const data = await (await verify({ sessionId: 'cs_test_123' })).json()
 
     expect(data.email).toBeNull()
     expect(data.emailSha256).toBeNull()
   })
 
-  it('should return null email when metadata.email is empty', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'succeeded',
-      amount: 2999,
-      metadata: { email: '' },
-    })
+  it('reads the id of an expanded payment intent', async () => {
+    mockRetrieve.mockResolvedValue({ ...paidSession, payment_intent: { id: 'pi_expanded' } })
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
+    const data = await (await verify({ sessionId: 'cs_test_123' })).json()
 
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(data.email).toBeNull()
+    expect(data.paymentIntentId).toBe('pi_expanded')
   })
 
-  it('should call Stripe retrieve with payment intent ID', async () => {
-    const mockPaymentIntentId = 'pi_test_456'
-    mockRetrieve.mockResolvedValue({
-      id: mockPaymentIntentId,
-      status: 'succeeded',
-      amount: 2999,
-    })
+  it('reports processing for a completed session whose bank payment has not cleared', async () => {
+    mockRetrieve.mockResolvedValue({ ...paidSession, payment_status: 'unpaid' })
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: mockPaymentIntentId }),
-    })
-
-    await POST(request)
-
-    expect(mockRetrieve).toHaveBeenCalledWith(mockPaymentIntentId)
-  })
-
-  it('should handle payment with processing status', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'processing',
-      amount: 2999,
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
+    const data = await (await verify({ sessionId: 'cs_test_123' })).json()
 
     expect(data.status).toBe('processing')
+    expect(data.paymentIntentId).toBe('pi_test_123')
   })
 
-  it('should handle payment with requires_payment_method status', async () => {
+  it('reports open for a session the customer has not paid yet', async () => {
     mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'requires_payment_method',
-      amount: 2999,
+      ...paidSession,
+      status: 'open',
+      payment_status: 'unpaid',
+      payment_intent: null,
     })
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
+    const data = await (await verify({ sessionId: 'cs_test_123' })).json()
 
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(data.status).toBe('requires_payment_method')
+    expect(data.status).toBe('open')
+    expect(data.paymentIntentId).toBeNull()
   })
 
-  it('should handle canceled payment', async () => {
+  it('reports expired for a session that timed out unpaid', async () => {
     mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'canceled',
-      amount: 2999,
+      ...paidSession,
+      status: 'expired',
+      payment_status: 'unpaid',
+      payment_intent: null,
     })
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
+    const data = await (await verify({ sessionId: 'cs_test_123' })).json()
 
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(data.status).toBe('canceled')
+    expect(data.status).toBe('expired')
   })
 
-  it('should return 400 if payment intent ID is missing', async () => {
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    })
+  it.each([{}, { sessionId: null }, { sessionId: '' }])(
+    'returns 400 without calling Stripe when the session id is missing (%j)',
+    async (body) => {
+      const response = await verify(body)
 
-    const response = await POST(request)
-    const data = await response.json()
+      expect(response.status).toBe(400)
+      expect((await response.json()).error).toBe('Checkout Session ID is required')
+      expect(mockRetrieve).not.toHaveBeenCalled()
+    }
+  )
 
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Payment intent ID is required')
-  })
-
-  it('should return 400 if payment intent ID is null', async () => {
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: null }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Payment intent ID is required')
-  })
-
-  it('should return 400 if payment intent ID is empty string', async () => {
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: '' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Payment intent ID is required')
-  })
-
-  it('should handle invalid payment intent ID', async () => {
-    mockRetrieve.mockRejectedValue(new Error('No such payment_intent'))
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'invalid_id' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Invalid payment intent')
-  })
-
-  it('should handle Stripe API errors', async () => {
-    mockRetrieve.mockRejectedValue(new Error('Stripe API error'))
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Invalid payment intent')
-  })
-
-  it('should handle network errors', async () => {
-    mockRetrieve.mockRejectedValue(new Error('Network error'))
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-
-    expect(response.status).toBe(400)
-  })
-
-  it('should return correct amount from payment intent', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'succeeded',
-      amount: 4999,
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(data.amount).toBe(4999)
-  })
-
-  it('should return JSON response', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'succeeded',
-      amount: 2999,
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-
-    expect(response.headers.get('content-type')).toContain('application/json')
-  })
-
-  it('does not expose Stripe error details in the response', async () => {
+  it('returns 400 without Stripe error details when Stripe refuses the session', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRetrieve.mockRejectedValue(new Error('Sensitive error details'))
 
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
+    const response = await verify({ sessionId: 'cs_bad' })
     const data = await response.json()
 
+    expect(response.status).toBe(400)
     expect(consoleSpy).toHaveBeenCalledWith('Error verifying payment:', expect.any(Error))
-    expect(data.error).toBe('Invalid payment intent')
+    expect(data.error).toBe('Invalid Checkout Session')
     expect(JSON.stringify(data)).not.toContain('Sensitive')
-
     consoleSpy.mockRestore()
   })
 
-  it('should handle malformed JSON in request body', async () => {
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: 'invalid-json',
-    })
+  it('returns 400 for a malformed JSON body', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    const response = await POST(request)
+    const response = await verify('invalid-json')
 
     expect(response.status).toBe(400)
-  })
-
-  it('should handle payment intent with different amounts', async () => {
-    const amounts = [1000, 2999, 5000, 10000]
-
-    for (const amount of amounts) {
-      mockRetrieve.mockResolvedValue({
-        id: 'pi_mock',
-        status: 'succeeded',
-        amount,
-      })
-
-      const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-        method: 'POST',
-        body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(data.amount).toBe(amount)
-    }
-  })
-
-  it('should handle requires_action status', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'requires_action',
-      amount: 2999,
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(data.status).toBe('requires_action')
-  })
-
-  it('should handle requires_confirmation status', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'requires_confirmation',
-      amount: 2999,
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(data.status).toBe('requires_confirmation')
-  })
-
-  it('should only retrieve payment intent once per request', async () => {
-    mockRetrieve.mockResolvedValue({
-      id: 'pi_mock',
-      status: 'succeeded',
-      amount: 2999,
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/verify-payment', {
-      method: 'POST',
-      body: JSON.stringify({ paymentIntentId: 'pi_mock' }),
-    })
-
-    await POST(request)
-
-    expect(mockRetrieve).toHaveBeenCalledTimes(1)
+    consoleSpy.mockRestore()
   })
 })

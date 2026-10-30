@@ -19,7 +19,7 @@ describe('Spanish localization primitives', () => {
     expect(localeFromPathname('/')).toBe('en')
     expect(localeFromPathname('/es/review')).toBe('es')
     expect(localizePath('/review', 'es')).toBe('/es/review')
-    expect(localizePath('/api/create-payment-intent', 'es')).toBe('/api/create-payment-intent')
+    expect(localizePath('/api/create-checkout-session', 'es')).toBe('/api/create-checkout-session')
     expect(localizePath('/review?offer=SAVE#terms', 'es')).toBe('/es/review?offer=SAVE#terms')
     expect(stripLocale('/es/payment/success')).toBe('/payment/success')
     expect(switchLocalePath('/es/faq', 'en')).toBe('/faq')
@@ -43,7 +43,7 @@ describe('Spanish localization primitives', () => {
 
   it('translates presentation while preserving form and payment contract values', () => {
     const tree = translateReactTree(
-      <form action="/api/create-payment-intent">
+      <form action="/api/create-checkout-session">
         <input name="notePurpose" value="work" readOnly />
         <a href="/payment">Pay Now</a>
       </form>,
@@ -56,7 +56,7 @@ describe('Spanish localization primitives', () => {
       children: React.ReactElement<{ href?: string; children?: unknown }>[]
     }>
     const [input, link] = form.props.children
-    expect(form.props.action).toBe('/api/create-payment-intent')
+    expect(form.props.action).toBe('/api/create-checkout-session')
     expect(input.props).toMatchObject({ name: 'notePurpose', value: 'work' })
     expect(link.props.href).toBe('/es/payment')
     expect(link.props.children).toBe('Pagar ahora')

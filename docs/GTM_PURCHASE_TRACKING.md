@@ -5,7 +5,7 @@ container `GTM-PJPQQ5V4` needs to use it.
 
 ## What the site sends
 
-After `/api/verify-payment` confirms a PaymentIntent is `succeeded`, the success
+After `/api/verify-payment` confirms the Checkout Session is paid, the success
 page (`src/app/payment/success/page.tsx`, also served at `/es/payment/success`)
 pushes **one** event per PaymentIntent:
 
@@ -20,9 +20,9 @@ dataLayer.push({
 ```
 
 - Refreshing or revisiting the success page does not push again (localStorage guard).
-- Failed, processing, or unverifiable payments never push.
-- `payment_intent_client_secret` is removed from the URL on first render, so tags
-  that read the page URL do not receive it.
+- Failed, processing, or unverifiable payments never push. A bank payment that is
+  still processing does not push when it later clears.
+- The success page URL carries only `session_id`, which is not a secret.
 
 ## GTM setup
 

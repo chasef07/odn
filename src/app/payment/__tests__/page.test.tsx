@@ -13,10 +13,18 @@ vi.mock('@stripe/stripe-js', () => ({
 }))
 
 vi.mock('@stripe/react-stripe-js', () => ({
-  Elements: ({ children }: { children: React.ReactNode }) => children,
-  PaymentElement: () => null,
-  useElements: () => null,
-  useStripe: () => null,
+  EmbeddedCheckoutProvider: ({
+    children,
+    options,
+  }: {
+    children: React.ReactNode
+    options: { clientSecret: string }
+  }) => (
+    <div data-testid="checkout" data-client-secret={options.clientSecret}>
+      {children}
+    </div>
+  ),
+  EmbeddedCheckout: () => null,
 }))
 
 vi.mock('@/components/form-layout', () => ({
@@ -29,7 +37,10 @@ vi.mock('@/lib/form-storage', () => ({
 
 describe('PaymentPage', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn())
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response('{}')))
+    )
   })
 
   it('shows the localized generic message when the payment request cannot connect', async () => {
@@ -45,5 +56,30 @@ describe('PaymentPage', () => {
       await screen.findByText('No se pudo conectar con el servicio de pago. Inténtelo de nuevo.')
     ).toBeInTheDocument()
     expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument()
+  })
+
+  it('creates a Checkout Session in the page locale and embeds Checkout with its client secret', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ clientSecret: 'cs_test_secret' }), { status: 200 })
+    )
+
+    render(
+      <I18nProvider>
+        <PaymentPage />
+      </I18nProvider>
+    )
+
+    expect(await screen.findByTestId('checkout')).toHaveAttribute(
+      'data-client-secret',
+      'cs_test_secret'
+    )
+    expect(fetch).toHaveBeenCalledWith('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        formData: { email: 'patient@example.com', patientFirstName: 'Pat' },
+        locale: 'es',
+      }),
+    })
   })
 })

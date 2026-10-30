@@ -262,7 +262,6 @@ export const spanishTranslations: Record<string, string> = {
     'Todo lo que necesita saber sobre nuestro servicio',
   'Failed to connect to payment service. Please try again.':
     'No se pudo conectar con el servicio de pago. Inténtelo de nuevo.',
-  'Failed to create payment intent': 'No se pudo iniciar el pago',
   'Failed to create submission': 'Failed to create submission',
   'Failed to initialize payment': 'No se pudo inicializar el pago',
   Fall: 'Caída',
@@ -400,7 +399,6 @@ export const spanishTranslations: Record<string, string> = {
   'Information automatically collected': 'Información recopilada automáticamente',
   'Intellectual Property Rights': 'Derechos de propiedad intelectual',
   'Invalid JSON': 'Inválido JSON',
-  'Invalid payment intent': 'Invalida intención de pago',
   'Invalid pricing configuration': 'Configuración de precios inválidos',
   'Invalid pricing configuration. Please contact support.':
     'Configuración de precios inválidos. Por favor contacte con soporte.',
@@ -532,9 +530,9 @@ export const spanishTranslations: Record<string, string> = {
   'Payment Data.': 'Datos de pago.',
   'Payment Details': 'Datos de pago',
   'Payment Error': 'Error de pago',
-  'Payment intent ID is required': 'Se requiere identificación de intención de pago',
   'Payment processing error. Please try again.':
     'Error de procesamiento de pagos. Por favor, inténtalo de nuevo.',
+  'Payment Received': 'Pago recibido',
   'Payment Successful': 'Pago realizado correctamente',
   'Payment verification failed': 'No se pudo verificar el pago',
   Pennsylvania: 'Pennsylvania',
@@ -978,6 +976,8 @@ export const spanishTranslations: Record<string, string> = {
     'Recibirá un correo de confirmación en los próximos minutos',
   "You're in the right place.": 'Está en el lugar indicado.',
   "You've been pre-approved.": 'Su solicitud ha sido preaprobada.',
+  "Your bank payment is processing. This can take a few business days. We'll review your doctor's note once it clears and send it to":
+    'Su pago bancario se está procesando. Esto puede tardar unos días hábiles. Revisaremos su nota médica cuando se acredite y la enviaremos a',
   'Your Contributions are not false, inaccurate, or misleading.':
     'Sus contribuciones no son falsas, inexactas o engañosas.',
   'Your Contributions are not obscene, lewd, or otherwise objectionable.':
