@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { INTAKE_STEPS } from '@/lib/intake'
 
@@ -6,10 +6,16 @@ describe('intake step pages', () => {
   it.each(INTAKE_STEPS.map((step) => step.route))(
     '%s leaves every rule to its step schema',
     (route) => {
-      const file = `src/app${route}/page.tsx`
-      const setErrorLines = readFileSync(file, 'utf8')
-        .split('\n')
-        .flatMap((line, index) => (line.includes('setError') ? [`${file}:${index + 1}`] : []))
+      const dir = `src/app${route}`
+      const setErrorLines = readdirSync(dir)
+        .filter((name) => name.endsWith('.tsx'))
+        .flatMap((name) =>
+          readFileSync(`${dir}/${name}`, 'utf8')
+            .split('\n')
+            .flatMap((line, index) =>
+              line.includes('setError') ? [`${dir}/${name}:${index + 1}`] : []
+            )
+        )
 
       expect(
         setErrorLines,
