@@ -12,9 +12,17 @@ interface DateOfBirthInputProps {
   value: string
   onChange: (value: string) => void
   error?: string
+  autofill?: boolean
 }
 
-export function DateOfBirthInput({ name, label, value, onChange, error }: DateOfBirthInputProps) {
+export function DateOfBirthInput({
+  name,
+  label,
+  value,
+  onChange,
+  error,
+  autofill = true,
+}: DateOfBirthInputProps) {
   const { t } = useI18n()
   const [year, month, day] = value ? value.split('-') : ['', '', '']
 
@@ -153,7 +161,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
-            autoComplete="bday-month"
+            autoComplete={autofill ? 'bday-month' : 'off'}
           />
         </div>
 
@@ -176,7 +184,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
-            autoComplete="bday-day"
+            autoComplete={autofill ? 'bday-day' : 'off'}
           />
         </div>
 
@@ -199,7 +207,7 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
-            autoComplete="bday-year"
+            autoComplete={autofill ? 'bday-year' : 'off'}
           />
         </div>
       </div>
