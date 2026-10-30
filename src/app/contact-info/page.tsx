@@ -68,6 +68,7 @@ export default function ContactInfoPage() {
             type="email"
             register={register('email')}
             error={errors.email}
+            autoComplete="email"
             placeholder="your.email@example.com"
           />
 
@@ -78,6 +79,7 @@ export default function ContactInfoPage() {
             <Input
               id="phone"
               type="tel"
+              autoComplete="tel"
               value={phoneDisplay}
               onChange={handlePhoneChange}
               className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl border bg-white text-base focus-visible:ring-2"
