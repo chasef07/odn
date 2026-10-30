@@ -11,6 +11,8 @@ interface FormNavigationProps {
 
   isSubmitting?: boolean
 
+  canSubmit?: boolean
+
   onBackClick?: () => void
 }
 
@@ -18,6 +20,7 @@ export function FormNavigation({
   backRoute,
   submitText = 'Continue',
   isSubmitting = false,
+  canSubmit = true,
   onBackClick,
 }: FormNavigationProps) {
   const router = useRouter()
@@ -44,7 +47,7 @@ export function FormNavigation({
 
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !canSubmit}
         className="bg-primary hover:bg-primary/90 inline-flex flex-1 items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
       >
         {isSubmitting ? t('Loading...') : t(submitText)}

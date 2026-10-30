@@ -20,6 +20,21 @@ export const spanishTranslations: Record<string, string> = {
   '(the "Site"), as well as any other related products and services that refer or link to these legal terms (the "Legal Terms") (collectively, the "Services").':
     '(el "Site"), así como cualquier otro producto y servicios relacionados que se refieran o vinculen a estos términos legales (los " Términos legales") (colectivamente, los "Servicios").',
   'Please select at least one option': 'Seleccione al menos una opción',
+  'Which days do you need off work?': '¿Qué días necesita faltar al trabajo?',
+  'Which days do you need off school?': '¿Qué días necesita faltar a clases?',
+  'Which days do you need covered?': '¿Qué días necesita que cubra la nota?',
+  'Your note can cover up to 7 days in a row, starting as far back as 7 days ago.':
+    'Su nota puede cubrir hasta 7 días seguidos, a partir de hace un máximo de 7 días.',
+  Today: 'Hoy',
+  Yesterday: 'Ayer',
+  'Earlier…': 'Antes…',
+  'How many days off?': '¿Cuántos días de ausencia?',
+  'Enter exact dates instead': 'Ingresar fechas exactas',
+  'Pick from recent days instead': 'Elegir entre días recientes',
+  'First day off cannot be more than 7 days in the past':
+    'El primer día de ausencia no puede ser hace más de 7 días',
+  'Absence period cannot exceed 7 consecutive days':
+    'El período de ausencia no puede superar 7 días consecutivos',
   'Please select a state from the list': 'Seleccione un estado de la lista',
   'Only letters, spaces, hyphens, apostrophes, and periods are allowed':
     'Solo se permiten letras, espacios, guiones, apóstrofes y puntos',
@@ -635,8 +650,6 @@ export const spanishTranslations: Record<string, string> = {
   'Secure payment powered by Stripe': 'Pago seguro procesado por Stripe',
   'Select all symptoms that apply': 'Seleccione todos los síntomas que correspondan',
   'Select all symptoms that apply.': 'Seleccione todos los síntomas que correspondan.',
-  "Select the dates you need covered by your doctor's note. We can cover up to 7 consecutive days.":
-    'Seleccione las fechas que debe cubrir su nota médica. Podemos cubrir hasta 7 días consecutivos.',
   'Select this if the note is for volunteer work or another non-legal reason.':
     'Seleccione esto si la nota es para el trabajo voluntario u otra razón no legal.',
   'Select your relationship': 'Seleccione su relación con la persona',
@@ -910,7 +923,6 @@ export const spanishTranslations: Record<string, string> = {
   "What's included": '¿Qué incluye?',
   'When and With Whom Do We Share Your Personal Information?':
     '¿Cuándo y con quién compartimos su información personal?',
-  'When do you need to be excused?': '¿Para qué fechas necesita justificante?',
   'When necessary, with your consent or as otherwise permitted by applicable law, we process the following categories of sensitive information:':
     'Cuando sea necesario, con su consentimiento o según lo permitido por la ley aplicable, procesamos las siguientes categorías de información sensible:',
   'When you create or make available any Contributions, you represent and warrant that:':

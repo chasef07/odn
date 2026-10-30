@@ -109,6 +109,9 @@ describe.each(PROCESS_TIME_ZONES)('in process time zone %s', (zone) => {
     expect(formatDateOnly(day('2024-02-29'), 'medium')).toBe('Feb 29, 2024')
     expect(formatDateOnly(day('2026-01-01'), 'numeric')).toBe('01/01/2026')
     expect(formatDateOnly(day('2026-01-01'), 'short')).toBe('01/01/26')
+    expect(formatDateOnly(day('2026-10-29'), 'weekdayLong')).toBe('Thursday, October 29')
+    expect(formatDateOnly(day('2026-10-29'), 'weekdayLong', 'es')).toBe('jueves 29 de octubre')
+    expect(formatDateOnly(day('2026-10-29'), 'weekdayShort')).toBe('Thu 29')
   })
 
   it('formats a range of calendar days', () => {

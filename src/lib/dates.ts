@@ -9,7 +9,15 @@ declare const instantBrand: unique symbol
 export type DateOnly = string & { readonly [dateOnlyBrand]: true }
 export type Instant = Date & { readonly [instantBrand]: true }
 
-export type DateOnlyStyle = 'long' | 'medium' | 'numeric' | 'short' | 'monthDay' | 'monthYear'
+export type DateOnlyStyle =
+  | 'long'
+  | 'medium'
+  | 'numeric'
+  | 'short'
+  | 'monthDay'
+  | 'monthYear'
+  | 'weekdayLong'
+  | 'weekdayShort'
 export type DateLocale = 'en' | 'es'
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -23,6 +31,8 @@ const DATE_ONLY_FORMATS: Record<DateOnlyStyle, Record<DateLocale, string>> = {
   short: { en: 'MM/dd/yy', es: 'MM/dd/yy' },
   monthDay: { en: 'MMM d', es: "d 'de' MMM" },
   monthYear: { en: 'MMM yy', es: 'MMM yy' },
+  weekdayLong: { en: 'EEEE, MMMM d', es: "EEEE d 'de' MMMM" },
+  weekdayShort: { en: 'EEE d', es: 'EEE d' },
 }
 
 function isLeapYear(year: number): boolean {
