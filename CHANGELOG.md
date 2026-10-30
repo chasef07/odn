@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.2.1](https://github.com/chasef07/odn/compare/v6.2.0...v6.2.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **mobile:** show the full review card on phones and polish mobile layout ([#65](https://github.com/chasef07/odn/issues/65)) ([ceba8cc](https://github.com/chasef07/odn/commit/ceba8cc6e6ae36e932158959e7cd7e74f9009203))
+
 ## [6.2.0](https://github.com/chasef07/odn/compare/v6.1.0...v6.2.0) (2026-10-29)
 
 
