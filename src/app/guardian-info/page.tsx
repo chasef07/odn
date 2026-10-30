@@ -66,6 +66,7 @@ export default function GuardianInfoPage() {
                 onChange: handleNameChange('guardianFirstName'),
               })}
               error={errors.guardianFirstName}
+              autoComplete="given-name"
               placeholder="Enter your first name"
             />
 
@@ -76,6 +77,7 @@ export default function GuardianInfoPage() {
                 onChange: handleNameChange('guardianLastName'),
               })}
               error={errors.guardianLastName}
+              autoComplete="family-name"
               placeholder="Enter your last name"
             />
           </div>

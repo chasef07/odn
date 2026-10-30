@@ -83,6 +83,7 @@ export default function Home() {
                 placeholder="Select your state"
                 translateOptions={false}
                 register={register('state')}
+                autoComplete="address-level1"
                 error={errors.state}
               />
             </FormCard>
