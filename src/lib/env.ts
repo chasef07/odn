@@ -50,6 +50,8 @@ const schema = {
   TELNYX_FROM_NUMBER: nonEmpty.optional(),
   TELNYX_PUBLIC_KEY: nonEmpty.optional(),
   TELNYX_INFERENCE_API_KEY: nonEmpty.optional(),
+  GOOGLE_ADS_CUSTOMER_ID: nonEmpty.regex(/^\d{10}$/, 'must be 10 digits without dashes').optional(),
+  GOOGLE_ADS_QUOTA_PROJECT: nonEmpty.optional(),
   TELNYX_WEBHOOK_ENABLED: switchFlag.default(true),
   INTAKE_VALIDATION_ENFORCED: switchFlag.default(false),
 } satisfies Record<string, z.ZodType>
@@ -82,9 +84,22 @@ export function telnyxSmsSender(): { apiKey: string; from: string } | null {
   return { apiKey, from }
 }
 
+export type GoogleAdsAccount = { customerId: string; quotaProject: string }
+
+export function googleAdsAccount(): GoogleAdsAccount | null {
+  const customerId = env.GOOGLE_ADS_CUSTOMER_ID
+  const quotaProject = env.GOOGLE_ADS_QUOTA_PROJECT
+  if (!customerId && !quotaProject) return null
+  if (!customerId || !quotaProject) {
+    throw new Error('GOOGLE_ADS_CUSTOMER_ID and GOOGLE_ADS_QUOTA_PROJECT must be set together')
+  }
+  return { customerId, quotaProject }
+}
+
 const checks: (() => unknown)[] = [
   ...names.filter((name) => name !== 'TELNYX_SMS_ENABLED').map((name) => () => read(name)),
   telnyxSmsSender,
+  googleAdsAccount,
 ]
 
 export function serverEnvProblems(): string[] {

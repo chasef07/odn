@@ -134,6 +134,32 @@ describe('AgentChat', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
+  it('hides the narration and rows of a Google Ads query and shows only the answer', () => {
+    chat.messages = [
+      assistant([
+        { type: 'text', text: 'Checking Google Ads.' },
+        {
+          type: 'tool-googleAds',
+          toolCallId: 'c1',
+          state: 'output-available',
+          input: { query: 'select metrics.cost_micros from customer' },
+          output: {
+            columns: ['metrics.costMicros'],
+            rows: [{ 'metrics.costMicros': '267209194617' }],
+            truncated: false,
+          },
+        },
+        { type: 'text', text: '$267,209.19 on ads this month.' },
+      ]),
+    ]
+
+    renderChat()
+
+    expect(screen.getByText('$267,209.19 on ads this month.')).toBeInTheDocument()
+    expect(screen.queryByText('Checking Google Ads.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/267209194617/)).not.toBeInTheDocument()
+  })
+
   it('shows one working line while a tool runs and hides a failed tool call', () => {
     chat.status = 'streaming'
     chat.messages = [

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { env, serverEnvProblems, telnyxSmsSender } from '@/lib/env'
+import { env, googleAdsAccount, serverEnvProblems, telnyxSmsSender } from '@/lib/env'
 import { publicEnv } from '@/lib/public-env'
 
 describe('server env', () => {
@@ -100,6 +100,33 @@ describe('server env', () => {
 
     vi.stubEnv('TELNYX_FROM_NUMBER', '+15555550100')
     expect(telnyxSmsSender()).toEqual({ apiKey: 'KEY123', from: '+15555550100' })
+  })
+
+  it('turns the Google Ads tool off until both Google Ads vars are set', () => {
+    expect(googleAdsAccount()).toBeNull()
+
+    vi.stubEnv('GOOGLE_ADS_CUSTOMER_ID', '7678754198')
+    vi.stubEnv('GOOGLE_ADS_QUOTA_PROJECT', 'acuity-ads-api')
+    expect(googleAdsAccount()).toEqual({
+      customerId: '7678754198',
+      quotaProject: 'acuity-ads-api',
+    })
+  })
+
+  it('fails loudly at startup when only one Google Ads var is set or the customer id is malformed', () => {
+    vi.stubEnv('GOOGLE_ADS_CUSTOMER_ID', '7678754198')
+
+    expect(() => googleAdsAccount()).toThrow(
+      'GOOGLE_ADS_CUSTOMER_ID and GOOGLE_ADS_QUOTA_PROJECT must be set together'
+    )
+    expect(serverEnvProblems()).toEqual([
+      'GOOGLE_ADS_CUSTOMER_ID and GOOGLE_ADS_QUOTA_PROJECT must be set together',
+    ])
+
+    vi.stubEnv('GOOGLE_ADS_CUSTOMER_ID', '767-875-4198')
+    expect(() => env.GOOGLE_ADS_CUSTOMER_ID).toThrow(
+      'Environment variable GOOGLE_ADS_CUSTOMER_ID is invalid'
+    )
   })
 
   it('reports every missing var at startup', () => {

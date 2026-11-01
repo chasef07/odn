@@ -6,8 +6,9 @@ import { findAdminSession } from '@/lib/admin-session'
 import { agentModel, isAgentConfigured } from '@/lib/agent/model'
 import { buildSystemPrompt } from '@/lib/agent/system-prompt'
 import { storedMessages, threadTitle } from '@/lib/agent/threads'
-import { agentTools, type AgentUIMessage } from '@/lib/agent/tools'
+import { agentTools, POSTGRES_TOOLS, type AgentUIMessage } from '@/lib/agent/tools'
 import { todayET } from '@/lib/dates'
+import { googleAdsAccount } from '@/lib/env'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +44,8 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'This thread belongs to another admin.' }, { status: 404 })
   }
 
-  const tools = agentTools({ adminEmail: admin.email })
+  const googleAds = googleAdsAccount()
+  const tools = agentTools({ adminEmail: admin.email, googleAds })
   const question = await safeValidateUIMessages<AgentUIMessage>({
     messages: [body.data.message],
     tools,
@@ -55,9 +57,10 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = streamText({
     model: agentModel(),
-    system: buildSystemPrompt(await describeAnalyticsSchema(), todayET()),
+    system: buildSystemPrompt(await describeAnalyticsSchema(), todayET(), googleAds),
     messages: await convertToModelMessages(messages),
     tools,
+    activeTools: googleAds ? undefined : [...POSTGRES_TOOLS],
     stopWhen: stepCountIs(MAX_STEPS),
   })
   void result.consumeStream()

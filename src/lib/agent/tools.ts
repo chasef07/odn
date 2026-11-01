@@ -1,6 +1,8 @@
 import { tool, type InferUITools, type UIMessage } from 'ai'
 import { z } from 'zod'
 import { runAnalyticsQuery, type AnalyticsResult, type AnalyticsRow } from '@/db/analytics-query'
+import type { GoogleAdsAccount } from '@/lib/env'
+import { searchGoogleAds, type GoogleAdsResult } from '@/lib/google-ads'
 import { SERIES_FORMATS } from './chart-format'
 
 const sqlInput = z
@@ -53,7 +55,36 @@ function missingColumns(spec: ChartSpec, columns: string[]): string[] {
   )
 }
 
-export function agentTools({ adminEmail }: { adminEmail: string }) {
+async function loggedGoogleAdsQuery(
+  adminEmail: string,
+  account: GoogleAdsAccount | null,
+  query: string
+): Promise<GoogleAdsResult> {
+  try {
+    if (!account) throw new Error('Google Ads is not configured for this environment.')
+    const result = await searchGoogleAds(account, query)
+    console.info('admin agent google ads query', {
+      adminEmail,
+      query,
+      rowCount: result.rows.length,
+    })
+    return result
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.info('admin agent google ads query', { adminEmail, query, error: message })
+    throw error
+  }
+}
+
+export const POSTGRES_TOOLS = ['query', 'chart'] as const
+
+export function agentTools({
+  adminEmail,
+  googleAds,
+}: {
+  adminEmail: string
+  googleAds: GoogleAdsAccount | null
+}) {
   return {
     query: tool({
       description:
@@ -79,6 +110,14 @@ export function agentTools({ adminEmail }: { adminEmail: string }) {
         const { kind, title, x, series } = spec
         return { kind, title, x, series, rows: result.rows, truncated: result.truncated }
       },
+    }),
+    googleAds: tool({
+      description:
+        "Run one read-only Google Ads Query Language query against the business's Google Ads account and return its columns and up to 500 rows.",
+      inputSchema: z.object({
+        query: z.string().min(1).describe('One Google Ads Query Language query'),
+      }),
+      execute: ({ query }) => loggedGoogleAdsQuery(adminEmail, googleAds, query),
     }),
   }
 }

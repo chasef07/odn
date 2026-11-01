@@ -6,6 +6,7 @@ import { requireAdminSession } from '@/lib/admin-session'
 import { isAgentConfigured } from '@/lib/agent/model'
 import { storedMessages } from '@/lib/agent/threads'
 import { agentTools } from '@/lib/agent/tools'
+import { googleAdsAccount } from '@/lib/env'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +21,10 @@ export default async function AdminAgentThreadPage({
 
   const thread = await findAgentThread(threadId)
   if (thread && thread.adminUserId !== admin.doctorId) notFound()
-  const messages = await storedMessages(thread, agentTools({ adminEmail: admin.email }))
+  const messages = await storedMessages(
+    thread,
+    agentTools({ adminEmail: admin.email, googleAds: googleAdsAccount() })
+  )
 
   return (
     <AgentChat

@@ -3,7 +3,7 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useChat } from '@ai-sdk/react'
-import { DefaultChatTransport } from 'ai'
+import { DefaultChatTransport, isToolUIPart } from 'ai'
 import { ArrowUp, Database, LoaderCircle, Square } from 'lucide-react'
 import {
   Conversation,
@@ -34,12 +34,8 @@ function ErrorText({ text }: { text: string }) {
   )
 }
 
-function isToolPart(part: Part): boolean {
-  return part.type === 'tool-query' || part.type === 'tool-chart'
-}
-
 function MessageParts({ parts }: { parts: Part[] }) {
-  const lastTool = parts.findLastIndex(isToolPart)
+  const lastTool = parts.findLastIndex(isToolUIPart)
   return parts.map((part, index) => {
     if (part.type === 'text' && index > lastTool) {
       return <MessageResponse key={index}>{part.text}</MessageResponse>

@@ -11,10 +11,12 @@ const {
   mockIsAnalyticsConfigured,
   mockFindAgentThread,
   mockSaveAgentThread,
+  mockSearchGoogleAds,
   model,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockRunAnalyticsQuery: vi.fn(),
+  mockSearchGoogleAds: vi.fn(),
   mockIsAnalyticsConfigured: vi.fn(() => true),
   mockFindAgentThread: vi.fn(),
   mockSaveAgentThread: vi.fn(),
@@ -44,6 +46,8 @@ vi.mock('@/db/agent-threads', () => ({
   findAgentThread: mockFindAgentThread,
   saveAgentThread: mockSaveAgentThread,
 }))
+
+vi.mock('@/lib/google-ads', () => ({ searchGoogleAds: mockSearchGoogleAds }))
 
 vi.mock('@/lib/agent/model', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/agent/model')>()),
@@ -311,6 +315,88 @@ describe('POST /api/admin/agent', () => {
       })
     )
     expect(JSON.stringify(mock.doStreamCalls[1].prompt)).toContain('does not return revenue')
+  })
+
+  it('offers the model only the Postgres tools and no Google Ads section when Google Ads is off', async () => {
+    const mock = new MockLanguageModelV4({ doStream: [textStep('412 notes.')] })
+    model.current = mock
+
+    await chunks(await POST(ask('Notes per month')))
+
+    const offered = (mock.doStreamCalls[0].tools ?? []).map((tool) => tool.name)
+    expect(offered).toEqual(['query', 'chart'])
+    expect(mock.doStreamCalls[0].prompt[0].content).not.toContain('Google Ads')
+  })
+
+  it('runs a Google Ads query against the configured account and streams its rows back', async () => {
+    vi.stubEnv('GOOGLE_ADS_CUSTOMER_ID', '7678754198')
+    vi.stubEnv('GOOGLE_ADS_QUOTA_PROJECT', 'acuity-ads-api')
+    const query = 'select metrics.cost_micros from customer where segments.date during THIS_MONTH'
+    const result = {
+      columns: ['metrics.costMicros'],
+      rows: [{ 'metrics.costMicros': '267209194617' }],
+      truncated: false,
+    }
+    mockSearchGoogleAds.mockResolvedValue(result)
+    const mock = new MockLanguageModelV4({
+      doStream: [toolCallStep('googleAds', { query }), textStep('$267,209.19 so far this month.')],
+    })
+    model.current = mock
+
+    const parts = await chunks(await POST(ask('Ad spend this month?')))
+
+    expect((mock.doStreamCalls[0].tools ?? []).map((tool) => tool.name)).toEqual([
+      'query',
+      'chart',
+      'googleAds',
+    ])
+    expect(mock.doStreamCalls[0].prompt[0].content).toContain('account 7678754198')
+    expect(mockSearchGoogleAds).toHaveBeenCalledWith(
+      { customerId: '7678754198', quotaProject: 'acuity-ads-api' },
+      query
+    )
+    expect(parts).toContainEqual(
+      expect.objectContaining({
+        type: 'tool-output-available',
+        toolCallId: 'call_1',
+        output: result,
+      })
+    )
+    expect(console.info).toHaveBeenCalledWith('admin agent google ads query', {
+      adminEmail: 'doctor@example.test',
+      query,
+      rowCount: 1,
+    })
+    expect(JSON.stringify(mock.doStreamCalls[1].prompt)).toContain('267209194617')
+  })
+
+  it('streams the Google Ads error back to the model so it can fix the query', async () => {
+    vi.stubEnv('GOOGLE_ADS_CUSTOMER_ID', '7678754198')
+    vi.stubEnv('GOOGLE_ADS_QUOTA_PROJECT', 'acuity-ads-api')
+    mockSearchGoogleAds.mockRejectedValue(
+      new Error("Google Ads rejected the query: Error in SELECT clause: invalid field name 'x'.")
+    )
+    const mock = new MockLanguageModelV4({
+      doStream: [
+        toolCallStep('googleAds', { query: 'select x from campaign' }),
+        textStep('Fixing.'),
+      ],
+    })
+    model.current = mock
+
+    const parts = await chunks(await POST(ask('Anything')))
+
+    expect(parts).toContainEqual(
+      expect.objectContaining({
+        type: 'tool-output-error',
+        errorText: "Google Ads rejected the query: Error in SELECT clause: invalid field name 'x'.",
+      })
+    )
+    expect(console.info).toHaveBeenCalledWith('admin agent google ads query', {
+      adminEmail: 'doctor@example.test',
+      query: 'select x from campaign',
+      error: "Google Ads rejected the query: Error in SELECT clause: invalid field name 'x'.",
+    })
   })
 
   it('streams the Postgres error of a failed query back to the model and the admin', async () => {
