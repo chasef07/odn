@@ -2,6 +2,9 @@
   "name": "onlinedoctornote",
   "version": "6.2.1",
   "private": true,
+  "engines": {
+    "node": ">=26"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
