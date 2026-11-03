@@ -17,7 +17,12 @@ vi.mock('@react-email/render', () => ({
   render: mockRender,
 }))
 
-import { sendDenialEmail, sendMaybeEmail, sendPaymentConfirmationEmail } from '../email'
+import {
+  sendAfterVisitSummaryEmail,
+  sendDenialEmail,
+  sendMaybeEmail,
+  sendPaymentConfirmationEmail,
+} from '../email'
 
 describe('sendDenialEmail', () => {
   beforeEach(() => {
@@ -315,6 +320,32 @@ describe('sendPaymentConfirmationEmail', () => {
           submissionId: '550e8400-e29b-41d4-a716-446655440000',
         })
       ).rejects.toThrow('Failed to send payment confirmation email: Render failed')
+    })
+  })
+})
+
+describe('sendAfterVisitSummaryEmail', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sends the PDF only to the admin inbox', async () => {
+    mockEmailSend.mockResolvedValue({ data: { id: 'email_123' }, error: null })
+    const pdfBuffer = Buffer.from('pdf')
+
+    await sendAfterVisitSummaryEmail({
+      patientName: 'Isaiah Bandoo',
+      pdfBuffer,
+      pdfFilename: 'after-visit-summary-sub_123.pdf',
+    })
+
+    expect(mockEmailSend).toHaveBeenCalledTimes(1)
+    expect(mockEmailSend).toHaveBeenCalledWith({
+      from: 'noreply@onlinedoctornote.com',
+      to: 'hello@onlinedoctornote.com',
+      subject: 'After-visit summary: Isaiah Bandoo',
+      text: 'The after-visit summary for Isaiah Bandoo is attached.',
+      attachments: [{ filename: 'after-visit-summary-sub_123.pdf', content: pdfBuffer }],
     })
   })
 })

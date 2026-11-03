@@ -128,7 +128,16 @@ export type SubmissionSummary = Pick<
 >
 
 export type PatientHistorySubmission = SubmissionSummary &
-  Pick<Submission, 'reviewedAt' | 'denialReason' | 'denialNote'>
+  Pick<
+    Submission,
+    | 'reviewedAt'
+    | 'denialReason'
+    | 'denialNote'
+    | 'absenceReason'
+    | 'otherAbsenceReason'
+    | 'symptoms'
+    | 'otherSymptomText'
+  >
 
 export type SubmissionSmsMessage = Pick<
   SmsMessage,
@@ -378,7 +387,7 @@ export async function findPatientHistory({
     )
   )
   return db.rows(
-    sql`SELECT ${select(submissions, [...summaryKeys, 'reviewedAt', 'denialReason', 'denialNote'])} FROM submissions WHERE ${where} ORDER BY created_at DESC LIMIT 20`
+    sql`SELECT ${select(submissions, [...summaryKeys, 'reviewedAt', 'denialReason', 'denialNote', 'absenceReason', 'otherAbsenceReason', 'symptoms', 'otherSymptomText'])} FROM submissions WHERE ${where} ORDER BY created_at DESC LIMIT 20`
   )
 }
 

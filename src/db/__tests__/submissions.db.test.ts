@@ -461,6 +461,10 @@ describe('patient history', () => {
         'reviewedAt',
         'denialReason',
         'denialNote',
+        'absenceReason',
+        'otherAbsenceReason',
+        'symptoms',
+        'otherSymptomText',
       ].sort()
     )
   })
