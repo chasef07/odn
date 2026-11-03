@@ -30,12 +30,13 @@ const summary: AfterVisitSummary = {
 const signatureUrl = join(process.cwd(), 'public', 'images', 'doctor-signature.png')
 
 describe('AfterVisitSummaryTemplate', () => {
-  it('renders an approved summary to a PDF', async () => {
+  it('renders an approved summary to a PDF with the stored signature image', async () => {
     const buffer = await renderToBuffer(
       <AfterVisitSummaryTemplate summary={summary} signatureUrl={signatureUrl} />
     )
 
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(buffer.toString('latin1')).toMatch(/\/Subtype \/Image\s+\/Height 284\s+\/Width 600/)
   })
 
   it('renders a denied summary with no plan note or additional information', async () => {
