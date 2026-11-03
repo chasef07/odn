@@ -30,6 +30,7 @@ export const sendAfterVisitSummary = adminAction(
           patientDateOfBirth: submission.patientDateOfBirth,
           email: submission.email,
           excludeSubmissionId: submission.id,
+          createdBefore: submission.createdAt,
         }),
         wouldExceedMonthlyLimit(
           submission.patientFirstName,

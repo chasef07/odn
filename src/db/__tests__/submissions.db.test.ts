@@ -461,12 +461,31 @@ describe('patient history', () => {
         'reviewedAt',
         'denialReason',
         'denialNote',
+        'otherNotePurpose',
         'absenceReason',
         'otherAbsenceReason',
         'symptoms',
         'otherSymptomText',
       ].sort()
     )
+  })
+
+  it('keeps only charts filed before a given time when asked', async () => {
+    const current = await seed({ createdAt: at(5) })
+    const earlier = await seed({ createdAt: at(1) })
+    await seed({ createdAt: at(5) })
+    await seed({ createdAt: at(9) })
+
+    const history = await findPatientHistory({
+      patientFirstName: 'John',
+      patientLastName: 'Doe',
+      patientDateOfBirth: DOB,
+      email: 'john@example.com',
+      excludeSubmissionId: current.id,
+      createdBefore: current.createdAt,
+    })
+
+    expect(ids(history)).toEqual([earlier.id])
   })
 
   it('returns only the 20 newest matches', async () => {

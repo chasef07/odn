@@ -45,6 +45,7 @@ const chart = {
   firstDayOff: new Date('2026-09-29T00:00:00.000Z'),
   lastDayOff: new Date('2026-09-30T00:00:00.000Z'),
   reviewedAt: new Date('2026-09-30T11:50:00.000Z'),
+  createdAt: new Date('2026-09-30T10:00:00.000Z'),
 }
 
 const history = [{ id: 'sub_prior' }]
@@ -82,6 +83,7 @@ describe('sendAfterVisitSummary', () => {
       patientDateOfBirth: chart.patientDateOfBirth,
       email: 'patient@example.test',
       excludeSubmissionId: 'sub_123',
+      createdBefore: chart.createdAt,
     })
     expect(mockWouldExceedMonthlyLimit).toHaveBeenCalledWith(
       'Isaiah',

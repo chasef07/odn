@@ -71,6 +71,7 @@ const priorChart: PatientHistorySubmission = {
   reviewedAt: new Date('2026-09-15T14:00:00.000Z'),
   denialReason: null,
   denialNote: null,
+  otherNotePurpose: null,
   absenceReason: 'Feeling sick',
   otherAbsenceReason: null,
   symptoms: ['Sore throat', 'Headache or migraine'],
@@ -130,24 +131,9 @@ describe('buildAfterVisitSummary', () => {
     expect(summary.assessment).toMatch(/^Based on the patient-submitted history/)
   })
 
-  it('says parent/guardian for a chart filed for someone else, as the doctor note does', () => {
+  it('says parent/guardian throughout for a chart filed for someone else', () => {
     const summary = buildAfterVisitSummary(
       input({ submission: { ...submission, recipient: 'someone_else' } })
-    )
-
-    expect(summary.identityVerifiedBy).toBe('Parent/guardian provided')
-  })
-
-  it('says parent/guardian throughout when a guardian filed', () => {
-    const summary = buildAfterVisitSummary(
-      input({
-        submission: {
-          ...submission,
-          recipient: 'someone_else',
-          guardianFirstName: 'Maria',
-          guardianLastName: 'Bandoo',
-        },
-      })
     )
 
     expect(summary.identityVerifiedBy).toBe('Parent/guardian provided')
@@ -276,16 +262,14 @@ describe('buildAfterVisitSummary', () => {
     ])
   })
 
-  it('leaves out charts filed after this one', () => {
+  it('names the purpose a prior Other chart gave', () => {
     const summary = buildAfterVisitSummary(
       input({
-        history: [
-          { ...priorChart, id: 'sub_later', createdAt: new Date('2026-10-05T12:00:00.000Z') },
-        ],
+        history: [{ ...priorChart, notePurpose: 'other', otherNotePurpose: 'volunteering' }],
       })
     )
 
-    expect(summary.medicalHistory).toEqual(['No prior charts on file'])
+    expect(summary.medicalHistory[0]).toContain('[volunteering] doctor note approved')
   })
 
   it('says so when there are no prior charts', () => {

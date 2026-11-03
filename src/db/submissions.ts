@@ -133,6 +133,7 @@ export type PatientHistorySubmission = SubmissionSummary &
     | 'reviewedAt'
     | 'denialReason'
     | 'denialNote'
+    | 'otherNotePurpose'
     | 'absenceReason'
     | 'otherAbsenceReason'
     | 'symptoms'
@@ -375,19 +376,22 @@ export async function findPatientHistory({
   patientDateOfBirth,
   email,
   excludeSubmissionId,
+  createdBefore,
 }: PatientIdentity & {
   email: string
   excludeSubmissionId: string
+  createdBefore?: Date
 }): Promise<PatientHistorySubmission[]> {
   const where = and(
     sql`id <> ${excludeSubmissionId}`,
+    createdBefore ? sql`created_at < ${createdBefore}` : and(),
     or(
       patientIdentityWhere({ patientFirstName, patientLastName, patientDateOfBirth }),
       sql`lower(email) = lower(${email})`
     )
   )
   return db.rows(
-    sql`SELECT ${select(submissions, [...summaryKeys, 'reviewedAt', 'denialReason', 'denialNote', 'absenceReason', 'otherAbsenceReason', 'symptoms', 'otherSymptomText'])} FROM submissions WHERE ${where} ORDER BY created_at DESC LIMIT 20`
+    sql`SELECT ${select(submissions, [...summaryKeys, 'reviewedAt', 'denialReason', 'denialNote', 'otherNotePurpose', 'absenceReason', 'otherAbsenceReason', 'symptoms', 'otherSymptomText'])} FROM submissions WHERE ${where} ORDER BY created_at DESC LIMIT 20`
   )
 }
 

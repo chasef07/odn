@@ -92,7 +92,7 @@ function historyLine(chart: PatientHistorySubmission, doctorName: string): strin
   const symptoms = symptomList(chart.symptoms, chart.otherSymptomText)
   const reason = reasonText(chart.absenceReason, chart.otherAbsenceReason)
   const dueTo = symptoms.length > 0 ? `${reason} (${symptoms.join(', ')})` : reason
-  return `${day}: [${purposeText(chart.notePurpose, null)}] doctor note ${outcome} for ${dayCount(inclusiveDayCount(first, last))} (${formatDateOnlyRange(first, last)}), due to ${dueTo}.`
+  return `${day}: [${purposeText(chart.notePurpose, chart.otherNotePurpose)}] doctor note ${outcome} for ${dayCount(inclusiveDayCount(first, last))} (${formatDateOnlyRange(first, last)}), due to ${dueTo}.`
 }
 
 export function buildAfterVisitSummary({
@@ -127,7 +127,6 @@ export function buildAfterVisitSummary({
   const symptoms = symptomList(submission.symptoms, submission.otherSymptomText)
   const reason = reasonText(submission.absenceReason, submission.otherAbsenceReason)
   const additionalInformation = submission.additionalInformation?.trim() || null
-  const priorCharts = history.filter((chart) => chart.createdAt < submission.createdAt)
 
   return {
     signedAt: formatInstantETStamp(instantOf(submission.reviewedAt)),
@@ -146,8 +145,8 @@ export function buildAfterVisitSummary({
       ? `30-day limit exceeded: ${dayCount(rollingLimit.usedDays)} approved in the prior 30 days + ${rollingLimit.requestedDays} requested = ${dayCount(rollingLimit.totalDays)}`
       : 'None',
     medicalHistory:
-      priorCharts.length > 0
-        ? priorCharts.map((chart) => historyLine(chart, doctorName))
+      history.length > 0
+        ? history.map((chart) => historyLine(chart, doctorName))
         : ['No prior charts on file'],
     additionalInformation: includeAdditionalInformation ? additionalInformation : null,
     assessment: `Based on the ${requester}-submitted history and available records, the information is ${approved ? '' : 'not '}sufficient to support the requested sick leave status determination.`,
