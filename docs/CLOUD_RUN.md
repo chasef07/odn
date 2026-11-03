@@ -98,9 +98,8 @@ Rotating the staging database password means updating both
 
 ## Crons
 
-`vercel.json` crons are replaced by Cloud Scheduler HTTP jobs that send the
-same `Authorization: Bearer $CRON_SECRET` header the routes already check
-(UTC, same schedules as Vercel):
+Cloud Scheduler HTTP jobs call the cron routes with the
+`Authorization: Bearer $CRON_SECRET` header the routes check (UTC):
 
 ```bash
 ENV=staging
@@ -178,7 +177,7 @@ The first deploy of a new public service must be run by a person with
 `run.services.setIamPolicy`: `odn-deploy` cannot set `--no-invoker-iam-check`
 on a service that does not exist yet. Later deploys do not change it and pass.
 
-Webhooks use the same URLs as on Vercel: Stripe
+Webhooks go to Stripe
 `https://onlinedoctornote.com/api/webhooks/stripe-prod3`, Telnyx
 `https://onlinedoctornote.com/api/webhooks/telnyx`, Resend
 `https://onlinedoctornote.com/api/webhooks/resend`.
@@ -197,10 +196,10 @@ it; the sign-in ends on `/admin/login` with `error=account_not_linked`.
 
 Cloud DNS zones `onlinedoctornote-com` (`ns-cloud-e1` to `e4.googledomains.com`)
 and `phealthclinic-com` (`ns-cloud-b1` to `b4.googledomains.com`) hold every
-record, including Google Workspace MX and Resend's DKIM and SPF. The
-registrars, GoDaddy for `onlinedoctornote.com` and Name.com for
-`phealthclinic.com`, still name Vercel DNS until they are switched to those
-nameservers.
+record, including Google Workspace MX and Resend's DKIM and SPF.
+`phealthclinic.com`, registered through Vercel, names them since 2026-11-01.
+`onlinedoctornote.com`, registered at GoDaddy, still names Vercel DNS until
+its nameservers are switched there.
 
 While Vercel DNS serves a domain, its apex is an `A` record beside Vercel's
 managed apex `ALIAS`, which the `A` overrides, and `www` is an `ALIAS` to the
@@ -217,16 +216,23 @@ back while Vercel DNS serves the domains, point each `www` `ALIAS` back to
 `cname.vercel-dns-017.com.`, then delete the apex `A` records. The Vercel team
 is on the Hobby plan, so treat this as a short-term fallback.
 
+Its crons still call the old deployment every hour against the shared
+database. Both versions claim a submission before sending its follow-up
+email, so the email is not sent twice.
+
 Vercel's admin saves a free-text "Other" denial reason, which
 `submissions_denial_reason_check` rejects, so doctors pick a listed reason
 there.
 
 After 2026-11-02, in this order:
 
-1. Switch the registrars to Cloud DNS and wait 48 hours.
-2. Remove the domains from the Vercel project and pause or delete it. Doing
-   this while Vercel DNS still serves a domain can delete its zone.
-3. Remove the `0.0.0.0/0` authorized network from the Cloud SQL instance, once
+1. Switch `onlinedoctornote.com` at GoDaddy to Cloud DNS and wait 48 hours.
+2. Delete the Vercel project. That stops its crons and removes its domains.
+   Doing this while Vercel DNS still serves a domain can delete its zone.
+3. Rotate the `odn_app` password and the cron secret, which the Vercel project
+   held: update `odn-production-database-url` and
+   `odn-production-cron-secret`, the Cloud Scheduler headers, then redeploy.
+4. Remove the `0.0.0.0/0` authorized network from the Cloud SQL instance, once
    nothing connects over the public IP. Check `jazzy-eyes`, which uses database
    `jazzy_eyes` on the same instance, and use the Cloud SQL Auth Proxy for
    local tooling.
