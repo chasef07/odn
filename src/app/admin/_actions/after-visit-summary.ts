@@ -5,9 +5,9 @@ import { buildAfterVisitSummary } from '@/lib/after-visit-summary'
 import { adminAction } from '@/lib/admin-session'
 import { dateOnlyFromUtcDate } from '@/lib/dates'
 import { sendAfterVisitSummaryEmail } from '@/lib/email'
-import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { wouldExceedMonthlyLimit } from '@/lib/monthly-limit'
+import { getConfiguredPhysician } from '@/lib/note-verification'
 import {
   generateAfterVisitSummaryFilename,
   generateAfterVisitSummaryPDF,
@@ -49,7 +49,7 @@ export const sendAfterVisitSummary = adminAction(
           totalDays: rollingLimit.newTotal,
           exceeded: rollingLimit.wouldExceed,
         },
-        physician: { name: env.DOCTOR_NAME, credentials: env.DOCTOR_CREDENTIALS },
+        physician: getConfiguredPhysician(),
         includeAdditionalInformation,
       })
 

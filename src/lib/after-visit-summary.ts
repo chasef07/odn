@@ -112,9 +112,7 @@ export function buildAfterVisitSummary({
 
   const doctorName = physician.name.trim().replace(/^dr\.?\s+/i, '')
   const signer = `${doctorName}, ${physician.credentials.trim()}`
-  const guardianFiled =
-    submission.recipient === 'someone_else' &&
-    Boolean(submission.guardianFirstName && submission.guardianLastName)
+  const guardianFiled = submission.recipient === 'someone_else'
   const requester = guardianFiled ? 'parent/guardian' : 'patient'
 
   const first = dateOnlyFromUtcDate(submission.firstDayOff)
@@ -129,6 +127,7 @@ export function buildAfterVisitSummary({
   const symptoms = symptomList(submission.symptoms, submission.otherSymptomText)
   const reason = reasonText(submission.absenceReason, submission.otherAbsenceReason)
   const additionalInformation = submission.additionalInformation?.trim() || null
+  const priorCharts = history.filter((chart) => chart.createdAt < submission.createdAt)
 
   return {
     signedAt: formatInstantETStamp(instantOf(submission.reviewedAt)),
@@ -147,8 +146,8 @@ export function buildAfterVisitSummary({
       ? `30-day limit exceeded: ${dayCount(rollingLimit.usedDays)} approved in the prior 30 days + ${rollingLimit.requestedDays} requested = ${dayCount(rollingLimit.totalDays)}`
       : 'None',
     medicalHistory:
-      history.length > 0
-        ? history.map((chart) => historyLine(chart, doctorName))
+      priorCharts.length > 0
+        ? priorCharts.map((chart) => historyLine(chart, doctorName))
         : ['No prior charts on file'],
     additionalInformation: includeAdditionalInformation ? additionalInformation : null,
     assessment: `Based on the ${requester}-submitted history and available records, the information is ${approved ? '' : 'not '}sufficient to support the requested sick leave status determination.`,

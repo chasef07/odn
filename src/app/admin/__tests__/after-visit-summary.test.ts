@@ -94,7 +94,7 @@ describe('sendAfterVisitSummary', () => {
       submission: chart,
       history,
       rollingLimit: { usedDays: 6, requestedDays: 2, totalDays: 8, exceeded: true },
-      physician: { name: 'Jason Buchwald', credentials: 'MD FACEP' },
+      physician: { name: 'Jason Buchwald', credentials: 'MD FACEP', npi: '1558307702' },
       includeAdditionalInformation: true,
     })
     expect(mockGenerateAfterVisitSummaryPDF).toHaveBeenCalledWith(summary)

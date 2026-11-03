@@ -130,6 +130,14 @@ describe('buildAfterVisitSummary', () => {
     expect(summary.assessment).toMatch(/^Based on the patient-submitted history/)
   })
 
+  it('says parent/guardian for a chart filed for someone else, as the doctor note does', () => {
+    const summary = buildAfterVisitSummary(
+      input({ submission: { ...submission, recipient: 'someone_else' } })
+    )
+
+    expect(summary.identityVerifiedBy).toBe('Parent/guardian provided')
+  })
+
   it('says parent/guardian throughout when a guardian filed', () => {
     const summary = buildAfterVisitSummary(
       input({
@@ -266,6 +274,18 @@ describe('buildAfterVisitSummary', () => {
       'August 3, 2026: [school] doctor note denied by Dr. Jason Buchwald for 1 day (Aug 3, 2026), due to Accident or injury.',
       'July 1, 2026: [work] doctor note request pending review for 2 days (Jul 1-2, 2026), due to Feeling sick.',
     ])
+  })
+
+  it('leaves out charts filed after this one', () => {
+    const summary = buildAfterVisitSummary(
+      input({
+        history: [
+          { ...priorChart, id: 'sub_later', createdAt: new Date('2026-10-05T12:00:00.000Z') },
+        ],
+      })
+    )
+
+    expect(summary.medicalHistory).toEqual(['No prior charts on file'])
   })
 
   it('says so when there are no prior charts', () => {
