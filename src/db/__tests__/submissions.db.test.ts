@@ -49,6 +49,7 @@ import {
   findManualSubmissions,
   findMaybeSubmissions,
   findPatientHistory,
+  findPriorCharts,
   findRecentSubmissions,
   findSmsSupportSubmissionCandidatesForPhone,
   findSubmissionById,
@@ -461,31 +462,8 @@ describe('patient history', () => {
         'reviewedAt',
         'denialReason',
         'denialNote',
-        'otherNotePurpose',
-        'absenceReason',
-        'otherAbsenceReason',
-        'symptoms',
-        'otherSymptomText',
       ].sort()
     )
-  })
-
-  it('keeps only charts filed before a given time when asked', async () => {
-    const current = await seed({ createdAt: at(5) })
-    const earlier = await seed({ createdAt: at(1) })
-    await seed({ createdAt: at(5) })
-    await seed({ createdAt: at(9) })
-
-    const history = await findPatientHistory({
-      patientFirstName: 'John',
-      patientLastName: 'Doe',
-      patientDateOfBirth: DOB,
-      email: 'john@example.com',
-      excludeSubmissionId: current.id,
-      createdBefore: current.createdAt,
-    })
-
-    expect(ids(history)).toEqual([earlier.id])
   })
 
   it('returns only the 20 newest matches', async () => {
@@ -504,6 +482,48 @@ describe('patient history', () => {
     })
 
     expect(ids(history)).toEqual(ids(matches.slice(1).reverse()))
+  })
+})
+
+describe('prior charts', () => {
+  it('returns every chart of the same patient filed before a time, newest first, ignoring a shared email', async () => {
+    const cutoff = at(50)
+    const older = await seed({ patientFirstName: 'JOHN', createdAt: at(1) })
+    const newer = await seed({
+      status: SubmissionStatus.DENIED,
+      notePurpose: 'other',
+      otherNotePurpose: 'volunteering',
+      createdAt: at(2),
+    })
+    for (let hour = 3; hour <= 23; hour++) await seed({ createdAt: at(hour) })
+    await seed({ createdAt: cutoff })
+    await seed({ createdAt: at(51) })
+    await seed({ patientFirstName: 'Jane', createdAt: at(1) })
+    await seed({ patientLastName: 'Roe', createdAt: at(1) })
+    await seed({ patientDateOfBirth: new Date('1991-05-15T00:00:00.000Z'), createdAt: at(1) })
+
+    const charts = await findPriorCharts(
+      { patientFirstName: 'john', patientLastName: 'DOE', patientDateOfBirth: DOB },
+      cutoff
+    )
+
+    expect(charts).toHaveLength(23)
+    expect(charts.at(-2)?.id).toBe(newer.id)
+    expect(charts.at(-1)?.id).toBe(older.id)
+    expect(charts.at(-2)).toEqual({
+      id: newer.id,
+      status: SubmissionStatus.DENIED,
+      notePurpose: 'other',
+      otherNotePurpose: 'volunteering',
+      firstDayOff: newer.firstDayOff,
+      lastDayOff: newer.lastDayOff,
+      absenceReason: newer.absenceReason,
+      otherAbsenceReason: newer.otherAbsenceReason,
+      symptoms: newer.symptoms,
+      otherSymptomText: newer.otherSymptomText,
+      reviewedAt: newer.reviewedAt,
+      createdAt: newer.createdAt,
+    })
   })
 })
 
@@ -641,6 +661,24 @@ describe('approved overlap window', () => {
       lastDayOff: LAST_DAY,
       reviewedAt: null,
     })
+  })
+
+  it('keeps only notes reviewed before a time when asked', async () => {
+    const window = {
+      windowStart: new Date('2026-03-01T00:00:00.000Z'),
+      windowEnd: new Date('2026-03-31T00:00:00.000Z'),
+    }
+    const earlier = await seed({ status: SubmissionStatus.APPROVED, reviewedAt: at(1) })
+    await seed({ status: SubmissionStatus.APPROVED, reviewedAt: at(5) })
+    await seed({ status: SubmissionStatus.APPROVED, reviewedAt: at(9) })
+    const identity = { patientFirstName: 'John', patientLastName: 'Doe', patientDateOfBirth: DOB }
+
+    const bounded = await findApprovedSubmissionsOverlapping(identity, {
+      ...window,
+      reviewedBefore: at(5),
+    })
+
+    expect(ids(bounded)).toEqual([earlier.id])
   })
 })
 

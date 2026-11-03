@@ -1,4 +1,4 @@
-import type { PatientHistorySubmission } from '@/db/submissions'
+import type { PriorChart } from '@/db/submissions'
 import { SubmissionStatus, type JsonValue, type Submission } from '@/db/types'
 import {
   addDays,
@@ -15,7 +15,7 @@ import { getStateLicense } from '@/lib/state-licenses'
 
 export type AfterVisitSummaryInput = {
   submission: Submission
-  history: PatientHistorySubmission[]
+  history: PriorChart[]
   rollingLimit: { usedDays: number; requestedDays: number; totalDays: number; exceeded: boolean }
   physician: { name: string; credentials: string }
   includeAdditionalInformation: boolean
@@ -82,7 +82,7 @@ function symptomList(symptoms: JsonValue | null, otherSymptomText: string | null
     )
 }
 
-function historyLine(chart: PatientHistorySubmission, doctorName: string): string {
+function historyLine(chart: PriorChart, doctorName: string): string {
   const first = dateOnlyFromUtcDate(chart.firstDayOff)
   const last = dateOnlyFromUtcDate(chart.lastDayOff)
   const day = formatDateOnly(todayET(instantOf(chart.reviewedAt ?? chart.createdAt)), 'long')

@@ -1,6 +1,6 @@
 'use server'
 
-import { findPatientHistory, findSubmissionById } from '@/db/submissions'
+import { findPriorCharts, findSubmissionById } from '@/db/submissions'
 import { buildAfterVisitSummary } from '@/lib/after-visit-summary'
 import { adminAction } from '@/lib/admin-session'
 import { dateOnlyFromUtcDate } from '@/lib/dates'
@@ -24,20 +24,21 @@ export const sendAfterVisitSummary = adminAction(
 
     try {
       const [history, rollingLimit] = await Promise.all([
-        findPatientHistory({
-          patientFirstName: submission.patientFirstName,
-          patientLastName: submission.patientLastName,
-          patientDateOfBirth: submission.patientDateOfBirth,
-          email: submission.email,
-          excludeSubmissionId: submission.id,
-          createdBefore: submission.createdAt,
-        }),
+        findPriorCharts(
+          {
+            patientFirstName: submission.patientFirstName,
+            patientLastName: submission.patientLastName,
+            patientDateOfBirth: submission.patientDateOfBirth,
+          },
+          submission.createdAt
+        ),
         wouldExceedMonthlyLimit(
           submission.patientFirstName,
           submission.patientLastName,
           dateOnlyFromUtcDate(submission.patientDateOfBirth),
           dateOnlyFromUtcDate(submission.firstDayOff),
-          dateOnlyFromUtcDate(submission.lastDayOff)
+          dateOnlyFromUtcDate(submission.lastDayOff),
+          submission.reviewedAt ?? undefined
         ),
       ])
 

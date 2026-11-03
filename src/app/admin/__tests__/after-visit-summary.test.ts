@@ -4,7 +4,7 @@ import { SubmissionStatus } from '@/db/types'
 const {
   mockGetSession,
   mockFindSubmissionById,
-  mockFindPatientHistory,
+  mockFindPriorCharts,
   mockWouldExceedMonthlyLimit,
   mockBuildAfterVisitSummary,
   mockGenerateAfterVisitSummaryPDF,
@@ -12,7 +12,7 @@ const {
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockFindSubmissionById: vi.fn(),
-  mockFindPatientHistory: vi.fn(),
+  mockFindPriorCharts: vi.fn(),
   mockWouldExceedMonthlyLimit: vi.fn(),
   mockBuildAfterVisitSummary: vi.fn(),
   mockGenerateAfterVisitSummaryPDF: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock('@/lib/auth', () => ({ auth: { api: { getSession: mockGetSession } } }))
 vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }))
 vi.mock('@/db/submissions', () => ({
   findSubmissionById: mockFindSubmissionById,
-  findPatientHistory: mockFindPatientHistory,
+  findPriorCharts: mockFindPriorCharts,
 }))
 vi.mock('@/lib/monthly-limit', () => ({ wouldExceedMonthlyLimit: mockWouldExceedMonthlyLimit }))
 vi.mock('@/lib/after-visit-summary', () => ({ buildAfterVisitSummary: mockBuildAfterVisitSummary }))
@@ -60,7 +60,7 @@ describe('sendAfterVisitSummary', () => {
       user: { id: 'doctor_123', email: 'doctor@example.test', emailVerified: true },
     })
     mockFindSubmissionById.mockResolvedValue(chart)
-    mockFindPatientHistory.mockResolvedValue(history)
+    mockFindPriorCharts.mockResolvedValue(history)
     mockWouldExceedMonthlyLimit.mockResolvedValue({
       currentUsage: { totalDays: 6 },
       requestedDays: 2,
@@ -77,20 +77,21 @@ describe('sendAfterVisitSummary', () => {
       sendAfterVisitSummary('sub_123', { includeAdditionalInformation: true })
     ).resolves.toEqual({ success: true })
 
-    expect(mockFindPatientHistory).toHaveBeenCalledWith({
-      patientFirstName: 'Isaiah',
-      patientLastName: 'Bandoo',
-      patientDateOfBirth: chart.patientDateOfBirth,
-      email: 'patient@example.test',
-      excludeSubmissionId: 'sub_123',
-      createdBefore: chart.createdAt,
-    })
+    expect(mockFindPriorCharts).toHaveBeenCalledWith(
+      {
+        patientFirstName: 'Isaiah',
+        patientLastName: 'Bandoo',
+        patientDateOfBirth: chart.patientDateOfBirth,
+      },
+      chart.createdAt
+    )
     expect(mockWouldExceedMonthlyLimit).toHaveBeenCalledWith(
       'Isaiah',
       'Bandoo',
       '2000-09-14',
       '2026-09-29',
-      '2026-09-30'
+      '2026-09-30',
+      chart.reviewedAt
     )
     expect(mockBuildAfterVisitSummary).toHaveBeenCalledWith({
       submission: chart,

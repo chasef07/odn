@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { SubmissionStatus, type Submission } from '@/db/types'
-import type { PatientHistorySubmission } from '@/db/submissions'
+import type { PriorChart } from '@/db/submissions'
 import { buildAfterVisitSummary, type AfterVisitSummaryInput } from '../after-visit-summary'
 
 const submission: Submission = {
@@ -58,19 +58,14 @@ const submission: Submission = {
   updatedAt: new Date('2026-09-30T11:50:00.000Z'),
 }
 
-const priorChart: PatientHistorySubmission = {
+const priorChart: PriorChart = {
   id: 'sub_prior',
-  patientFirstName: 'Isaiah',
-  patientLastName: 'Bandoo',
-  email: 'patient@example.test',
   status: SubmissionStatus.APPROVED,
   notePurpose: 'work',
   firstDayOff: new Date('2026-09-15T00:00:00.000Z'),
   lastDayOff: new Date('2026-09-17T00:00:00.000Z'),
   createdAt: new Date('2026-09-15T12:00:00.000Z'),
   reviewedAt: new Date('2026-09-15T14:00:00.000Z'),
-  denialReason: null,
-  denialNote: null,
   otherNotePurpose: null,
   absenceReason: 'Feeling sick',
   otherAbsenceReason: null,
