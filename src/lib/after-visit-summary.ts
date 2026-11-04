@@ -18,7 +18,66 @@ export type AfterVisitSummaryInput = {
   history: PriorChart[]
   rollingLimit: { usedDays: number; requestedDays: number; totalDays: number; exceeded: boolean }
   physician: { name: string; credentials: string }
-  includeAdditionalInformation: boolean
+  freeText: FreeTextChoices
+}
+
+export const FREE_TEXT_ANSWER_LABELS = {
+  otherNotePurpose: 'Other note purpose',
+  otherAbsenceReason: 'Other absence reason',
+  otherSymptomText: 'Other symptom',
+  additionalInformation: 'Additional information',
+} as const
+
+export type FreeTextAnswer = keyof typeof FREE_TEXT_ANSWER_LABELS
+
+export type FreeTextChoices = Partial<Record<FreeTextAnswer, string>>
+
+type FreeTextSource = Pick<
+  Submission,
+  | 'notePurpose'
+  | 'otherNotePurpose'
+  | 'absenceReason'
+  | 'otherAbsenceReason'
+  | 'symptoms'
+  | 'otherSymptomText'
+  | 'additionalInformation'
+>
+
+export function freeTextAnswers(submission: FreeTextSource): FreeTextChoices {
+  const answers: Record<FreeTextAnswer, string | null> = {
+    otherNotePurpose: submission.notePurpose === 'other' ? submission.otherNotePurpose : null,
+    otherAbsenceReason: submission.absenceReason === 'Other' ? submission.otherAbsenceReason : null,
+    otherSymptomText:
+      Array.isArray(submission.symptoms) && submission.symptoms.includes('Other')
+        ? submission.otherSymptomText
+        : null,
+    additionalInformation: submission.additionalInformation,
+  }
+  const filled: FreeTextChoices = {}
+  for (const field of Object.keys(FREE_TEXT_ANSWER_LABELS) as FreeTextAnswer[]) {
+    const text = answers[field]?.trim()
+    if (text) filled[field] = text
+  }
+  return filled
+}
+
+function chosenFreeText(submission: FreeTextSource, freeText: unknown): FreeTextChoices {
+  if (typeof freeText !== 'object' || freeText === null || Array.isArray(freeText)) {
+    throw new Error('The free-text choices are missing')
+  }
+  const answers = freeTextAnswers(submission)
+  const chosen: FreeTextChoices = {}
+  for (const [field, text] of Object.entries(freeText)) {
+    if (!Object.hasOwn(FREE_TEXT_ANSWER_LABELS, field)) {
+      throw new Error(`Unknown free-text answer: ${field}`)
+    }
+    const answer = field as FreeTextAnswer
+    const label = FREE_TEXT_ANSWER_LABELS[answer]
+    if (!Object.hasOwn(answers, answer)) throw new Error(`This chart has no ${label.toLowerCase()}`)
+    if (typeof text !== 'string' || !text.trim()) throw new Error(`${label} is empty`)
+    chosen[answer] = text.trim()
+  }
+  return chosen
 }
 
 export type AfterVisitSummary = {
@@ -100,7 +159,7 @@ export function buildAfterVisitSummary({
   history,
   rollingLimit,
   physician,
-  includeAdditionalInformation,
+  freeText,
 }: AfterVisitSummaryInput): AfterVisitSummary {
   const approved = submission.status === SubmissionStatus.APPROVED
   if ((!approved && submission.status !== SubmissionStatus.DENIED) || !submission.reviewedAt) {
@@ -122,11 +181,11 @@ export function buildAfterVisitSummary({
     days === 1
       ? `Off date: ${numeric(first)}`
       : `Off dates: ${numeric(first)} ${days === 2 ? 'and' : 'through'} ${numeric(last)}`
-  const purpose = purposeText(submission.notePurpose, submission.otherNotePurpose)
+  const chosen = chosenFreeText(submission, freeText)
+  const purpose = purposeText(submission.notePurpose, chosen.otherNotePurpose ?? null)
 
-  const symptoms = symptomList(submission.symptoms, submission.otherSymptomText)
-  const reason = reasonText(submission.absenceReason, submission.otherAbsenceReason)
-  const additionalInformation = submission.additionalInformation?.trim() || null
+  const symptoms = symptomList(submission.symptoms, chosen.otherSymptomText ?? null)
+  const reason = reasonText(submission.absenceReason, chosen.otherAbsenceReason ?? null)
 
   return {
     signedAt: formatInstantETStamp(instantOf(submission.reviewedAt)),
@@ -138,17 +197,18 @@ export function buildAfterVisitSummary({
     identityVerifiedBy: guardianFiled ? 'Parent/guardian provided' : 'Patient provided',
     consent: `The ${requester} requested an evaluation for sick leave documentation and consented to review of the submitted information. The ${requester} also consented that no physical examination, or independently measured vital signs would be performed and that an in-person or synchronous evaluation may be required.`,
     reasonForRequest:
-      submission.notePurpose === 'other' ? `Other: ${purpose}` : `Absence from ${purpose}`,
+      submission.notePurpose !== 'other'
+        ? `Absence from ${purpose}`
+        : chosen.otherNotePurpose
+          ? `Other: ${chosen.otherNotePurpose}`
+          : 'Other',
     requestedDates: `${offDates}. Return date: ${numeric(addDays(last, 1))}`,
     symptoms: symptoms.length > 0 ? `${reason}; symptoms: ${symptoms.join(', ')}` : reason,
     redFlags: rollingLimit.exceeded
       ? `30-day limit exceeded: ${dayCount(rollingLimit.usedDays)} approved in the prior 30 days + ${rollingLimit.requestedDays} requested = ${dayCount(rollingLimit.totalDays)}`
       : 'None',
-    medicalHistory:
-      history.length > 0
-        ? history.map((chart) => historyLine(chart, doctorName))
-        : ['No prior charts on file'],
-    additionalInformation: includeAdditionalInformation ? additionalInformation : null,
+    medicalHistory: history.map((chart) => historyLine(chart, doctorName)),
+    additionalInformation: chosen.additionalInformation ?? null,
     assessment: `Based on the ${requester}-submitted history and available records, the information is ${approved ? '' : 'not '}sufficient to support the requested sick leave status determination.`,
     determination: approved
       ? [

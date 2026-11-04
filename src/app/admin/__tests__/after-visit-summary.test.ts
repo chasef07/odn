@@ -74,7 +74,7 @@ describe('sendAfterVisitSummary', () => {
 
   it('builds the summary from the chart, its history and the 30-day limit, then emails it', async () => {
     await expect(
-      sendAfterVisitSummary('sub_123', { includeAdditionalInformation: true })
+      sendAfterVisitSummary('sub_123', { freeText: { additionalInformation: 'Saw urgent care' } })
     ).resolves.toEqual({ success: true })
 
     expect(mockFindPriorCharts).toHaveBeenCalledWith(
@@ -98,7 +98,7 @@ describe('sendAfterVisitSummary', () => {
       history,
       rollingLimit: { usedDays: 6, requestedDays: 2, totalDays: 8, exceeded: true },
       physician: { name: 'Jason Buchwald', credentials: 'MD FACEP', npi: '1558307702' },
-      includeAdditionalInformation: true,
+      freeText: { additionalInformation: 'Saw urgent care' },
     })
     expect(mockGenerateAfterVisitSummaryPDF).toHaveBeenCalledWith(summary)
     expect(mockSendAfterVisitSummaryEmail).toHaveBeenCalledWith({
@@ -111,9 +111,10 @@ describe('sendAfterVisitSummary', () => {
   it('refuses a chart that does not exist', async () => {
     mockFindSubmissionById.mockResolvedValue(null)
 
-    await expect(
-      sendAfterVisitSummary('missing', { includeAdditionalInformation: false })
-    ).resolves.toEqual({ success: false, error: 'Submission not found' })
+    await expect(sendAfterVisitSummary('missing', { freeText: {} })).resolves.toEqual({
+      success: false,
+      error: 'Submission not found',
+    })
     expect(mockSendAfterVisitSummaryEmail).not.toHaveBeenCalled()
   })
 
@@ -122,9 +123,7 @@ describe('sendAfterVisitSummary', () => {
       throw new Error('Only approved or denied charts have an after-visit summary')
     })
 
-    await expect(
-      sendAfterVisitSummary('sub_123', { includeAdditionalInformation: false })
-    ).resolves.toEqual({
+    await expect(sendAfterVisitSummary('sub_123', { freeText: {} })).resolves.toEqual({
       success: false,
       error: 'Only approved or denied charts have an after-visit summary',
     })
@@ -134,17 +133,16 @@ describe('sendAfterVisitSummary', () => {
   it('reports a failed send', async () => {
     mockSendAfterVisitSummaryEmail.mockRejectedValue(new Error('Failed to send AVS email: down'))
 
-    await expect(
-      sendAfterVisitSummary('sub_123', { includeAdditionalInformation: false })
-    ).resolves.toEqual({ success: false, error: 'Failed to send AVS email: down' })
+    await expect(sendAfterVisitSummary('sub_123', { freeText: {} })).resolves.toEqual({
+      success: false,
+      error: 'Failed to send AVS email: down',
+    })
   })
 
   it('refuses a caller who is not an admin', async () => {
     mockGetSession.mockResolvedValue(null)
 
-    await expect(
-      sendAfterVisitSummary('sub_123', { includeAdditionalInformation: false })
-    ).rejects.toThrow()
+    await expect(sendAfterVisitSummary('sub_123', { freeText: {} })).rejects.toThrow()
     expect(mockFindSubmissionById).not.toHaveBeenCalled()
   })
 })

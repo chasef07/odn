@@ -150,13 +150,55 @@ export function generatePDFFilename(submissionId: string): string {
   return `doctors-note-${formatReferenceId(submissionId)}.pdf`
 }
 
+export const AFTER_VISIT_SUMMARY_SCALES = [1, 0.95, 0.9, 0.85, 0.8, 0.75] as const
+
+export function pdfPageCount(pdf: Buffer): number {
+  const counts = [...pdf.toString('latin1').matchAll(/\/Type \/Pages\b[^>]*?\/Count (\d+)/g)]
+  if (counts.length !== 1)
+    throw new Error(`Expected one page tree in the PDF, found ${counts.length}`)
+  return Number(counts[0][1])
+}
+
 export async function generateAfterVisitSummaryPDF(summary: AfterVisitSummary): Promise<Buffer> {
-  return renderToBuffer(
-    <AfterVisitSummaryTemplate
-      summary={summary}
-      signatureUrl={resolveSignaturePath(env.DOCTOR_SIGNATURE_URL)}
-    />
-  )
+  const signatureUrl = resolveSignaturePath(env.DOCTOR_SIGNATURE_URL)
+  const onePage = async (scale: number, historyLimit: number): Promise<Buffer | null> => {
+    const pdf = await renderToBuffer(
+      <AfterVisitSummaryTemplate
+        summary={summary}
+        signatureUrl={signatureUrl}
+        scale={scale}
+        historyLimit={historyLimit}
+      />
+    )
+    return pdfPageCount(pdf) === 1 ? pdf : null
+  }
+
+  const allHistory = summary.medicalHistory.length
+  for (const scale of AFTER_VISIT_SUMMARY_SCALES) {
+    const pdf = await onePage(scale, allHistory)
+    if (pdf) return pdf
+  }
+
+  const smallest = AFTER_VISIT_SUMMARY_SCALES[AFTER_VISIT_SUMMARY_SCALES.length - 1]
+  let best = await onePage(smallest, 0)
+  if (!best) {
+    throw new Error(
+      'The after-visit summary does not fit on one page. Shorten or switch off the free-text answers.'
+    )
+  }
+  let fits = 0
+  let tooMany = allHistory
+  while (tooMany - fits > 1) {
+    const middle = Math.floor((fits + tooMany) / 2)
+    const pdf = await onePage(smallest, middle)
+    if (pdf) {
+      best = pdf
+      fits = middle
+    } else {
+      tooMany = middle
+    }
+  }
+  return best
 }
 
 export function generateAfterVisitSummaryFilename(submissionId: string): string {
