@@ -122,7 +122,10 @@ describe('buildAfterVisitSummary', () => {
     const summary = buildAfterVisitSummary(input())
 
     expect(summary.consent).toMatch(/^The patient requested an evaluation/)
-    expect(summary.consent).toContain('The patient was informed')
+    expect(summary.consent).toContain(
+      'The patient also consented that no physical examination, or independently measured vital signs would be performed'
+    )
+    expect(summary.consent).not.toContain('Physician attestation')
     expect(summary.assessment).toMatch(/^Based on the patient-submitted history/)
   })
 
@@ -133,7 +136,7 @@ describe('buildAfterVisitSummary', () => {
 
     expect(summary.identityVerifiedBy).toBe('Parent/guardian provided')
     expect(summary.consent).toMatch(/^The parent\/guardian requested an evaluation/)
-    expect(summary.consent).toContain('The parent/guardian was informed')
+    expect(summary.consent).toContain('The parent/guardian also consented that')
     expect(summary.assessment).toMatch(/^Based on the parent\/guardian-submitted history/)
     expect(summary.patient).toBe('Isaiah Bandoo | DOB: 09/14/2000')
   })

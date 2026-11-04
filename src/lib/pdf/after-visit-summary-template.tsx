@@ -84,6 +84,7 @@ export function AfterVisitSummaryTemplate({
 
         <Text style={styles.heading}>Consent and Scope</Text>
         <Text>{summary.consent}</Text>
+        <Text>Physician attestation of prior record reviewed: yes</Text>
 
         <Text style={styles.heading}>Reason for Request</Text>
         <Text>{summary.reasonForRequest}</Text>

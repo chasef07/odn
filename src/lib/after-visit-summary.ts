@@ -136,7 +136,7 @@ export function buildAfterVisitSummary({
     patientLocation: submission.state,
     encounterModality: 'Asynchronous',
     identityVerifiedBy: guardianFiled ? 'Parent/guardian provided' : 'Patient provided',
-    consent: `The ${requester} requested an evaluation for sick leave documentation and consented to review of the submitted information. The ${requester} was informed that no physical examination, or independently measured vital signs were performed and that an in-person or synchronous evaluation may be required. Physician attestation of prior record reviewed: yes`,
+    consent: `The ${requester} requested an evaluation for sick leave documentation and consented to review of the submitted information. The ${requester} also consented that no physical examination, or independently measured vital signs would be performed and that an in-person or synchronous evaluation may be required.`,
     reasonForRequest:
       submission.notePurpose === 'other' ? `Other: ${purpose}` : `Absence from ${purpose}`,
     requestedDates: `${offDates}. Return date: ${numeric(addDays(last, 1))}`,
