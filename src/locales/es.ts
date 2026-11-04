@@ -33,6 +33,8 @@ export const spanishTranslations: Record<string, string> = {
   'First name must be less than 50 characters': 'El nombre debe tener menos de 50 caracteres',
   'Last name is required': 'Se requiere el apellido',
   'First name is required': 'Se requiere el nombre',
+  'Total due today': 'Total a pagar hoy',
+  'What happens next': 'Qué sigue',
   '← Back to Home': '← Volver a casa',
   '1. Our Services': '1. Nuestros Servicios',
   '1. What Information Do We Collect?': '1. ¿Qué información recopilamos?',

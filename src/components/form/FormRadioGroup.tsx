@@ -1,11 +1,12 @@
-import { ReactNode } from 'react'
 import { FieldError, UseFormRegisterReturn } from 'react-hook-form'
+import { Check } from 'lucide-react'
 import { useI18n } from '@/components/i18n/I18nProvider'
+
+const PICK_DELAY_MS = 200
 
 interface RadioOption {
   value: string
-  label: string | ReactNode
-  description?: string
+  label: string
 }
 
 interface FormRadioGroupProps {
@@ -21,9 +22,7 @@ interface FormRadioGroupProps {
 
   selectedValue?: string
 
-  gridClassName?: string
-
-  variant?: 'default' | 'large-buttons' | 'center-buttons'
+  onPick?: (value: string) => void
 }
 
 export function FormRadioGroup({
@@ -33,76 +32,28 @@ export function FormRadioGroup({
   register,
   error,
   selectedValue,
-  gridClassName = 'grid gap-4 md:grid-cols-2',
-  variant = 'default',
+  onPick,
 }: FormRadioGroupProps) {
   const { t } = useI18n()
   return (
     <fieldset>
       <legend className="sr-only">{t(legend)}</legend>
 
-      <div className={gridClassName}>
+      <div className="grid gap-3">
         {options.map((option) => {
           const isSelected = selectedValue === option.value
-
-          if (variant === 'center-buttons') {
-            return (
-              <label
-                key={option.value}
-                className={`inline-flex cursor-pointer items-center justify-center rounded-lg border px-8 py-4 shadow-sm transition-all ${
-                  isSelected
-                    ? 'border-primary bg-primary/5 text-primary ring-primary/20 ring-2'
-                    : 'border-border/40 text-foreground hover:border-primary/40 bg-white hover:shadow-md'
-                }`}
-              >
-                <input
-                  type="radio"
-                  value={option.value}
-                  {...register}
-                  className="sr-only"
-                  aria-describedby={error ? `${fieldName}-error` : undefined}
-                />
-                <span className="text-lg font-semibold">
-                  {typeof option.label === 'string' ? t(option.label) : option.label}
-                </span>
-              </label>
-            )
-          }
-
-          if (variant === 'large-buttons') {
-            return (
-              <label
-                key={option.value}
-                className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-6 py-3 text-center shadow-sm transition-all ${
-                  isSelected
-                    ? 'border-primary bg-primary/5 text-primary ring-primary/20 ring-2'
-                    : 'border-border/40 text-foreground hover:border-primary/40 bg-white hover:shadow-md'
-                }`}
-              >
-                <input
-                  type="radio"
-                  value={option.value}
-                  {...register}
-                  className="sr-only"
-                  aria-describedby={error ? `${fieldName}-error` : undefined}
-                />
-                <span className="text-base font-semibold">
-                  {typeof option.label === 'string' ? t(option.label) : option.label}
-                </span>
-                {option.description && (
-                  <span className="text-muted-foreground text-sm">{t(option.description)}</span>
-                )}
-              </label>
-            )
-          }
 
           return (
             <label
               key={option.value}
-              className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-4 py-2.5 shadow-sm transition-all ${
+              onClick={(event) => {
+                if (!onPick || event.target instanceof HTMLInputElement) return
+                window.setTimeout(() => onPick(option.value), PICK_DELAY_MS)
+              }}
+              className={`has-[:focus-visible]:ring-primary/40 relative flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-all active:scale-[0.98] has-[:focus-visible]:ring-2 ${
                 isSelected
-                  ? 'border-primary bg-primary/10 text-primary ring-primary/20 ring-2'
-                  : 'border-border/40 text-foreground hover:border-primary/40 bg-white hover:shadow-md'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/40 bg-white'
               }`}
             >
               <input
@@ -112,8 +63,14 @@ export function FormRadioGroup({
                 className="sr-only"
                 aria-describedby={error ? `${fieldName}-error` : undefined}
               />
-              <span className="text-sm font-medium">
-                {typeof option.label === 'string' ? t(option.label) : option.label}
+              <span className="text-foreground text-base font-medium">{t(option.label)}</span>
+              <span
+                aria-hidden="true"
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                  isSelected ? 'border-primary bg-primary' : 'border-border'
+                }`}
+              >
+                {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
               </span>
             </label>
           )
