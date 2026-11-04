@@ -130,7 +130,7 @@ const eslintConfig = [
   },
   {
     name: 'logout drops cached admin data and a locale switch re-renders the root layout, so both need a full page load',
-    files: ['src/components/admin/LogoutButton.tsx', 'src/components/i18n/LanguageSwitch.tsx'],
+    files: ['src/components/admin/LogoutButton.tsx', 'src/components/i18n/LanguageMenu.tsx'],
     rules: { '@next/next/no-location-assign-relative-destination': 'off' },
   },
 ]
