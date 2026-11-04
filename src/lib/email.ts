@@ -141,6 +141,24 @@ export async function sendApprovalEmail({
   }))
 }
 
+export async function sendAfterVisitSummaryEmail({
+  patientName,
+  pdfBuffer,
+  pdfFilename,
+}: {
+  patientName: string
+  pdfBuffer: Buffer
+  pdfFilename: string
+}) {
+  return sendEmail('after-visit summary email', () => ({
+    from: env.RESEND_FROM_EMAIL,
+    to: 'hello@onlinedoctornote.com',
+    subject: `After-visit summary: ${patientName}`,
+    text: `The after-visit summary for ${patientName} is attached.`,
+    attachments: [{ filename: pdfFilename, content: pdfBuffer }],
+  }))
+}
+
 export async function sendPaymentConfirmationEmail({
   to,
   patientName,

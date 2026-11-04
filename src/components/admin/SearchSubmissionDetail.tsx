@@ -27,6 +27,7 @@ import { PatientHistoryPopup } from '@/components/admin/PatientHistoryPopup'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
+import { AfterVisitSummaryButton } from '@/components/admin/AfterVisitSummaryButton'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import {
   formatInstantET,
@@ -364,6 +365,8 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
   const showDenyButton = submission.status !== SubmissionStatus.DENIED
   const showMaybeButton = submission.status !== SubmissionStatus.MAYBE
   const showManualButton = submission.status !== SubmissionStatus.MANUAL
+  const showAfterVisitSummaryButton =
+    submission.status === SubmissionStatus.APPROVED || submission.status === SubmissionStatus.DENIED
 
   const approveButtonText =
     submission.status === SubmissionStatus.APPROVED ? 'Re-Approve' : 'Approve'
@@ -451,6 +454,13 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             >
               {isSupportTicketPending ? 'Opening...' : 'Support Ticket'}
             </Button>
+            {showAfterVisitSummaryButton && (
+              <AfterVisitSummaryButton
+                submissionId={submission.id}
+                additionalInformation={submission.additionalInformation}
+                disabled={isActionDisabled}
+              />
+            )}
           </div>
 
           <RemoveGuardianModeControl

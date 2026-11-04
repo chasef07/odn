@@ -6,6 +6,8 @@ import {
   DoctorInfo,
   DoctorNoteVerificationInfo,
 } from './doctor-note-template'
+import { AfterVisitSummaryTemplate } from './after-visit-summary-template'
+import type { AfterVisitSummary } from '@/lib/after-visit-summary'
 import { getConfiguredPhysician, getDefaultIssueDate } from '@/lib/note-verification'
 import { env } from '@/lib/env'
 import path from 'path'
@@ -146,4 +148,17 @@ export async function generateDoctorNotePDF(
 
 export function generatePDFFilename(submissionId: string): string {
   return `doctors-note-${formatReferenceId(submissionId)}.pdf`
+}
+
+export async function generateAfterVisitSummaryPDF(summary: AfterVisitSummary): Promise<Buffer> {
+  return renderToBuffer(
+    <AfterVisitSummaryTemplate
+      summary={summary}
+      signatureUrl={resolveSignaturePath(env.DOCTOR_SIGNATURE_URL)}
+    />
+  )
+}
+
+export function generateAfterVisitSummaryFilename(submissionId: string): string {
+  return `after-visit-summary-${formatReferenceId(submissionId)}.pdf`
 }

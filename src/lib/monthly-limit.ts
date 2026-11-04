@@ -27,7 +27,8 @@ export async function getMonthlyDaysUsed(
   patientFirstName: string,
   patientLastName: string,
   patientDateOfBirth: DateOnly,
-  referenceDay: DateOnly
+  referenceDay: DateOnly,
+  reviewedBefore?: Date
 ): Promise<MonthlyUsage> {
   const submissions = await findApprovedSubmissionsOverlapping(
     {
@@ -38,6 +39,7 @@ export async function getMonthlyDaysUsed(
     {
       windowStart: utcDateFromDateOnly(addDays(referenceDay, -WINDOW_DAYS)),
       windowEnd: utcDateFromDateOnly(addDays(referenceDay, -1)),
+      reviewedBefore,
     }
   )
 
@@ -68,7 +70,8 @@ export async function wouldExceedMonthlyLimit(
   patientLastName: string,
   patientDateOfBirth: DateOnly,
   firstDayOff: DateOnly,
-  lastDayOff: DateOnly
+  lastDayOff: DateOnly,
+  reviewedBefore?: Date
 ): Promise<{
   currentUsage: MonthlyUsage
   requestedDays: number
@@ -79,7 +82,8 @@ export async function wouldExceedMonthlyLimit(
     patientFirstName,
     patientLastName,
     patientDateOfBirth,
-    firstDayOff
+    firstDayOff,
+    reviewedBefore
   )
   const requestedDays = inclusiveDayCount(firstDayOff, lastDayOff)
   const newTotal = currentUsage.totalDays + requestedDays

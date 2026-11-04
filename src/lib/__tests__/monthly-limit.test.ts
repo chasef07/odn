@@ -124,4 +124,15 @@ describe.each(PROCESS_TIME_ZONES)('monthly limit in a %s runtime', (zone) => {
     expect(over).toMatchObject({ requestedDays: 5, newTotal: 8, wouldExceed: true })
     expect(single).toMatchObject({ requestedDays: 1, newTotal: 4, wouldExceed: false })
   })
+
+  it('counts only notes reviewed before a cutoff when given one', async () => {
+    const reviewedBefore = new Date('2025-01-15T12:00:00Z')
+
+    await wouldExceedMonthlyLimit('John', 'Doe', DOB, REFERENCE, REFERENCE, reviewedBefore)
+
+    expect(mockFindOverlapping).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reviewedBefore })
+    )
+  })
 })

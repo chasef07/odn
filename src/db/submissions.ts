@@ -130,6 +130,22 @@ export type SubmissionSummary = Pick<
 export type PatientHistorySubmission = SubmissionSummary &
   Pick<Submission, 'reviewedAt' | 'denialReason' | 'denialNote'>
 
+export type PriorChart = Pick<
+  Submission,
+  | 'id'
+  | 'status'
+  | 'notePurpose'
+  | 'otherNotePurpose'
+  | 'firstDayOff'
+  | 'lastDayOff'
+  | 'absenceReason'
+  | 'otherAbsenceReason'
+  | 'symptoms'
+  | 'otherSymptomText'
+  | 'reviewedAt'
+  | 'createdAt'
+>
+
 export type SubmissionSmsMessage = Pick<
   SmsMessage,
   | 'id'
@@ -382,6 +398,16 @@ export async function findPatientHistory({
   )
 }
 
+export async function findPriorCharts(
+  identity: PatientIdentity,
+  createdBefore: Date
+): Promise<PriorChart[]> {
+  const where = and(patientIdentityWhere(identity), sql`created_at < ${createdBefore}`)
+  return db.rows(
+    sql`SELECT ${select(submissions, ['id', 'status', 'notePurpose', 'otherNotePurpose', 'firstDayOff', 'lastDayOff', 'absenceReason', 'otherAbsenceReason', 'symptoms', 'otherSymptomText', 'reviewedAt', 'createdAt'])} FROM submissions WHERE ${where} ORDER BY created_at DESC`
+  )
+}
+
 function submissionSearchWhere(search: SubmissionSearch | null): Sql {
   if (!search) return and()
 
@@ -424,13 +450,18 @@ export async function searchSubmissionsPage(
 
 export async function findApprovedSubmissionsOverlapping(
   identity: PatientIdentity,
-  { windowStart, windowEnd }: { windowStart: Date; windowEnd: Date }
+  {
+    windowStart,
+    windowEnd,
+    reviewedBefore,
+  }: { windowStart: Date; windowEnd: Date; reviewedBefore?: Date }
 ): Promise<Pick<Submission, 'id' | 'firstDayOff' | 'lastDayOff' | 'reviewedAt'>[]> {
   const where = and(
     patientIdentityWhere(identity),
     sql`status = ${SubmissionStatus.APPROVED}`,
     sql`first_day_off <= ${windowEnd}`,
-    sql`last_day_off >= ${windowStart}`
+    sql`last_day_off >= ${windowStart}`,
+    reviewedBefore ? sql`reviewed_at < ${reviewedBefore}` : and()
   )
   return db.rows(
     sql`SELECT ${select(submissions, ['id', 'firstDayOff', 'lastDayOff', 'reviewedAt'])} FROM submissions WHERE ${where} ORDER BY first_day_off ASC`

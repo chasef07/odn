@@ -137,6 +137,10 @@ export function formatInstantET(
   )
 }
 
+export function formatInstantETStamp(at: Instant): string {
+  return formatInTimeZone(at, BUSINESS_TIME_ZONE, "MM/dd/yyyy '|' h:mm a 'ET'")
+}
+
 export function businessDayStart(at: Instant = now()): Instant {
   const hour = Number(formatInTimeZone(at, BUSINESS_TIME_ZONE, 'H'))
   const today = todayET(at)

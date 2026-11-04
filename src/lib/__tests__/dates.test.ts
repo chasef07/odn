@@ -8,6 +8,7 @@ import {
   formatDateOnly,
   formatDateOnlyRange,
   formatInstantET,
+  formatInstantETStamp,
   inclusiveDayCount,
   instantOf,
   parseDateOnly,
@@ -122,6 +123,11 @@ describe.each(PROCESS_TIME_ZONES)('in process time zone %s', (zone) => {
     expect(formatInstantET(at('2026-12-01T17:05:00Z'), { includeYear: false })).toBe(
       'Dec 1, 12:05 PM EST'
     )
+  })
+
+  it('stamps an instant in ET as a numeric date and time', () => {
+    expect(formatInstantETStamp(at('2026-09-30T11:50:00Z'))).toBe('09/30/2026 | 7:50 AM ET')
+    expect(formatInstantETStamp(at('2026-12-01T04:05:00Z'))).toBe('11/30/2026 | 11:05 PM ET')
   })
 
   it('starts the business day at 6am ET, including on DST change days', () => {
