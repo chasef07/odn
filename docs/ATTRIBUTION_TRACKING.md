@@ -61,13 +61,8 @@ Offer codes (`?offer=...`) keep working alongside UTMs.
 
 ## Deploying schema changes
 
-Migrations are applied separately from Vercel builds. Apply
-`20261007000000_add_submission_attribution` **before** deploying code that selects the
-new columns:
-
-```
-npm run db:migrate
-```
+Each deploy applies pending migrations in the `migrate` step of `cloudbuild.yaml`
+before the new revision takes traffic.
 
 The migration only adds nullable columns and an index, so it is safe to run while
 the current code is live.

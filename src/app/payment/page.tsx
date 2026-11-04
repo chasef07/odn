@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { loadStripe } from '@stripe/stripe-js'
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
-import { ArrowLeft } from 'lucide-react'
 import { FormLayout } from '@/components/form-layout'
 import { getFormData } from '@/lib/form-storage'
 import { useI18n } from '@/components/i18n/I18nProvider'
@@ -68,6 +67,7 @@ export default function PaymentPage() {
 
   return (
     <FormLayout
+      backHref="/review"
       title="Payment"
       description="Secure payment powered by Stripe"
       usePersonalization={false}
@@ -91,19 +91,6 @@ export default function PaymentPage() {
         <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
           <EmbeddedCheckout />
         </EmbeddedCheckoutProvider>
-      )}
-
-      {!loading && (
-        <div className="pt-4">
-          <button
-            type="button"
-            onClick={() => router.push('/review')}
-            className="text-foreground hover:bg-accent inline-flex h-11 w-11 items-center justify-center rounded-lg transition-all"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-        </div>
       )}
     </FormLayout>
   )

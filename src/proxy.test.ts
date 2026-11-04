@@ -55,9 +55,9 @@ describe('verification host routing', () => {
     expect(response.headers.get('location')).toBe('https://phealthclinic.com/es/verify/v_legacy')
   })
 
-  it('does not apply production host rules to previews or local development', () => {
+  it('does not apply production host rules to staging or local development', () => {
     const response = proxy(
-      new NextRequest('https://onlinedoctornote-git-feature.vercel.app/verify/v_test')
+      new NextRequest('https://odn-staging-1006405058436.us-east4.run.app/verify/v_test')
     )
 
     expect(response.status).toBe(200)

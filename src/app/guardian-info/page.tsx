@@ -55,7 +55,12 @@ export default function GuardianInfoPage() {
   }
 
   return (
-    <FormLayout route={ROUTE} title="Now tell us about you" description="">
+    <FormLayout
+      route={ROUTE}
+      backHref={backRoute(ROUTE, savedData)}
+      title="Now tell us about you"
+      description=""
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -66,6 +71,7 @@ export default function GuardianInfoPage() {
                 onChange: handleNameChange('guardianFirstName'),
               })}
               error={errors.guardianFirstName}
+              autoComplete="given-name"
               placeholder="Enter your first name"
             />
 
@@ -76,6 +82,7 @@ export default function GuardianInfoPage() {
                 onChange: handleNameChange('guardianLastName'),
               })}
               error={errors.guardianLastName}
+              autoComplete="family-name"
               placeholder="Enter your last name"
             />
           </div>
@@ -89,7 +96,7 @@ export default function GuardianInfoPage() {
           />
         </FormCard>
 
-        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
+        <FormNavigation isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

@@ -116,7 +116,13 @@ export default function NotePurposePage() {
     : 'What do you need this note for?'
 
   return (
-    <FormLayout route={ROUTE} title={title} description="" usePersonalization={true}>
+    <FormLayout
+      route={ROUTE}
+      backHref={backRoute(ROUTE, savedData)}
+      title={title}
+      description=""
+      usePersonalization={true}
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormRadioGroup
           fieldName="notePurpose"
@@ -125,7 +131,9 @@ export default function NotePurposePage() {
           register={notePurposeRegister}
           error={errors.notePurpose}
           selectedValue={selectedPurpose ?? undefined}
-          variant="large-buttons"
+          onPick={(value) => {
+            if (value !== 'other' && value !== 'legal') void handleSubmit(onSubmit)()
+          }}
         />
 
         {selectedPurpose === 'other' && (
@@ -147,7 +155,7 @@ export default function NotePurposePage() {
           </div>
         )}
 
-        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
+        <FormNavigation isSubmitting={isSubmitting} />
       </form>
 
       <Dialog open={showLegalMatterDialog} onOpenChange={handleLegalMatterDialogChange}>

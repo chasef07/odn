@@ -2,7 +2,7 @@
 
 Online Doctor's Note (ODN) sells doctor's notes for work or school. A patient answers a short intake, pays with Stripe, and waits for a doctor to review the request. When the doctor approves it, the patient gets an email with the note as a PDF. The note carries a QR code that opens a public page where an employer or a school can check that the note is real.
 
-Staging runs this repo on Cloud Run. Production still runs the old `Data-Buddies-Solutions/onlinedoctornote` repo on Vercel, with Vercel crons, until the cutover in `docs/CLOUD_RUN.md`.
+Staging and production run this repo on Cloud Run. `docs/CLOUD_RUN.md` covers both.
 
 ## Who uses it
 
@@ -12,14 +12,14 @@ Staging runs this repo on Cloud Run. Production still runs the old `Data-Buddies
 
 The app depends on these outside services and libraries.
 
-| Service               | What ODN uses it for                                                                                                                                                                                                                                | Code                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Stripe                | Takes the payment through embedded Stripe Checkout. Its `payment_intent.succeeded` webhook creates the submission. A denial refunds the payment, except a queue denial of a `MANUAL` submission.                                                    | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe-prod3`                     |
-| Resend                | Sends the payment confirmation, approval, denial, maybe, and follow-up emails. The approval email has the PDF attached. Its `email.bounced` webhook alerts the team and texts an opted-in patient.                                                  | `src/lib/email.ts`, `src/emails`, `src/app/api/webhooks/resend`              |
-| Telnyx                | Sends transactional SMS when `TELNYX_SMS_ENABLED=true`. Its webhook records delivery status and opt-outs, and turns inbound texts into support tickets.                                                                                             | `src/lib/telnyx.ts`, `src/lib/sms-support.ts`, `src/app/api/webhooks/telnyx` |
-| better-auth           | Runs doctor sign-in with Google and the sessions on the app's own Postgres tables. Only a verified Google email on `ADMIN_EMAILS` may sign in.                                                                                                      | `src/lib/auth.ts`, `src/db/auth.ts`, `src/app/api/auth/[...all]`             |
-| `@react-pdf/renderer` | Renders the note PDF inside the app process. `qrcode` draws the QR code. Both are libraries, not remote services.                                                                                                                                   | `src/lib/pdf/generate-pdf.tsx`, `src/lib/qr-code.ts`                         |
-| Cron scheduler        | Calls the two cron routes every hour with `Authorization: Bearer $CRON_SECRET`. One deletes expired drafts and one sends follow-up emails. On staging the caller is Cloud Scheduler. Production uses the old repo's Vercel crons until the cutover. | `src/app/api/cron`, `docs/CLOUD_RUN.md`                                      |
+| Service               | What ODN uses it for                                                                                                                                                                               | Code                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Stripe                | Takes the payment through embedded Stripe Checkout. Its `payment_intent.succeeded` webhook creates the submission. A denial refunds the payment, except a queue denial of a `MANUAL` submission.   | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe-prod3`                     |
+| Resend                | Sends the payment confirmation, approval, denial, maybe, and follow-up emails. The approval email has the PDF attached. Its `email.bounced` webhook alerts the team and texts an opted-in patient. | `src/lib/email.ts`, `src/emails`, `src/app/api/webhooks/resend`              |
+| Telnyx                | Sends transactional SMS when `TELNYX_SMS_ENABLED=true`. Its webhook records delivery status and opt-outs, and turns inbound texts into support tickets.                                            | `src/lib/telnyx.ts`, `src/lib/sms-support.ts`, `src/app/api/webhooks/telnyx` |
+| better-auth           | Runs doctor sign-in with Google and the sessions on the app's own Postgres tables. Only a verified Google email on `ADMIN_EMAILS` may sign in.                                                     | `src/lib/auth.ts`, `src/db/auth.ts`, `src/app/api/auth/[...all]`             |
+| `@react-pdf/renderer` | Renders the note PDF inside the app process. `qrcode` draws the QR code. Both are libraries, not remote services.                                                                                  | `src/lib/pdf/generate-pdf.tsx`, `src/lib/qr-code.ts`                         |
+| Cron scheduler        | Calls the two cron routes every hour with `Authorization: Bearer $CRON_SECRET`. One deletes expired drafts and one sends follow-up emails. The caller is Cloud Scheduler.                          | `src/app/api/cron`, `docs/CLOUD_RUN.md`                                      |
 
 ## Architecture
 

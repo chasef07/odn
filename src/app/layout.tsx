@@ -123,7 +123,7 @@ export default async function RootLayout({
   const localizedSiteUrl = locale === 'es' ? `${onlineDoctorSiteUrl}/es` : onlineDoctorSiteUrl
 
   return (
-    <html lang={locale === 'es' ? 'es-US' : 'en-US'}>
+    <html lang={locale === 'es' ? 'es-US' : 'en-US'} className={sans.variable}>
       <head>
         {!verificationHost && (
           <>
@@ -182,7 +182,7 @@ export default async function RootLayout({
           </>
         )}
       </head>
-      <body className={`${sans.variable} ${dmSans.variable} antialiased`}>
+      <body className={`${dmSans.variable} antialiased`}>
         {!verificationHost && (
           <>
             <noscript>

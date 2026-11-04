@@ -22,6 +22,7 @@ export default function BasicInfoPage() {
   const router = useRouter()
   const savedData = getFormData()
   const recipient = savedData.recipient || 'myself'
+  const isForSelf = recipient === 'myself'
 
   const {
     register,
@@ -52,13 +53,17 @@ export default function BasicInfoPage() {
     router.push(nextRoute(ROUTE, getFormData()))
   }
 
-  const pageTitle =
-    recipient === 'myself'
-      ? 'What is your information?'
-      : 'Please provide information about the person who needs this note'
+  const pageTitle = isForSelf
+    ? 'What is your information?'
+    : 'Please provide information about the person who needs this note'
 
   return (
-    <FormLayout route={ROUTE} title={pageTitle} description="">
+    <FormLayout
+      route={ROUTE}
+      backHref={backRoute(ROUTE, savedData)}
+      title={pageTitle}
+      description=""
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
           <div className="space-y-4">
@@ -70,6 +75,7 @@ export default function BasicInfoPage() {
                   onChange: handleNameChange('patientFirstName'),
                 })}
                 error={errors.patientFirstName}
+                autoComplete={isForSelf ? 'given-name' : 'off'}
                 placeholder="Enter first name"
               />
 
@@ -80,6 +86,7 @@ export default function BasicInfoPage() {
                   onChange: handleNameChange('patientLastName'),
                 })}
                 error={errors.patientLastName}
+                autoComplete={isForSelf ? 'family-name' : 'off'}
                 placeholder="Enter last name"
               />
             </div>
@@ -90,11 +97,12 @@ export default function BasicInfoPage() {
               value={patientDateOfBirth}
               onChange={(val) => setValue('patientDateOfBirth', val, { shouldValidate: false })}
               error={errors.patientDateOfBirth?.message}
+              autofill={isForSelf}
             />
           </div>
         </FormCard>
 
-        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
+        <FormNavigation isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

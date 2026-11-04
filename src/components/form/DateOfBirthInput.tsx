@@ -12,9 +12,17 @@ interface DateOfBirthInputProps {
   value: string
   onChange: (value: string) => void
   error?: string
+  autofill?: boolean
 }
 
-export function DateOfBirthInput({ name, label, value, onChange, error }: DateOfBirthInputProps) {
+export function DateOfBirthInput({
+  name,
+  label,
+  value,
+  onChange,
+  error,
+  autofill = true,
+}: DateOfBirthInputProps) {
   const { t } = useI18n()
   const [year, month, day] = value ? value.split('-') : ['', '', '']
 
@@ -135,8 +143,8 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
         {t(label)}
       </Label>
 
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <div className="flex flex-col items-center">
+      <div className="grid grid-cols-[1fr_auto_1fr_auto_1.4fr] items-center gap-2">
+        <div className="min-w-0">
           <input
             ref={monthRef}
             id={`${name}-month`}
@@ -147,19 +155,19 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             value={mm}
             onChange={handleMonthChange}
             onKeyDown={(e) => handleKeyDown(e, 'month')}
-            className={`${inputClasses} ${invalidClasses} w-16`}
+            className={`${inputClasses} ${invalidClasses} w-full`}
             maxLength={2}
             aria-label={t('Month')}
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
-            autoComplete="bday-month"
+            autoComplete={autofill ? 'bday-month' : 'off'}
           />
         </div>
 
         <span className="text-muted-foreground text-lg">/</span>
 
-        <div className="flex flex-col items-center">
+        <div className="min-w-0">
           <input
             ref={dayRef}
             id={`${name}-day`}
@@ -170,19 +178,19 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             value={dd}
             onChange={handleDayChange}
             onKeyDown={(e) => handleKeyDown(e, 'day')}
-            className={`${inputClasses} ${invalidClasses} w-16`}
+            className={`${inputClasses} ${invalidClasses} w-full`}
             maxLength={2}
             aria-label={t('Day')}
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
-            autoComplete="bday-day"
+            autoComplete={autofill ? 'bday-day' : 'off'}
           />
         </div>
 
         <span className="text-muted-foreground text-lg">/</span>
 
-        <div className="flex flex-col items-center">
+        <div className="min-w-0">
           <input
             ref={yearRef}
             id={`${name}-year`}
@@ -193,13 +201,13 @@ export function DateOfBirthInput({ name, label, value, onChange, error }: DateOf
             value={yyyy}
             onChange={handleYearChange}
             onKeyDown={(e) => handleKeyDown(e, 'year')}
-            className={`${inputClasses} ${invalidClasses} w-20`}
+            className={`${inputClasses} ${invalidClasses} w-full`}
             maxLength={4}
             aria-label={t('Year')}
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : undefined}
-            autoComplete="bday-year"
+            autoComplete={autofill ? 'bday-year' : 'off'}
           />
         </div>
       </div>
