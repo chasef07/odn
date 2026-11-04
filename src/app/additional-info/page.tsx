@@ -44,7 +44,13 @@ export default function AdditionalInfoPage() {
     : "Share any other details that might be helpful for your doctor's note (optional)."
 
   return (
-    <FormLayout route={ROUTE} title={title} description={description} usePersonalization={true}>
+    <FormLayout
+      route={ROUTE}
+      backHref={backRoute(ROUTE, savedData)}
+      title={title}
+      description={description}
+      usePersonalization={true}
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
           <Textarea
@@ -66,7 +72,7 @@ export default function AdditionalInfoPage() {
           </p>
         </div>
 
-        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
+        <FormNavigation isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

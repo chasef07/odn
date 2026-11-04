@@ -68,7 +68,7 @@ Under Goals → Conversions → Summary:
 
 ## Testing
 
-1. GTM **Preview** against a Vercel preview deploy using Stripe test keys.
+1. GTM **Preview** against staging, which uses Stripe test keys.
 2. Pay with a test card and confirm a single `purchase` event appears with the
    right `value` and `transaction_id`, and that the Google Ads and Reddit tags fire on it.
 3. Refresh the success page: no new `purchase` event.

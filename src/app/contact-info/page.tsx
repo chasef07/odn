@@ -56,6 +56,7 @@ export default function ContactInfoPage() {
   return (
     <FormLayout
       route={ROUTE}
+      backHref={backRoute(ROUTE, savedData)}
       title="How can we reach you?"
       description="Your information is private and will never be used for marketing purposes."
       usePersonalization={true}
@@ -96,7 +97,7 @@ export default function ContactInfoPage() {
           </div>
         </FormCard>
 
-        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
+        <FormNavigation isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

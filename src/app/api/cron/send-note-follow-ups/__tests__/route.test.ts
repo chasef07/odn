@@ -17,7 +17,7 @@ describe('GET /api/cron/send-note-follow-ups', () => {
     process.env.CRON_SECRET = 'test-cron-secret'
   })
 
-  it('rejects requests without the Vercel cron secret', async () => {
+  it('rejects requests without the cron secret', async () => {
     const response = await GET(new NextRequest('http://localhost/api/cron/send-note-follow-ups'))
 
     expect(response.status).toBe(401)

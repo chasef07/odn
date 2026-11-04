@@ -46,7 +46,7 @@ function chipRange(today: DateOnly, firstDayOff: string, lastDayOff: string) {
 }
 
 function chipClass(selected: boolean, shape: string): string {
-  return `has-focus-visible:ring-primary/40 inline-flex h-12 cursor-pointer items-center justify-center border whitespace-nowrap text-[15px] font-semibold sm:text-base transition-all has-focus-visible:ring-2 ${shape} ${
+  return `has-focus-visible:ring-primary/40 relative inline-flex h-12 cursor-pointer items-center justify-center border whitespace-nowrap text-[15px] font-semibold sm:text-base transition-all has-focus-visible:ring-2 ${shape} ${
     selected
       ? 'border-primary bg-primary text-white shadow-sm'
       : 'border-border/60 text-foreground hover:border-primary/40 bg-white'
@@ -126,10 +126,16 @@ export default function AbsenceDatesPage() {
         : 'Which days do you need covered?'
 
   return (
-    <FormLayout route={ROUTE} title={title} description="" usePersonalization={true}>
+    <FormLayout
+      route={ROUTE}
+      backHref={backRoute(ROUTE, savedData)}
+      title={title}
+      description=""
+      usePersonalization={true}
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <FormCard spacing="space-y-6">
-          <p className="bg-primary/5 border-primary/15 text-foreground rounded-xl border px-4 py-3 text-center text-sm">
+          <p className="bg-primary/5 border-primary/15 text-foreground rounded-xl border px-4 py-3 text-sm">
             {t('Your note can cover up to 7 days in a row, starting as far back as 7 days ago.')}
           </p>
 
@@ -239,7 +245,6 @@ export default function AbsenceDatesPage() {
         </FormCard>
 
         <FormNavigation
-          backRoute={backRoute(ROUTE, savedData)}
           isSubmitting={isSubmitting}
           canSubmit={exactDates || Boolean(range?.last)}
         />
