@@ -367,6 +367,53 @@ describe('buildAfterVisitSummary', () => {
     )
   })
 
+  it.each([
+    [
+      '2010-10-01',
+      'both',
+      'Absence from work (parent/guardian) or school',
+      'work (parent/guardian) or school',
+    ],
+    ['2010-09-30', 'both', 'Absence from work and school', 'work or school'],
+    ['2010-10-01', 'school', 'Absence from school', 'work or school'],
+    ['2010-10-01', 'work', 'Absence from work', 'work or school'],
+  ])(
+    'for a patient born %s with a %s note, reads the reason and plan note by age 16 on the signing day',
+    (dateOfBirth, notePurpose, reason, planFrom) => {
+      const summary = buildAfterVisitSummary(
+        input({
+          submission: {
+            ...submission,
+            notePurpose,
+            patientDateOfBirth: new Date(`${dateOfBirth}T00:00:00.000Z`),
+          },
+        })
+      )
+
+      expect(summary.reasonForRequest).toBe(reason)
+      expect(summary.planNote).toBe(
+        `The note includes only information necessary to communicate sick leave status from ${planFrom}.`
+      )
+    }
+  )
+
+  it('keeps the under-16 work and school reason on a denied chart', () => {
+    const summary = buildAfterVisitSummary(
+      input({
+        submission: {
+          ...submission,
+          notePurpose: 'both',
+          patientDateOfBirth: new Date('2012-01-01T00:00:00.000Z'),
+          status: SubmissionStatus.DENIED,
+          denialReason: 'Duplicate',
+        },
+      })
+    )
+
+    expect(summary.reasonForRequest).toBe('Absence from work (parent/guardian) or school')
+    expect(summary.planNote).toBeNull()
+  })
+
   it('says denied on a denied chart, without the reason', () => {
     const summary = buildAfterVisitSummary(
       input({

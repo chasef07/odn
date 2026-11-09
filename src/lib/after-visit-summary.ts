@@ -2,6 +2,7 @@ import type { PriorChart } from '@/db/submissions'
 import { SubmissionStatus, type JsonValue, type Submission } from '@/db/types'
 import {
   addDays,
+  ageOn,
   dateOnlyFromUtcDate,
   formatDateOnly,
   formatDateOnlyRange,
@@ -183,6 +184,11 @@ export function buildAfterVisitSummary({
       : `Off dates: ${numeric(first)} ${days === 2 ? 'and' : 'through'} ${numeric(last)}`
   const chosen = chosenFreeText(submission, freeText)
   const purpose = purposeText(submission.notePurpose, chosen.otherNotePurpose ?? null)
+  const signedOn = todayET(instantOf(submission.reviewedAt))
+  const childWorkAndSchool =
+    submission.notePurpose === 'both' &&
+    ageOn(dateOnlyFromUtcDate(submission.patientDateOfBirth), signedOn) < 16
+  const workOrSchool = childWorkAndSchool ? 'work (parent/guardian) or school' : 'work or school'
 
   const symptoms = symptomList(submission.symptoms, chosen.otherSymptomText ?? null)
   const reason = reasonText(submission.absenceReason, chosen.otherAbsenceReason ?? null)
@@ -196,8 +202,9 @@ export function buildAfterVisitSummary({
     encounterModality: 'Asynchronous',
     identityVerifiedBy: guardianFiled ? 'Parent/guardian provided' : 'Patient provided',
     consent: `The ${requester} requested an evaluation for sick leave documentation and consented to review of the submitted information. The ${requester} also consented that no physical examination, or independently measured vital signs would be performed and that an in-person or synchronous evaluation may be required.`,
-    reasonForRequest:
-      submission.notePurpose !== 'other'
+    reasonForRequest: childWorkAndSchool
+      ? `Absence from ${workOrSchool}`
+      : submission.notePurpose !== 'other'
         ? `Absence from ${purpose}`
         : chosen.otherNotePurpose
           ? `Other: ${chosen.otherNotePurpose}`
@@ -220,7 +227,7 @@ export function buildAfterVisitSummary({
       : ['Status: Denied'],
     plan: approved ? 'Sick note: issued' : 'Sick note: denied',
     planNote: approved
-      ? 'The note includes only information necessary to communicate sick leave status from work or school.'
+      ? `The note includes only information necessary to communicate sick leave status from ${workOrSchool}.`
       : null,
     attestation:
       'I personally reviewed the completed branching questionnaire, documentation from any prior encounters and any submitted records. The work-status determination above reflects my independent medical judgment based on the information available at the time of review.',
