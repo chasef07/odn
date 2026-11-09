@@ -160,6 +160,7 @@ export const spanishTranslations: Record<string, string> = {
   Cancel: 'Cancelar',
   'Certifying Physician': 'Médico certificante',
   Child: 'Hijo/a',
+  'Choose a different state': 'Elegir otro estado',
   'Choose another reason': 'Elegir otro motivo',
   'Circumvent, disable, or otherwise interfere with security-related features of the Services.':
     'Circunstancia, deshabilitación o interfieren de otro modo con las características de seguridad de los Servicios.',
@@ -830,6 +831,7 @@ export const spanishTranslations: Record<string, string> = {
   'We collect personal information that you voluntarily provide to us when you register on the Services, express an interest in obtaining information about us or our products and Services, when you participate in activities on the Services, or otherwise when you contact us.':
     'Recopilamos información personal que usted nos proporciona voluntariamente cuando se registre en los Servicios, expresamos un interés en obtener información sobre nosotros o nuestros productos y servicios, cuando usted participa en actividades en los Servicios, o de otro modo cuando usted contacte con nosotros.',
   'We could not verify this document.': 'No pudimos verificar este documento.',
+  "We detected you're in": 'Detectamos que está en',
   'We do not collect any information from third parties.':
     'No recopilamos ninguna información de terceros.',
   'We do not knowingly collect data from or market to children under 18 years of age.':
