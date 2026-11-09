@@ -71,9 +71,6 @@ export default function AbsenceReasonPage() {
           register={register('absenceReason')}
           error={errors.absenceReason}
           selectedValue={selectedReason ?? undefined}
-          onPick={(value) => {
-            if (value !== 'Other') void handleSubmit(onSubmit)()
-          }}
         />
 
         {selectedReason === 'Other' && (

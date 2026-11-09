@@ -2,8 +2,6 @@ import { FieldError, UseFormRegisterReturn } from 'react-hook-form'
 import { Check } from 'lucide-react'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
-const PICK_DELAY_MS = 200
-
 interface RadioOption {
   value: string
   label: string
@@ -21,8 +19,6 @@ interface FormRadioGroupProps {
   error?: FieldError
 
   selectedValue?: string
-
-  onPick?: (value: string) => void
 }
 
 export function FormRadioGroup({
@@ -32,7 +28,6 @@ export function FormRadioGroup({
   register,
   error,
   selectedValue,
-  onPick,
 }: FormRadioGroupProps) {
   const { t } = useI18n()
   return (
@@ -46,10 +41,6 @@ export function FormRadioGroup({
           return (
             <label
               key={option.value}
-              onClick={(event) => {
-                if (!onPick || event.target instanceof HTMLInputElement) return
-                window.setTimeout(() => onPick(option.value), PICK_DELAY_MS)
-              }}
               className={`has-[:focus-visible]:ring-primary/40 relative flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-all active:scale-[0.98] has-[:focus-visible]:ring-2 ${
                 isSelected
                   ? 'border-primary bg-primary/5'

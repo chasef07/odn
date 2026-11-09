@@ -56,7 +56,6 @@ export default function WhoIsUsingPage() {
           register={register('recipient')}
           error={errors.recipient}
           selectedValue={recipient ?? undefined}
-          onPick={() => void handleSubmit(onSubmit)()}
         />
 
         <FormNavigation isSubmitting={isSubmitting} />

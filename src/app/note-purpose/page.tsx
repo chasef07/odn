@@ -131,9 +131,6 @@ export default function NotePurposePage() {
           register={notePurposeRegister}
           error={errors.notePurpose}
           selectedValue={selectedPurpose ?? undefined}
-          onPick={(value) => {
-            if (value !== 'other' && value !== 'legal') void handleSubmit(onSubmit)()
-          }}
         />
 
         {selectedPurpose === 'other' && (
