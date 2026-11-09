@@ -70,7 +70,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
 
   const [evaluationDate, setEvaluationDate] = useState<string>(todayET())
   const [diagnosis, setDiagnosis] = useState('')
-  const [withRestrictions, setWithRestrictions] = useState(true)
+  const [withRestrictions, setWithRestrictions] = useState(false)
 
   const handleGuardianRemoved = () => {
     setRecipient('myself')

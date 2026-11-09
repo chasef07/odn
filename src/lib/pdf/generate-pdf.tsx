@@ -107,7 +107,7 @@ export async function generateDoctorNotePDF(
   submission: Submission,
   issueDate?: Date,
   diagnosis?: string,
-  withRestrictions: boolean = true,
+  withRestrictions: boolean = false,
   verificationInfo?: DoctorNoteVerificationInfo
 ): Promise<Buffer> {
   const finalIssueDate = issueDate || getDefaultIssueDate()

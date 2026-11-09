@@ -54,7 +54,7 @@ export default function AdminReviewPage() {
   const [reviewWarning, setReviewWarning] = useState<string | null>(null)
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
-  const [withRestrictions, setWithRestrictions] = useState(true)
+  const [withRestrictions, setWithRestrictions] = useState(false)
   const [isGuardianRemovalPending, setIsGuardianRemovalPending] = useState(false)
   const [classificationDraft, setClassificationDraft] = useState<{
     notePurpose: string
@@ -239,7 +239,7 @@ export default function AdminReviewPage() {
           setShowCompletion(true)
         } else {
           setCurrentIndex((prev) => prev + 1)
-          setWithRestrictions(true)
+          setWithRestrictions(false)
         }
         setIsTransitioning(false)
       }, 150)
@@ -276,7 +276,7 @@ export default function AdminReviewPage() {
           setShowCompletion(true)
         } else {
           setCurrentIndex((prev) => prev + 1)
-          setWithRestrictions(true)
+          setWithRestrictions(false)
         }
         setIsTransitioning(false)
       }, 150)
@@ -317,7 +317,7 @@ export default function AdminReviewPage() {
           setShowCompletion(true)
         } else {
           setCurrentIndex((prev) => prev + 1)
-          setWithRestrictions(true)
+          setWithRestrictions(false)
         }
         setIsTransitioning(false)
       }, 150)

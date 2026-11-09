@@ -26,7 +26,7 @@ export const approveSubmission = adminAction(
     submissionId: string,
     evaluationDate?: string,
     diagnosis?: string,
-    withRestrictions: boolean = true
+    withRestrictions: boolean = false
   ): Promise<ActionResult> => {
     try {
       const allowed = await permit(submissionId, 'approveManual', 'approve')
@@ -65,7 +65,7 @@ export const reApproveSubmission = adminAction(
     submissionId: string,
     evaluationDate?: string,
     diagnosis?: string,
-    withRestrictions: boolean = true
+    withRestrictions: boolean = false
   ): Promise<ActionResult> => {
     try {
       const allowed = await permit(submissionId, 'reapprove')

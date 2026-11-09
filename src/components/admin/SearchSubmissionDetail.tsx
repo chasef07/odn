@@ -149,7 +149,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
   const [diagnosis, setDiagnosis] = useState('')
 
-  const [withRestrictions, setWithRestrictions] = useState(true)
+  const [withRestrictions, setWithRestrictions] = useState(false)
   const editedFirstDay = parseDateOnly(firstDayOff)
   const editedLastDay = parseDateOnly(lastDayOff)
   const suggestedMaybeReason =
