@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.4.0](https://github.com/chasef07/odn/compare/v6.3.0...v6.4.0) (2026-11-09)
+
+
+### Features
+
+* **admin:** leave "with no restrictions" off the doctor note unless an admin turns it on ([#80](https://github.com/chasef07/odn/issues/80)) ([cc75e55](https://github.com/chasef07/odn/commit/cc75e559985fa02fbce1198d28ce4d14adff72ec))
+
 ## [6.3.0](https://github.com/chasef07/odn/compare/v6.2.1...v6.3.0) (2026-11-09)
 
 
