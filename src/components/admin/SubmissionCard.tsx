@@ -350,7 +350,7 @@ export function SubmissionCard({
               <div className="flex items-center gap-2 pt-1">
                 <Switch
                   id="card-restrictions-toggle"
-                  checked={withRestrictions ?? true}
+                  checked={withRestrictions ?? false}
                   onCheckedChange={onWithRestrictionsChange}
                 />
                 <Label

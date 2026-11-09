@@ -43,7 +43,7 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [evaluationDate, setEvaluationDate] = useState<string>(todayET())
   const [diagnosis, setDiagnosis] = useState('')
-  const [withRestrictions, setWithRestrictions] = useState(true)
+  const [withRestrictions, setWithRestrictions] = useState(false)
 
   const [showDenialDialog, setShowDenialDialog] = useState(false)
   const [denialError, setDenialError] = useState<string | null>(null)
@@ -62,7 +62,7 @@ export function MaybeActionButtons({ submission }: MaybeActionButtonsProps) {
     setApprovalError(null)
     setEvaluationDate(todayET())
     setDiagnosis('')
-    setWithRestrictions(true)
+    setWithRestrictions(false)
     setShowApprovalDialog(true)
   }
 

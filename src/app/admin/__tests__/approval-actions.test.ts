@@ -221,7 +221,7 @@ describe('approveSubmission - Approval Automation', () => {
         mockSubmission,
         mockDefaultIssueDate,
         undefined,
-        true,
+        false,
         mockVerificationPdfInfo
       )
 
@@ -243,7 +243,7 @@ describe('approveSubmission - Approval Automation', () => {
         adminId: mockDoctorId,
         at: expect.any(Date),
         diagnosis: null,
-        withRestrictions: true,
+        withRestrictions: false,
       })
       expect(mockRecordApprovalEmailSent).toHaveBeenCalledTimes(1)
       expect(mockRecordApprovalEmailSent).toHaveBeenCalledWith(mockSubmissionId, expect.any(Date))
@@ -332,7 +332,7 @@ describe('approveSubmission - Approval Automation', () => {
         mockSubmission,
         new Date(Date.UTC(2024, 0, 20)),
         undefined,
-        true,
+        false,
         mockVerificationPdfInfo
       )
     })
@@ -352,7 +352,7 @@ describe('approveSubmission - Approval Automation', () => {
   })
 
   describe('withRestrictions parameter', () => {
-    it('should pass withRestrictions=true (default) to PDF generation', async () => {
+    it('should pass withRestrictions=false (default) to PDF generation', async () => {
       permits('approve', mockSubmission)
       mockGenerateDoctorNotePDF.mockResolvedValue(mockPDFBuffer)
       mockGeneratePDFFilename.mockReturnValue(mockPDFFilename)
@@ -365,7 +365,7 @@ describe('approveSubmission - Approval Automation', () => {
         mockSubmission,
         mockDefaultIssueDate,
         undefined,
-        true,
+        false,
         mockVerificationPdfInfo
       )
     })
@@ -578,7 +578,7 @@ describe('approveSubmission - Approval Automation', () => {
         }),
         mockDefaultIssueDate,
         undefined,
-        true,
+        false,
         mockVerificationPdfInfo
       )
     })

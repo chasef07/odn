@@ -412,7 +412,7 @@ export function DoctorNoteTemplate({
   doctorInfo,
   issueDate,
   diagnosis,
-  withRestrictions = true,
+  withRestrictions = false,
   verificationInfo,
 }: DoctorNoteTemplateProps): React.ReactElement {
   const {
