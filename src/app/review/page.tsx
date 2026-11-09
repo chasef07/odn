@@ -199,6 +199,7 @@ export default function ReviewPage() {
   return (
     <FormLayout
       route={ROUTE}
+      backHref={backRoute(ROUTE, formData)}
       title="Review your information"
       description="Please review all details carefully before continuing to payment."
       usePersonalization={true}
@@ -540,11 +541,7 @@ export default function ReviewPage() {
           {errors.agreeTerms && <p className="text-sm text-red-500">{errors.agreeTerms.message}</p>}
         </div>
 
-        <FormNavigation
-          backRoute={backRoute(ROUTE, formData)}
-          submitText="Continue to Payment"
-          isSubmitting={isSubmitting}
-        />
+        <FormNavigation submitText="Continue to Payment" isSubmitting={isSubmitting} />
       </form>
 
       {isProcessing && (
