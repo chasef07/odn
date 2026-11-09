@@ -368,18 +368,13 @@ describe('buildAfterVisitSummary', () => {
   })
 
   it.each([
-    [
-      '2010-10-01',
-      'both',
-      'Absence from work (parent/guardian) or school',
-      'work (parent/guardian) or school',
-    ],
-    ['2010-09-30', 'both', 'Absence from work and school', 'work or school'],
-    ['2010-10-01', 'school', 'Absence from school', 'work or school'],
-    ['2010-10-01', 'work', 'Absence from work', 'work or school'],
+    ['2010-10-01', 'both', 'work (parent/guardian) or school', 'work (parent/guardian) or school'],
+    ['2010-09-30', 'both', 'work and school', 'work or school'],
+    ['2010-10-01', 'school', 'school', 'work or school'],
+    ['2010-10-01', 'work', 'work', 'work or school'],
   ])(
-    'for a patient born %s with a %s note, reads the reason and plan note by age 16 on the signing day',
-    (dateOfBirth, notePurpose, reason, planFrom) => {
+    'for a patient born %s with a %s note, reads the reason, status and plan note by age 16 on the signing day',
+    (dateOfBirth, notePurpose, absentFrom, planFrom) => {
       const summary = buildAfterVisitSummary(
         input({
           submission: {
@@ -390,7 +385,8 @@ describe('buildAfterVisitSummary', () => {
         })
       )
 
-      expect(summary.reasonForRequest).toBe(reason)
+      expect(summary.reasonForRequest).toBe(`Absence from ${absentFrom}`)
+      expect(summary.determination[0]).toBe(`Status: Excused from ${absentFrom}`)
       expect(summary.planNote).toBe(
         `The note includes only information necessary to communicate sick leave status from ${planFrom}.`
       )

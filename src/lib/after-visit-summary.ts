@@ -189,6 +189,7 @@ export function buildAfterVisitSummary({
     submission.notePurpose === 'both' &&
     ageOn(dateOnlyFromUtcDate(submission.patientDateOfBirth), signedOn) < 16
   const workOrSchool = childWorkAndSchool ? 'work (parent/guardian) or school' : 'work or school'
+  const absentFrom = childWorkAndSchool ? workOrSchool : purpose
 
   const symptoms = symptomList(submission.symptoms, chosen.otherSymptomText ?? null)
   const reason = reasonText(submission.absenceReason, chosen.otherAbsenceReason ?? null)
@@ -202,10 +203,9 @@ export function buildAfterVisitSummary({
     encounterModality: 'Asynchronous',
     identityVerifiedBy: guardianFiled ? 'Parent/guardian provided' : 'Patient provided',
     consent: `The ${requester} requested an evaluation for sick leave documentation and consented to review of the submitted information. The ${requester} also consented that no physical examination, or independently measured vital signs would be performed and that an in-person or synchronous evaluation may be required.`,
-    reasonForRequest: childWorkAndSchool
-      ? `Absence from ${workOrSchool}`
-      : submission.notePurpose !== 'other'
-        ? `Absence from ${purpose}`
+    reasonForRequest:
+      submission.notePurpose !== 'other'
+        ? `Absence from ${absentFrom}`
         : chosen.otherNotePurpose
           ? `Other: ${chosen.otherNotePurpose}`
           : 'Other',
@@ -219,7 +219,7 @@ export function buildAfterVisitSummary({
     assessment: `Based on the ${requester}-submitted history and available records, the information is ${approved ? '' : 'not '}sufficient to support the requested sick leave status determination.`,
     determination: approved
       ? [
-          `Status: Excused from ${purpose}`,
+          `Status: Excused from ${absentFrom}`,
           days === 1
             ? `Effective date: ${numeric(first)}`
             : `Effective dates: ${numeric(first)} through ${numeric(last)}`,
