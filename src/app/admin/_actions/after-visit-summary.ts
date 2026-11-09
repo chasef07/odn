@@ -1,7 +1,7 @@
 'use server'
 
 import { findPriorCharts, findSubmissionById } from '@/db/submissions'
-import { buildAfterVisitSummary } from '@/lib/after-visit-summary'
+import { buildAfterVisitSummary, type FreeTextChoices } from '@/lib/after-visit-summary'
 import { adminAction } from '@/lib/admin-session'
 import { dateOnlyFromUtcDate } from '@/lib/dates'
 import { sendAfterVisitSummaryEmail } from '@/lib/email'
@@ -17,7 +17,7 @@ export const sendAfterVisitSummary = adminAction(
   async (
     _admin,
     submissionId: string,
-    { includeAdditionalInformation }: { includeAdditionalInformation: boolean }
+    { freeText }: { freeText: FreeTextChoices }
   ): Promise<{ success: true } | { success: false; error: string }> => {
     const submission = await findSubmissionById(submissionId)
     if (!submission) return { success: false, error: 'Submission not found' }
@@ -52,7 +52,7 @@ export const sendAfterVisitSummary = adminAction(
           exceeded: rollingLimit.wouldExceed,
         },
         physician: getConfiguredPhysician(),
-        includeAdditionalInformation,
+        freeText,
       })
 
       await sendAfterVisitSummaryEmail({

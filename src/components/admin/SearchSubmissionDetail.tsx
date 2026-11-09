@@ -28,6 +28,7 @@ import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { SelectDenialDialog } from '@/components/admin/SelectDenialDialog'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
 import { AfterVisitSummaryButton } from '@/components/admin/AfterVisitSummaryButton'
+import { freeTextAnswers } from '@/lib/after-visit-summary'
 import { AVAILABLE_STATES, ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
 import {
   formatInstantET,
@@ -457,7 +458,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
             {showAfterVisitSummaryButton && (
               <AfterVisitSummaryButton
                 submissionId={submission.id}
-                additionalInformation={submission.additionalInformation}
+                freeTextAnswers={freeTextAnswers(submission)}
                 disabled={isActionDisabled}
               />
             )}

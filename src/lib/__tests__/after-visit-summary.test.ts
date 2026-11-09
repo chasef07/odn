@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { SubmissionStatus, type Submission } from '@/db/types'
 import type { PriorChart } from '@/db/submissions'
-import { buildAfterVisitSummary, type AfterVisitSummaryInput } from '../after-visit-summary'
+import {
+  buildAfterVisitSummary,
+  freeTextAnswers,
+  type AfterVisitSummaryInput,
+} from '../after-visit-summary'
 
 const submission: Submission = {
   id: 'sub_123',
@@ -79,7 +83,7 @@ function input(overrides: Partial<AfterVisitSummaryInput> = {}): AfterVisitSumma
     history: [],
     rollingLimit: { usedDays: 0, requestedDays: 2, totalDays: 2, exceeded: false },
     physician: { name: 'Jason Buchwald', credentials: 'M.D., FACEP' },
-    includeAdditionalInformation: false,
+    freeText: {},
     ...overrides,
   }
 }
@@ -122,7 +126,10 @@ describe('buildAfterVisitSummary', () => {
     const summary = buildAfterVisitSummary(input())
 
     expect(summary.consent).toMatch(/^The patient requested an evaluation/)
-    expect(summary.consent).toContain('The patient was informed')
+    expect(summary.consent).toContain(
+      'The patient also consented that no physical examination, or independently measured vital signs would be performed'
+    )
+    expect(summary.consent).not.toContain('Physician attestation')
     expect(summary.assessment).toMatch(/^Based on the patient-submitted history/)
   })
 
@@ -133,7 +140,7 @@ describe('buildAfterVisitSummary', () => {
 
     expect(summary.identityVerifiedBy).toBe('Parent/guardian provided')
     expect(summary.consent).toMatch(/^The parent\/guardian requested an evaluation/)
-    expect(summary.consent).toContain('The parent/guardian was informed')
+    expect(summary.consent).toContain('The parent/guardian also consented that')
     expect(summary.assessment).toMatch(/^Based on the parent\/guardian-submitted history/)
     expect(summary.patient).toBe('Isaiah Bandoo | DOB: 09/14/2000')
   })
@@ -146,7 +153,10 @@ describe('buildAfterVisitSummary', () => {
     ['other', 'volunteering', 'Other: volunteering', 'Excused from volunteering'],
   ])('names the %s purpose', (notePurpose, otherNotePurpose, reason, status) => {
     const summary = buildAfterVisitSummary(
-      input({ submission: { ...submission, notePurpose, otherNotePurpose } })
+      input({
+        submission: { ...submission, notePurpose, otherNotePurpose },
+        freeText: otherNotePurpose ? { otherNotePurpose } : {},
+      })
     )
 
     expect(summary.reasonForRequest).toBe(reason)
@@ -201,6 +211,7 @@ describe('buildAfterVisitSummary', () => {
           symptoms: ['Other'],
           otherSymptomText: 'jaw swelling',
         },
+        freeText: { otherAbsenceReason: 'Dental procedure', otherSymptomText: 'jaw swelling' },
       })
     )
     expect(other.symptoms).toBe('Dental procedure; symptoms: Other: jaw swelling')
@@ -267,23 +278,83 @@ describe('buildAfterVisitSummary', () => {
     expect(summary.medicalHistory[0]).toContain('[volunteering] doctor note approved')
   })
 
-  it('says so when there are no prior charts', () => {
-    expect(buildAfterVisitSummary(input()).medicalHistory).toEqual(['No prior charts on file'])
+  it('lists no history lines when there are no prior charts', () => {
+    expect(buildAfterVisitSummary(input()).medicalHistory).toEqual([])
   })
 
   it('leaves additional information out unless asked', () => {
     expect(buildAfterVisitSummary(input()).additionalInformation).toBeNull()
     expect(
-      buildAfterVisitSummary(input({ includeAdditionalInformation: true })).additionalInformation
-    ).toBe('Saw urgent care yesterday')
-    expect(
       buildAfterVisitSummary(
-        input({
-          includeAdditionalInformation: true,
-          submission: { ...submission, additionalInformation: '  ' },
-        })
+        input({ freeText: { additionalInformation: '  Saw urgent care yesterday ' } })
       ).additionalInformation
-    ).toBeNull()
+    ).toBe('Saw urgent care yesterday')
+  })
+
+  it('prints the edited text of an included answer, not the chart text', () => {
+    const summary = buildAfterVisitSummary(
+      input({
+        submission: {
+          ...submission,
+          notePurpose: 'other',
+          otherNotePurpose: 'volunteering',
+          absenceReason: 'Other',
+          otherAbsenceReason: 'Dental procedure',
+          symptoms: ['Other'],
+          otherSymptomText: 'jaw swelling',
+        },
+        freeText: {
+          otherNotePurpose: 'community volunteering',
+          otherAbsenceReason: 'Wisdom tooth removal',
+          otherSymptomText: 'jaw pain',
+          additionalInformation: 'Seen by a dentist',
+        },
+      })
+    )
+
+    expect(summary.reasonForRequest).toBe('Other: community volunteering')
+    expect(summary.determination[0]).toBe('Status: Excused from community volunteering')
+    expect(summary.symptoms).toBe('Wisdom tooth removal; symptoms: Other: jaw pain')
+    expect(summary.additionalInformation).toBe('Seen by a dentist')
+  })
+
+  it('says only Other for an Other answer left out', () => {
+    const summary = buildAfterVisitSummary(
+      input({
+        submission: {
+          ...submission,
+          notePurpose: 'other',
+          otherNotePurpose: 'volunteering',
+          absenceReason: 'Other',
+          otherAbsenceReason: 'Dental procedure',
+          symptoms: ['Other'],
+          otherSymptomText: 'jaw swelling',
+        },
+      })
+    )
+
+    expect(summary.reasonForRequest).toBe('Other')
+    expect(summary.determination[0]).toBe('Status: Excused from other')
+    expect(summary.symptoms).toBe('Other; symptoms: Other')
+    expect(JSON.stringify(summary)).not.toMatch(/volunteering|Dental|jaw/)
+  })
+
+  it.each([
+    [{ otherNotePurpose: 'volunteering' }, 'This chart has no other note purpose'],
+    [{ additionalInformation: '   ' }, 'Additional information is empty'],
+    [{ notes: 'x' }, 'Unknown free-text answer: notes'],
+  ])('refuses the free-text choice %j', (freeText, error) => {
+    expect(() =>
+      buildAfterVisitSummary(input({ freeText: freeText as AfterVisitSummaryInput['freeText'] }))
+    ).toThrow(error)
+  })
+
+  it('refuses a request with no free-text choices', () => {
+    expect(() =>
+      buildAfterVisitSummary(
+        input({ freeText: undefined as unknown as AfterVisitSummaryInput['freeText'] })
+      )
+    ).toThrow('The free-text choices are missing')
   })
 
   it('issues the sick note on an approved chart', () => {
@@ -294,6 +365,49 @@ describe('buildAfterVisitSummary', () => {
     expect(summary.planNote).toBe(
       'The note includes only information necessary to communicate sick leave status from work or school.'
     )
+  })
+
+  it.each([
+    ['2010-10-01', 'both', 'work (parent/guardian) or school', 'work (parent/guardian) or school'],
+    ['2010-09-30', 'both', 'work and school', 'work or school'],
+    ['2010-10-01', 'school', 'school', 'work or school'],
+    ['2010-10-01', 'work', 'work', 'work or school'],
+  ])(
+    'for a patient born %s with a %s note, reads the reason, status and plan note by age 16 on the signing day',
+    (dateOfBirth, notePurpose, absentFrom, planFrom) => {
+      const summary = buildAfterVisitSummary(
+        input({
+          submission: {
+            ...submission,
+            notePurpose,
+            patientDateOfBirth: new Date(`${dateOfBirth}T00:00:00.000Z`),
+          },
+        })
+      )
+
+      expect(summary.reasonForRequest).toBe(`Absence from ${absentFrom}`)
+      expect(summary.determination[0]).toBe(`Status: Excused from ${absentFrom}`)
+      expect(summary.planNote).toBe(
+        `The note includes only information necessary to communicate sick leave status from ${planFrom}.`
+      )
+    }
+  )
+
+  it('keeps the under-16 work and school reason on a denied chart', () => {
+    const summary = buildAfterVisitSummary(
+      input({
+        submission: {
+          ...submission,
+          notePurpose: 'both',
+          patientDateOfBirth: new Date('2012-01-01T00:00:00.000Z'),
+          status: SubmissionStatus.DENIED,
+          denialReason: 'Duplicate',
+        },
+      })
+    )
+
+    expect(summary.reasonForRequest).toBe('Absence from work (parent/guardian) or school')
+    expect(summary.planNote).toBeNull()
   })
 
   it('says denied on a denied chart, without the reason', () => {
@@ -327,5 +441,42 @@ describe('buildAfterVisitSummary', () => {
     expect(() =>
       buildAfterVisitSummary(input({ submission: { ...submission, reviewedAt: null } }))
     ).toThrow('Only approved or denied charts have an after-visit summary')
+  })
+})
+
+describe('freeTextAnswers', () => {
+  it('lists only the free-text answers the chart uses, trimmed', () => {
+    expect(
+      freeTextAnswers({
+        ...submission,
+        notePurpose: 'other',
+        otherNotePurpose: ' volunteering ',
+        absenceReason: 'Other',
+        otherAbsenceReason: 'Dental procedure',
+        symptoms: ['Cough', 'Other'],
+        otherSymptomText: 'jaw swelling',
+        additionalInformation: 'Saw urgent care',
+      })
+    ).toEqual({
+      otherNotePurpose: 'volunteering',
+      otherAbsenceReason: 'Dental procedure',
+      otherSymptomText: 'jaw swelling',
+      additionalInformation: 'Saw urgent care',
+    })
+  })
+
+  it('skips Other text left over from a choice the chart no longer has, and blank answers', () => {
+    expect(
+      freeTextAnswers({
+        ...submission,
+        notePurpose: 'work',
+        otherNotePurpose: 'volunteering',
+        absenceReason: 'Feeling sick',
+        otherAbsenceReason: 'Dental procedure',
+        symptoms: ['Cough'],
+        otherSymptomText: 'jaw swelling',
+        additionalInformation: '  ',
+      })
+    ).toEqual({})
   })
 })
