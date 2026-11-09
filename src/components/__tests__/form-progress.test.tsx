@@ -81,19 +81,19 @@ describe('FormProgress', () => {
   it('counts only the steps this draft will visit', () => {
     withDraft({ recipient: 'myself', absenceReason: "Doctor's appointment" })
     render(<FormProgress route="/additional-info" />)
-    const bar = screen.getByRole('progressbar', { name: 'Step 8 of 9' })
-    expect(bar).toHaveAttribute('aria-valuenow', '80')
+    expect(screen.getByText('Step 8 of 9')).toBeInTheDocument()
+    expect(screen.getByText('80% complete')).toBeInTheDocument()
   })
 
   it('counts the guardian step for someone else', () => {
     withDraft({ recipient: 'someone_else', absenceReason: 'Feeling sick' })
     render(<FormProgress route="/review" />)
-    expect(screen.getByRole('progressbar', { name: 'Step 11 of 11' })).toBeInTheDocument()
+    expect(screen.getByText('Step 11 of 11')).toBeInTheDocument()
   })
 
   it('starts at step one with an empty draft', () => {
     withDraft({})
     render(<FormProgress route="/get-started" />)
-    expect(screen.getByRole('progressbar', { name: 'Step 1 of 10' })).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 10')).toBeInTheDocument()
   })
 })

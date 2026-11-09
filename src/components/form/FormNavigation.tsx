@@ -1,32 +1,54 @@
 'use client'
 
-import { ArrowRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface FormNavigationProps {
+  backRoute: string
+
   submitText?: string
 
   isSubmitting?: boolean
+
+  onBackClick?: () => void
 }
 
 export function FormNavigation({
+  backRoute,
   submitText = 'Continue',
   isSubmitting = false,
+  onBackClick,
 }: FormNavigationProps) {
-  const { t } = useI18n()
+  const router = useRouter()
+  const { t, path } = useI18n()
+
+  const handleBackClick = () => {
+    if (onBackClick) {
+      onBackClick()
+    } else {
+      router.push(path(backRoute))
+    }
+  }
 
   return (
-    <div className="border-border/60 fixed inset-x-0 bottom-0 z-30 border-t bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md max-md:m-0! md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none">
-      <div className="mx-auto max-w-xl px-5 py-3 md:px-0 md:pt-2 md:pb-0">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="bg-primary hover:bg-primary/90 inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl text-[17px] font-semibold text-white shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting ? t('Loading...') : t(submitText)}
-          {!isSubmitting && <ArrowRight className="h-5 w-5" aria-hidden="true" />}
-        </button>
-      </div>
+    <div className="flex items-center justify-between gap-3">
+      <button
+        type="button"
+        onClick={handleBackClick}
+        className="text-foreground hover:bg-accent inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-all"
+        aria-label={t('Back')}
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </button>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="bg-primary hover:bg-primary/90 inline-flex flex-1 items-center justify-center rounded-lg px-8 py-3 text-base font-semibold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+      >
+        {isSubmitting ? t('Loading...') : t(submitText)}
+      </button>
     </div>
   )
 }

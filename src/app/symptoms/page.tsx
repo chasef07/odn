@@ -69,7 +69,6 @@ export default function SymptomsPage() {
   return (
     <FormLayout
       route={ROUTE}
-      backHref={backRoute(ROUTE, savedData)}
       title={pageTitle}
       description={pageDescription}
       usePersonalization={true}
@@ -82,6 +81,7 @@ export default function SymptomsPage() {
           register={register('symptoms')}
           error={errors.symptoms as FieldError | undefined}
           selectedValues={symptoms}
+          gridClassName="grid gap-2.5 sm:grid-cols-2 md:grid-cols-3"
         />
 
         {symptoms.includes('Other') && (
@@ -103,7 +103,7 @@ export default function SymptomsPage() {
           </div>
         )}
 
-        <FormNavigation isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

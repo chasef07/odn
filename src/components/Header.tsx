@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Menu, X, ArrowRight } from 'lucide-react'
 import { useI18n } from '@/components/i18n/I18nProvider'
-import { LanguageMenu } from '@/components/i18n/LanguageMenu'
+import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -101,7 +101,7 @@ export default function Header() {
         </div>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <LanguageMenu />
+          <LanguageSwitch compact />
           <button
             onClick={() => router.push(path('/start'))}
             className="flex items-center gap-2 rounded-full bg-[#009ed9] px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#00b4f5]"
@@ -112,7 +112,7 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
-          <LanguageMenu onNavigate={() => setMobileMenuOpen(false)} />
+          <LanguageSwitch compact onNavigate={() => setMobileMenuOpen(false)} />
           <button
             ref={closeButtonRef}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

@@ -4,14 +4,17 @@ import { useState } from 'react'
 import { useLocalizedRouter as useRouter } from '@/components/i18n/useLocalizedRouter'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FormLayout } from '@/components/form-layout'
+import { FormProgress } from '@/components/form-progress'
+import { FormCard } from '@/components/form/FormCard'
 import { FormSelect } from '@/components/form/FormSelect'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { stateSchema } from '@/lib/validation-schemas'
 import { nextRoute } from '@/lib/intake'
 import { AVAILABLE_STATES } from '@/lib/form-constants'
-import { MapPin, Star } from 'lucide-react'
+import { ShieldCheck, DollarSign, Star } from 'lucide-react'
+import { LocalizedPage } from '@/components/i18n/LocalizedPage'
+import { LanguageSwitch } from '@/components/i18n/LanguageSwitch'
 
 const ROUTE = '/get-started'
 
@@ -41,56 +44,83 @@ export function GetStartedForm({ detectedState }: { detectedState: string | null
   }
 
   return (
-    <FormLayout
-      route={ROUTE}
-      backHref="/"
-      title="Where are you located?"
-      description="Select your state to ensure we can serve you."
-    >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {confirmingDetected ? (
-          <div className="border-primary bg-primary/5 flex items-center gap-4 rounded-xl border p-4">
-            <span className="bg-primary/10 text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-              <MapPin className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                We detected you&apos;re in
-              </p>
-              <p className="font-display text-foreground text-xl font-bold">{detectedState}</p>
+    <LocalizedPage>
+      <div className="text-foreground min-h-dvh bg-white">
+        <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+          <div className="mb-3 flex justify-end">
+            <LanguageSwitch />
+          </div>
+          <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex-1">
+              <FormProgress route={ROUTE} />
             </div>
-            <button
-              type="button"
-              onClick={() => setConfirmingDetected(false)}
-              className="text-primary shrink-0 text-sm font-semibold underline-offset-4 hover:underline"
-            >
-              Choose a different state
-            </button>
-          </div>
-        ) : (
-          <FormSelect
-            id="state"
-            label="State"
-            options={AVAILABLE_STATES}
-            placeholder="Select your state"
-            translateOptions={false}
-            register={register('state')}
-            autoComplete="address-level1"
-            error={errors.state}
-          />
-        )}
 
-        <FormNavigation isSubmitting={isSubmitting} />
-
-        <div className="flex flex-col items-center gap-2 pt-2">
-          <div className="flex items-center gap-1">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            ))}
+            <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs sm:gap-6">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="text-primary h-4 w-4" />
+                <span>HIPAA Compliant</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <DollarSign className="text-primary h-4 w-4" />
+                <span>Money back guarantee</span>
+              </div>
+            </div>
           </div>
-          <p className="text-muted-foreground text-sm">Trusted by 80,000+ patients nationwide.</p>
-        </div>
-      </form>
-    </FormLayout>
+
+          <div className="mb-6 text-center sm:mb-10">
+            <h1 className="font-display text-foreground mb-4 text-3xl font-bold sm:text-5xl">
+              Where are you located?
+            </h1>
+            <p className="text-muted-foreground mx-auto max-w-2xl text-base sm:text-lg">
+              Select your state to ensure we can serve you.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {confirmingDetected ? (
+              <FormCard spacing="space-y-3" className="text-center">
+                <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                  We detected you&apos;re in
+                </p>
+                <p className="font-display text-foreground text-3xl font-bold">{detectedState}</p>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDetected(false)}
+                  className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+                >
+                  Choose a different state
+                </button>
+              </FormCard>
+            ) : (
+              <FormCard spacing="space-y-2">
+                <FormSelect
+                  id="state"
+                  label="State"
+                  options={AVAILABLE_STATES}
+                  placeholder="Select your state"
+                  translateOptions={false}
+                  register={register('state')}
+                  autoComplete="address-level1"
+                  error={errors.state}
+                />
+              </FormCard>
+            )}
+
+            <FormNavigation backRoute="/" isSubmitting={isSubmitting} />
+
+            <div className="space-y-3 pt-4 text-center">
+              <div className="flex items-center justify-center gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+              <p className="text-muted-foreground text-sm">
+                Trusted by 80,000+ patients nationwide.
+              </p>
+            </div>
+          </form>
+        </main>
+      </div>
+    </LocalizedPage>
   )
 }

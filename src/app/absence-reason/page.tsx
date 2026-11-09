@@ -56,13 +56,7 @@ export default function AbsenceReasonPage() {
     : 'What is your reason for absence?'
 
   return (
-    <FormLayout
-      route={ROUTE}
-      backHref={backRoute(ROUTE, savedData)}
-      title={title}
-      description=""
-      usePersonalization={true}
-    >
+    <FormLayout route={ROUTE} title={title} description="" usePersonalization={true}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <FormRadioGroup
           fieldName="absenceReason"
@@ -71,9 +65,7 @@ export default function AbsenceReasonPage() {
           register={register('absenceReason')}
           error={errors.absenceReason}
           selectedValue={selectedReason ?? undefined}
-          onPick={(value) => {
-            if (value !== 'Other') void handleSubmit(onSubmit)()
-          }}
+          gridClassName="grid gap-2.5 sm:grid-cols-2"
         />
 
         {selectedReason === 'Other' && (
@@ -96,7 +88,7 @@ export default function AbsenceReasonPage() {
           </div>
         )}
 
-        <FormNavigation isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

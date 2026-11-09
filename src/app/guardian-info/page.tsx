@@ -55,12 +55,7 @@ export default function GuardianInfoPage() {
   }
 
   return (
-    <FormLayout
-      route={ROUTE}
-      backHref={backRoute(ROUTE, savedData)}
-      title="Now tell us about you"
-      description=""
-    >
+    <FormLayout route={ROUTE} title="Now tell us about you" description="">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -96,7 +91,7 @@ export default function GuardianInfoPage() {
           />
         </FormCard>
 
-        <FormNavigation isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

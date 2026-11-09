@@ -45,30 +45,34 @@ export default function AbsenceDatesPage() {
   return (
     <FormLayout
       route={ROUTE}
-      backHref={backRoute(ROUTE, savedData)}
       title="When do you need to be excused?"
       description="Select the dates you need covered by your doctor's note. We can cover up to 7 consecutive days."
       usePersonalization={true}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <FormCard spacing="space-y-4">
-          <FormField
-            id="firstDayOff"
-            label="First Day Off"
-            type="date"
-            register={register('firstDayOff')}
-            error={errors.firstDayOff}
-          />
-          <FormField
-            id="lastDayOff"
-            label="Last Day Off"
-            type="date"
-            register={register('lastDayOff')}
-            error={errors.lastDayOff}
-          />
+          <div className="max-w-[240px]">
+            <FormField
+              id="firstDayOff"
+              label="First Day Off"
+              type="date"
+              register={register('firstDayOff')}
+              error={errors.firstDayOff}
+            />
+          </div>
+
+          <div className="max-w-[240px]">
+            <FormField
+              id="lastDayOff"
+              label="Last Day Off"
+              type="date"
+              register={register('lastDayOff')}
+              error={errors.lastDayOff}
+            />
+          </div>
         </FormCard>
 
-        <FormNavigation isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )

@@ -14,10 +14,20 @@ export function FormProgress({ route }: FormProgressProps) {
   const draft = getFormData()
   const current = stepNumber(route, draft)
   const total = totalSteps(draft)
-  const progressValue = Math.round((current / (total + 1)) * 100)
-  const label = `${t('Step')} ${current} ${t('of')} ${total}`
+  const stepsThroughPayment = total + 1
+  const progressValue = Math.round((current / stepsThroughPayment) * 100)
 
   return (
-    <Progress value={progressValue} aria-label={label} className="bg-primary/10 h-1 rounded-none" />
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-primary text-sm font-semibold tracking-wide">
+          {t('Step')} {current} {t('of')} {total}
+        </p>
+      </div>
+      <Progress value={progressValue} className="bg-primary/10 h-2" />
+      <p className="text-muted-foreground text-xs font-medium tracking-wide">
+        {progressValue}% {t('complete')}
+      </p>
+    </div>
   )
 }
