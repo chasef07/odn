@@ -1,5 +1,21 @@
 # Changelog
 
+## [6.3.0](https://github.com/chasef07/odn/compare/v6.2.1...v6.3.0) (2026-11-09)
+
+
+### Features
+
+* **admin:** email an after-visit summary PDF from approved and denied charts ([#74](https://github.com/chasef07/odn/issues/74)) ([e9cbc61](https://github.com/chasef07/odn/commit/e9cbc61fb07851333bb0cbc5e741d2049347518f))
+* **admin:** one-page after-visit summary with switchable, editable free-text answers and reworded consent ([#76](https://github.com/chasef07/odn/issues/76)) ([de3427f](https://github.com/chasef07/odn/commit/de3427f5c1a914b4184fd0178a929bf4580a0bb1))
+* **intake:** let phones autofill name, email, phone and state ([#67](https://github.com/chasef07/odn/issues/67)) ([8147c6c](https://github.com/chasef07/odn/commit/8147c6cb9747ac3fc0d6b647233307d5445e5246))
+* **intake:** mobile polish for the intake form and a site-wide flag language menu ([#75](https://github.com/chasef07/odn/issues/75)) ([afb353d](https://github.com/chasef07/odn/commit/afb353db9a53476a728e6d8859d9cac27f070074))
+* **intake:** preselect the patient's state from their location ([#68](https://github.com/chasef07/odn/issues/68)) ([179301a](https://github.com/chasef07/odn/commit/179301a6df81a31a1df2f51351c72dd43b2f7778))
+
+
+### Reverts
+
+* **intake:** take the mobile polish ([#75](https://github.com/chasef07/odn/issues/75)) and state preselect ([#68](https://github.com/chasef07/odn/issues/68)) off staging ([#77](https://github.com/chasef07/odn/issues/77)) ([0126373](https://github.com/chasef07/odn/commit/0126373d7bed85a390f31cab733f94619c69a7c8))
+
 ## [6.2.1](https://github.com/chasef07/odn/compare/v6.2.0...v6.2.1) (2026-10-30)
 
 
