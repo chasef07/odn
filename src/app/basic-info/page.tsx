@@ -58,12 +58,7 @@ export default function BasicInfoPage() {
     : 'Please provide information about the person who needs this note'
 
   return (
-    <FormLayout
-      route={ROUTE}
-      backHref={backRoute(ROUTE, savedData)}
-      title={pageTitle}
-      description=""
-    >
+    <FormLayout route={ROUTE} title={pageTitle} description="">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormCard>
           <div className="space-y-4">
@@ -102,7 +97,7 @@ export default function BasicInfoPage() {
           </div>
         </FormCard>
 
-        <FormNavigation isSubmitting={isSubmitting} />
+        <FormNavigation backRoute={backRoute(ROUTE, savedData)} isSubmitting={isSubmitting} />
       </form>
     </FormLayout>
   )
