@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { parseDateOnly, todayET, utcDateFromDateOnly } from '@/lib/dates'
 import { RemoveGuardianModeControl } from '@/components/admin/RemoveGuardianModeControl'
+import { PatientFlagPanel } from '@/components/admin/PatientFlagPanel'
 import {
   Select,
   SelectContent,
@@ -190,6 +191,8 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               <Button variant="outline">Back to List</Button>
             </Link>
           </div>
+
+          <PatientFlagPanel submissionId={submission.id} />
 
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">

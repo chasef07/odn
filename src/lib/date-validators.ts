@@ -1,8 +1,6 @@
-import { addDays, inclusiveDayCount, parseDateOnly, todayUTC } from './dates'
+import { addDays, inclusiveDayCount, parseDateOnly, todayET } from './dates'
 import type { IntakeRule } from './intake-rules'
 import { DATE_LIMITS } from './validation-constants'
-
-const US_ZONE_GRACE_DAYS = 1
 
 export const ABSENCE_REVERSED_MESSAGE = 'Last day off must be on or after first day off'
 
@@ -32,7 +30,7 @@ export const validateAbsenceDates = (data: DatesFormData): DateValidationError[]
   }
 
   const errors: DateValidationError[] = []
-  const oldestFirstDay = addDays(todayUTC(), -(DATE_LIMITS.MAX_DAYS_IN_PAST + US_ZONE_GRACE_DAYS))
+  const oldestFirstDay = addDays(todayET(), -DATE_LIMITS.MAX_DAYS_IN_PAST)
 
   if (firstDayOff < oldestFirstDay) {
     errors.push({

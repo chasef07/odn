@@ -24,7 +24,18 @@ export function AdminStats({
           <div className="mb-1 text-2xl font-bold text-blue-600 sm:mb-2 sm:text-4xl">
             {pendingCount}
           </div>
-          <div className="text-muted-foreground text-xs sm:text-sm">Pending Reviews</div>
+          <div className="text-muted-foreground mb-2 text-xs sm:text-sm">Pending Reviews</div>
+          {pendingCount > 0 && (
+            <Link href="/admin/pending">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 border-blue-500 px-4 text-xs text-blue-600 hover:bg-blue-50 sm:h-7 sm:px-2"
+              >
+                View
+              </Button>
+            </Link>
+          )}
         </CardContent>
       </Card>
 

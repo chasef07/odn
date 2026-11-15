@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
+import { PatientFlagPanel } from '@/components/admin/PatientFlagPanel'
 import { dateOnlyFromUtcDate, inclusiveDayCount, todayET } from '@/lib/dates'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import { ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
@@ -30,6 +31,7 @@ import { updateReviewClassification } from '@/app/admin/_actions/edits'
 
 export default function AdminReviewPage() {
   const router = useRouter()
+  const openId = useSearchParams().get('id')
 
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -52,6 +54,7 @@ export default function AdminReviewPage() {
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [maybeError, setMaybeError] = useState<string | null>(null)
   const [reviewWarning, setReviewWarning] = useState<string | null>(null)
+  const [openedMissing, setOpenedMissing] = useState(false)
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
   const [withRestrictions, setWithRestrictions] = useState(false)
@@ -110,7 +113,13 @@ export default function AdminReviewPage() {
       const result = await getSubmissionsForReview()
 
       if (result.success && result.data) {
-        setSubmissions(result.data)
+        const opened = result.data.find((submission) => submission.id === openId)
+        setSubmissions(
+          opened
+            ? [opened, ...result.data.filter((submission) => submission !== opened)]
+            : result.data
+        )
+        setOpenedMissing(openId !== null && !opened)
       } else {
         setError(result.error || 'Failed to load submissions')
       }
@@ -119,7 +128,7 @@ export default function AdminReviewPage() {
     }
 
     fetchSubmissions()
-  }, [])
+  }, [openId])
 
   useEffect(() => {
     async function fetchMonthlyData() {
@@ -439,6 +448,15 @@ export default function AdminReviewPage() {
         </Link>
       </div>
 
+      {openedMissing && currentIndex === 0 && (
+        <div
+          role="status"
+          className="mx-auto w-full max-w-2xl rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"
+        >
+          That submission is no longer pending. Showing the oldest pending submission instead.
+        </div>
+      )}
+
       {reviewWarning && (
         <div
           role="alert"
@@ -459,6 +477,12 @@ export default function AdminReviewPage() {
               newTotal={monthlyLimitData.newTotal}
             />
           )}
+
+          <PatientFlagPanel
+            key={currentSubmission.id}
+            submissionId={currentSubmission.id}
+            className="mx-auto w-full max-w-2xl"
+          />
 
           <SubmissionCard
             submission={currentSubmission}

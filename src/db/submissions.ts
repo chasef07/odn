@@ -188,7 +188,7 @@ const contactKeys = [
   'status',
 ] as const
 
-function patientIdentityWhere({
+export function patientIdentityWhere({
   patientFirstName,
   patientLastName,
   patientDateOfBirth,
@@ -550,6 +550,7 @@ export type SubmissionInsert = {
   lastDayOff: Date
   absenceReason: string
   otherAbsenceReason?: string | null
+  appointmentType?: string | null
   symptoms?: JsonValue
   otherSymptomText?: string | null
   additionalInformation?: string | null

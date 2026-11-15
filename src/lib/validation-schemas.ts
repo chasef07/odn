@@ -244,6 +244,7 @@ export const absenceDatesSchema = z
 
 const ABSENCE_REASON_SET = new Set<string>(ABSENCE_REASONS)
 const ABSENCE_REASON_REQUIRED = 'Please select a reason for your absence'
+const APPOINTMENT_TYPE_REQUIRED = 'Please tell us what kind of appointment you had'
 
 export const absenceReasonSchema = z
   .object({
@@ -251,6 +252,10 @@ export const absenceReasonSchema = z
     otherAbsenceReason: z
       .string({ error: 'Please specify the reason' })
       .max(200, 'Reason must be less than 200 characters')
+      .nullish(),
+    appointmentType: z
+      .string({ error: APPOINTMENT_TYPE_REQUIRED })
+      .max(200, 'Appointment type must be less than 200 characters')
       .nullish(),
   })
   .refine((data) => data.absenceReason !== null && ABSENCE_REASON_SET.has(data.absenceReason), {
@@ -263,6 +268,14 @@ export const absenceReasonSchema = z
     path: ['otherAbsenceReason'],
     params: rule('reason_other_text'),
   })
+  .refine(
+    (data) => data.absenceReason !== "Doctor's appointment" || !!data.appointmentType?.trim(),
+    {
+      message: APPOINTMENT_TYPE_REQUIRED,
+      path: ['appointmentType'],
+      params: rule('reason_appointment_text'),
+    }
+  )
 
 const SYMPTOMS_REQUIRED = 'Please select at least one option'
 const OTHER_SYMPTOM_REQUIRED = 'Please describe your other symptoms'

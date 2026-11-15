@@ -87,6 +87,7 @@ export type Submission = {
   lastDayOff: Date
   absenceReason: string
   otherAbsenceReason: string | null
+  appointmentType: string | null
   symptoms: JsonValue | null
   otherSymptomText: string | null
   additionalInformation: string | null
@@ -308,6 +309,16 @@ export type AgentThread = {
   messages: JsonValue
   createdAt: Date
   updatedAt: Date
+}
+
+export type PatientFlag = {
+  id: string
+  patientFirstName: string
+  patientLastName: string
+  patientDateOfBirth: Date
+  reason: string | null
+  flaggedBy: string
+  flaggedAt: Date
 }
 
 export type AgentThreadSummary = Pick<AgentThread, 'id' | 'title' | 'updatedAt'>

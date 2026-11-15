@@ -7,6 +7,7 @@ import { FormLayout } from '@/components/form-layout'
 import { FormRadioGroup } from '@/components/form/FormRadioGroup'
 import { FormNavigation } from '@/components/form/FormNavigation'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { saveFormData, getFormData } from '@/lib/form-storage'
 import { backRoute, nextRoute } from '@/lib/intake'
 import { absenceReasonSchema } from '@/lib/validation-schemas'
@@ -83,6 +84,30 @@ export default function AbsenceReasonPage() {
             {errors.otherAbsenceReason && (
               <p id="otherAbsenceReason-error" className="text-sm text-red-500">
                 {errors.otherAbsenceReason.message}
+              </p>
+            )}
+          </div>
+        )}
+
+        {selectedReason === "Doctor's appointment" && (
+          <div className="space-y-2">
+            <Label htmlFor="appointmentType" className="text-base">
+              What kind of doctor&apos;s appointment did you have?
+            </Label>
+            <Input
+              id="appointmentType"
+              type="text"
+              maxLength={200}
+              {...register('appointmentType')}
+              className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl text-base focus-visible:ring-2"
+              placeholder="For example: dentist, eye exam, physical therapy"
+              aria-required="true"
+              aria-invalid={!!errors.appointmentType}
+              aria-describedby={errors.appointmentType ? 'appointmentType-error' : undefined}
+            />
+            {errors.appointmentType && (
+              <p id="appointmentType-error" className="text-sm text-red-500">
+                {errors.appointmentType.message}
               </p>
             )}
           </div>

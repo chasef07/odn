@@ -743,6 +743,60 @@ describe('Validation Schemas', () => {
       }
     })
 
+    it('requires the kind of appointment for a doctor’s appointment', () => {
+      for (const appointmentType of [undefined, null, '', '   ']) {
+        const result = absenceReasonSchema.safeParse({
+          absenceReason: "Doctor's appointment",
+          appointmentType,
+        })
+        expect(result.success, String(appointmentType)).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues).toEqual([
+            expect.objectContaining({
+              path: ['appointmentType'],
+              message: 'Please tell us what kind of appointment you had',
+              params: { rule: 'reason_appointment_text' },
+            }),
+          ])
+        }
+      }
+    })
+
+    it('accepts the kind of appointment up to 200 characters', () => {
+      const result = absenceReasonSchema.safeParse({
+        absenceReason: "Doctor's appointment",
+        appointmentType: 'a'.repeat(200),
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects the kind of appointment over 200 characters', () => {
+      const result = absenceReasonSchema.safeParse({
+        absenceReason: "Doctor's appointment",
+        appointmentType: 'a'.repeat(201),
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues).toEqual([
+          expect.objectContaining({
+            path: ['appointmentType'],
+            code: 'too_big',
+            message: 'Appointment type must be less than 200 characters',
+          }),
+        ])
+      }
+    })
+
+    it('ignores a leftover appointment type when another reason is chosen', () => {
+      for (const appointmentType of [undefined, '', 'Dentist']) {
+        const result = absenceReasonSchema.safeParse({
+          absenceReason: 'Feeling sick',
+          appointmentType,
+        })
+        expect(result.success, String(appointmentType)).toBe(true)
+      }
+    })
+
     it('should accept non-Other reason without otherAbsenceReason', () => {
       const result = absenceReasonSchema.safeParse({ absenceReason: 'Feeling sick' })
       expect(result.success).toBe(true)

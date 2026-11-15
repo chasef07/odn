@@ -659,6 +659,42 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     expect(createArg.patientDateOfBirth).toEqual(new Date('1990-01-01T00:00:00.000Z'))
   })
 
+  it.each([
+    ["Doctor's appointment", ' Eye exam ', 'Eye exam'],
+    ['Feeling sick', 'Eye exam', null],
+  ])(
+    'stores the kind of appointment only for a doctor’s appointment (%s)',
+    async (absenceReason, appointmentType, stored) => {
+      mockWebhookConstructEvent.mockReturnValue(buildEvent())
+      mockFindTempByPaymentIntent.mockResolvedValue({
+        id: 'temp_appointment',
+        paymentIntentId: 'pi_test_123',
+        formData: {
+          ...validFormData,
+          absenceReason,
+          appointmentType,
+          symptoms: absenceReason === 'Feeling sick' ? validFormData.symptoms : [],
+        },
+      })
+      mockInsertSubmission.mockResolvedValue({
+        submission: {
+          id: 'sub_appointment',
+          email: validFormData.email,
+          patientFirstName: validFormData.patientFirstName,
+        },
+        inserted: true,
+      })
+
+      const response = await POST(buildRequest())
+
+      expect(response.status).toBe(200)
+      const createArg = mockInsertSubmission.mock.calls[0][0]
+      expect(createArg.status).toBe('PENDING_REVIEW')
+      expect(createArg.absenceReason).toBe(absenceReason)
+      expect(createArg.appointmentType).toBe(stored)
+    }
+  )
+
   it('keeps malformed paid submissions retryable when required persisted fields are missing', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
     mockFindTempByPaymentIntent.mockResolvedValue({

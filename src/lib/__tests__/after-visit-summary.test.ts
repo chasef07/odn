@@ -39,6 +39,7 @@ const submission: Submission = {
   lastDayOff: new Date('2026-09-30T00:00:00.000Z'),
   absenceReason: 'Feeling sick',
   otherAbsenceReason: null,
+  appointmentType: null,
   symptoms: ['Sore throat', 'Cough'],
   otherSymptomText: null,
   additionalInformation: 'Saw urgent care yesterday',
@@ -218,6 +219,32 @@ describe('buildAfterVisitSummary', () => {
 
     const none = buildAfterVisitSummary(input({ submission: { ...submission, symptoms: null } }))
     expect(none.symptoms).toBe('Feeling sick')
+  })
+
+  it('names the kind of doctor’s appointment only when the doctor includes it', () => {
+    const appointment = {
+      ...submission,
+      absenceReason: "Doctor's appointment",
+      appointmentType: 'Eye exam',
+      symptoms: [],
+    }
+
+    expect(buildAfterVisitSummary(input({ submission: appointment })).symptoms).toBe(
+      "Doctor's appointment"
+    )
+    expect(
+      buildAfterVisitSummary(
+        input({ submission: appointment, freeText: { appointmentType: 'Eye exam' } })
+      ).symptoms
+    ).toBe("Doctor's appointment: Eye exam")
+    expect(() =>
+      buildAfterVisitSummary(
+        input({
+          submission: { ...appointment, absenceReason: 'Feeling sick' },
+          freeText: { appointmentType: 'Eye exam' },
+        })
+      )
+    ).toThrow('This chart has no appointment type')
   })
 
   it('flags the 30-day limit the review page warns about', () => {
@@ -475,8 +502,21 @@ describe('freeTextAnswers', () => {
         otherAbsenceReason: 'Dental procedure',
         symptoms: ['Cough'],
         otherSymptomText: 'jaw swelling',
+        appointmentType: 'Eye exam',
         additionalInformation: '  ',
       })
     ).toEqual({})
+  })
+
+  it('lists the kind of doctor’s appointment, trimmed', () => {
+    expect(
+      freeTextAnswers({
+        ...submission,
+        absenceReason: "Doctor's appointment",
+        appointmentType: ' Eye exam ',
+        symptoms: [],
+        additionalInformation: null,
+      })
+    ).toEqual({ appointmentType: 'Eye exam' })
   })
 })

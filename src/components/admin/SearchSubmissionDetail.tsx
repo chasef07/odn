@@ -883,6 +883,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               </p>
             )}
           </div>
+          {absenceReason === "Doctor's appointment" && submission.appointmentType && (
+            <div className="space-y-2">
+              <Label>Appointment type</Label>
+              <p className="rounded-md bg-gray-50 px-3 py-2 text-sm break-words">
+                {submission.appointmentType}
+              </p>
+            </div>
+          )}
           {isEditing && absenceReason === 'Other' && (
             <div className="space-y-2">
               <Label>Other Reason</Label>
