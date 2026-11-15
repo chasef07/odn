@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.1](https://github.com/chasef07/odn/compare/v6.5.0...v6.5.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **admin:** show the patient's Other text for symptoms, purpose and reason on every admin view ([#90](https://github.com/chasef07/odn/issues/90)) ([208aae8](https://github.com/chasef07/odn/commit/208aae8b06879acf1145b6c8102cb36a56179b31))
+
 ## [6.5.0](https://github.com/chasef07/odn/compare/v6.4.0...v6.5.0) (2026-11-15)
 
 
