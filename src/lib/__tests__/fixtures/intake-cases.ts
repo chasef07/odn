@@ -207,20 +207,26 @@ add('last name missing', { ...myself, patientLastName: undefined }, SHAPE)
 
 for (const absenceReason of ABSENCE_REASONS) {
   const otherAbsenceReason = absenceReason === 'Other' ? 'Moving' : ''
+  const appointmentType = absenceReason === "Doctor's appointment" ? 'Dentist' : ''
   const skipsSymptoms = absenceReason === "Doctor's appointment" || absenceReason === 'Other'
   const symptoms = SYMPTOMS_BY_REASON[absenceReason].slice(0, 1)
   add(
     `${absenceReason} with symptoms`,
-    { ...myself, absenceReason, otherAbsenceReason, symptoms },
+    { ...myself, absenceReason, otherAbsenceReason, appointmentType, symptoms },
     ACCEPT
   )
   add(
     `${absenceReason} without symptoms`,
-    { ...myself, absenceReason, otherAbsenceReason, symptoms: [] },
+    { ...myself, absenceReason, otherAbsenceReason, appointmentType, symptoms: [] },
     skipsSymptoms ? ACCEPT : RULE
   )
 }
 add('reason Other without text', { ...myself, absenceReason: 'Other', symptoms: [] }, RULE)
+add(
+  "reason Doctor's appointment without appointment type",
+  { ...myself, absenceReason: "Doctor's appointment", symptoms: [] },
+  RULE
+)
 add('reason free text', { ...myself, absenceReason: 'illness' }, RULE)
 add('reason missing', { ...myself, absenceReason: null }, SHAPE)
 add('symptom Other without text', { ...myself, symptoms: ['Other'] }, RULE)

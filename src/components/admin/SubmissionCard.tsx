@@ -221,6 +221,12 @@ export function SubmissionCard({
                 )}
               </span>
             </div>
+            {submission.absenceReason === "Doctor's appointment" && submission.appointmentType && (
+              <div>
+                <span className="text-muted-foreground">Appointment type: </span>
+                <span className="break-words">{submission.appointmentType}</span>
+              </div>
+            )}
             {symptoms.length > 0 && (
               <div>
                 <span className="text-muted-foreground">Symptoms: </span>

@@ -581,6 +581,12 @@ export const spanishTranslations: Record<string, string> = {
   'Please specify the purpose': 'Sírvase especificar el propósito',
   'Please specify the reason': 'Especifique el motivo',
   'Please specify the reason...': 'Especifique el motivo...',
+  "What kind of doctor's appointment did you have?": '¿Qué tipo de cita médica tuvo?',
+  'For example: dentist, eye exam, physical therapy':
+    'Por ejemplo: dentista, examen de la vista, fisioterapia',
+  'Please tell us what kind of appointment you had': 'Indíquenos qué tipo de cita médica tuvo',
+  'Appointment type must be less than 200 characters':
+    'El tipo de cita debe tener menos de 200 caracteres',
   'Please wait while we confirm your payment': 'Espere mientras confirmamos su pago',
   'Powered by': 'Con tecnología de',
   'Preventive screening': 'Examen preventivo',

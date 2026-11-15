@@ -1086,6 +1086,18 @@ describe('insertSubmission', () => {
     expect(await findSubmissionById(inserted.id)).toEqual(inserted)
   })
 
+  it('stores the kind of doctor’s appointment', async () => {
+    const { submission: inserted } = await insertSubmission({
+      ...row,
+      absenceReason: "Doctor's appointment",
+      appointmentType: 'Eye exam',
+      symptoms: [],
+    })
+
+    expect(inserted.appointmentType).toBe('Eye exam')
+    expect((await findSubmissionById(inserted.id))?.appointmentType).toBe('Eye exam')
+  })
+
   it('reports a second insert for the same payment intent as a duplicate and returns that row', async () => {
     await insertSubmission({ ...row, stripePaymentIntentId: 'pi_other', patientFirstName: 'Other' })
     await insertSubmission(row)
@@ -1115,6 +1127,7 @@ describe('insertSubmission', () => {
       symptoms: null,
       attribution: null,
       guardianFirstName: null,
+      appointmentType: null,
     })
   })
 })
