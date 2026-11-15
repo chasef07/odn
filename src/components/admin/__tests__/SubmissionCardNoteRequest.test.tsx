@@ -55,3 +55,45 @@ describe('SubmissionCard appointment type', () => {
     expect(screen.queryByText('Eye exam')).not.toBeInTheDocument()
   })
 })
+
+function noteRequestLine(label: string): string | null {
+  return screen.getByText(label).parentElement?.textContent ?? null
+}
+
+describe('SubmissionCard Other answers', () => {
+  it('shows the text the patient wrote for an Other symptom', () => {
+    render(
+      <SubmissionCard
+        submission={{
+          ...submission,
+          absenceReason: 'Accident or injury',
+          symptoms: ['Fall', 'Other'],
+          otherSymptomText: 'Twisted ankle on stairs',
+        }}
+        currentIndex={0}
+        totalCount={1}
+      />
+    )
+
+    expect(noteRequestLine('Symptoms:')).toBe('Symptoms: Fall, Other: Twisted ankle on stairs')
+  })
+
+  it('shows the text the patient wrote for an Other purpose and reason', () => {
+    render(
+      <SubmissionCard
+        submission={{
+          ...submission,
+          notePurpose: 'other',
+          otherNotePurpose: 'Volunteering',
+          absenceReason: 'Other',
+          otherAbsenceReason: 'Dental procedure',
+        }}
+        currentIndex={0}
+        totalCount={1}
+      />
+    )
+
+    expect(noteRequestLine('Purpose:')).toBe('Purpose: Other: Volunteering')
+    expect(noteRequestLine('Reason:')).toBe('Reason: Other: Dental procedure')
+  })
+})

@@ -20,6 +20,7 @@ import {
   supportTicketPatientName,
 } from '@/lib/sms-support-types'
 import { dateOnlyFromUtcDate, formatInstantET, instantOf } from '@/lib/dates'
+import { notePurposeAnswer } from '@/lib/intake-answers'
 
 export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailType }) {
   const router = useRouter()
@@ -231,7 +232,13 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                   Dates: {dateOnlyFromUtcDate(ticket.submission.firstDayOff)} -{' '}
                   {dateOnlyFromUtcDate(ticket.submission.lastDayOff)}
                 </p>
-                <p className="text-gray-600">Purpose: {ticket.submission.notePurpose}</p>
+                <p className="text-gray-600">
+                  Purpose:{' '}
+                  {notePurposeAnswer(
+                    ticket.submission.notePurpose,
+                    ticket.submission.otherNotePurpose
+                  )}
+                </p>
                 <Link
                   href={`/admin/search/${ticket.submission.id}`}
                   className="inline-flex pt-2 text-sm font-medium text-blue-700 hover:underline"
