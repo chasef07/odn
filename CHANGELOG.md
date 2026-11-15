@@ -1,5 +1,22 @@
 # Changelog
 
+## [6.5.0](https://github.com/chasef07/odn/compare/v6.4.0...v6.5.0) (2026-11-15)
+
+
+### Features
+
+* **admin:** flag a patient from review and show FLAGGED on their later charts ([#84](https://github.com/chasef07/odn/issues/84)) ([5252902](https://github.com/chasef07/odn/commit/5252902401aeb3754313fa590943be14479437f6))
+* **admin:** list pending reviews from the dashboard and open any one in the review view ([#83](https://github.com/chasef07/odn/issues/83)) ([1a86e1c](https://github.com/chasef07/odn/commit/1a86e1ceb10e05b2b6a0799d0b1a593c29531cda))
+* **intake:** ask what kind of doctor's appointment the patient had ([#85](https://github.com/chasef07/odn/issues/85)) ([d518dbc](https://github.com/chasef07/odn/commit/d518dbce03c450c60f33b12386bc4475e090dca7))
+
+
+### Bug Fixes
+
+* **admin:** keep admins signed in and sign in with a Google popup ([#89](https://github.com/chasef07/odn/issues/89)) ([f5559e8](https://github.com/chasef07/odn/commit/f5559e83d3090d91187fdf3de26bd25dcf0cef6b))
+* **db:** renumber the appointment-type migration and fill the pending fixture ([#88](https://github.com/chasef07/odn/issues/88)) ([d0b6cb6](https://github.com/chasef07/odn/commit/d0b6cb6366e62203c43a8aceabf3ecc688cf8cba))
+* **intake:** limit absence start to 7 New York days back ([#82](https://github.com/chasef07/odn/issues/82)) ([e5c0794](https://github.com/chasef07/odn/commit/e5c0794f20de326845f384fc20938a13896b0ea5))
+* **sms:** send the ticket reply once, answer thank-yous, and name patients by phone ([#87](https://github.com/chasef07/odn/issues/87)) ([1b16a98](https://github.com/chasef07/odn/commit/1b16a98abea184a504637e615d0c83ff10aaf453))
+
 ## [6.4.0](https://github.com/chasef07/odn/compare/v6.3.0...v6.4.0) (2026-11-09)
 
 
