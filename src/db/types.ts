@@ -87,6 +87,7 @@ export type Submission = {
   lastDayOff: Date
   absenceReason: string
   otherAbsenceReason: string | null
+  appointmentType: string | null
   symptoms: JsonValue | null
   otherSymptomText: string | null
   additionalInformation: string | null

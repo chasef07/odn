@@ -38,6 +38,7 @@ const mockSubmission: Submission = {
   lastDayOff: new Date('2024-11-10'),
   absenceReason: 'illness',
   otherAbsenceReason: null,
+  appointmentType: null,
   symptoms: ['Fever', 'Cough', 'Fatigue', 'Body Aches'],
   otherSymptomText: 'Severe headache and chills',
   additionalInformation:

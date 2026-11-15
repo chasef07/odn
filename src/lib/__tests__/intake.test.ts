@@ -181,12 +181,29 @@ describe('parseIntake', () => {
 
   it('accepts a skip reason without symptoms', () => {
     expect(
-      parseIntake({ ...myself, absenceReason: "Doctor's appointment", symptoms: [] }).kind
+      parseIntake({
+        ...myself,
+        absenceReason: "Doctor's appointment",
+        appointmentType: 'Dentist',
+        symptoms: [],
+      }).kind
     ).toBe('valid')
     expect(
       parseIntake({ ...myself, absenceReason: 'Other', otherAbsenceReason: 'Moving', symptoms: [] })
         .kind
     ).toBe('valid')
+  })
+
+  it('stores the trimmed kind of appointment', () => {
+    const result = parseIntake({
+      ...myself,
+      absenceReason: "Doctor's appointment",
+      appointmentType: '  Eye exam  ',
+      symptoms: [],
+    })
+    expect(result.kind).toBe('valid')
+    if (result.kind !== 'valid') return
+    expect(result.data.appointmentType).toBe('Eye exam')
   })
 
   it('reports rule failures with the data still persistable', () => {
@@ -235,6 +252,12 @@ describe('parseIntake', () => {
       [{ ...myself, patientLastName: 'a'.repeat(51) }, 'patientLastName', 'too_long', /50/],
       [{ ...myself, patientLastName: 'X Æ A-12' }, 'patientLastName', 'name_characters', /letters/],
       [{ ...myself, notePurpose: 'jury' }, 'notePurpose', 'unknown_option', /purpose/],
+      [
+        { ...myself, absenceReason: "Doctor's appointment", symptoms: [] },
+        'appointmentType',
+        'reason_appointment_text',
+        /what kind of appointment/,
+      ],
     ]
     for (const [draft, field, rule, message] of cases) {
       const result = parseIntake(draft)
@@ -274,6 +297,7 @@ describe('parseIntake', () => {
       guardianFirstName: 'Jane',
       guardianDateOfBirth: 'garbage',
       absenceReason: "Doctor's appointment",
+      appointmentType: 'Dentist',
       symptoms: 'x'.repeat(100000),
     })
     expect(result.kind).toBe('valid')

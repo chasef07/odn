@@ -25,6 +25,7 @@ export type AfterVisitSummaryInput = {
 export const FREE_TEXT_ANSWER_LABELS = {
   otherNotePurpose: 'Other note purpose',
   otherAbsenceReason: 'Other absence reason',
+  appointmentType: 'Appointment type',
   otherSymptomText: 'Other symptom',
   additionalInformation: 'Additional information',
 } as const
@@ -39,6 +40,7 @@ type FreeTextSource = Pick<
   | 'otherNotePurpose'
   | 'absenceReason'
   | 'otherAbsenceReason'
+  | 'appointmentType'
   | 'symptoms'
   | 'otherSymptomText'
   | 'additionalInformation'
@@ -48,6 +50,8 @@ export function freeTextAnswers(submission: FreeTextSource): FreeTextChoices {
   const answers: Record<FreeTextAnswer, string | null> = {
     otherNotePurpose: submission.notePurpose === 'other' ? submission.otherNotePurpose : null,
     otherAbsenceReason: submission.absenceReason === 'Other' ? submission.otherAbsenceReason : null,
+    appointmentType:
+      submission.absenceReason === "Doctor's appointment" ? submission.appointmentType : null,
     otherSymptomText:
       Array.isArray(submission.symptoms) && submission.symptoms.includes('Other')
         ? submission.otherSymptomText
@@ -192,7 +196,9 @@ export function buildAfterVisitSummary({
   const absentFrom = childWorkAndSchool ? workOrSchool : purpose
 
   const symptoms = symptomList(submission.symptoms, chosen.otherSymptomText ?? null)
-  const reason = reasonText(submission.absenceReason, chosen.otherAbsenceReason ?? null)
+  const reason = chosen.appointmentType
+    ? `${submission.absenceReason}: ${chosen.appointmentType}`
+    : reasonText(submission.absenceReason, chosen.otherAbsenceReason ?? null)
 
   return {
     signedAt: formatInstantETStamp(instantOf(submission.reviewedAt)),

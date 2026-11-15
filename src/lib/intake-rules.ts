@@ -18,6 +18,7 @@ export const INTAKE_RULES = {
   absence_reversed: 'always',
   absence_too_long: 'always',
   reason_other_text: 'flag',
+  reason_appointment_text: 'flag',
   symptoms_none: 'flag',
   symptom_other_text: 'flag',
 } as const satisfies Record<string, 'always' | 'flag'>
