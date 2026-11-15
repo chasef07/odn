@@ -109,4 +109,23 @@ describe('sendSupportSms', () => {
     expect(mockRecordSupportTicketOutbound).toHaveBeenCalledTimes(1)
     expect(mockRecordSupportTicketOutbound).toHaveBeenCalledWith('ticket_123')
   })
+
+  it('sends a reply outside any ticket without the footer or a ticket stamp', async () => {
+    const result = await sendSupportSms({
+      toPhone: '+15551234567',
+      type: 'SUPPORT_REPLY',
+      body: "You're welcome. We are happy to help.",
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(mockFindSupportTicketLastOutboundAt).not.toHaveBeenCalled()
+    expect(mockSendTelnyxSms).toHaveBeenCalledWith({
+      submissionId: undefined,
+      supportTicketId: undefined,
+      type: 'SUPPORT_REPLY',
+      toPhone: '+15551234567',
+      body: "You're welcome. We are happy to help.",
+    })
+    expect(mockRecordSupportTicketOutbound).not.toHaveBeenCalled()
+  })
 })

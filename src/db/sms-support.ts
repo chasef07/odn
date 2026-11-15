@@ -1,5 +1,5 @@
 import { db } from './pool'
-import { array, sql, type Sql } from './sql'
+import { array, expression, sql, type Sql } from './sql'
 import { insert, select, selectAll, set, type Patch } from './table'
 import {
   smsMessages,
@@ -103,14 +103,18 @@ const detailJobKeys = [
   'createdAt',
 ] as const
 
+export type PhonePatient = Pick<Submission, 'patientFirstName' | 'patientLastName'>
+
 export type SupportTicketListItem = SmsSupportTicket & {
   submission: Pick<Submission, (typeof listSubmissionKeys)[number]> | null
+  phonePatient: PhonePatient | null
   messages: Pick<SmsMessage, (typeof listMessageKeys)[number]>[]
   jobs: Pick<SmsSupportJob, (typeof listJobKeys)[number]>[]
 }
 
 export type SupportTicketDetail = SmsSupportTicket & {
   submission: Pick<Submission, (typeof detailSubmissionKeys)[number]> | null
+  phonePatient: PhonePatient | null
   messages: Pick<SmsMessage, (typeof detailMessageKeys)[number]>[]
   jobs: Pick<SmsSupportJob, (typeof detailJobKeys)[number]>[]
 }
@@ -160,6 +164,18 @@ function groupBy<K extends string, R extends Record<K, string | null>>(
 const ticketWithSubmission = <K extends keyof Submission & string>(keys: readonly K[]) =>
   sql`${selectAll(smsSupportTickets, { alias: 't' })}, ${select(submissions, keys, { alias: 's', prefix: JOINED })}
     FROM sms_support_tickets t LEFT JOIN submissions s ON s.id = t.submission_id`
+
+const callerPhone = expression<string>()('phoneE164', sql`k.phone`)
+
+async function findLatestPatientsForPhones(
+  phones: readonly string[]
+): Promise<Map<string, PhonePatient>> {
+  const digits = sql`regexp_replace(s.phone, '[^0-9]', '', 'g')`
+  const rows = await db.rows(
+    sql`SELECT DISTINCT ON (k.phone) ${callerPhone}, ${select(submissions, ['patientFirstName', 'patientLastName'], { alias: 's' })} FROM submissions s CROSS JOIN LATERAL (VALUES (s.sms_phone_e164), ('+1' || ${digits}), ('+' || ${digits})) AS c(phone) JOIN unnest(${array(phones, 'text')}) AS k(phone) ON k.phone = c.phone ORDER BY k.phone, s.created_at DESC`
+  )
+  return new Map(rows.map(({ phoneE164, ...patient }) => [phoneE164, patient]))
+}
 
 const jobWithTicket = sql`${selectAll(smsSupportJobs, { alias: 'j' })}, ${selectAll(smsSupportTickets, { alias: 't', prefix: JOINED })}
   FROM sms_support_jobs j JOIN sms_support_tickets t ON t.id = j.ticket_id`
@@ -338,7 +354,7 @@ export async function findActiveSupportTicketForPhone(
   phoneE164: string
 ): Promise<SmsSupportTicket | null> {
   return db.one(
-    sql`SELECT ${selectAll(smsSupportTickets)} FROM sms_support_tickets WHERE phone_e164 = ${phoneE164} AND status = ANY(${array(ACTIVE_TICKET_STATUSES)}) ORDER BY updated_at DESC LIMIT 1`
+    sql`SELECT ${selectAll(smsSupportTickets)} FROM sms_support_tickets WHERE phone_e164 = ${phoneE164} AND status = ANY(${array(ACTIVE_TICKET_STATUSES)}) ORDER BY last_outbound_at DESC NULLS LAST, created_at DESC LIMIT 1`
   )
 }
 
@@ -346,7 +362,7 @@ export async function findActiveSupportTicketSummaryForPhone(
   phoneE164: string
 ): Promise<Pick<SmsSupportTicket, 'id' | 'status' | 'submissionId'> | null> {
   return db.one(
-    sql`SELECT ${select(smsSupportTickets, ['id', 'status', 'submissionId'])} FROM sms_support_tickets WHERE phone_e164 = ${phoneE164} AND status = ANY(${array(ACTIVE_TICKET_STATUSES)}) ORDER BY updated_at DESC LIMIT 1`
+    sql`SELECT ${select(smsSupportTickets, ['id', 'status', 'submissionId'])} FROM sms_support_tickets WHERE phone_e164 = ${phoneE164} AND status = ANY(${array(ACTIVE_TICKET_STATUSES)}) ORDER BY last_outbound_at DESC NULLS LAST, created_at DESC LIMIT 1`
   )
 }
 
@@ -376,18 +392,23 @@ async function listSupportTickets(where: Sql, limit: number): Promise<SupportTic
     sql`SELECT ${ticketWithSubmission(listSubmissionKeys)} WHERE ${where} ORDER BY t.updated_at DESC LIMIT ${limit}`
   )
   const ids = tickets.map((ticket) => ticket.id)
-  const [messages, jobs] = await Promise.all([
+  const [messages, jobs, phonePatients] = await Promise.all([
     db.rows(
       sql`SELECT DISTINCT ON (support_ticket_id) ${select(smsMessages, ['supportTicketId', ...listMessageKeys])} FROM sms_messages WHERE support_ticket_id = ANY(${array(ids)}) ORDER BY support_ticket_id, created_at DESC`
     ),
     db.rows(
       sql`SELECT DISTINCT ON (ticket_id) ${select(smsSupportJobs, ['ticketId', ...listJobKeys])} FROM sms_support_jobs WHERE ticket_id = ANY(${array(ids)}) ORDER BY ticket_id, created_at DESC`
     ),
+    findLatestPatientsForPhones(
+      tickets.filter((ticket) => ticket.submissionId === null).map((ticket) => ticket.phoneE164)
+    ),
   ])
   const messagesByTicket = groupBy(messages, 'supportTicketId')
   const jobsByTicket = groupBy(jobs, 'ticketId')
   return tickets.map((ticket) => ({
     ...nest(ticket, 'submission', true),
+    phonePatient:
+      ticket.submissionId === null ? (phonePatients.get(ticket.phoneE164) ?? null) : null,
     messages: messagesByTicket.get(ticket.id) ?? [],
     jobs: jobsByTicket.get(ticket.id) ?? [],
   }))
@@ -416,15 +437,21 @@ export async function findSupportTicketDetail(
     sql`SELECT ${ticketWithSubmission(detailSubmissionKeys)} WHERE t.id = ${ticketId}`
   )
   if (!ticket) return null
-  const [messages, jobs] = await Promise.all([
+  const [messages, jobs, phonePatients] = await Promise.all([
     db.rows(
       sql`SELECT ${select(smsMessages, detailMessageKeys)} FROM sms_messages WHERE support_ticket_id = ${ticketId} ORDER BY created_at ASC`
     ),
     db.rows(
       sql`SELECT ${select(smsSupportJobs, detailJobKeys)} FROM sms_support_jobs WHERE ticket_id = ${ticketId} ORDER BY created_at DESC`
     ),
+    findLatestPatientsForPhones(ticket.submissionId === null ? [ticket.phoneE164] : []),
   ])
-  return { ...nest(ticket, 'submission', true), messages, jobs }
+  return {
+    ...nest(ticket, 'submission', true),
+    phonePatient: phonePatients.get(ticket.phoneE164) ?? null,
+    messages,
+    jobs,
+  }
 }
 
 export async function findSupportTicketLastOutboundAt(

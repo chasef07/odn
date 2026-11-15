@@ -17,6 +17,7 @@ import {
   supportCategoryLabel,
   supportStatusClass,
   supportStatusLabel,
+  supportTicketPatientName,
 } from '@/lib/sms-support-types'
 import { dateOnlyFromUtcDate, formatInstantET, instantOf } from '@/lib/dates'
 
@@ -73,6 +74,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
   const canRetryAutomation =
     !!latestFailedJob && ticket.status === 'NEEDS_CSR' && ticket.automationStatus === 'FAILED'
   const searchPhone = ticket.phoneE164.replace(/^\+1/, '')
+  const phoneMatchName = ticket.submission ? null : supportTicketPatientName(ticket)
 
   return (
     <div className="space-y-6">
@@ -88,6 +90,7 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
               </span>
             </div>
             <h1 className="mt-3 text-2xl font-bold text-gray-900">SMS Support Ticket</h1>
+            {phoneMatchName && <p className="mt-1 font-medium text-gray-900">{phoneMatchName}</p>}
             <p className="mt-1 text-sm break-all text-gray-500">
               {ticket.id} | {ticket.phoneE164}
             </p>

@@ -35,6 +35,19 @@ describe('SMS support navigation', () => {
     expect(searchLink).toHaveAttribute('href', '/admin/search?type=phone&q=5551234567')
     expect(searchLink.parentElement).toContainElement(needsAdminButton)
   })
+
+  it('names an unlinked ticket from the submission that shares its phone', () => {
+    const phonePatient = { patientFirstName: 'Ada', patientLastName: 'Lovelace' }
+    const { unmount } = render(
+      <SupportTicketQueue tickets={[{ ...supportTicket, phonePatient }]} />
+    )
+
+    expect(screen.getAllByText('Ada Lovelace (by phone, not linked)')).not.toHaveLength(0)
+    unmount()
+
+    render(<SupportTicketDetail ticket={{ ...supportTicket, phonePatient }} />)
+    expect(screen.getByText('Ada Lovelace (by phone, not linked)')).toBeInTheDocument()
+  })
 })
 
 const supportTicket: SupportTicketDetailType = {
@@ -58,6 +71,7 @@ const supportTicket: SupportTicketDetailType = {
   createdAt: new Date('2026-08-12T12:00:00Z'),
   updatedAt: new Date('2026-08-12T12:00:00Z'),
   submission: null,
+  phonePatient: null,
   messages: [],
   jobs: [],
 }

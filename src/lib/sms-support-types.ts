@@ -165,6 +165,21 @@ export function supportCategoryLabel(category: string | null | undefined): strin
   }
 }
 
+type NamedPatient = { patientFirstName: string; patientLastName: string }
+
+export function supportTicketPatientName(ticket: {
+  submission: NamedPatient | null
+  phonePatient: NamedPatient | null
+}): string | null {
+  if (ticket.submission) {
+    return `${ticket.submission.patientFirstName} ${ticket.submission.patientLastName}`
+  }
+  if (ticket.phonePatient) {
+    return `${ticket.phonePatient.patientFirstName} ${ticket.phonePatient.patientLastName} (by phone, not linked)`
+  }
+  return null
+}
+
 function labelFromConstant(value: string): string {
   return value
     .split('_')

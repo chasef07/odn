@@ -28,7 +28,7 @@ export async function sendSupportSms({
   type = 'SUPPORT_REPLY',
   body,
 }: {
-  ticketId: string
+  ticketId?: string
   submissionId?: string | null
   toPhone: string
   type?: SmsMessageType
@@ -43,17 +43,18 @@ export async function sendSupportSms({
     return { success: false, error: 'Phone number is opted out' }
   }
 
-  const ticket = await findSupportTicketLastOutboundAt(ticketId)
+  const includeFooter =
+    !!ticketId && !(await findSupportTicketLastOutboundAt(ticketId))?.lastOutboundAt
 
   const result = await sendTelnyxSms({
     submissionId: submissionId || undefined,
     supportTicketId: ticketId,
     type,
     toPhone: to,
-    body: supportSmsBody(body, !ticket?.lastOutboundAt),
+    body: supportSmsBody(body, includeFooter),
   })
 
-  if (result.success) {
+  if (result.success && ticketId) {
     await recordSupportTicketOutbound(ticketId)
   }
 

@@ -53,6 +53,7 @@ import {
   restrictionsConfirmSms,
   returnDateInfoSms,
   supportIntroMenuSms,
+  thankYouReplySms,
 } from '@/lib/sms-support-templates'
 import { sendSupportSms } from '@/lib/sms-support-sms'
 import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
@@ -112,7 +113,17 @@ async function converse(
   receivedAt: Date
 ): Promise<void> {
   let ticket = await findActiveSupportTicketForPhone(phoneE164)
-  if (!ticket) {
+  if (!ticket && isThankYou(trimmedBody)) {
+    await replyToThanks(phoneE164, null)
+    return
+  }
+
+  const helpOnAdminTicket =
+    !!ticket &&
+    isConversing(ticket) &&
+    ticket.state === SMS_SUPPORT_STATE.CSR_REVIEW &&
+    isHelpRequest(trimmedBody)
+  if (!ticket || helpOnAdminTicket) {
     const matchedSubmission = await findSafeSubmissionForPhone(phoneE164)
     ticket = await createInboundSupportTicket({
       phoneE164,
@@ -137,6 +148,10 @@ async function converse(
     })
   }
 
+  if (isThankYou(trimmedBody)) {
+    await replyToThanks(phoneE164, ticket)
+    return
+  }
   if (ticket.status === SMS_SUPPORT_STATUS.RUNNING_AUTOMATION) {
     await reply(ticket, automationStillRunningSms(), 'SUPPORT_AUTOMATION_UPDATE')
     return
@@ -146,11 +161,6 @@ async function converse(
   }
 
   if (isHelpRequest(trimmedBody)) {
-    if (ticket.status === SMS_SUPPORT_STATUS.NEEDS_CSR) {
-      await reply(ticket, csrQueuedSms(), 'SUPPORT_CSR_ALERT')
-      return
-    }
-
     await updateTicketAndReply(
       ticket,
       'prompt',
@@ -220,8 +230,10 @@ async function routeByState(
       await collectRefundReason(ticket, body)
       return
     case SMS_SUPPORT_STATE.OTHER_COLLECT_MESSAGE:
+      await collectOtherMessage(ticket, body, csrQueuedSms())
+      return
     case SMS_SUPPORT_STATE.CSR_REVIEW:
-      await collectOtherMessage(ticket, body)
+      await collectOtherMessage(ticket, body, null)
       return
     default:
       await updateTicketAndReply(
@@ -769,13 +781,17 @@ async function collectRefundReason(ticket: ConversingTicket, body: string): Prom
   })
 }
 
-async function collectOtherMessage(ticket: ConversingTicket, body: string): Promise<void> {
+async function collectOtherMessage(
+  ticket: ConversingTicket,
+  body: string,
+  replyBody: string | null
+): Promise<void> {
   await moveToCsr(ticket, {
     category: ticket.category || SMS_SUPPORT_CATEGORY.OTHER,
     summary: `Customer message: ${body.trim().slice(0, 500)}`,
     alertSummary: 'Customer sent a freeform support message. Details are in the ticket.',
     collectedData: { freeformMessage: body.trim().slice(0, 1000) },
-    replyBody: csrQueuedSms(),
+    replyBody,
   })
 }
 
@@ -834,7 +850,7 @@ async function moveToCsr(
     summary: string
     alertSummary?: string
     collectedData?: SmsSupportCollectedData
-    replyBody: string
+    replyBody: string | null
   }
 ): Promise<void> {
   const updatedTicket = await move(ticket, 'escalate', {
@@ -847,9 +863,9 @@ async function moveToCsr(
     },
   })
 
-  const replyDelivered = await reply(updatedTicket, replyBody, 'SUPPORT_CSR_ALERT', {
-    alertOnFailure: false,
-  })
+  const replyDelivered =
+    replyBody === null ||
+    (await reply(updatedTicket, replyBody, 'SUPPORT_CSR_ALERT', { alertOnFailure: false }))
   await alertSupportTicketNeedsCsr({
     ticketId: updatedTicket.id,
     phoneE164: updatedTicket.phoneE164,
@@ -1121,6 +1137,28 @@ async function reply(
   }
 
   return true
+}
+
+async function replyToThanks(phoneE164: string, ticket: SmsSupportTicket | null): Promise<void> {
+  const result = await sendSupportSms({
+    ticketId: ticket?.id,
+    submissionId: ticket?.submissionId,
+    toPhone: phoneE164,
+    type: 'SUPPORT_REPLY',
+    body: thankYouReplySms(),
+  })
+  if (!result.success) {
+    console.warn('SMS support thank-you reply failed:', {
+      ticketId: ticket?.id ?? null,
+      error: result.error,
+    })
+  }
+}
+
+const THANK_YOU = /^(THANK YOU|THANKYOU|THANK U|THANKS|THX|TY)( (SO|VERY) MUCH)?$/
+
+function isThankYou(body: string): boolean {
+  return THANK_YOU.test(normalizeSmsKeyword(body).trim())
 }
 
 function isHelpRequest(body: string): boolean {
