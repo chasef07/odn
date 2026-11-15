@@ -53,6 +53,7 @@ export default function AdminReviewPage() {
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [maybeError, setMaybeError] = useState<string | null>(null)
   const [reviewWarning, setReviewWarning] = useState<string | null>(null)
+  const [openedMissing, setOpenedMissing] = useState(false)
   const [monthlyLimitData, setMonthlyLimitData] = useState<any>(null)
   const [isLoadingMonthlyData, setIsLoadingMonthlyData] = useState(false)
   const [withRestrictions, setWithRestrictions] = useState(false)
@@ -117,6 +118,7 @@ export default function AdminReviewPage() {
             ? [opened, ...result.data.filter((submission) => submission !== opened)]
             : result.data
         )
+        setOpenedMissing(openId !== null && !opened)
       } else {
         setError(result.error || 'Failed to load submissions')
       }
@@ -444,6 +446,15 @@ export default function AdminReviewPage() {
           </Button>
         </Link>
       </div>
+
+      {openedMissing && currentIndex === 0 && (
+        <div
+          role="status"
+          className="mx-auto w-full max-w-2xl rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"
+        >
+          That submission is no longer pending. Showing the oldest pending submission instead.
+        </div>
+      )}
 
       {reviewWarning && (
         <div

@@ -55,5 +55,22 @@ describe('review page', () => {
     expect(await screen.findByText('1 of 3')).toBeInTheDocument()
     expect(screen.getByText('Cy Third')).toBeInTheDocument()
     expect(screen.queryByText('Ann First')).toBeNull()
+    expect(screen.queryByText(/no longer pending/)).toBeNull()
+  })
+
+  it('says so when the named submission is no longer pending, then starts with the oldest', async () => {
+    searchParams = new URLSearchParams('id=already-reviewed')
+
+    render(<AdminReviewPage />)
+
+    expect(await screen.findByText(/That submission is no longer pending/)).toBeInTheDocument()
+    expect(screen.getByText('Ann First')).toBeInTheDocument()
+  })
+
+  it('shows no notice when no submission is named', async () => {
+    render(<AdminReviewPage />)
+
+    expect(await screen.findByText('Ann First')).toBeInTheDocument()
+    expect(screen.queryByText(/no longer pending/)).toBeNull()
   })
 })
