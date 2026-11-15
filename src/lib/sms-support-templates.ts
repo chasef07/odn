@@ -113,6 +113,10 @@ export function csrQueuedSms(): string {
   return 'Thanks. A support ticket was created for admin review. We will follow up as soon as possible.'
 }
 
+export function thankYouReplySms(): string {
+  return "You're welcome. We are happy to help."
+}
+
 export function automationBlockedSms(reason: string): string {
   return `We could not safely automate that by text: ${reason}. Admin will review your ticket.`
 }

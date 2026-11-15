@@ -6,6 +6,7 @@ import {
   supportCategoryLabel,
   supportStatusClass,
   supportStatusLabel,
+  supportTicketPatientName,
 } from '@/lib/sms-support-types'
 
 const STATUS_FILTERS = [
@@ -66,9 +67,7 @@ export function SupportTicketQueue({
             <ul className="divide-y divide-gray-200 md:hidden">
               {tickets.map((ticket) => {
                 const latestMessage = ticket.messages[0]
-                const patientName = ticket.submission
-                  ? `${ticket.submission.patientFirstName} ${ticket.submission.patientLastName}`
-                  : ticket.phoneE164
+                const patientName = supportTicketPatientName(ticket) ?? ticket.phoneE164
 
                 return (
                   <li key={ticket.id} className="relative p-4">
@@ -126,9 +125,7 @@ export function SupportTicketQueue({
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {tickets.map((ticket) => {
                     const latestMessage = ticket.messages[0]
-                    const patientName = ticket.submission
-                      ? `${ticket.submission.patientFirstName} ${ticket.submission.patientLastName}`
-                      : ticket.phoneE164
+                    const patientName = supportTicketPatientName(ticket) ?? ticket.phoneE164
 
                     return (
                       <tr key={ticket.id} className="hover:bg-gray-50">

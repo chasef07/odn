@@ -81,6 +81,7 @@ vi.mock('@/lib/sms-support-jobs', () => ({
 }))
 
 import { handleInboundSupportSms, TicketMoved } from '../sms-support'
+import { csrQueuedSms, supportIntroMenuSms } from '../sms-support-templates'
 
 function supportTicket(overrides: Record<string, unknown> = {}) {
   return {
@@ -780,40 +781,209 @@ describe('handleInboundSupportSms', () => {
     expect(mockStartAutomation).not.toHaveBeenCalled()
   })
 
-  it('keeps already escalated admin tickets in the admin queue when customers ask for help', async () => {
-    const activeTicket = supportTicket({
-      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
-      state: SMS_SUPPORT_STATE.CSR_REVIEW,
-      category: SMS_SUPPORT_CATEGORY.REFUND,
-      adminSummary: 'Refund request needs admin review.',
-    })
-    const touchedTicket = supportTicket({
-      ...activeTicket,
-      lastInboundAt: new Date('2026-06-29T12:05:00Z'),
-    })
+  it.each([SMS_SUPPORT_STATUS.NEEDS_CSR, SMS_SUPPORT_STATUS.OPEN])(
+    'leaves a %s ticket under admin review and opens a new menu when the customer texts HELP',
+    async (status) => {
+      const escalatedTicket = supportTicket({
+        status,
+        state: SMS_SUPPORT_STATE.CSR_REVIEW,
+        category: SMS_SUPPORT_CATEGORY.REFUND,
+        adminSummary: 'Refund request needs admin review.',
+      })
+      const freshTicket = supportTicket({
+        id: 'ticket_456',
+        status: SMS_SUPPORT_STATUS.OPEN,
+        state: SMS_SUPPORT_STATE.INTRO_MENU,
+        category: null,
+      })
 
-    mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
-    mockRecordSupportTicketInbound.mockResolvedValueOnce(touchedTicket)
+      mockFindActiveSupportTicketForPhone.mockResolvedValue(escalatedTicket)
+      mockFindSmsSupportSubmissionCandidatesForPhone.mockResolvedValue([
+        { id: 'sub_123', status: 'APPROVED', smsMessages: [] },
+      ])
+      mockCreateInboundSupportTicket.mockResolvedValueOnce(freshTicket)
+      mockTransition.mockResolvedValueOnce(moved(supportTicket({ ...freshTicket })))
+
+      await handleInboundSupportSms({
+        fromPhone: '+15551234567',
+        body: 'HELP',
+        providerMessageId: 'msg_help',
+        receivedAt: new Date('2026-06-29T12:05:00Z'),
+      })
+
+      expect(mockRecordSupportTicketInbound).not.toHaveBeenCalled()
+      expect(mockCreateInboundSupportTicket).toHaveBeenCalledWith({
+        phoneE164: '+15551234567',
+        submissionId: 'sub_123',
+        lastInboundAt: new Date('2026-06-29T12:05:00Z'),
+      })
+      expect(mockLinkSmsMessageToSupportTicket).toHaveBeenCalledWith('msg_help', {
+        supportTicketId: 'ticket_456',
+        submissionId: 'sub_123',
+      })
+      expect(mockTransition).toHaveBeenCalledTimes(1)
+      expect(mockTransition).toHaveBeenCalledWith(
+        'prompt',
+        'ticket_456',
+        expect.objectContaining({
+          from: SMS_SUPPORT_STATUS.OPEN,
+          state: SMS_SUPPORT_STATE.INTRO_MENU,
+        })
+      )
+      expect(mockSendSupportSms).toHaveBeenCalledTimes(1)
+      expect(mockSendSupportSms).toHaveBeenCalledWith(
+        expect.objectContaining({ ticketId: 'ticket_456', body: supportIntroMenuSms() })
+      )
+    }
+  )
+
+  it('sends the ticket-created reply when the customer picks an option that opens a ticket', async () => {
+    const otherTicket = supportTicket()
+
+    mockFindActiveSupportTicketForPhone.mockResolvedValue(otherTicket)
+    mockRecordSupportTicketInbound.mockResolvedValueOnce(otherTicket)
+    mockTransition.mockResolvedValueOnce(
+      moved(
+        supportTicket({
+          status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+          state: SMS_SUPPORT_STATE.CSR_REVIEW,
+        })
+      )
+    )
 
     await handleInboundSupportSms({
       fromPhone: '+15551234567',
-      body: 'HELP',
+      body: 'I need a copy for my school too',
       receivedAt: new Date('2026-06-29T12:05:00Z'),
     })
 
-    expect(mockRecordSupportTicketInbound).toHaveBeenCalledTimes(1)
-    expect(mockTransition).not.toHaveBeenCalled()
+    expect(mockSendSupportSms).toHaveBeenCalledTimes(1)
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({ ticketId: 'ticket_123', body: csrQueuedSms() })
+    )
+  })
+
+  it.each([SMS_SUPPORT_STATUS.NEEDS_CSR, SMS_SUPPORT_STATUS.OPEN])(
+    'records a later text on a %s ticket for admin without resending the ticket-created reply',
+    async (status) => {
+      const reviewTicket = supportTicket({
+        status,
+        state: SMS_SUPPORT_STATE.CSR_REVIEW,
+        category: SMS_SUPPORT_CATEGORY.REFUND,
+      })
+
+      mockFindActiveSupportTicketForPhone.mockResolvedValue(reviewTicket)
+      mockRecordSupportTicketInbound.mockResolvedValueOnce(reviewTicket)
+      mockTransition.mockResolvedValueOnce(
+        moved(supportTicket({ ...reviewTicket, status: SMS_SUPPORT_STATUS.NEEDS_CSR }))
+      )
+
+      await handleInboundSupportSms({
+        fromPhone: '+15551234567',
+        body: 'Any update on this?',
+        receivedAt: new Date('2026-06-29T12:05:00Z'),
+      })
+
+      expect(mockTransition).toHaveBeenCalledWith(
+        'escalate',
+        'ticket_123',
+        expect.objectContaining({
+          from: status,
+          category: SMS_SUPPORT_CATEGORY.REFUND,
+          adminSummary: 'Customer message: Any update on this?',
+        })
+      )
+      expect(mockAlertSupportTicketNeedsCsr).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ticketId: 'ticket_123',
+          summary: 'Customer sent a freeform support message. Details are in the ticket.',
+        })
+      )
+      expect(mockSendSupportSms).not.toHaveBeenCalled()
+    }
+  )
+
+  it.each(['thanks', 'Thank you!', 'ty', 'thank u', 'THANK YOU SO MUCH', 'Thx 🙏', 'thankyou'])(
+    'answers %j with the welcome reply and opens no ticket when none is active',
+    async (body) => {
+      mockFindActiveSupportTicketForPhone.mockResolvedValue(null)
+
+      await handleInboundSupportSms({
+        fromPhone: '+15551234567',
+        body,
+        providerMessageId: 'msg_thanks',
+        receivedAt: new Date('2026-06-29T12:05:00Z'),
+      })
+
+      expect(mockCreateInboundSupportTicket).not.toHaveBeenCalled()
+      expect(mockTransition).not.toHaveBeenCalled()
+      expect(mockLinkSmsMessageToSupportTicket).not.toHaveBeenCalled()
+      expect(mockSendSupportSms).toHaveBeenCalledTimes(1)
+      expect(mockSendSupportSms).toHaveBeenCalledWith({
+        ticketId: undefined,
+        submissionId: undefined,
+        toPhone: '+15551234567',
+        type: 'SUPPORT_REPLY',
+        body: "You're welcome. We are happy to help.",
+      })
+    }
+  )
+
+  it('answers thanks on an active ticket in its history without moving the ticket', async () => {
+    const escalatedTicket = supportTicket({
+      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+      state: SMS_SUPPORT_STATE.CSR_REVIEW,
+    })
+    mockFindActiveSupportTicketForPhone.mockResolvedValue(escalatedTicket)
+    mockRecordSupportTicketInbound.mockResolvedValueOnce(escalatedTicket)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: 'Thank you',
+      providerMessageId: 'msg_thanks',
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockCreateInboundSupportTicket).not.toHaveBeenCalled()
     expect(mockRecordSupportTicketInbound).toHaveBeenCalledWith('ticket_123', {
       matchedSubmissionId: undefined,
       lastInboundAt: new Date('2026-06-29T12:05:00Z'),
     })
-    expect(mockSendSupportSms).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ticketId: 'ticket_123',
-        type: 'SUPPORT_CSR_ALERT',
-      })
-    )
+    expect(mockTransition).not.toHaveBeenCalled()
+    expect(mockAlertSupportTicketNeedsCsr).not.toHaveBeenCalled()
+    expect(mockLinkSmsMessageToSupportTicket).toHaveBeenCalledWith('msg_thanks', {
+      supportTicketId: 'ticket_123',
+      submissionId: 'sub_123',
+    })
+    expect(mockSendSupportSms).toHaveBeenCalledWith({
+      ticketId: 'ticket_123',
+      submissionId: 'sub_123',
+      toPhone: '+15551234567',
+      type: 'SUPPORT_REPLY',
+      body: "You're welcome. We are happy to help.",
+    })
   })
+
+  it.each(['thanks but I still need my note', 'thank you, can you change my DOB', 'they', '2'])(
+    'does not treat %j as a thank-you',
+    async (body) => {
+      mockFindActiveSupportTicketForPhone.mockResolvedValue(null)
+      mockCreateInboundSupportTicket.mockResolvedValueOnce(
+        supportTicket({ status: SMS_SUPPORT_STATUS.OPEN, state: SMS_SUPPORT_STATE.INTRO_MENU })
+      )
+
+      await handleInboundSupportSms({
+        fromPhone: '+15551234567',
+        body,
+        receivedAt: new Date('2026-06-29T12:05:00Z'),
+      })
+
+      expect(mockCreateInboundSupportTicket).toHaveBeenCalledTimes(1)
+      expect(mockSendSupportSms).not.toHaveBeenCalledWith(
+        expect.objectContaining({ body: "You're welcome. We are happy to help." })
+      )
+    }
+  )
 
   it('accepts copied Ref # prefixes when resolving ambiguous approved notes', async () => {
     const activeTicket = supportTicket({
@@ -1170,10 +1340,7 @@ describe('handleInboundSupportSms', () => {
     )
     expect(mockRecordSupportTicketInbound).toHaveBeenCalledTimes(2)
     expect(mockLinkSmsMessageToSupportTicket).toHaveBeenCalledTimes(2)
-    expect(mockSendSupportSms).toHaveBeenCalledTimes(1)
-    expect(mockSendSupportSms).toHaveBeenCalledWith(
-      expect.objectContaining({ ticketId: 'ticket_123', type: 'SUPPORT_CSR_ALERT' })
-    )
+    expect(mockSendSupportSms).not.toHaveBeenCalled()
     expect(mockAlertSupportTicketNeedsCsr).toHaveBeenCalledTimes(1)
   })
 

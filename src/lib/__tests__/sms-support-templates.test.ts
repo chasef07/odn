@@ -27,6 +27,7 @@ import {
   restrictionsConfirmSms,
   returnDateInfoSms,
   supportIntroMenuSms,
+  thankYouReplySms,
 } from '../sms-support-templates'
 import { SMS_SUPPORT_CATEGORY } from '../sms-support-types'
 
@@ -107,6 +108,7 @@ describe('sms support templates', () => {
       automationQueuedSms(),
       automationSuccessSms(SMS_SUPPORT_CATEGORY.CHANGE_DOB),
       csrQueuedSms(),
+      thankYouReplySms(),
       automationBlockedSms('admin review is required'),
       invalidDateSms(),
       invalidPurposeSms(),

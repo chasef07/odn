@@ -402,21 +402,32 @@ describe('inbound message lifecycle', () => {
 })
 
 describe('ticket creation and lookup', () => {
-  it('finds the most recently updated active ticket for the phone and skips closed ones', async () => {
-    const older = await seedTicket({ status: SMS_SUPPORT_STATUS.NEEDS_CSR })
-    const newer = await seedTicket({ status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER })
-    const closed = await seedTicket({ status: SMS_SUPPORT_STATUS.CLOSED })
-    await seedTicket({ phoneE164: OTHER_PHONE })
-    await touch(older.id, T0)
-    await touch(newer.id, T1)
-    await touch(closed.id, T2)
+  it('finds the active ticket last texted, then the newest, and skips closed ones', async () => {
+    await seedTicket({ status: SMS_SUPPORT_STATUS.OPEN, createdAt: T1, lastOutboundAt: T1 })
+    await seedTicket({ status: SMS_SUPPORT_STATUS.OPEN, createdAt: T3, lastOutboundAt: null })
+    const lastTexted = await seedTicket({
+      status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+      createdAt: T0,
+      lastOutboundAt: T2,
+    })
+    await seedTicket({ status: SMS_SUPPORT_STATUS.CLOSED, createdAt: T3, lastOutboundAt: T3 })
+    await seedTicket({ phoneE164: OTHER_PHONE, createdAt: T3, lastOutboundAt: T3 })
+    await touch(lastTexted.id, T0)
 
-    expect(await findActiveSupportTicketForPhone(PHONE)).toEqual(await readTicket(newer.id))
+    expect(await findActiveSupportTicketForPhone(PHONE)).toEqual(await readTicket(lastTexted.id))
     expect(await findActiveSupportTicketSummaryForPhone(PHONE)).toEqual({
-      id: newer.id,
+      id: lastTexted.id,
       status: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
       submissionId: null,
     })
+
+    const untextedPhone = '+15556666666'
+    await seedTicket({ phoneE164: untextedPhone, createdAt: T0 })
+    const newestUntexted = await seedTicket({ phoneE164: untextedPhone, createdAt: T1 })
+    expect((await findActiveSupportTicketForPhone(untextedPhone))?.id).toBe(newestUntexted.id)
+    expect((await findActiveSupportTicketSummaryForPhone(untextedPhone))?.id).toBe(
+      newestUntexted.id
+    )
     expect(await findActiveSupportTicketForPhone(UNKNOWN_PHONE)).toBeNull()
 
     const automatingPhone = '+15557777777'
@@ -653,11 +664,19 @@ describe('queue and detail reads', () => {
 
     const queue = await findActiveSupportTicketsForQueue()
 
+    const ada = { patientFirstName: 'Ada', patientLastName: 'Lovelace' }
     expect(queue).toEqual([
-      { ...(await readTicket(bare.id)), submission: null, messages: [], jobs: [] },
+      {
+        ...(await readTicket(bare.id)),
+        submission: null,
+        phonePatient: ada,
+        messages: [],
+        jobs: [],
+      },
       {
         ...(await readTicket(withSubmission.id)),
         submission: pick(submission, listSubmissionKeys),
+        phonePatient: null,
         messages: [pick(latestMessage, listMessageKeys)],
         jobs: [pick(latestJob, listJobKeys)],
       },
@@ -724,6 +743,7 @@ describe('queue and detail reads', () => {
         'approvalEmailSentAt',
         'updatedAt',
       ]),
+      phonePatient: null,
       messages: [earlier, later].map((message) =>
         pick(message, [
           'id',
@@ -764,9 +784,47 @@ describe('queue and detail reads', () => {
     expect(await findSupportTicketDetail(ticket.id)).toEqual({
       ...ticket,
       submission: null,
+      phonePatient: null,
       messages: [],
       jobs: [],
     })
     expect(await findSupportTicketDetail('missing')).toBeNull()
+  })
+
+  it('names an unlinked ticket from the newest submission whose SMS or contact phone matches', async () => {
+    const bySmsPhone = '+15550000001'
+    const byTenDigits = '+15550000002'
+    const byElevenDigits = '+15550000003'
+    const newest = '+15550000004'
+    const unmatched = '+15550000005'
+    await seedSubmission({
+      patientFirstName: 'Sms',
+      phone: '(555) 999-0001',
+      smsPhoneE164: bySmsPhone,
+    })
+    await seedSubmission({ patientFirstName: 'Ten', phone: '(555) 000-0002' })
+    await seedSubmission({ patientFirstName: 'Eleven', phone: '1-555-000-0003' })
+    await seedSubmission({ patientFirstName: 'Older', phone: '5550000004', createdAt: T0 })
+    await seedSubmission({ patientFirstName: 'Newer', phone: '555.000.0004', createdAt: T1 })
+    await seedSubmission({ patientFirstName: 'Long', phone: '+44 5550000005' })
+    const tickets = await Promise.all(
+      [bySmsPhone, byTenDigits, byElevenDigits, newest, unmatched].map((phoneE164) =>
+        seedTicket({ phoneE164 })
+      )
+    )
+
+    const queue = await findActiveSupportTicketsForQueue()
+    const nameOf = (phoneE164: string) =>
+      queue.find((ticket) => ticket.phoneE164 === phoneE164)?.phonePatient ?? null
+
+    expect(queue).toHaveLength(tickets.length)
+    expect(nameOf(bySmsPhone)).toEqual({ patientFirstName: 'Sms', patientLastName: 'Lovelace' })
+    expect(nameOf(byTenDigits)?.patientFirstName).toBe('Ten')
+    expect(nameOf(byElevenDigits)?.patientFirstName).toBe('Eleven')
+    expect(nameOf(newest)?.patientFirstName).toBe('Newer')
+    expect(nameOf(unmatched)).toBeNull()
+    expect((await findSupportTicketDetail(tickets[3].id))?.phonePatient?.patientFirstName).toBe(
+      'Newer'
+    )
   })
 })
