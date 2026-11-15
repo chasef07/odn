@@ -33,6 +33,7 @@ export function pendingSubmission(overrides: Partial<Submission>): Submission {
     lastDayOff: new Date('2026-11-14T00:00:00Z'),
     absenceReason: 'Feeling sick',
     otherAbsenceReason: null,
+    appointmentType: null,
     symptoms: ['Fever'],
     otherSymptomText: null,
     additionalInformation: null,
