@@ -80,7 +80,7 @@ add('guardian DOB missing', { ...someoneElse, guardianDateOfBirth: '' }, RULE)
 
 for (let start = -10; start <= 3; start++) {
   for (const length of [1, 7, 8]) {
-    const tooOld = start < -8
+    const tooOld = start < -7
     const tooLong = length > 7
     add(
       `absence starts ${start} days from today for ${length} days`,

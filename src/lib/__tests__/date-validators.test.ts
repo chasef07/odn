@@ -24,13 +24,9 @@ describe.each(PROCESS_TIME_ZONES)('validateAbsenceDates in a %s runtime', (zone)
     expect(rules('2025-01-16', '2025-01-16')).toEqual([])
   })
 
-  it('accepts a first day 7 days back, and 8 days back as US-zone grace', () => {
+  it('accepts a first day 7 days back and rejects 8 days back', () => {
     expect(rules('2025-01-08', '2025-01-08')).toEqual([])
-    expect(rules('2025-01-07', '2025-01-07')).toEqual([])
-  })
-
-  it('rejects a first day 9 days back', () => {
-    expect(validateAbsenceDates({ firstDayOff: '2025-01-06', lastDayOff: '2025-01-06' })).toEqual([
+    expect(validateAbsenceDates({ firstDayOff: '2025-01-07', lastDayOff: '2025-01-07' })).toEqual([
       {
         field: 'firstDayOff',
         message: 'First day off cannot be more than 7 days in the past',
@@ -39,11 +35,38 @@ describe.each(PROCESS_TIME_ZONES)('validateAbsenceDates in a %s runtime', (zone)
     ])
   })
 
-  it('moves the past-day window at UTC midnight, not at the runtime midnight', () => {
-    vi.setSystemTime(new Date('2025-01-15T23:59:00Z'))
-    expect(rules('2025-01-07', '2025-01-07')).toEqual([])
-    vi.setSystemTime(new Date('2025-01-16T00:00:00Z'))
-    expect(rules('2025-01-07', '2025-01-07')).toEqual(['absence_too_far_past'])
+  it('allows November 8 as the earliest first day on November 15, 2026', () => {
+    vi.setSystemTime(new Date('2026-11-15T15:00:00Z'))
+    expect(rules('2026-11-08', '2026-11-08')).toEqual([])
+    expect(rules('2026-11-07', '2026-11-07')).toEqual(['absence_too_far_past'])
+  })
+
+  it('counts back from the New York day, not the UTC day', () => {
+    vi.setSystemTime(new Date('2026-11-16T00:30:00Z'))
+    expect(rules('2026-11-08', '2026-11-08')).toEqual([])
+    expect(rules('2026-11-07', '2026-11-07')).toEqual(['absence_too_far_past'])
+  })
+
+  it('moves the past-day window at New York midnight in standard and daylight time', () => {
+    vi.setSystemTime(new Date('2026-11-16T04:59:00Z'))
+    expect(rules('2026-11-08', '2026-11-08')).toEqual([])
+    vi.setSystemTime(new Date('2026-11-16T05:00:00Z'))
+    expect(rules('2026-11-08', '2026-11-08')).toEqual(['absence_too_far_past'])
+    expect(rules('2026-11-09', '2026-11-09')).toEqual([])
+    vi.setSystemTime(new Date('2026-07-16T03:59:00Z'))
+    expect(rules('2026-07-08', '2026-07-08')).toEqual([])
+    vi.setSystemTime(new Date('2026-07-16T04:00:00Z'))
+    expect(rules('2026-07-08', '2026-07-08')).toEqual(['absence_too_far_past'])
+    expect(rules('2026-07-09', '2026-07-09')).toEqual([])
+  })
+
+  it('counts 7 calendar days back across both DST changes', () => {
+    vi.setSystemTime(new Date('2026-11-04T17:00:00Z'))
+    expect(rules('2026-10-28', '2026-10-28')).toEqual([])
+    expect(rules('2026-10-27', '2026-10-27')).toEqual(['absence_too_far_past'])
+    vi.setSystemTime(new Date('2026-03-11T16:00:00Z'))
+    expect(rules('2026-03-04', '2026-03-04')).toEqual([])
+    expect(rules('2026-03-03', '2026-03-03')).toEqual(['absence_too_far_past'])
   })
 
   it('rejects a reversed range and an 8-day or 15-day absence', () => {
