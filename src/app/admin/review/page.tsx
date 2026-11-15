@@ -18,6 +18,7 @@ import { CompletionScreen } from '@/components/admin/CompletionScreen'
 import { DenialReasonDialog } from '@/components/admin/DenialReasonDialog'
 import { MaybeReasonDialog } from '@/components/admin/MaybeReasonDialog'
 import { MonthlyLimitWarning } from '@/components/admin/MonthlyLimitWarning'
+import { PatientFlagPanel } from '@/components/admin/PatientFlagPanel'
 import { dateOnlyFromUtcDate, inclusiveDayCount, todayET } from '@/lib/dates'
 import { DATES_EXCEED_ALLOWED_RANGE_REASON } from '@/lib/maybe-reasons'
 import { ABSENCE_REASONS, NOTE_PURPOSES } from '@/lib/form-constants'
@@ -459,6 +460,12 @@ export default function AdminReviewPage() {
               newTotal={monthlyLimitData.newTotal}
             />
           )}
+
+          <PatientFlagPanel
+            key={currentSubmission.id}
+            submissionId={currentSubmission.id}
+            className="mx-auto w-full max-w-2xl"
+          />
 
           <SubmissionCard
             submission={currentSubmission}

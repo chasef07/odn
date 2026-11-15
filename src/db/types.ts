@@ -310,4 +310,14 @@ export type AgentThread = {
   updatedAt: Date
 }
 
+export type PatientFlag = {
+  id: string
+  patientFirstName: string
+  patientLastName: string
+  patientDateOfBirth: Date
+  reason: string | null
+  flaggedBy: string
+  flaggedAt: Date
+}
+
 export type AgentThreadSummary = Pick<AgentThread, 'id' | 'title' | 'updatedAt'>

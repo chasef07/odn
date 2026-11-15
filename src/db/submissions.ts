@@ -188,7 +188,7 @@ const contactKeys = [
   'status',
 ] as const
 
-function patientIdentityWhere({
+export function patientIdentityWhere({
   patientFirstName,
   patientLastName,
   patientDateOfBirth,

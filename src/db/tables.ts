@@ -7,6 +7,7 @@ import {
   type AgentThread,
   type FunnelStepRecord,
   type NoteVerification,
+  type PatientFlag,
   type ResendWebhookEvent,
   type Session,
   type SmsMessage,
@@ -270,6 +271,16 @@ export const agentThreads = defineTable<AgentThread>('agent_threads', {
   updatedAt: col('updated_at', 'timestamp'),
 })
 
+export const patientFlags = defineTable<PatientFlag>('patient_flags', {
+  id: uuid('id'),
+  patientFirstName: col('patient_first_name', 'text'),
+  patientLastName: col('patient_last_name', 'text'),
+  patientDateOfBirth: col('patient_date_of_birth', 'date'),
+  reason: nullable('reason', 'text'),
+  flaggedBy: col('flagged_by', 'text'),
+  flaggedAt: col('flagged_at', 'timestamp'),
+})
+
 export const tables = {
   users,
   accounts,
@@ -286,4 +297,5 @@ export const tables = {
   resendWebhookEvents,
   noteVerifications,
   agentThreads,
+  patientFlags,
 }

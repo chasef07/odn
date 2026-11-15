@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getSubmissionById } from '@/app/admin/_actions/search'
 import { SearchSubmissionDetail } from '@/components/admin/SearchSubmissionDetail'
 import { LogoutButton } from '@/components/admin/LogoutButton'
+import { PatientFlagPanel } from '@/components/admin/PatientFlagPanel'
 import { requireAdminSession } from '@/lib/admin-session'
 
 interface PageProps {
@@ -65,6 +66,8 @@ export default async function AdminSearchDetailPage({ params }: PageProps) {
             Submission ID: {result.submission.id.slice(0, 12)}...
           </p>
         </div>
+
+        <PatientFlagPanel submissionId={result.submission.id} className="mb-6" />
 
         <SearchSubmissionDetail submission={result.submission} />
       </main>

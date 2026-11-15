@@ -14,6 +14,11 @@ vi.mock('@/app/admin/_actions/edits', () => ({
   removeGuardianFromAdultSubmission: vi.fn(),
 }))
 vi.mock('@/app/admin/_actions/approve', () => ({ approveSubmission: vi.fn() }))
+vi.mock('@/app/admin/_actions/patient-flags', () => ({
+  getPatientFlag: vi.fn().mockResolvedValue({ success: true, flag: null }),
+  setPatientFlag: vi.fn(),
+  clearPatientFlag: vi.fn(),
+}))
 
 function day(value: string): DateOnly {
   const parsed = parseDateOnly(value)
