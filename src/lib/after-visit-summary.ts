@@ -1,5 +1,5 @@
 import type { PriorChart } from '@/db/submissions'
-import { SubmissionStatus, type JsonValue, type Submission } from '@/db/types'
+import { SubmissionStatus, type Submission } from '@/db/types'
 import {
   addDays,
   ageOn,
@@ -13,6 +13,7 @@ import {
   type DateOnly,
 } from '@/lib/dates'
 import { getStateLicense } from '@/lib/state-licenses'
+import { notePurposeAnswer, symptomAnswers } from '@/lib/intake-answers'
 
 export type AfterVisitSummaryInput = {
   submission: Submission
@@ -135,17 +136,6 @@ function reasonText(absenceReason: string, otherAbsenceReason: string | null): s
     : absenceReason
 }
 
-function symptomList(symptoms: JsonValue | null, otherSymptomText: string | null): string[] {
-  if (!Array.isArray(symptoms)) return []
-  return symptoms
-    .filter((symptom): symptom is string => typeof symptom === 'string')
-    .map((symptom) =>
-      symptom === 'Other' && otherSymptomText?.trim()
-        ? `Other: ${otherSymptomText.trim()}`
-        : symptom
-    )
-}
-
 function historyLine(chart: PriorChart, doctorName: string): string {
   const first = dateOnlyFromUtcDate(chart.firstDayOff)
   const last = dateOnlyFromUtcDate(chart.lastDayOff)
@@ -153,7 +143,7 @@ function historyLine(chart: PriorChart, doctorName: string): string {
   const outcome =
     HISTORY_STATUS_TEXT[chart.status] ??
     `${chart.status === SubmissionStatus.APPROVED ? 'approved' : 'denied'} by Dr. ${doctorName}`
-  const symptoms = symptomList(chart.symptoms, chart.otherSymptomText)
+  const symptoms = symptomAnswers(chart.symptoms, chart.otherSymptomText)
   const reason = reasonText(chart.absenceReason, chart.otherAbsenceReason)
   const dueTo = symptoms.length > 0 ? `${reason} (${symptoms.join(', ')})` : reason
   return `${day}: [${purposeText(chart.notePurpose, chart.otherNotePurpose)}] doctor note ${outcome} for ${dayCount(inclusiveDayCount(first, last))} (${formatDateOnlyRange(first, last)}), due to ${dueTo}.`
@@ -195,7 +185,7 @@ export function buildAfterVisitSummary({
   const workOrSchool = childWorkAndSchool ? 'work (parent/guardian) or school' : 'work or school'
   const absentFrom = childWorkAndSchool ? workOrSchool : purpose
 
-  const symptoms = symptomList(submission.symptoms, chosen.otherSymptomText ?? null)
+  const symptoms = symptomAnswers(submission.symptoms, chosen.otherSymptomText)
   const reason = chosen.appointmentType
     ? `${submission.absenceReason}: ${chosen.appointmentType}`
     : reasonText(submission.absenceReason, chosen.otherAbsenceReason ?? null)
@@ -212,9 +202,7 @@ export function buildAfterVisitSummary({
     reasonForRequest:
       submission.notePurpose !== 'other'
         ? `Absence from ${absentFrom}`
-        : chosen.otherNotePurpose
-          ? `Other: ${chosen.otherNotePurpose}`
-          : 'Other',
+        : notePurposeAnswer(submission.notePurpose, chosen.otherNotePurpose),
     requestedDates: `${offDates}. Return date: ${numeric(addDays(last, 1))}`,
     symptoms: symptoms.length > 0 ? `${reason}; symptoms: ${symptoms.join(', ')}` : reason,
     redFlags: rollingLimit.exceeded

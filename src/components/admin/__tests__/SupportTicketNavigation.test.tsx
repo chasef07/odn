@@ -48,6 +48,28 @@ describe('SMS support navigation', () => {
     render(<SupportTicketDetail ticket={{ ...supportTicket, phonePatient }} />)
     expect(screen.getByText('Ada Lovelace (by phone, not linked)')).toBeInTheDocument()
   })
+
+  it('shows the text the patient wrote for an Other purpose on the linked submission', () => {
+    const submission = {
+      id: 'sub-1',
+      patientFirstName: 'Ada',
+      patientLastName: 'Lovelace',
+      patientDateOfBirth: new Date('1990-11-01T00:00:00Z'),
+      email: 'ada@example.com',
+      phone: '(555) 123-4567',
+      status: 'APPROVED',
+      notePurpose: 'other',
+      otherNotePurpose: 'Volunteering',
+      firstDayOff: new Date('2026-08-10T00:00:00Z'),
+      lastDayOff: new Date('2026-08-11T00:00:00Z'),
+      approvalEmailSentAt: null,
+      updatedAt: new Date('2026-08-12T12:00:00Z'),
+    } satisfies SupportTicketDetailType['submission']
+
+    render(<SupportTicketDetail ticket={{ ...supportTicket, submissionId: 'sub-1', submission }} />)
+
+    expect(screen.getByText('Purpose: Other: Volunteering')).toBeInTheDocument()
+  })
 })
 
 const supportTicket: SupportTicketDetailType = {

@@ -50,6 +50,7 @@ import { smsStatusLabel } from '@/lib/sms-status'
 import { SubmissionStatus, type DenialChoice } from '@/db/types'
 import { DATE_LIMITS } from '@/lib/validation-constants'
 import { formatDenialReason } from '@/lib/admin-utils'
+import { absenceReasonAnswer, notePurposeAnswer, symptomAnswers } from '@/lib/intake-answers'
 
 interface SearchSubmissionDetailProps {
   submission: FormattedSubmission
@@ -769,8 +770,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
                 </Select>
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
-                  {NOTE_PURPOSES[notePurpose as keyof typeof NOTE_PURPOSES]?.label || notePurpose}
-                  {otherNotePurpose && ` - ${otherNotePurpose}`}
+                  {notePurposeAnswer(notePurpose, otherNotePurpose)}
                 </p>
               )}
             </div>
@@ -878,8 +878,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               </Select>
             ) : (
               <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
-                {absenceReason}
-                {otherAbsenceReason && ` - ${otherAbsenceReason}`}
+                {absenceReasonAnswer(absenceReason, otherAbsenceReason)}
               </p>
             )}
           </div>
@@ -923,8 +922,9 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               />
             ) : (
               <p className="rounded-md bg-gray-50 px-3 py-2 text-sm">
-                {symptoms.length > 0 ? symptoms.join(', ') : 'None specified'}
-                {otherSymptomText && ` (Other: ${otherSymptomText})`}
+                {symptoms.length > 0
+                  ? symptomAnswers(symptoms, otherSymptomText).join(', ')
+                  : 'None specified'}
               </p>
             )}
           </div>

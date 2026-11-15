@@ -25,6 +25,7 @@ import {
   todayUTC,
 } from '@/lib/dates'
 import { DATE_LIMITS } from '@/lib/validation-constants'
+import { absenceReasonAnswer, notePurposeAnswer, symptomAnswers } from '@/lib/intake-answers'
 
 interface SubmissionCardProps {
   submission: Submission
@@ -87,11 +88,7 @@ export function SubmissionCard({
   const dayCount = inclusiveDayCount(firstDayOff, lastDayOff)
   const hasGuardian = submission.recipient === 'someone_else'
 
-  const symptoms = submission.symptoms
-    ? Array.isArray(submission.symptoms)
-      ? submission.symptoms
-      : []
-    : []
+  const symptoms = symptomAnswers(submission.symptoms, submission.otherSymptomText)
   const canEditClassification =
     notePurposeOptions &&
     absenceReasonOptions &&
@@ -199,12 +196,7 @@ export function SubmissionCard({
           <div className="space-y-1 text-sm break-words sm:text-xs">
             <div>
               <span className="text-muted-foreground">Purpose: </span>
-              <span>
-                {submission.notePurpose}
-                {submission.notePurpose === 'other' && submission.otherNotePurpose && (
-                  <span> - {submission.otherNotePurpose}</span>
-                )}
-              </span>
+              <span>{notePurposeAnswer(submission.notePurpose, submission.otherNotePurpose)}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Dates: </span>
@@ -215,10 +207,7 @@ export function SubmissionCard({
             <div>
               <span className="text-muted-foreground">Reason: </span>
               <span>
-                {submission.absenceReason}
-                {submission.absenceReason === 'Other' && submission.otherAbsenceReason && (
-                  <span> - {submission.otherAbsenceReason}</span>
-                )}
+                {absenceReasonAnswer(submission.absenceReason, submission.otherAbsenceReason)}
               </span>
             </div>
             {submission.absenceReason === "Doctor's appointment" && submission.appointmentType && (
