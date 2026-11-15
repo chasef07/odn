@@ -1,3 +1,4 @@
+import { oauthPopup } from 'better-auth/plugins'
 import { isAllowlistedAdmin } from '@/lib/admin-allowlist'
 import { env } from '@/lib/env'
 import { createAuth } from '@/db/auth'
@@ -30,6 +31,8 @@ function configureAuth() {
         maxAge: 5 * 60,
       },
     },
+
+    plugins: [oauthPopup()],
 
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,

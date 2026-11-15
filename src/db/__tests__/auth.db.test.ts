@@ -29,12 +29,31 @@ function cookiesFrom(response: Response): string {
     .join('; ')
 }
 
-async function signInWithGoogle(claims: Record<string, unknown>): Promise<Response> {
+async function redirectStart(): Promise<{ start: Response; authorization: URL }> {
   const start = await auth.api.signInSocial({
     body: { provider: 'google', callbackURL: '/admin', errorCallbackURL: '/admin/login' },
     asResponse: true,
   })
-  const authorization = new URL(((await start.json()) as { url: string }).url)
+  return { start, authorization: new URL(((await start.json()) as { url: string }).url) }
+}
+
+async function popupStart(): Promise<{ start: Response; authorization: URL }> {
+  const url = new URL(`${env.BETTER_AUTH_URL}/api/auth/oauth-popup/start`)
+  url.searchParams.set('provider', 'google')
+  url.searchParams.set('popupOrigin', new URL(env.BETTER_AUTH_URL).origin)
+  url.searchParams.set('popupNonce', 'popup-nonce')
+  url.searchParams.set('callbackURL', '/admin')
+  url.searchParams.set('errorCallbackURL', '/admin/login')
+  const start = await auth.handler(new Request(url))
+  expect(start.status).toBe(302)
+  return { start, authorization: new URL(start.headers.get('location') ?? '') }
+}
+
+async function signInWithGoogle(
+  claims: Record<string, unknown>,
+  begin: () => Promise<{ start: Response; authorization: URL }> = redirectStart
+): Promise<Response> {
+  const { start, authorization } = await begin()
   const passThrough = globalThis.fetch
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input)
@@ -207,6 +226,95 @@ describe('better-auth on the pg pool', () => {
     expect(row).toEqual({ name: 'Dr Renamed', image })
     const session = await auth.api.getSession({ headers, query: { disableCookieCache: true } })
     expect(session?.user).toMatchObject({ name: 'Dr Renamed', image })
+  })
+})
+
+describe('Google sign-in in a popup', () => {
+  function popupMessage(html: string): Record<string, unknown> {
+    const json =
+      /<script type="application\/json" id="better-auth-oauth-popup">([^<]*)<\/script>/.exec(
+        html
+      )?.[1]
+    return JSON.parse(json ?? 'null') as Record<string, unknown>
+  }
+
+  it('hands the opener the session of an allowlisted doctor', async () => {
+    const response = await signInWithGoogle(doctor, popupStart)
+
+    expect(response.status).toBe(200)
+    const message = popupMessage(await response.text())
+    expect(message).toMatchObject({
+      type: 'better-auth:oauth-popup',
+      nonce: 'popup-nonce',
+      targetOrigin: new URL(env.BETTER_AUTH_URL).origin,
+      redirectTo: '/admin',
+    })
+    const headers = new Headers({ cookie: cookiesFrom(response) })
+    expect(await findAdminSession(headers)).toMatchObject({ email })
+  })
+
+  it('tells the opener a Google account off ADMIN_EMAILS is not an admin, and makes no session', async () => {
+    const response = await signInWithGoogle(
+      { sub: 'google-sub-stranger', email: 'stranger@example.test', email_verified: true },
+      popupStart
+    )
+
+    const message = popupMessage(await response.text())
+    expect(message).toMatchObject({ nonce: 'popup-nonce', error: { code: 'not_an_admin' } })
+    expect(message.token).toBeUndefined()
+    expect(await sessionCount()).toBe(0)
+  })
+
+  it('refuses to start a popup for an origin that is not the site', async () => {
+    const url = new URL(`${env.BETTER_AUTH_URL}/api/auth/oauth-popup/start`)
+    url.searchParams.set('provider', 'google')
+    url.searchParams.set('popupOrigin', 'https://attacker.example')
+
+    const response = await auth.handler(new Request(url))
+
+    expect(response.status).toBe(403)
+  })
+})
+
+describe('the admin session slides through the auth route', () => {
+  const day = 24 * 60 * 60 * 1000
+
+  function sessionTokenOnly(cookie: string): Headers {
+    return new Headers({
+      cookie: cookie
+        .split('; ')
+        .filter((pair) => pair.includes('session_token='))
+        .join('; '),
+    })
+  }
+
+  async function storedExpiry(): Promise<number> {
+    const row = await db.one(sql`SELECT ${select(sessions, ['expiresAt'])} FROM sessions`)
+    return row!.expiresAt.getTime()
+  }
+
+  async function ageSessionByTwoDays(): Promise<void> {
+    await getPool().query("UPDATE sessions SET expires_at = expires_at - interval '2 days'")
+  }
+
+  it('leaves the session alone when an admin page reads it, so the route can renew the cookie', async () => {
+    const headers = sessionTokenOnly(await signInCookie())
+    await ageSessionByTwoDays()
+    const aged = await storedExpiry()
+
+    expect(await findAdminSession(headers)).not.toBeNull()
+    expect(await storedExpiry()).toBe(aged)
+
+    const refresh = await auth.handler(
+      new Request(`${env.BETTER_AUTH_URL}/api/auth/get-session`, { headers })
+    )
+
+    expect(refresh.status).toBe(200)
+    const renewed = refresh.headers
+      .getSetCookie()
+      .find((cookie) => cookie.includes('session_token='))
+    expect(renewed).toContain('Max-Age=2592000')
+    expect(await storedExpiry()).toBeGreaterThan(Date.now() + 29 * day)
   })
 })
 

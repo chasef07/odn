@@ -1,20 +1,18 @@
+import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { GoogleSignInButton } from '@/components/admin/GoogleSignInButton'
+import { signInErrorMessage } from '@/components/admin/sign-in-error'
+import { findAdminSession } from '@/lib/admin-session'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 type PageProps = {
   searchParams: Promise<{ error?: string }>
 }
 
-function signInError(code: string | undefined): string | null {
-  if (!code) return null
-  if (code === 'not_an_admin') {
-    return 'This Google account is not allowed to use the admin portal. Sign in with the account your administrator added.'
-  }
-  return 'Google sign-in did not finish. Please try again.'
-}
-
 export default async function AdminLoginPage({ searchParams }: PageProps) {
-  const error = signInError((await searchParams).error)
+  if (await findAdminSession(await headers())) redirect('/admin')
+  const { error: code } = await searchParams
+  const error = code ? signInErrorMessage(code) : null
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-gray-50 px-4 py-12">
