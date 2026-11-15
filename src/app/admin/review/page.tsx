@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,7 @@ import { updateReviewClassification } from '@/app/admin/_actions/edits'
 
 export default function AdminReviewPage() {
   const router = useRouter()
+  const openId = useSearchParams().get('id')
 
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -110,7 +111,12 @@ export default function AdminReviewPage() {
       const result = await getSubmissionsForReview()
 
       if (result.success && result.data) {
-        setSubmissions(result.data)
+        const opened = result.data.find((submission) => submission.id === openId)
+        setSubmissions(
+          opened
+            ? [opened, ...result.data.filter((submission) => submission !== opened)]
+            : result.data
+        )
       } else {
         setError(result.error || 'Failed to load submissions')
       }
@@ -119,7 +125,7 @@ export default function AdminReviewPage() {
     }
 
     fetchSubmissions()
-  }, [])
+  }, [openId])
 
   useEffect(() => {
     async function fetchMonthlyData() {
