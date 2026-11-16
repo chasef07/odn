@@ -238,6 +238,7 @@ To run part of the tests, use `npm run test:unit` for the tests that need no dat
 | Auth and crons | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the app's own origin), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAILS` (comma-separated doctor emails), `CRON_SECRET`                                               |
 | Note content   | `DOCTOR_NAME`, `DOCTOR_CREDENTIALS`, `DOCTOR_SIGNATURE_URL`, `DOCTOR_NPI` (has a built-in default), `VERIFICATION_BASE_URL` (the host in QR codes and verification links)                                               |
 | Intake         | `INTAKE_VALIDATION_ENFORCED`, `false` when unset                                                                                                                                                                        |
+| Data agent     | `ANALYTICS_DATABASE_URL` and `TELNYX_INFERENCE_API_KEY` turn it on. `GOOGLE_ADS_CUSTOMER_ID` (10 digits) and `GOOGLE_ADS_QUOTA_PROJECT`, set together, add the read-only Google Ads tool.                               |
 | Public         | `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. These two are the only ones `next build` needs.                                                                                                           |
 
 Generate `CRON_SECRET` with `openssl rand -hex 32` and `BETTER_AUTH_SECRET` with `openssl rand -base64 32`.

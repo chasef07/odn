@@ -22,7 +22,8 @@ describe('buildSystemPrompt', () => {
           ],
         },
       ],
-      TODAY
+      TODAY,
+      null
     )
 
     expect(prompt).toContain('Today is 2026-10-20 in America/New_York.')
@@ -32,5 +33,19 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain(
       '### submissions\nOne row per paid order.\n- payment_amount_cents (integer): Amount in cents.\n- state (text)'
     )
+    expect(prompt).not.toContain('Google Ads')
+  })
+
+  it('teaches Google Ads queries for the configured account only when Google Ads is on', () => {
+    const prompt = buildSystemPrompt([], TODAY, {
+      customerId: '7678754198',
+      quotaProject: 'acuity-ads-api',
+    })
+
+    expect(prompt).toContain('## Google Ads')
+    expect(prompt).toContain('account 7678754198')
+    expect(prompt).toContain('divide micros by 1,000,000')
+    expect(prompt).toContain('segments.date during LAST_30_DAYS')
+    expect(prompt).not.toContain('acuity-ads-api')
   })
 })
