@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.0](https://github.com/chasef07/odn/compare/v6.5.1...v6.6.0) (2026-11-16)
+
+
+### Features
+
+* **agent:** let the data agent query Google Ads ([#73](https://github.com/chasef07/odn/issues/73)) ([ca2f9d9](https://github.com/chasef07/odn/commit/ca2f9d90f18a997339f3b45d38ff3c4d890cfb50))
+
 ## [6.5.1](https://github.com/chasef07/odn/compare/v6.5.0...v6.5.1) (2026-11-15)
 
 
