@@ -49,6 +49,7 @@ vi.mock('@/db/sms-support', () => ({
   findActiveSupportTicketsForQueue: vi.fn(),
   findClosedSupportTicketsForQueue: vi.fn(),
   findSupportTicketDetail: vi.fn(),
+  findOtherSupportTicketsForPhone: vi.fn(),
   findSupportTicketsWithStatus: vi.fn(),
 }))
 

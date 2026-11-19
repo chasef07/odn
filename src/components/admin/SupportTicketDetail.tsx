@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, CheckCircle, RotateCcw, Search, Send } from 'lucide-react'
@@ -12,7 +12,10 @@ import {
   retrySupportTicketAutomation,
   sendSupportTicketReply,
 } from '@/app/admin/support/_actions/ticket-updates'
-import { type SupportTicketDetail as SupportTicketDetailType } from '@/db/sms-support'
+import {
+  type SupportTicketDetail as SupportTicketDetailType,
+  type SupportTicketHistoryItem,
+} from '@/db/sms-support'
 import {
   supportCategoryLabel,
   supportStatusClass,
@@ -22,7 +25,13 @@ import {
 import { dateOnlyFromUtcDate, formatInstantET, instantOf } from '@/lib/dates'
 import { notePurposeAnswer } from '@/lib/intake-answers'
 
-export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailType }) {
+export function SupportTicketDetail({
+  ticket,
+  history,
+}: {
+  ticket: SupportTicketDetailType
+  history: SupportTicketHistoryItem[]
+}) {
   const router = useRouter()
   const [replyBody, setReplyBody] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -161,36 +170,56 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
                 <p className="text-sm text-gray-500">No SMS messages are linked yet.</p>
               ) : (
                 ticket.messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`rounded-lg border p-3 ${
-                      message.direction === 'inbound'
-                        ? 'border-gray-200 bg-gray-50'
-                        : 'border-blue-100 bg-blue-50'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
-                      <span className="font-medium uppercase">{message.direction}</span>
-                      <span>
-                        {formatInstantET(
-                          instantOf(message.receivedAt || message.sentAt || message.createdAt)
-                        )}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm break-words whitespace-pre-wrap text-gray-800">
-                      {message.body}
-                    </p>
+                  <MessageBubble key={message.id} message={message}>
                     {(message.providerStatus || message.errorMessage) && (
                       <p className="mt-2 text-xs break-words text-gray-500">
                         {message.providerStatus || 'unknown'}
                         {message.errorMessage ? `: ${message.errorMessage}` : ''}
                       </p>
                     )}
-                  </div>
+                  </MessageBubble>
                 ))
               )}
             </div>
           </div>
+
+          {history.length > 0 && (
+            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+              <h2 className="text-lg font-semibold text-gray-900">Other Conversations</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Earlier and later tickets from this number.
+              </p>
+              <div className="mt-4 space-y-5">
+                {history.map((other) => (
+                  <div key={other.id} className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <Link
+                        href={`/admin/support/${other.id}`}
+                        className="font-medium text-blue-700 hover:underline"
+                      >
+                        {supportCategoryLabel(other.category)}
+                      </Link>
+                      <span className={supportStatusClass(other.status)}>
+                        {supportStatusLabel(other.status)}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {formatInstantET(instantOf(other.createdAt))}
+                      </span>
+                    </div>
+                    {other.messages.length === 0 ? (
+                      <p className="text-sm text-gray-500">
+                        {other.adminSummary || 'No SMS messages are linked.'}
+                      </p>
+                    ) : (
+                      other.messages.map((message) => (
+                        <MessageBubble key={message.id} message={message} />
+                      ))
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-semibold text-gray-900">Reply By SMS</h2>
@@ -278,6 +307,33 @@ export function SupportTicketDetail({ ticket }: { ticket: SupportTicketDetailTyp
           </div>
         </aside>
       </div>
+    </div>
+  )
+}
+
+function MessageBubble({
+  message,
+  children,
+}: {
+  message: SupportTicketHistoryItem['messages'][number]
+  children?: ReactNode
+}) {
+  return (
+    <div
+      className={`rounded-lg border p-3 ${
+        message.direction === 'inbound'
+          ? 'border-gray-200 bg-gray-50'
+          : 'border-blue-100 bg-blue-50'
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+        <span className="font-medium uppercase">{message.direction}</span>
+        <span>
+          {formatInstantET(instantOf(message.receivedAt || message.sentAt || message.createdAt))}
+        </span>
+      </div>
+      <p className="mt-2 text-sm break-words whitespace-pre-wrap text-gray-800">{message.body}</p>
+      {children}
     </div>
   )
 }

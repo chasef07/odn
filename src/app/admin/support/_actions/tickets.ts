@@ -8,6 +8,7 @@ import {
   findActiveSupportTicketsForQueue,
   findActiveSupportTicketSummaryForPhone,
   findClosedSupportTicketsForQueue,
+  findOtherSupportTicketsForPhone,
   findSmsPhoneOptOut,
   findSupportTicketDetail,
   findSupportTicketsWithStatus,
@@ -25,8 +26,9 @@ export const getSupportTickets = adminAction(async (_admin, status?: string) => 
 
 export const getSupportTicket = adminAction(async (_admin, ticketId: string) => {
   const ticket = await findSupportTicketDetail(ticketId)
+  const history = ticket ? await findOtherSupportTicketsForPhone(ticket.phoneE164, ticket.id) : []
 
-  return { success: true, ticket }
+  return { success: true, ticket, history }
 })
 
 export const createSupportTicketFromSubmission = adminAction(

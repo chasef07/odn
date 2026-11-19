@@ -50,7 +50,7 @@ export default async function AdminSupportDetailPage({ params }: PageProps) {
           </Link>
         </div>
 
-        <SupportTicketDetail ticket={result.ticket} />
+        <SupportTicketDetail ticket={result.ticket} history={result.history} />
       </main>
     </div>
   )

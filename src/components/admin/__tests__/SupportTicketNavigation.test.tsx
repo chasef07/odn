@@ -27,7 +27,7 @@ describe('SMS support navigation', () => {
   })
 
   it('links a ticket to phone-prefilled submission search beside Needs Admin', () => {
-    render(<SupportTicketDetail ticket={supportTicket} />)
+    render(<SupportTicketDetail ticket={supportTicket} history={[]} />)
 
     const searchLink = screen.getByRole('link', { name: 'Search All Submissions' })
     const needsAdminButton = screen.getByRole('button', { name: 'Needs Admin' })
@@ -42,11 +42,72 @@ describe('SMS support navigation', () => {
       <SupportTicketQueue tickets={[{ ...supportTicket, phonePatient }]} />
     )
 
-    expect(screen.getAllByText('Ada Lovelace (by phone, not linked)')).not.toHaveLength(0)
+    expect(screen.getAllByText('Ada Lovelace (matched by phone)')).not.toHaveLength(0)
     unmount()
 
-    render(<SupportTicketDetail ticket={{ ...supportTicket, phonePatient }} />)
-    expect(screen.getByText('Ada Lovelace (by phone, not linked)')).toBeInTheDocument()
+    render(<SupportTicketDetail ticket={{ ...supportTicket, phonePatient }} history={[]} />)
+    expect(screen.getByText('Ada Lovelace (matched by phone)')).toBeInTheDocument()
+  })
+
+  it('shows one queue row per phone, linking to its first ticket', () => {
+    render(
+      <SupportTicketQueue
+        tickets={[
+          { ...supportTicket, id: 'ticket_new', adminSummary: 'newest' },
+          { ...supportTicket, id: 'ticket_old', adminSummary: 'older' },
+          {
+            ...supportTicket,
+            id: 'ticket_other',
+            phoneE164: '+15550000000',
+            adminSummary: 'other',
+          },
+        ]}
+      />
+    )
+
+    const hrefs = screen
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href'))
+      .filter((href) => href?.startsWith('/admin/support/'))
+    expect(new Set(hrefs)).toEqual(
+      new Set(['/admin/support/ticket_new', '/admin/support/ticket_other'])
+    )
+    expect(screen.queryByText('older')).not.toBeInTheDocument()
+  })
+
+  it('shows the other conversations from the same phone with links to them', () => {
+    render(
+      <SupportTicketDetail
+        ticket={supportTicket}
+        history={[
+          {
+            id: 'ticket_old',
+            status: 'CLOSED',
+            category: 'NOTE_NOT_RECEIVED',
+            adminSummary: null,
+            createdAt: new Date('2026-08-10T12:00:00Z'),
+            closedAt: new Date('2026-08-10T13:00:00Z'),
+            messages: [
+              {
+                id: 'm1',
+                direction: 'inbound',
+                body: 'I never got my note',
+                createdAt: new Date('2026-08-10T12:00:00Z'),
+                receivedAt: null,
+                sentAt: null,
+              },
+            ],
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByRole('heading', { name: 'Other Conversations' })).toBeInTheDocument()
+    expect(screen.getByText('I never got my note')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Note Not Received/ })).toHaveAttribute(
+      'href',
+      '/admin/support/ticket_old'
+    )
   })
 
   it('shows the text the patient wrote for an Other purpose on the linked submission', () => {
@@ -66,7 +127,12 @@ describe('SMS support navigation', () => {
       updatedAt: new Date('2026-08-12T12:00:00Z'),
     } satisfies SupportTicketDetailType['submission']
 
-    render(<SupportTicketDetail ticket={{ ...supportTicket, submissionId: 'sub-1', submission }} />)
+    render(
+      <SupportTicketDetail
+        ticket={{ ...supportTicket, submissionId: 'sub-1', submission }}
+        history={[]}
+      />
+    )
 
     expect(screen.getByText('Purpose: Other: Volunteering')).toBeInTheDocument()
   })

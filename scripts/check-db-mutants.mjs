@@ -35,6 +35,13 @@ const EQUIVALENT = [
   },
   {
     module: 'sms-support',
+    function: 'findOtherSupportTicketsForPhone',
+    mutation: 'drop WHERE: support_ticket_id = ANY(${array(tickets.map((ticket) => ticket.id))})',
+    reason:
+      'Messages are grouped by ticket and read back only for the listed ids, so rows of other tickets are fetched and never returned.',
+  },
+  {
+    module: 'sms-support',
     function: 'findActiveSupportAutomationJob',
     mutation: 'flip ORDER BY: created_at DESC',
     reason: ONE_ACTIVE_JOB,

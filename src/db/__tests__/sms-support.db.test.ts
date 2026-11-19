@@ -22,6 +22,7 @@ import {
   findActiveSupportTicketSummaryForPhone,
   findClosedSupportTicketsForQueue,
   findLatestSupportAutomationJob,
+  findOtherSupportTicketsForPhone,
   findRunnableQueuedSupportJob,
   findSmsMessageSupportHandledAt,
   findSmsPhoneConsentState,
@@ -826,5 +827,49 @@ describe('queue and detail reads', () => {
     expect((await findSupportTicketDetail(tickets[3].id))?.phonePatient?.patientFirstName).toBe(
       'Newer'
     )
+  })
+})
+
+describe('phone history', () => {
+  it('lists the other tickets of the same phone newest first with their messages oldest first', async () => {
+    const oldest = await seedTicket({ status: SMS_SUPPORT_STATUS.CLOSED, createdAt: T0 })
+    const middle = await seedTicket({ status: SMS_SUPPORT_STATUS.CLOSED, createdAt: T1 })
+    const current = await seedTicket({ createdAt: T2 })
+    const otherPhone = await seedTicket({ phoneE164: OTHER_PHONE, createdAt: T3 })
+    const later = await seedMessage({ supportTicketId: oldest.id, body: 'later', createdAt: T1 })
+    const earlier = await seedMessage({
+      supportTicketId: oldest.id,
+      body: 'earlier',
+      createdAt: T0,
+    })
+    await seedMessage({ supportTicketId: current.id, body: 'current', createdAt: T2 })
+    const elsewhere = await seedMessage({
+      supportTicketId: otherPhone.id,
+      body: 'elsewhere',
+      createdAt: T3,
+    })
+    const messageKeys = ['id', 'direction', 'body', 'createdAt', 'receivedAt', 'sentAt'] as const
+    const ticketKeys = [
+      'id',
+      'status',
+      'category',
+      'adminSummary',
+      'createdAt',
+      'closedAt',
+    ] as const
+
+    const history = await findOtherSupportTicketsForPhone(PHONE, current.id)
+
+    expect(history).toEqual([
+      { ...pick(middle, ticketKeys), messages: [] },
+      {
+        ...pick(oldest, ticketKeys),
+        messages: [earlier, later].map((message) => pick(message, messageKeys)),
+      },
+    ])
+    expect(await findOtherSupportTicketsForPhone(OTHER_PHONE, current.id)).toEqual([
+      { ...pick(otherPhone, ticketKeys), messages: [pick(elsewhere, messageKeys)] },
+    ])
+    expect(await findOtherSupportTicketsForPhone(UNKNOWN_PHONE, current.id)).toEqual([])
   })
 })

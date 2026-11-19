@@ -119,6 +119,24 @@ export type SupportTicketDetail = SmsSupportTicket & {
   jobs: Pick<SmsSupportJob, (typeof detailJobKeys)[number]>[]
 }
 
+const historyTicketKeys = [
+  'id',
+  'status',
+  'category',
+  'adminSummary',
+  'createdAt',
+  'closedAt',
+] as const
+
+const historyMessageKeys = ['id', 'direction', 'body', 'createdAt', 'receivedAt', 'sentAt'] as const
+
+export type SupportTicketHistoryItem = Pick<
+  SmsSupportTicket,
+  (typeof historyTicketKeys)[number]
+> & {
+  messages: Pick<SmsMessage, (typeof historyMessageKeys)[number]>[]
+}
+
 export type SmsSupportJobWithTicket = SmsSupportJob & { ticket: SmsSupportTicket }
 
 const JOINED = 'joined'
@@ -452,6 +470,20 @@ export async function findSupportTicketDetail(
     messages,
     jobs,
   }
+}
+
+export async function findOtherSupportTicketsForPhone(
+  phoneE164: string,
+  ticketId: string
+): Promise<SupportTicketHistoryItem[]> {
+  const tickets = await db.rows(
+    sql`SELECT ${select(smsSupportTickets, historyTicketKeys)} FROM sms_support_tickets WHERE phone_e164 = ${phoneE164} AND id <> ${ticketId} ORDER BY created_at DESC`
+  )
+  const messages = await db.rows(
+    sql`SELECT ${select(smsMessages, ['supportTicketId', ...historyMessageKeys])} FROM sms_messages WHERE support_ticket_id = ANY(${array(tickets.map((ticket) => ticket.id))}) ORDER BY created_at ASC`
+  )
+  const messagesByTicket = groupBy(messages, 'supportTicketId')
+  return tickets.map((ticket) => ({ ...ticket, messages: messagesByTicket.get(ticket.id) ?? [] }))
 }
 
 export async function findSupportTicketLastOutboundAt(
