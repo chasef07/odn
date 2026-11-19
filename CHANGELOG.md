@@ -1,5 +1,14 @@
 # Changelog
 
+## [6.7.0](https://github.com/chasef07/odn/compare/v6.6.0...v6.7.0) (2026-11-19)
+
+
+### Features
+
+* **admin:** group SMS support queue by phone and show a number's other conversations ([#94](https://github.com/chasef07/odn/issues/94)) ([b90bb61](https://github.com/chasef07/odn/commit/b90bb61360dbbefed4a26e102d9201efb1244d2d))
+* **intake:** ask which body part is affected for an accident or injury ([#96](https://github.com/chasef07/odn/issues/96)) ([f5075ee](https://github.com/chasef07/odn/commit/f5075ee935749056cbe3b9c1bc6f200ac13c1541))
+* **sms-support:** send an overnight offline notice with an admin toggle ([#95](https://github.com/chasef07/odn/issues/95)) ([8b36fba](https://github.com/chasef07/odn/commit/8b36fbac40820b37ddfdd69abad4354ffdc6f858))
+
 ## [6.6.0](https://github.com/chasef07/odn/compare/v6.5.1...v6.6.0) (2026-11-16)
 
 
