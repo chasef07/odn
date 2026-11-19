@@ -11,6 +11,8 @@ import {
   type ResendWebhookEvent,
   type Session,
   type SmsMessage,
+  type SmsOfflineNotice,
+  type SmsOfflineNoticePause,
   type SmsPhoneState,
   type SmsSupportJob,
   type SmsSupportTicket,
@@ -162,6 +164,19 @@ export const smsPhoneStates = defineTable<SmsPhoneState>('sms_phone_states', {
   updatedAt: col('updated_at', 'timestamp'),
 })
 
+export const smsOfflineNotices = defineTable<SmsOfflineNotice>('sms_offline_notices', {
+  phoneE164: col('phone_e164', 'text'),
+  night: col('night', 'date'),
+})
+
+export const smsOfflineNoticePause = defineTable<SmsOfflineNoticePause>(
+  'sms_offline_notice_pause',
+  {
+    id: col('id', 'bool'),
+    pausedUntil: col('paused_until', 'timestamp'),
+  }
+)
+
 export const smsMessages = defineTable<SmsMessage>('sms_messages', {
   id: uuid('id'),
   submissionId: nullable('submission_id', 'text'),
@@ -291,6 +306,8 @@ export const tables = {
   temporarySubmissions,
   submissions,
   smsPhoneStates,
+  smsOfflineNotices,
+  smsOfflineNoticePause,
   smsMessages,
   smsSupportTickets,
   smsSupportJobs,

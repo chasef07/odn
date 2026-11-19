@@ -150,3 +150,16 @@ export function businessDayStart(at: Instant = now()): Instant {
     BUSINESS_TIME_ZONE
   ) as Instant
 }
+
+export function hourET(at: Instant): number {
+  return Number(formatInTimeZone(at, BUSINESS_TIME_ZONE, 'H'))
+}
+
+export function nextHourET(at: Instant, hour: number): Instant {
+  const today = todayET(at)
+  const day = hourET(at) < hour ? today : addDays(today, 1)
+  return fromZonedTime(
+    `${day}T${String(hour).padStart(2, '0')}:00:00`,
+    BUSINESS_TIME_ZONE
+  ) as Instant
+}

@@ -22,6 +22,7 @@ const {
   mockAlertSupportTicketNeedsCsr,
   mockStartAutomation,
   mockProcessSmsSupportJobNow,
+  mockSendOfflineNotice,
 } = vi.hoisted(() => ({
   mockFindActiveSupportTicketForPhone: vi.fn(),
   mockCreateInboundSupportTicket: vi.fn(),
@@ -38,6 +39,7 @@ const {
   mockAlertSupportTicketNeedsCsr: vi.fn(),
   mockStartAutomation: vi.fn(),
   mockProcessSmsSupportJobNow: vi.fn(),
+  mockSendOfflineNotice: vi.fn(),
 }))
 
 vi.mock('@/db/sms-support', () => ({
@@ -78,6 +80,10 @@ vi.mock('@/lib/sms-support-alerts', () => ({
 
 vi.mock('@/lib/sms-support-jobs', () => ({
   processSmsSupportJobNow: mockProcessSmsSupportJobNow,
+}))
+
+vi.mock('@/lib/sms-support-offline', () => ({
+  sendOfflineNotice: mockSendOfflineNotice,
 }))
 
 import { handleInboundSupportSms, TicketMoved } from '../sms-support'
@@ -132,6 +138,47 @@ describe('handleInboundSupportSms', () => {
     mockFindApprovedSupportSubmissionIdsByReference.mockResolvedValue([])
     mockTransition.mockResolvedValue(moved(supportTicket()))
     mockCancelSupportJobs.mockResolvedValue(0)
+    mockSendOfflineNotice.mockResolvedValue(undefined)
+  })
+
+  it('offers the offline notice for the linked ticket before the bot replies, and the bot still replies', async () => {
+    const createdTicket = supportTicket({ state: SMS_SUPPORT_STATE.INTRO_MENU })
+    const receivedAt = new Date('2026-11-19T08:30:00Z')
+
+    mockFindActiveSupportTicketForPhone.mockResolvedValue(null)
+    mockCreateInboundSupportTicket.mockResolvedValue(createdTicket)
+    mockTransition.mockResolvedValue(moved(createdTicket))
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: 'HELP',
+      providerMessageId: 'msg_night',
+      receivedAt,
+    })
+
+    expect(mockSendOfflineNotice).toHaveBeenCalledTimes(1)
+    expect(mockSendOfflineNotice).toHaveBeenCalledWith(createdTicket, receivedAt)
+    expect(mockLinkSmsMessageToSupportTicket.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSendOfflineNotice.mock.invocationCallOrder[0]
+    )
+    expect(mockSendOfflineNotice.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSendSupportSms.mock.invocationCallOrder[0]
+    )
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({ ticketId: 'ticket_123', body: supportIntroMenuSms() })
+    )
+  })
+
+  it('offers no offline notice for a thank-you with no active ticket', async () => {
+    mockFindActiveSupportTicketForPhone.mockResolvedValue(null)
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: 'thanks',
+      receivedAt: new Date('2026-11-19T08:30:00Z'),
+    })
+
+    expect(mockSendOfflineNotice).not.toHaveBeenCalled()
   })
 
   it('keeps raw freeform SMS in the ticket but sends a sanitized admin alert summary', async () => {

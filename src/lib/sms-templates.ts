@@ -10,6 +10,7 @@ export type SmsMessageType =
   | 'SUPPORT_REPLY'
   | 'SUPPORT_AUTOMATION_UPDATE'
   | 'SUPPORT_CSR_ALERT'
+  | 'SUPPORT_OFFLINE_NOTICE'
 
 export function submissionReference(submissionId: string): string {
   return submissionId.slice(0, 8).toUpperCase()
