@@ -797,6 +797,60 @@ describe('Validation Schemas', () => {
       }
     })
 
+    it('requires the injured body part for an accident or injury', () => {
+      for (const injuryBodyPart of [undefined, null, '', '   ']) {
+        const result = absenceReasonSchema.safeParse({
+          absenceReason: 'Accident or injury',
+          injuryBodyPart,
+        })
+        expect(result.success, String(injuryBodyPart)).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues).toEqual([
+            expect.objectContaining({
+              path: ['injuryBodyPart'],
+              message: 'Please tell us what part of your body is affected',
+              params: { rule: 'reason_injury_text' },
+            }),
+          ])
+        }
+      }
+    })
+
+    it('accepts the injured body part up to 200 characters', () => {
+      const result = absenceReasonSchema.safeParse({
+        absenceReason: 'Accident or injury',
+        injuryBodyPart: 'a'.repeat(200),
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects the injured body part over 200 characters', () => {
+      const result = absenceReasonSchema.safeParse({
+        absenceReason: 'Accident or injury',
+        injuryBodyPart: 'a'.repeat(201),
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues).toEqual([
+          expect.objectContaining({
+            path: ['injuryBodyPart'],
+            code: 'too_big',
+            message: 'Body part must be less than 200 characters',
+          }),
+        ])
+      }
+    })
+
+    it('ignores a leftover injured body part when another reason is chosen', () => {
+      for (const injuryBodyPart of [undefined, '', 'Left ankle']) {
+        const result = absenceReasonSchema.safeParse({
+          absenceReason: 'Feeling sick',
+          injuryBodyPart,
+        })
+        expect(result.success, String(injuryBodyPart)).toBe(true)
+      }
+    })
+
     it('should accept non-Other reason without otherAbsenceReason', () => {
       const result = absenceReasonSchema.safeParse({ absenceReason: 'Feeling sick' })
       expect(result.success).toBe(true)

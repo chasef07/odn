@@ -551,6 +551,7 @@ export type SubmissionInsert = {
   absenceReason: string
   otherAbsenceReason?: string | null
   appointmentType?: string | null
+  injuryBodyPart?: string | null
   symptoms?: JsonValue
   otherSymptomText?: string | null
   additionalInformation?: string | null

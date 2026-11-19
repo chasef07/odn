@@ -34,6 +34,7 @@ export function pendingSubmission(overrides: Partial<Submission>): Submission {
     absenceReason: 'Feeling sick',
     otherAbsenceReason: null,
     appointmentType: null,
+    injuryBodyPart: null,
     symptoms: ['Fever'],
     otherSymptomText: null,
     additionalInformation: null,

@@ -27,6 +27,7 @@ export const FREE_TEXT_ANSWER_LABELS = {
   otherNotePurpose: 'Other note purpose',
   otherAbsenceReason: 'Other absence reason',
   appointmentType: 'Appointment type',
+  injuryBodyPart: 'Injured body part',
   otherSymptomText: 'Other symptom',
   additionalInformation: 'Additional information',
 } as const
@@ -42,6 +43,7 @@ type FreeTextSource = Pick<
   | 'absenceReason'
   | 'otherAbsenceReason'
   | 'appointmentType'
+  | 'injuryBodyPart'
   | 'symptoms'
   | 'otherSymptomText'
   | 'additionalInformation'
@@ -53,6 +55,8 @@ export function freeTextAnswers(submission: FreeTextSource): FreeTextChoices {
     otherAbsenceReason: submission.absenceReason === 'Other' ? submission.otherAbsenceReason : null,
     appointmentType:
       submission.absenceReason === "Doctor's appointment" ? submission.appointmentType : null,
+    injuryBodyPart:
+      submission.absenceReason === 'Accident or injury' ? submission.injuryBodyPart : null,
     otherSymptomText:
       Array.isArray(submission.symptoms) && submission.symptoms.includes('Other')
         ? submission.otherSymptomText
@@ -186,8 +190,9 @@ export function buildAfterVisitSummary({
   const absentFrom = childWorkAndSchool ? workOrSchool : purpose
 
   const symptoms = symptomAnswers(submission.symptoms, chosen.otherSymptomText)
-  const reason = chosen.appointmentType
-    ? `${submission.absenceReason}: ${chosen.appointmentType}`
+  const followUp = chosen.appointmentType ?? chosen.injuryBodyPart
+  const reason = followUp
+    ? `${submission.absenceReason}: ${followUp}`
     : reasonText(submission.absenceReason, chosen.otherAbsenceReason ?? null)
 
   return {

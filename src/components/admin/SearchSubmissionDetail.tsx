@@ -890,6 +890,14 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
               </p>
             </div>
           )}
+          {absenceReason === 'Accident or injury' && submission.injuryBodyPart && (
+            <div className="space-y-2">
+              <Label>Injured body part</Label>
+              <p className="rounded-md bg-gray-50 px-3 py-2 text-sm break-words">
+                {submission.injuryBodyPart}
+              </p>
+            </div>
+          )}
           {isEditing && absenceReason === 'Other' && (
             <div className="space-y-2">
               <Label>Other Reason</Label>

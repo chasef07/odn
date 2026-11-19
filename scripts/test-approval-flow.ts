@@ -39,6 +39,7 @@ const mockSubmission: Submission = {
   absenceReason: 'illness',
   otherAbsenceReason: null,
   appointmentType: null,
+  injuryBodyPart: null,
   symptoms: ['Fever', 'Cough', 'Fatigue', 'Body Aches'],
   otherSymptomText: 'Severe headache and chills',
   additionalInformation:
