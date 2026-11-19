@@ -175,9 +175,24 @@ export function supportTicketPatientName(ticket: {
     return `${ticket.submission.patientFirstName} ${ticket.submission.patientLastName}`
   }
   if (ticket.phonePatient) {
-    return `${ticket.phonePatient.patientFirstName} ${ticket.phonePatient.patientLastName} (by phone, not linked)`
+    return `${ticket.phonePatient.patientFirstName} ${ticket.phonePatient.patientLastName} (matched by phone)`
   }
   return null
+}
+
+export function supportPhoneThreads<
+  T extends { phoneE164: string } & Parameters<typeof supportTicketPatientName>[0],
+>(tickets: readonly T[]): { ticket: T; patientName: string | null }[] {
+  const byPhone = new Map<string, T[]>()
+  for (const ticket of tickets) {
+    const group = byPhone.get(ticket.phoneE164)
+    if (group) group.push(ticket)
+    else byPhone.set(ticket.phoneE164, [ticket])
+  }
+  return [...byPhone.values()].map((group) => ({
+    ticket: group[0],
+    patientName: supportTicketPatientName(group.find((ticket) => ticket.submission) ?? group[0]),
+  }))
 }
 
 function labelFromConstant(value: string): string {

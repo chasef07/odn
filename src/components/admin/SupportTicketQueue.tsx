@@ -6,7 +6,7 @@ import {
   supportCategoryLabel,
   supportStatusClass,
   supportStatusLabel,
-  supportTicketPatientName,
+  supportPhoneThreads,
 } from '@/lib/sms-support-types'
 
 const STATUS_FILTERS = [
@@ -25,6 +25,8 @@ export function SupportTicketQueue({
   tickets: SupportTicketListItem[]
   activeStatus?: string
 }) {
+  const threads = supportPhoneThreads(tickets)
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -60,14 +62,14 @@ export function SupportTicketQueue({
       </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        {tickets.length === 0 ? (
+        {threads.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">No support tickets found.</div>
         ) : (
           <>
             <ul className="divide-y divide-gray-200 md:hidden">
-              {tickets.map((ticket) => {
+              {threads.map(({ ticket, patientName: name }) => {
                 const latestMessage = ticket.messages[0]
-                const patientName = supportTicketPatientName(ticket) ?? ticket.phoneE164
+                const patientName = name ?? ticket.phoneE164
 
                 return (
                   <li key={ticket.id} className="relative p-4">
@@ -123,9 +125,9 @@ export function SupportTicketQueue({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {tickets.map((ticket) => {
+                  {threads.map(({ ticket, patientName: name }) => {
                     const latestMessage = ticket.messages[0]
-                    const patientName = supportTicketPatientName(ticket) ?? ticket.phoneE164
+                    const patientName = name ?? ticket.phoneE164
 
                     return (
                       <tr key={ticket.id} className="hover:bg-gray-50">
