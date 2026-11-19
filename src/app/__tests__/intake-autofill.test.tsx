@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import BasicInfoPage from '@/app/basic-info/page'
 import ContactInfoPage from '@/app/contact-info/page'
-import GetStartedPage from '@/app/get-started/page'
+import { GetStartedForm } from '@/app/get-started/GetStartedForm'
 import GuardianInfoPage from '@/app/guardian-info/page'
 import { I18nProvider } from '@/components/i18n/I18nProvider'
 
@@ -64,7 +64,7 @@ describe('intake autofill hints', () => {
     expect(autocompleteOf('email')).toBe('email')
     expect(autocompleteOf('phone')).toBe('tel')
 
-    renderWithDraft(<GetStartedPage />, {})
+    renderWithDraft(<GetStartedForm detectedState={null} />, {})
     expect(screen.getByRole('combobox')).toHaveAttribute('autocomplete', 'address-level1')
   })
 })
