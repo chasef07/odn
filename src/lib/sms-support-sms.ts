@@ -27,12 +27,14 @@ export async function sendSupportSms({
   toPhone,
   type = 'SUPPORT_REPLY',
   body,
+  conversation = true,
 }: {
   ticketId?: string
   submissionId?: string | null
   toPhone: string
   type?: SmsMessageType
   body: string
+  conversation?: boolean
 }): Promise<{ success: boolean; error?: string }> {
   const to = toE164UsPhone(toPhone)
   if (!to) return { success: false, error: 'Invalid SMS phone number' }
@@ -43,8 +45,10 @@ export async function sendSupportSms({
     return { success: false, error: 'Phone number is opted out' }
   }
 
+  const conversationTicketId = conversation ? ticketId : undefined
   const includeFooter =
-    !!ticketId && !(await findSupportTicketLastOutboundAt(ticketId))?.lastOutboundAt
+    !!conversationTicketId &&
+    !(await findSupportTicketLastOutboundAt(conversationTicketId))?.lastOutboundAt
 
   const result = await sendTelnyxSms({
     submissionId: submissionId || undefined,
@@ -54,8 +58,8 @@ export async function sendSupportSms({
     body: supportSmsBody(body, includeFooter),
   })
 
-  if (result.success && ticketId) {
-    await recordSupportTicketOutbound(ticketId)
+  if (result.success && conversationTicketId) {
+    await recordSupportTicketOutbound(conversationTicketId)
   }
 
   return result.success ? { success: true } : { success: false, error: result.error }

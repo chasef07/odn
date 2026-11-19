@@ -117,6 +117,10 @@ export function thankYouReplySms(): string {
   return "You're welcome. We are happy to help."
 }
 
+export function offlineNoticeSms(): string {
+  return 'Thank you for reaching out! Our team is currently offline and will respond as soon as possible in the morning. We appreciate your patience.'
+}
+
 export function automationBlockedSms(reason: string): string {
   return `We could not safely automate that by text: ${reason}. Admin will review your ticket.`
 }

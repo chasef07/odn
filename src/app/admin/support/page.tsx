@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { LogoutButton } from '@/components/admin/LogoutButton'
+import { OfflineNoticeToggle } from '@/components/admin/OfflineNoticeToggle'
 import { SupportTicketQueue } from '@/components/admin/SupportTicketQueue'
 import { getSupportTickets } from '@/app/admin/support/_actions/tickets'
+import { findOfflineNoticePausedUntil } from '@/db/sms-offline-notice'
 import { requireAdminSession } from '@/lib/admin-session'
+import { now } from '@/lib/dates'
 
 interface PageProps {
   searchParams: Promise<{
@@ -15,6 +18,7 @@ export default async function AdminSupportPage({ searchParams }: PageProps) {
 
   const params = await searchParams
   const result = await getSupportTickets(params.status)
+  const pausedUntil = await findOfflineNoticePausedUntil(now())
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -44,6 +48,8 @@ export default async function AdminSupportPage({ searchParams }: PageProps) {
             Back to Dashboard
           </Link>
         </div>
+
+        <OfflineNoticeToggle pausedUntil={pausedUntil} />
 
         <SupportTicketQueue tickets={result.tickets} activeStatus={params.status} />
       </main>

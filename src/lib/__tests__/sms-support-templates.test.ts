@@ -22,6 +22,7 @@ import {
   noteNotReceivedEmailSms,
   noteNotReceivedFoundSms,
   noteNotReceivedSms,
+  offlineNoticeSms,
   otherMenuSms,
   refundManualSms,
   restrictionsConfirmSms,
@@ -31,7 +32,19 @@ import {
 } from '../sms-support-templates'
 import { SMS_SUPPORT_CATEGORY } from '../sms-support-types'
 
+const GSM7_BASIC = /^[A-Za-z0-9 @$_!"#%&'()*+,\-./:;<=>?\n]*$/
+
 describe('sms support templates', () => {
+  it('sends the clinic-written offline notice as one GSM-7 segment', () => {
+    const body = offlineNoticeSms()
+
+    expect(body).toBe(
+      'Thank you for reaching out! Our team is currently offline and will respond as soon as possible in the morning. We appreciate your patience.'
+    )
+    expect(body).toMatch(GSM7_BASIC)
+    expect(body).toHaveLength(139)
+  })
+
   it('uses numbered SMS menus instead of unsupported dropdown wording', () => {
     const body = supportIntroMenuSms()
 

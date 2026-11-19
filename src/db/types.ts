@@ -170,6 +170,16 @@ export type SmsPhoneState = {
   updatedAt: Date
 }
 
+export type SmsOfflineNotice = {
+  phoneE164: string
+  night: Date
+}
+
+export type SmsOfflineNoticePause = {
+  id: boolean
+  pausedUntil: Date
+}
+
 export type SmsMessage = {
   id: string
   submissionId: string | null

@@ -23,7 +23,14 @@ import {
   findLatestApprovedSubmissionIdsForSupportPhone,
   findSmsSupportSubmissionCandidatesForPhone,
 } from '@/db/submissions'
-import { ageOn, dateOnlyFromUtcDate, parseDateOnly, todayUTC, type DateOnly } from '@/lib/dates'
+import {
+  ageOn,
+  dateOnlyFromUtcDate,
+  instantOf,
+  parseDateOnly,
+  todayUTC,
+  type DateOnly,
+} from '@/lib/dates'
 import { DATE_LIMITS } from '@/lib/validation-constants'
 import { toE164UsPhone } from '@/lib/phone-utils'
 import { normalizeMedicalRecordNumber } from '@/lib/note-verification'
@@ -56,6 +63,7 @@ import {
   thankYouReplySms,
 } from '@/lib/sms-support-templates'
 import { sendSupportSms } from '@/lib/sms-support-sms'
+import { sendOfflineNotice } from '@/lib/sms-support-offline'
 import { alertSupportTicketNeedsCsr } from '@/lib/sms-support-alerts'
 import { automationPayloadForCollectedData, automationSummary } from '@/lib/sms-support-automation'
 import { processSmsSupportJobNow } from '@/lib/sms-support-jobs'
@@ -147,6 +155,8 @@ async function converse(
       submissionId: ticket.submissionId ?? null,
     })
   }
+
+  await sendOfflineNotice(ticket, instantOf(receivedAt))
 
   if (isThankYou(trimmedBody)) {
     await replyToThanks(phoneE164, ticket)

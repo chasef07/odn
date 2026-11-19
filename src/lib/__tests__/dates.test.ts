@@ -9,8 +9,10 @@ import {
   formatDateOnlyRange,
   formatInstantET,
   formatInstantETStamp,
+  hourET,
   inclusiveDayCount,
   instantOf,
+  nextHourET,
   parseDateOnly,
   parseInstant,
   todayET,
@@ -181,5 +183,32 @@ describe('currentYearET', () => {
 describe('instantOf', () => {
   it('refuses an invalid Date', () => {
     expect(() => instantOf(new Date('not a date'))).toThrow(RangeError)
+  })
+})
+
+describe('hourET', () => {
+  it('reads the hour on the business clock, including on DST change days', () => {
+    expect(hourET(at('2026-11-19T04:59:59Z'))).toBe(23)
+    expect(hourET(at('2026-11-19T05:00:00Z'))).toBe(0)
+    expect(hourET(at('2026-11-19T11:59:59Z'))).toBe(6)
+    expect(hourET(at('2026-11-19T12:00:00Z'))).toBe(7)
+    expect(hourET(at('2026-07-01T10:59:59Z'))).toBe(6)
+    expect(hourET(at('2026-07-01T11:00:00Z'))).toBe(7)
+    expect(hourET(at('2026-11-01T05:30:00Z'))).toBe(1)
+    expect(hourET(at('2026-11-01T06:30:00Z'))).toBe(1)
+  })
+})
+
+describe('nextHourET', () => {
+  it('is the first time after the instant that the business clock reads that hour', () => {
+    expect(nextHourET(at('2026-11-19T05:00:00Z'), 7).toISOString()).toBe('2026-11-19T12:00:00.000Z')
+    expect(nextHourET(at('2026-11-19T11:59:59Z'), 7).toISOString()).toBe('2026-11-19T12:00:00.000Z')
+    expect(nextHourET(at('2026-11-19T12:00:00Z'), 7).toISOString()).toBe('2026-11-20T12:00:00.000Z')
+    expect(nextHourET(at('2026-11-20T03:00:00Z'), 7).toISOString()).toBe('2026-11-20T12:00:00.000Z')
+  })
+
+  it('follows the clock across DST changes', () => {
+    expect(nextHourET(at('2026-03-08T05:30:00Z'), 7).toISOString()).toBe('2026-03-08T11:00:00.000Z')
+    expect(nextHourET(at('2026-10-31T23:00:00Z'), 7).toISOString()).toBe('2026-11-01T12:00:00.000Z')
   })
 })
