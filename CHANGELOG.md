@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.7.1](https://github.com/chasef07/odn/compare/v6.7.0...v6.7.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **db:** renumber the injury body-part migration to 0019 ([#98](https://github.com/chasef07/odn/issues/98)) ([b1a1646](https://github.com/chasef07/odn/commit/b1a1646bcf5c139fc13eadcdcfb259463075d49d))
+
 ## [6.7.0](https://github.com/chasef07/odn/compare/v6.6.0...v6.7.0) (2026-11-19)
 
 
