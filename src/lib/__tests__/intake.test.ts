@@ -206,6 +206,18 @@ describe('parseIntake', () => {
     expect(result.data.appointmentType).toBe('Eye exam')
   })
 
+  it('stores the trimmed injured body part', () => {
+    const result = parseIntake({
+      ...myself,
+      absenceReason: 'Accident or injury',
+      injuryBodyPart: '  Left ankle  ',
+      symptoms: ['Fall'],
+    })
+    expect(result.kind).toBe('valid')
+    if (result.kind !== 'valid') return
+    expect(result.data.injuryBodyPart).toBe('Left ankle')
+  })
+
   it('reports rule failures with the data still persistable', () => {
     const cases: Array<[Record<string, unknown>, string, IntakeRule, RegExp]> = [
       [{ ...myself, notePurpose: 'legal' }, 'notePurpose', 'purpose_legal', /legal matters/],
@@ -257,6 +269,12 @@ describe('parseIntake', () => {
         'appointmentType',
         'reason_appointment_text',
         /what kind of appointment/,
+      ],
+      [
+        { ...myself, absenceReason: 'Accident or injury', symptoms: ['Fall'] },
+        'injuryBodyPart',
+        'reason_injury_text',
+        /part of your body/,
       ],
     ]
     for (const [draft, field, rule, message] of cases) {

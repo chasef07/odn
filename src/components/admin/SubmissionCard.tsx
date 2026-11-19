@@ -216,6 +216,12 @@ export function SubmissionCard({
                 <span className="break-words">{submission.appointmentType}</span>
               </div>
             )}
+            {submission.absenceReason === 'Accident or injury' && submission.injuryBodyPart && (
+              <div>
+                <span className="text-muted-foreground">Injured body part: </span>
+                <span className="break-words">{submission.injuryBodyPart}</span>
+              </div>
+            )}
             {symptoms.length > 0 && (
               <div>
                 <span className="text-muted-foreground">Symptoms: </span>

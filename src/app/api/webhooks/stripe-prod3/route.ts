@@ -198,6 +198,7 @@ export async function POST(request: NextRequest) {
         otherAbsenceReason: data.otherAbsenceReason,
         appointmentType:
           data.absenceReason === "Doctor's appointment" ? data.appointmentType : null,
+        injuryBodyPart: data.absenceReason === 'Accident or injury' ? data.injuryBodyPart : null,
         symptoms: data.symptoms ?? undefined,
         otherSymptomText: data.otherSymptomText,
         additionalInformation: data.additionalInformation,

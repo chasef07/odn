@@ -582,8 +582,14 @@ export const spanishTranslations: Record<string, string> = {
   'Please specify the reason': 'Especifique el motivo',
   'Please specify the reason...': 'Especifique el motivo...',
   "What kind of doctor's appointment did you have?": '¿Qué tipo de cita médica tuvo?',
-  'For example: dentist, eye exam, physical therapy':
-    'Por ejemplo: dentista, examen de la vista, fisioterapia',
+  'For example: eye exam, physical therapy': 'Por ejemplo: examen de la vista, fisioterapia',
+  'What part of your body is affected?': '¿Qué parte de su cuerpo está afectada?',
+  'For example: left ankle, right wrist, lower back':
+    'Por ejemplo: tobillo izquierdo, muñeca derecha, parte baja de la espalda',
+  'Please tell us what part of your body is affected':
+    'Indíquenos qué parte de su cuerpo está afectada',
+  'Body part must be less than 200 characters':
+    'La parte del cuerpo debe tener menos de 200 caracteres',
   'Please tell us what kind of appointment you had': 'Indíquenos qué tipo de cita médica tuvo',
   'Appointment type must be less than 200 characters':
     'El tipo de cita debe tener menos de 200 caracteres',

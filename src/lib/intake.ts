@@ -143,6 +143,7 @@ export const intakeSubmissionSchema = z.object({
   absenceReason: requiredText,
   otherAbsenceReason: optionalText,
   appointmentType: optionalText,
+  injuryBodyPart: optionalText,
   symptoms: z
     .array(z.string({ error: 'Expected text' }), { error: 'Expected a list of text' })
     .nullish()

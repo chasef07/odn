@@ -695,6 +695,42 @@ describe('POST /api/webhooks/stripe-prod3 - server-side re-validation', () => {
     }
   )
 
+  it.each([
+    ['Accident or injury', ' Left ankle ', 'Left ankle'],
+    ['Feeling sick', 'Left ankle', null],
+  ])(
+    'stores the injured body part only for an accident or injury (%s)',
+    async (absenceReason, injuryBodyPart, stored) => {
+      mockWebhookConstructEvent.mockReturnValue(buildEvent())
+      mockFindTempByPaymentIntent.mockResolvedValue({
+        id: 'temp_injury',
+        paymentIntentId: 'pi_test_123',
+        formData: {
+          ...validFormData,
+          absenceReason,
+          injuryBodyPart,
+          symptoms: absenceReason === 'Accident or injury' ? ['Fall'] : validFormData.symptoms,
+        },
+      })
+      mockInsertSubmission.mockResolvedValue({
+        submission: {
+          id: 'sub_injury',
+          email: validFormData.email,
+          patientFirstName: validFormData.patientFirstName,
+        },
+        inserted: true,
+      })
+
+      const response = await POST(buildRequest())
+
+      expect(response.status).toBe(200)
+      const createArg = mockInsertSubmission.mock.calls[0][0]
+      expect(createArg.status).toBe('PENDING_REVIEW')
+      expect(createArg.absenceReason).toBe(absenceReason)
+      expect(createArg.injuryBodyPart).toBe(stored)
+    }
+  )
+
   it('keeps malformed paid submissions retryable when required persisted fields are missing', async () => {
     mockWebhookConstructEvent.mockReturnValue(buildEvent())
     mockFindTempByPaymentIntent.mockResolvedValue({

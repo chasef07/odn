@@ -1098,6 +1098,18 @@ describe('insertSubmission', () => {
     expect((await findSubmissionById(inserted.id))?.appointmentType).toBe('Eye exam')
   })
 
+  it('stores the injured body part', async () => {
+    const { submission: inserted } = await insertSubmission({
+      ...row,
+      absenceReason: 'Accident or injury',
+      injuryBodyPart: 'Left ankle',
+      symptoms: ['Fall'],
+    })
+
+    expect(inserted.injuryBodyPart).toBe('Left ankle')
+    expect((await findSubmissionById(inserted.id))?.injuryBodyPart).toBe('Left ankle')
+  })
+
   it('reports a second insert for the same payment intent as a duplicate and returns that row', async () => {
     await insertSubmission({ ...row, stripePaymentIntentId: 'pi_other', patientFirstName: 'Other' })
     await insertSubmission(row)
@@ -1128,6 +1140,7 @@ describe('insertSubmission', () => {
       attribution: null,
       guardianFirstName: null,
       appointmentType: null,
+      injuryBodyPart: null,
     })
   })
 })

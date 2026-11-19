@@ -43,6 +43,7 @@ const submission = {
   absenceReason: 'Accident or injury',
   otherAbsenceReason: null,
   appointmentType: null,
+  injuryBodyPart: null,
   symptoms: ['Fall', 'Other'],
   otherSymptomText: 'Twisted ankle on stairs',
   additionalInformation: null,
@@ -104,5 +105,30 @@ describe('SearchSubmissionDetail intake answers', () => {
     expect(answer('Note Purpose')).toBe('Work')
     expect(answer('Reason')).toBe('Accident or injury')
     expect(answer('Symptoms (comma-separated)')).toBe('Fall')
+  })
+})
+
+describe('SearchSubmissionDetail follow-up answers', () => {
+  it('shows the injured body part on an Accident or injury chart', () => {
+    render(<SearchSubmissionDetail submission={{ ...submission, injuryBodyPart: 'Left ankle' }} />)
+
+    expect(answer('Injured body part')).toBe('Left ankle')
+  })
+
+  it('hides an injured body part left on a chart with another reason', () => {
+    render(
+      <SearchSubmissionDetail
+        submission={{
+          ...submission,
+          absenceReason: 'Feeling sick',
+          injuryBodyPart: 'Left ankle',
+          symptoms: ['Fever'],
+          otherSymptomText: null,
+        }}
+      />
+    )
+
+    expect(screen.queryByText('Injured body part')).not.toBeInTheDocument()
+    expect(screen.queryByText('Left ankle')).not.toBeInTheDocument()
   })
 })

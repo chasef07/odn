@@ -100,7 +100,7 @@ export default function AbsenceReasonPage() {
               maxLength={200}
               {...register('appointmentType')}
               className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl text-base focus-visible:ring-2"
-              placeholder="For example: dentist, eye exam, physical therapy"
+              placeholder="For example: eye exam, physical therapy"
               aria-required="true"
               aria-invalid={!!errors.appointmentType}
               aria-describedby={errors.appointmentType ? 'appointmentType-error' : undefined}
@@ -108,6 +108,30 @@ export default function AbsenceReasonPage() {
             {errors.appointmentType && (
               <p id="appointmentType-error" className="text-sm text-red-500">
                 {errors.appointmentType.message}
+              </p>
+            )}
+          </div>
+        )}
+
+        {selectedReason === 'Accident or injury' && (
+          <div className="space-y-2">
+            <Label htmlFor="injuryBodyPart" className="text-base">
+              What part of your body is affected?
+            </Label>
+            <Input
+              id="injuryBodyPart"
+              type="text"
+              maxLength={200}
+              {...register('injuryBodyPart')}
+              className="border-border/60 focus-visible:ring-primary/40 h-12 rounded-xl text-base focus-visible:ring-2"
+              placeholder="For example: left ankle, right wrist, lower back"
+              aria-required="true"
+              aria-invalid={!!errors.injuryBodyPart}
+              aria-describedby={errors.injuryBodyPart ? 'injuryBodyPart-error' : undefined}
+            />
+            {errors.injuryBodyPart && (
+              <p id="injuryBodyPart-error" className="text-sm text-red-500">
+                {errors.injuryBodyPart.message}
               </p>
             )}
           </div>

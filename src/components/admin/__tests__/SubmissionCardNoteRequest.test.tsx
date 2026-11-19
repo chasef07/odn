@@ -56,6 +56,36 @@ describe('SubmissionCard appointment type', () => {
   })
 })
 
+describe('SubmissionCard injured body part', () => {
+  const injury = {
+    ...submission,
+    absenceReason: 'Accident or injury',
+    appointmentType: null,
+    injuryBodyPart: 'Left ankle',
+    symptoms: ['Fall'],
+  }
+
+  it('shows the injured body part on an Accident or injury chart', () => {
+    render(<SubmissionCard submission={injury} currentIndex={0} totalCount={1} />)
+
+    expect(screen.getByText('Injured body part:')).toBeInTheDocument()
+    expect(screen.getByText('Left ankle')).toBeInTheDocument()
+  })
+
+  it('hides an injured body part left on a chart with another reason', () => {
+    render(
+      <SubmissionCard
+        submission={{ ...injury, absenceReason: 'Feeling sick' }}
+        currentIndex={0}
+        totalCount={1}
+      />
+    )
+
+    expect(screen.queryByText('Injured body part:')).not.toBeInTheDocument()
+    expect(screen.queryByText('Left ankle')).not.toBeInTheDocument()
+  })
+})
+
 function noteRequestLine(label: string): string | null {
   return screen.getByText(label).parentElement?.textContent ?? null
 }

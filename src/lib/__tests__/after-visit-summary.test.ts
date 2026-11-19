@@ -40,6 +40,7 @@ const submission: Submission = {
   absenceReason: 'Feeling sick',
   otherAbsenceReason: null,
   appointmentType: null,
+  injuryBodyPart: null,
   symptoms: ['Sore throat', 'Cough'],
   otherSymptomText: null,
   additionalInformation: 'Saw urgent care yesterday',
@@ -245,6 +246,32 @@ describe('buildAfterVisitSummary', () => {
         })
       )
     ).toThrow('This chart has no appointment type')
+  })
+
+  it('names the injured body part only when the doctor includes it', () => {
+    const injury = {
+      ...submission,
+      absenceReason: 'Accident or injury',
+      injuryBodyPart: 'Left ankle',
+      symptoms: ['Fall'],
+    }
+
+    expect(buildAfterVisitSummary(input({ submission: injury })).symptoms).toBe(
+      'Accident or injury; symptoms: Fall'
+    )
+    expect(
+      buildAfterVisitSummary(
+        input({ submission: injury, freeText: { injuryBodyPart: 'Left ankle' } })
+      ).symptoms
+    ).toBe('Accident or injury: Left ankle; symptoms: Fall')
+    expect(() =>
+      buildAfterVisitSummary(
+        input({
+          submission: { ...injury, absenceReason: 'Feeling sick' },
+          freeText: { injuryBodyPart: 'Left ankle' },
+        })
+      )
+    ).toThrow('This chart has no injured body part')
   })
 
   it('flags the 30-day limit the review page warns about', () => {
@@ -503,6 +530,7 @@ describe('freeTextAnswers', () => {
         symptoms: ['Cough'],
         otherSymptomText: 'jaw swelling',
         appointmentType: 'Eye exam',
+        injuryBodyPart: 'Left ankle',
         additionalInformation: '  ',
       })
     ).toEqual({})
@@ -518,5 +546,17 @@ describe('freeTextAnswers', () => {
         additionalInformation: null,
       })
     ).toEqual({ appointmentType: 'Eye exam' })
+  })
+
+  it('lists the injured body part, trimmed', () => {
+    expect(
+      freeTextAnswers({
+        ...submission,
+        absenceReason: 'Accident or injury',
+        injuryBodyPart: ' Left ankle ',
+        symptoms: ['Fall'],
+        additionalInformation: null,
+      })
+    ).toEqual({ injuryBodyPart: 'Left ankle' })
   })
 })

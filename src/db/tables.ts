@@ -121,6 +121,7 @@ export const submissions = defineTable<Submission>('submissions', {
   absenceReason: col('absence_reason', 'text'),
   otherAbsenceReason: nullable('other_absence_reason', 'text'),
   appointmentType: nullable('appointment_type', 'text'),
+  injuryBodyPart: nullable('injury_body_part', 'text'),
   symptoms: nullableJson('symptoms'),
   otherSymptomText: nullable('other_symptom_text', 'text'),
   additionalInformation: nullable('additional_information', 'text'),
