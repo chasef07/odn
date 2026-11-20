@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.8.0](https://github.com/chasef07/odn/compare/v6.7.1...v6.8.0) (2026-11-20)
+
+
+### Features
+
+* **sms-support:** use the clinic's wording for found-note, overnight and note-update texts ([#100](https://github.com/chasef07/odn/issues/100)) ([c561421](https://github.com/chasef07/odn/commit/c56142150e99c45f5787217b88e62f2176e964af))
+
 ## [6.7.1](https://github.com/chasef07/odn/compare/v6.7.0...v6.7.1) (2026-11-19)
 
 
