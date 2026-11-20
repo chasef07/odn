@@ -1,5 +1,3 @@
-import { supportCategoryLabel, type SmsSupportCategory } from '@/lib/sms-support-types'
-
 export function supportIntroMenuSms(): string {
   return [
     'How can we help? Reply with a number.',
@@ -78,7 +76,7 @@ export function noteNotReceivedSms(): string {
 }
 
 export function noteNotReceivedFoundSms(): string {
-  return 'Great. No further action is needed for this support ticket.'
+  return 'Thank you. Please let us know if we can assist with anything further.'
 }
 
 export function noteNotReceivedEmailSms(): string {
@@ -101,12 +99,8 @@ export function askOtherMessageSms(): string {
   return 'Reply with a short message. Admin will review it in the support queue.'
 }
 
-export function automationQueuedSms(): string {
-  return 'Got it. We are updating your approved note now. You should receive a new email shortly.'
-}
-
-export function automationSuccessSms(category: SmsSupportCategory): string {
-  return `Done: your updated ${supportCategoryLabel(category).toLowerCase()} note was emailed. Check inbox/spam.`
+export function automationSuccessSms(): string {
+  return 'Thank you. We are sending an updated note to your email address now.'
 }
 
 export function csrQueuedSms(): string {
@@ -118,7 +112,7 @@ export function thankYouReplySms(): string {
 }
 
 export function offlineNoticeSms(): string {
-  return 'Thank you for reaching out! Our team is currently offline and will respond as soon as possible in the morning. We appreciate your patience.'
+  return 'Hello. Our team is currently offline and will respond as soon as possible in the morning. We appreciate your patience.'
 }
 
 export function automationBlockedSms(reason: string): string {

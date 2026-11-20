@@ -42,7 +42,6 @@ import {
   askPurposeSms,
   askSubmissionReferenceSms,
   automationBlockedSms,
-  automationQueuedSms,
   automationStillRunningSms,
   changeNoteMenuSms,
   csrQueuedSms,
@@ -841,8 +840,6 @@ async function queueAutomation(
     }
     throw new TicketMoved('queueAutomation', ticket.id, started.refusal)
   }
-
-  await reply(started.value.ticket, automationQueuedSms(), 'SUPPORT_AUTOMATION_UPDATE')
 
   await processSmsSupportJobNow(started.value.job.id, { workerId: `sms-inbound-${Date.now()}` })
 }
