@@ -35,7 +35,7 @@ import { instantOf } from '../dates'
 import { offlineNoticePauseEnd, sendOfflineNotice } from '../sms-support-offline'
 
 const OFFLINE_TEXT =
-  'Thank you for reaching out! Our team is currently offline and will respond as soon as possible in the morning. We appreciate your patience.'
+  'Hello. Our team is currently offline and will respond as soon as possible in the morning. We appreciate your patience.'
 
 const ticket = { id: 'ticket_123', phoneE164: '+15551234567', submissionId: 'sub_123' }
 

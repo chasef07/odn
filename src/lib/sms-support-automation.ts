@@ -45,7 +45,6 @@ type RegenerateInput = {
   ticketId: string
   submissionId: string
   phoneE164: string
-  category: SmsSupportCategory
   updates: SupportAutomationPayload['updates']
 }
 
@@ -84,7 +83,6 @@ export async function runSupportTicketAutomation(jobId: string): Promise<void> {
     ticketId: job.ticketId,
     submissionId: job.ticket.submissionId,
     phoneE164: job.ticket.phoneE164,
-    category: payload.category,
     updates: payload.updates,
   })
 
@@ -105,7 +103,6 @@ async function regenerateApprovedSubmission({
   ticketId,
   submissionId,
   phoneE164,
-  category,
   updates,
 }: RegenerateInput): Promise<void> {
   const submission = await findSubmissionById(submissionId)
@@ -215,7 +212,7 @@ async function regenerateApprovedSubmission({
     submissionId,
     toPhone: phoneE164,
     type: 'SUPPORT_AUTOMATION_UPDATE',
-    body: automationSuccessSms(category),
+    body: automationSuccessSms(),
   })
 
   if (!smsResult.success) {

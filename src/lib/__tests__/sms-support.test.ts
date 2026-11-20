@@ -535,7 +535,7 @@ describe('handleInboundSupportSms', () => {
     expect(mockSendSupportSms).toHaveBeenCalledWith(
       expect.objectContaining({
         ticketId: 'ticket_123',
-        body: expect.stringContaining('No further action'),
+        body: 'Thank you. Please let us know if we can assist with anything further.',
       })
     )
   })
@@ -1248,9 +1248,7 @@ describe('handleInboundSupportSms', () => {
         }),
       })
     )
-    expect(mockSendSupportSms).toHaveBeenCalledWith(
-      expect.objectContaining({ ticketId: 'ticket_123', type: 'SUPPORT_AUTOMATION_UPDATE' })
-    )
+    expect(mockSendSupportSms).not.toHaveBeenCalled()
     expect(mockProcessSmsSupportJobNow).toHaveBeenCalledWith(
       'job_123',
       expect.objectContaining({

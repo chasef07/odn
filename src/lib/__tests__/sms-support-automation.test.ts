@@ -242,6 +242,22 @@ describe('runSupportTicketAutomation', () => {
     )
   })
 
+  it('texts the customer one confirmation after the updated note is emailed', async () => {
+    await runSupportTicketAutomation('job_123')
+
+    expect(mockSendSupportSms).toHaveBeenCalledTimes(1)
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketId: 'ticket_123',
+        type: 'SUPPORT_AUTOMATION_UPDATE',
+        body: 'Thank you. We are sending an updated note to your email address now.',
+      })
+    )
+    expect(mockSendApprovalEmail.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSendSupportSms.mock.invocationCallOrder[0]
+    )
+  })
+
   it('finishes without throwing when the ticket left automation before it could close', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockTransition

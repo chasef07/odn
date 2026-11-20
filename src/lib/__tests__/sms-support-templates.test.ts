@@ -8,7 +8,6 @@ import {
   askRefundReasonSms,
   askSubmissionReferenceSms,
   automationBlockedSms,
-  automationQueuedSms,
   automationStillRunningSms,
   automationSuccessSms,
   changeNoteMenuSms,
@@ -30,7 +29,6 @@ import {
   supportIntroMenuSms,
   thankYouReplySms,
 } from '../sms-support-templates'
-import { SMS_SUPPORT_CATEGORY } from '../sms-support-types'
 
 const GSM7_BASIC = /^[A-Za-z0-9 @$_!"#%&'()*+,\-./:;<=>?\n]*$/
 
@@ -39,10 +37,10 @@ describe('sms support templates', () => {
     const body = offlineNoticeSms()
 
     expect(body).toBe(
-      'Thank you for reaching out! Our team is currently offline and will respond as soon as possible in the morning. We appreciate your patience.'
+      'Hello. Our team is currently offline and will respond as soon as possible in the morning. We appreciate your patience.'
     )
     expect(body).toMatch(GSM7_BASIC)
-    expect(body).toHaveLength(139)
+    expect(body).toHaveLength(118)
   })
 
   it('uses numbered SMS menus instead of unsupported dropdown wording', () => {
@@ -85,16 +83,19 @@ describe('sms support templates', () => {
     )
   })
 
-  it('sets the right expectation for queued automation', () => {
-    expect(automationQueuedSms()).toContain('updating your approved note')
-    expect(automationQueuedSms()).toContain('new email')
+  it('confirms an automated note update with one clinic-written message', () => {
+    expect(automationSuccessSms()).toBe(
+      'Thank you. We are sending an updated note to your email address now.'
+    )
   })
 
   it('uses the requested spam-check flow before collecting email for missing notes', () => {
     expect(noteNotReceivedSms()).toContain('Reply 1 if you found it')
     expect(noteNotReceivedSms()).toContain('2 if you still cannot find it')
     expect(noteNotReceivedEmailSms()).toContain('correct email address')
-    expect(noteNotReceivedFoundSms()).toContain('No further action')
+    expect(noteNotReceivedFoundSms()).toBe(
+      'Thank you. Please let us know if we can assist with anything further.'
+    )
   })
 
   it('leaves the ticket-level footer out of support prompt and reply templates', () => {
@@ -118,8 +119,7 @@ describe('sms support templates', () => {
       refundManualSms(),
       askRefundReasonSms(),
       askOtherMessageSms(),
-      automationQueuedSms(),
-      automationSuccessSms(SMS_SUPPORT_CATEGORY.CHANGE_DOB),
+      automationSuccessSms(),
       csrQueuedSms(),
       thankYouReplySms(),
       automationBlockedSms('admin review is required'),
