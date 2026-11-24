@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendBounceAlertEmail, resend } from '@/lib/email'
+import { TEAM_INBOX, sendBounceAlertEmail, resend } from '@/lib/email'
 import { env } from '@/lib/env'
 import { emailBounceSms } from '@/lib/sms-templates'
 import { sendTransactionalSmsForSubmission } from '@/lib/telnyx'
@@ -48,6 +48,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (event.type !== 'email.bounced') {
+      return NextResponse.json({ received: true }, { status: 200 })
+    }
+
+    if (event.data.to.some((recipient) => recipient.toLowerCase() === TEAM_INBOX)) {
+      console.error('Team inbox bounced; not sending a bounce alert to it:', {
+        emailId: event.data.email_id,
+        subject: event.data.subject,
+        reason: event.data.bounce_reason,
+      })
       return NextResponse.json({ received: true }, { status: 200 })
     }
 
