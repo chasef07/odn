@@ -14,6 +14,8 @@ import {
   type MaybeReason,
 } from '@/lib/maybe-reasons'
 
+export const TEAM_INBOX = 'hello@onlinedoctornote.com'
+
 let resendClient: Resend | null = null
 
 function getResendClient(): Resend {
@@ -97,7 +99,7 @@ export async function sendDenialEmail({
 }) {
   return sendEmail('denial email', async () => ({
     from: env.RESEND_FROM_EMAIL,
-    replyTo: 'hello@onlinedoctornote.com',
+    replyTo: TEAM_INBOX,
     to,
     subject: "Your Doctor's Note Request - Update",
     html: await render(DenialEmail({ patientName, denialReason, refundAmount })),
@@ -125,7 +127,7 @@ export async function sendApprovalEmail({
 }) {
   return sendEmail('approval email', async () => ({
     from: env.RESEND_FROM_EMAIL,
-    replyTo: 'hello@onlinedoctornote.com',
+    replyTo: TEAM_INBOX,
     to,
     subject: "Your Doctor's Note is Approved!",
     html: await render(
@@ -152,7 +154,7 @@ export async function sendAfterVisitSummaryEmail({
 }) {
   return sendEmail('after-visit summary email', () => ({
     from: env.RESEND_FROM_EMAIL,
-    to: 'hello@onlinedoctornote.com',
+    to: TEAM_INBOX,
     subject: `After-visit summary: ${patientName}`,
     text: `The after-visit summary for ${patientName} is attached.`,
     attachments: [{ filename: pdfFilename, content: pdfBuffer }],
@@ -172,7 +174,7 @@ export async function sendPaymentConfirmationEmail({
     'payment confirmation email',
     async () => ({
       from: env.RESEND_FROM_EMAIL,
-      replyTo: 'hello@onlinedoctornote.com',
+      replyTo: TEAM_INBOX,
       to,
       subject: "Payment Confirmed - Your Doctor's Note Request Received",
       html: await render(PaymentConfirmationEmail({ patientName, submissionId })),
@@ -194,7 +196,7 @@ export async function sendMaybeEmail({
 }) {
   return sendEmail('maybe email', async () => ({
     from: env.RESEND_FROM_EMAIL,
-    replyTo: 'hello@onlinedoctornote.com',
+    replyTo: TEAM_INBOX,
     to,
     subject:
       reason === MORE_INFO_NEEDED_REASON
@@ -219,7 +221,7 @@ export async function sendFollowUpEmail({
     'follow-up email',
     async () => ({
       from: env.RESEND_FROM_EMAIL,
-      replyTo: 'hello@onlinedoctornote.com',
+      replyTo: TEAM_INBOX,
       to,
       subject: 'A thank-you discount from OnlineDoctorNote',
       html: await render(FollowUpEmail({ patientName, notePurpose })),
@@ -264,7 +266,7 @@ export async function sendBounceAlertEmail({
 
     return {
       from: env.RESEND_FROM_EMAIL,
-      to: 'hello@onlinedoctornote.com',
+      to: TEAM_INBOX,
       subject: `🚨 Email Bounce Alert: ${patientName}`,
       html: emailHtml,
     }
@@ -303,7 +305,7 @@ export async function sendSmsSupportTicketAlertEmail({
 
     return {
       from: env.RESEND_FROM_EMAIL,
-      to: 'hello@onlinedoctornote.com',
+      to: TEAM_INBOX,
       subject: `SMS Support Ticket: ${category || 'Needs Review'}`,
       html: emailHtml,
     }

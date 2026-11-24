@@ -40,6 +40,7 @@ const { mockSendBounceAlertEmail } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/email', () => ({
+  TEAM_INBOX: 'hello@onlinedoctornote.com',
   sendBounceAlertEmail: mockSendBounceAlertEmail,
   resend: {
     webhooks: {
@@ -344,6 +345,44 @@ describe('POST /api/webhooks/resend', () => {
     expect(mockFindLatestSubmissionsForBouncedEmail).not.toHaveBeenCalled()
     expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
     expect(mockSendBounceAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('does not alert the team inbox about its own bounce, so an alert cannot trigger another', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockResendVerify.mockReturnValue({
+      type: 'email.bounced',
+      data: {
+        email_id: 'email_alert_1',
+        to: ['Hello@OnlineDoctorNote.com'],
+        subject: '🚨 Email Bounce Alert: John Doe',
+        bounce_reason: 'Mailbox unavailable',
+        from: 'hello@updates.onlinedoctornote.com',
+        created_at: '2026-11-24T05:00:00Z',
+      },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/webhooks/resend', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'email.bounced' }),
+      headers: {
+        'Content-Type': 'application/json',
+        'svix-id': 'msg_alert_1',
+        'svix-timestamp': '1234567890',
+        'svix-signature': 'valid_signature',
+      },
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockSendBounceAlertEmail).not.toHaveBeenCalled()
+    expect(mockFindLatestSubmissionsForBouncedEmail).not.toHaveBeenCalled()
+    expect(mockSendTransactionalSmsForSubmission).not.toHaveBeenCalled()
+    expect(consoleError).toHaveBeenCalledWith(
+      'Team inbox bounced; not sending a bounce alert to it:',
+      expect.objectContaining({ emailId: 'email_alert_1', reason: 'Mailbox unavailable' })
+    )
+    consoleError.mockRestore()
   })
 
   it('keeps the bounce alert flow working when bounce SMS fails', async () => {
