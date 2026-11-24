@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.8.1](https://github.com/chasef07/odn/compare/v6.8.0...v6.8.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **email:** stop bounce alerts from alerting about themselves ([#102](https://github.com/chasef07/odn/issues/102)) ([3fa3e81](https://github.com/chasef07/odn/commit/3fa3e815614237b875494948eb0222e0dce4e6d0))
+
 ## [6.8.0](https://github.com/chasef07/odn/compare/v6.7.1...v6.8.0) (2026-11-20)
 
 
