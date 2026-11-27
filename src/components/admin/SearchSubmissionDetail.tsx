@@ -129,6 +129,11 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     (submission.guardianDateOfBirth as string | null) || ''
   )
   const [recipient, setRecipient] = useState(submission.recipient)
+  const [isAddingGuardian, setIsAddingGuardian] = useState(false)
+  const showGuardianInformation =
+    isAddingGuardian ||
+    Boolean(guardianFirstName || guardianLastName) ||
+    recipient === 'someone_else'
   const [email, setEmail] = useState(submission.email)
   const [phone, setPhone] = useState(submission.phone)
   const [state, setState] = useState(submission.state)
@@ -166,6 +171,16 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
     setGuardianDateOfBirth('')
   }
 
+  const handleCancelEdit = () => {
+    if (isAddingGuardian) {
+      setIsAddingGuardian(false)
+      setGuardianFirstName('')
+      setGuardianLastName('')
+      setGuardianDateOfBirth('')
+    }
+    setIsEditing(false)
+  }
+
   const handleSave = async () => {
     setIsLoading(true)
     setError(null)
@@ -191,6 +206,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
         patientFirstName,
         patientLastName,
         patientDateOfBirth: savedDateOfBirth,
+        ...(isAddingGuardian && { recipient: 'someone_else' as const }),
         guardianFirstName: guardianFirstName || null,
         guardianLastName: guardianLastName || null,
         guardianDateOfBirth: savedGuardianDateOfBirth,
@@ -210,6 +226,10 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
 
       if (result.success) {
         setSuccess('Changes saved successfully!')
+        if (isAddingGuardian) {
+          setRecipient('someone_else')
+          setIsAddingGuardian(false)
+        }
         setIsEditing(false)
         router.refresh()
       } else {
@@ -497,7 +517,7 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </Button>
         ) : (
           <div className="flex gap-2">
-            <Button onClick={() => setIsEditing(false)} variant="outline" disabled={isLoading}>
+            <Button onClick={handleCancelEdit} variant="outline" disabled={isLoading}>
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={isLoading}>
@@ -561,7 +581,20 @@ export function SearchSubmissionDetail({ submission }: SearchSubmissionDetailPro
           </div>
         </div>
 
-        {(guardianFirstName || guardianLastName || recipient === 'someone_else') && (
+        {!showGuardianInformation && isEditing && (
+          <div className="border-t pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAddingGuardian(true)}
+              disabled={isLoading}
+            >
+              Add guardian
+            </Button>
+          </div>
+        )}
+
+        {showGuardianInformation && (
           <div className="space-y-4 border-t pt-6">
             <h2 className="text-lg font-semibold text-gray-900">Guardian Information</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

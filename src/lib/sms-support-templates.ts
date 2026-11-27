@@ -36,6 +36,10 @@ export function askDobSms(): string {
   return 'Reply with the correct birthday as MM/DD/YYYY. If it is safe to update, we will email a new note.'
 }
 
+export function guardianRequiredSms(): string {
+  return 'Thank you. We need a parent or guardian to authorize your note as you are under the age of 18. Please have them email us at hello@onlinedoctornote.com with their date of birth as well.'
+}
+
 export function dateChangeManualSms(): string {
   return 'First/last day off changes need admin review. Email hello@onlinedoctornote.com with the correct dates.'
 }
