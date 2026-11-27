@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.9.0](https://github.com/chasef07/odn/compare/v6.8.1...v6.9.0) (2026-11-27)
+
+
+### Features
+
+* **admin:** ask minors for guardian consent by SMS and let admins add a guardian ([#104](https://github.com/chasef07/odn/issues/104)) ([f12b407](https://github.com/chasef07/odn/commit/f12b4073512c8734bdce9705bc423a297bdbc70f))
+
 ## [6.8.1](https://github.com/chasef07/odn/compare/v6.8.0...v6.8.1) (2026-11-24)
 
 
