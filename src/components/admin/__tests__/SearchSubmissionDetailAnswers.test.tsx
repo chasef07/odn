@@ -1,6 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { FormattedSubmission } from '@/app/admin/_actions/search'
+import { updateSubmission } from '@/app/admin/_actions/edits'
+import { dateOnlyFromUtcDate } from '@/lib/dates'
 import { SearchSubmissionDetail } from '../SearchSubmissionDetail'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }))
@@ -130,5 +132,44 @@ describe('SearchSubmissionDetail follow-up answers', () => {
 
     expect(screen.queryByText('Injured body part')).not.toBeInTheDocument()
     expect(screen.queryByText('Left ankle')).not.toBeInTheDocument()
+  })
+})
+
+describe('SearchSubmissionDetail guardian', () => {
+  function guardianInputs() {
+    const section = screen.getByText('Guardian Information').parentElement!
+    return within(section).getAllByDisplayValue('') as HTMLInputElement[]
+  }
+
+  it('adds a guardian to a note that had none', async () => {
+    vi.mocked(updateSubmission).mockResolvedValue({ success: true })
+    render(<SearchSubmissionDetail submission={submission} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Fields' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add guardian' }))
+
+    const [firstName, lastName, dateOfBirth] = guardianInputs()
+    fireEvent.change(firstName, { target: { value: 'Mary' } })
+    fireEvent.change(lastName, { target: { value: 'Doe' } })
+    fireEvent.change(dateOfBirth, { target: { value: '1965-04-02' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => expect(updateSubmission).toHaveBeenCalledTimes(1))
+    const data = vi.mocked(updateSubmission).mock.calls[0][1]
+    expect(data.recipient).toBe('someone_else')
+    expect(data.guardianFirstName).toBe('Mary')
+    expect(data.guardianLastName).toBe('Doe')
+    expect(dateOnlyFromUtcDate(data.guardianDateOfBirth!)).toBe('1965-04-02')
+  })
+
+  it('drops an unsaved guardian on cancel', () => {
+    render(<SearchSubmissionDetail submission={submission} />)
+    expect(screen.queryByRole('button', { name: 'Add guardian' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Fields' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add guardian' }))
+    fireEvent.change(guardianInputs()[0], { target: { value: 'Mary' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByText('Guardian Information')).not.toBeInTheDocument()
   })
 })

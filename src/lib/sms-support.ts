@@ -47,6 +47,7 @@ import {
   csrQueuedSms,
   dateChangeManualSms,
   diagnosisSymptomsConfirmSms,
+  guardianRequiredSms,
   invalidDateSms,
   invalidPurposeSms,
   issueDateManualSms,
@@ -654,6 +655,16 @@ async function collectDob(ticket: ConversingTicket, body: string): Promise<void>
 
   const currentAdult = ageOn(dateOnlyFromUtcDate(submission.patientDateOfBirth), today) >= 18
   const nextAdult = ageOn(dateOfBirth, today) >= 18
+  if (currentAdult && !nextAdult) {
+    await moveToCsr(ticket, {
+      category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
+      summary:
+        'Birthday correction makes the patient under 18. A guardian must authorize by email.',
+      collectedData: { patientDateOfBirth: dateOfBirth },
+      replyBody: guardianRequiredSms(),
+    })
+    return
+  }
   if (currentAdult !== nextAdult) {
     await moveToCsr(ticket, {
       category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,

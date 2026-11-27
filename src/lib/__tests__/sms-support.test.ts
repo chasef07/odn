@@ -87,7 +87,7 @@ vi.mock('@/lib/sms-support-offline', () => ({
 }))
 
 import { handleInboundSupportSms, TicketMoved } from '../sms-support'
-import { csrQueuedSms, supportIntroMenuSms } from '../sms-support-templates'
+import { csrQueuedSms, guardianRequiredSms, supportIntroMenuSms } from '../sms-support-templates'
 
 function supportTicket(overrides: Record<string, unknown> = {}) {
   return {
@@ -1161,6 +1161,63 @@ describe('handleInboundSupportSms', () => {
         ticketId: 'ticket_123',
         body: expect.stringContaining('valid date in MM/DD/YYYY format'),
       })
+    )
+  })
+
+  it.each([
+    {
+      name: 'asks a guardian to authorize when the corrected birthday makes the patient a minor',
+      currentDateOfBirth: '1990-03-04T00:00:00.000Z',
+      reply: '03/04/2015',
+      summary:
+        'Birthday correction makes the patient under 18. A guardian must authorize by email.',
+      collectedData: { patientDateOfBirth: '2015-03-04' },
+      body: guardianRequiredSms(),
+    },
+    {
+      name: 'sends a minor whose corrected birthday makes them an adult to admin review',
+      currentDateOfBirth: '2015-03-04T00:00:00.000Z',
+      reply: '03/04/1990',
+      summary: 'Birthday correction would change adult/minor status.',
+      collectedData: {},
+      body: 'We could not safely automate that by text: the birthday changes the adult/minor review status. Admin will review your ticket.',
+    },
+  ])('$name', async ({ currentDateOfBirth, reply, summary, collectedData, body }) => {
+    const activeTicket = supportTicket({
+      state: SMS_SUPPORT_STATE.CHANGE_DOB_COLLECT,
+      category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
+    })
+    const csrTicket = supportTicket({
+      status: SMS_SUPPORT_STATUS.NEEDS_CSR,
+      state: SMS_SUPPORT_STATE.CSR_REVIEW,
+      category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
+      adminSummary: summary,
+    })
+
+    mockFindActiveSupportTicketForPhone.mockResolvedValue(activeTicket)
+    mockRecordSupportTicketInbound.mockResolvedValueOnce(activeTicket)
+    mockFindApprovedSubmissionBirthDateForSupport.mockResolvedValueOnce({
+      patientDateOfBirth: new Date(currentDateOfBirth),
+    })
+    mockTransition.mockResolvedValueOnce(moved(csrTicket))
+
+    await handleInboundSupportSms({
+      fromPhone: '+15551234567',
+      body: reply,
+      receivedAt: new Date('2026-06-29T12:05:00Z'),
+    })
+
+    expect(mockStartAutomation).not.toHaveBeenCalled()
+    expect(mockTransition).toHaveBeenLastCalledWith('escalate', 'ticket_123', {
+      at: expect.any(Date),
+      category: SMS_SUPPORT_CATEGORY.CHANGE_DOB,
+      adminSummary: summary,
+      collectedData,
+      from: SMS_SUPPORT_STATUS.WAITING_CUSTOMER,
+    })
+    expect(mockSendSupportSms).toHaveBeenCalledTimes(1)
+    expect(mockSendSupportSms).toHaveBeenCalledWith(
+      expect.objectContaining({ ticketId: 'ticket_123', body })
     )
   })
 

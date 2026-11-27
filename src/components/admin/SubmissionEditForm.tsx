@@ -52,6 +52,11 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
     (submission.guardianDateOfBirth as string | null) || ''
   )
   const [recipient, setRecipient] = useState(submission.recipient)
+  const [isAddingGuardian, setIsAddingGuardian] = useState(false)
+  const showGuardianInformation =
+    isAddingGuardian ||
+    Boolean(guardianFirstName || guardianLastName) ||
+    recipient === 'someone_else'
   const [email, setEmail] = useState(submission.email)
   const [phone, setPhone] = useState(submission.phone)
   const [state, setState] = useState(submission.state)
@@ -134,6 +139,7 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
         patientFirstName,
         patientLastName,
         patientDateOfBirth: savedDateOfBirth,
+        ...(isAddingGuardian && { recipient: 'someone_else' as const }),
         guardianFirstName: guardianFirstName || null,
         guardianLastName: guardianLastName || null,
         guardianDateOfBirth: savedGuardianDateOfBirth,
@@ -253,7 +259,18 @@ export function SubmissionEditForm({ submission }: SubmissionEditFormProps) {
               onRemoved={handleGuardianRemoved}
             />
 
-            {(guardianFirstName || guardianLastName || recipient === 'someone_else') && (
+            {!showGuardianInformation && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAddingGuardian(true)}
+                disabled={isLoading}
+              >
+                Add guardian
+              </Button>
+            )}
+
+            {showGuardianInformation && (
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold text-gray-900">Guardian Information</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -68,6 +68,7 @@ export const updateSubmission = adminAction(
       patientFirstName?: string
       patientLastName?: string
       patientDateOfBirth?: Date
+      recipient?: 'someone_else'
       guardianFirstName?: string | null
       guardianLastName?: string | null
       guardianDateOfBirth?: Date | null
@@ -94,6 +95,24 @@ export const updateSubmission = adminAction(
       ]
       if (dates.some((date) => date && dateOnlyFromUtcDate(date) < DATE_LIMITS.EARLIEST_DAY)) {
         return { success: false, error: `Every date must be ${DATE_LIMITS.EARLIEST_DAY} or later.` }
+      }
+      if (data.recipient !== undefined && data.recipient !== 'someone_else') {
+        return { success: false, error: 'Guardian mode can only be turned on here' }
+      }
+      if (data.recipient === 'someone_else') {
+        if (
+          !data.guardianFirstName?.trim() ||
+          !data.guardianLastName?.trim() ||
+          !data.guardianDateOfBirth
+        ) {
+          return {
+            success: false,
+            error: 'Enter the guardian first name, last name and date of birth.',
+          }
+        }
+        if (ageOn(dateOnlyFromUtcDate(data.guardianDateOfBirth), todayUTC()) < 18) {
+          return { success: false, error: 'Guardian must be 18 years or older' }
+        }
       }
       if ((data.firstDayOff === undefined) !== (data.lastDayOff === undefined)) {
         return { success: false, error: 'Send the first and last day off together' }

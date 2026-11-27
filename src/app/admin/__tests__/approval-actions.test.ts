@@ -7,6 +7,7 @@ const {
   mockFindSubmissionGuardianDetails,
   mockRecordApprovalEmailSent,
   mockRemoveSubmissionGuardian,
+  mockUpdateSubmissionDetails,
   mockSendApprovalEmail,
   mockSendTransactionalSmsForSubmission,
   mockGenerateDoctorNotePDF,
@@ -27,6 +28,7 @@ const {
   mockFindSubmissionGuardianDetails: vi.fn(),
   mockRecordApprovalEmailSent: vi.fn(),
   mockRemoveSubmissionGuardian: vi.fn(),
+  mockUpdateSubmissionDetails: vi.fn(),
   mockSendApprovalEmail: vi.fn(),
   mockSendTransactionalSmsForSubmission: vi.fn(),
   mockGenerateDoctorNotePDF: vi.fn(),
@@ -57,6 +59,7 @@ vi.mock('@/db/submissions', () => ({
   findSubmissionGuardianDetails: mockFindSubmissionGuardianDetails,
   recordApprovalEmailSent: mockRecordApprovalEmailSent,
   removeSubmissionGuardian: mockRemoveSubmissionGuardian,
+  updateSubmissionDetails: mockUpdateSubmissionDetails,
 }))
 
 vi.mock('@/lib/email', () => ({
@@ -117,7 +120,7 @@ vi.mock('stripe', () => ({
 }))
 
 import { approveSubmission, reApproveSubmission } from '@/app/admin/_actions/approve'
-import { removeGuardianFromAdultSubmission } from '@/app/admin/_actions/edits'
+import { removeGuardianFromAdultSubmission, updateSubmission } from '@/app/admin/_actions/edits'
 import { lifecycleMocks } from './lifecycle-mocks'
 
 const { permits, refuses, expectTransition } = lifecycleMocks(mockPermit, mockTransition)
@@ -634,6 +637,49 @@ describe('removeGuardianFromAdultSubmission', () => {
       error: 'Guardian information is required for patients under 18.',
     })
     expectNoSubmissionUpdates()
+  })
+})
+
+describe('updateSubmission adding a guardian', () => {
+  const guardian = {
+    recipient: 'someone_else' as const,
+    guardianFirstName: 'Jane',
+    guardianLastName: 'Doe',
+    guardianDateOfBirth: new Date('1970-01-01T00:00:00.000Z'),
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetSession.mockResolvedValue({
+      user: { id: 'doctor_123', email: 'doctor@example.test', emailVerified: true },
+    })
+  })
+
+  it('turns guardian mode on with the guardian details', async () => {
+    const result = await updateSubmission('sub_minor', guardian)
+
+    expect(result).toEqual({ success: true })
+    expect(mockUpdateSubmissionDetails).toHaveBeenCalledWith(
+      'sub_minor',
+      guardian,
+      expect.any(Date)
+    )
+  })
+
+  it.each([
+    [{ guardianFirstName: ' ' }, 'Enter the guardian first name, last name and date of birth.'],
+    [{ guardianLastName: null }, 'Enter the guardian first name, last name and date of birth.'],
+    [{ guardianDateOfBirth: null }, 'Enter the guardian first name, last name and date of birth.'],
+    [
+      { guardianDateOfBirth: new Date('2015-01-01T00:00:00.000Z') },
+      'Guardian must be 18 years or older',
+    ],
+    [{ recipient: 'myself' as 'someone_else' }, 'Guardian mode can only be turned on here'],
+  ])('refuses %o', async (override, error) => {
+    const result = await updateSubmission('sub_minor', { ...guardian, ...override })
+
+    expect(result).toEqual({ success: false, error })
+    expect(mockUpdateSubmissionDetails).not.toHaveBeenCalled()
   })
 })
 

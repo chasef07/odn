@@ -102,3 +102,38 @@ describe('SubmissionEditForm dates', () => {
     for (const input of inputs) expect(input.getAttribute('min')).toBe('1900-01-01')
   })
 })
+
+describe('SubmissionEditForm guardian', () => {
+  beforeEach(() => {
+    mockUpdateSubmission.mockReset()
+    mockUpdateSubmission.mockResolvedValue({ success: true })
+  })
+
+  it('adds a guardian to a note that had none', async () => {
+    render(<SubmissionEditForm submission={submission} />)
+    expect(screen.queryByText('Guardian Information')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add guardian' }))
+    fireEvent.change(document.getElementById('guardianFirstName')!, { target: { value: 'Mary' } })
+    fireEvent.change(document.getElementById('guardianLastName')!, { target: { value: 'Doe' } })
+    fireEvent.change(document.getElementById('guardianDateOfBirth')!, {
+      target: { value: '1965-04-02' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => expect(mockUpdateSubmission).toHaveBeenCalledTimes(1))
+    const data = mockUpdateSubmission.mock.calls[0][1]
+    expect(data.recipient).toBe('someone_else')
+    expect(data.guardianFirstName).toBe('Mary')
+    expect(data.guardianLastName).toBe('Doe')
+    expect(dateOnlyFromUtcDate(data.guardianDateOfBirth)).toBe('1965-04-02')
+  })
+
+  it('leaves guardian mode alone when no guardian was added', async () => {
+    render(<SubmissionEditForm submission={submission} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => expect(mockUpdateSubmission).toHaveBeenCalledTimes(1))
+    expect(mockUpdateSubmission.mock.calls[0][1]).not.toHaveProperty('recipient')
+  })
+})

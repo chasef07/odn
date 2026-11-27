@@ -30,6 +30,7 @@ export type SubmissionDetailsPatch = {
   patientFirstName?: string
   patientLastName?: string
   patientDateOfBirth?: Date
+  recipient?: string
   guardianFirstName?: string | null
   guardianLastName?: string | null
   guardianDateOfBirth?: Date | null
@@ -62,6 +63,7 @@ const detailColumns = keysOf<SubmissionDetailsPatch>({
   patientFirstName: true,
   patientLastName: true,
   patientDateOfBirth: true,
+  recipient: true,
   guardianFirstName: true,
   guardianLastName: true,
   guardianDateOfBirth: true,
